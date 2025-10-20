@@ -16,6 +16,7 @@ import {
 import { Alert, AlertDescription } from './ui/alert';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 import { generateCaseCode, ContentType, TransmissionVector } from '../utils/caseCodeGenerator';
+import { analyzeContent, TransmissionVector as APITransmissionVector, FullAnalysisResponse, Consensus } from '../utils/aiAnalysis';
 
 export function ContentUpload() {
   const [content, setContent] = useState('');
@@ -101,50 +102,161 @@ export function ContentUpload() {
     setUploadedFiles(prev => prev.filter((_, i) => i !== index));
   };
 
-  const simulateAIAnalysis = () => {
+  // Map UI transmission vector to API transmission vector
+  const mapTransmissionVector = (uiVector: TransmissionVector): APITransmissionVector => {
+    const mapping: Record<string, APITransmissionVector> = {
+      'WhatsApp': 'WhatsApp',
+      'Facebook': 'Facebook',
+      'Instagram': 'Otro', // Not directly supported by API
+      'Twitter/X': 'Twitter',
+      'TikTok': 'Otro', // Not directly supported by API
+      'Telegram': 'Telegram',
+      'YouTube': 'Otro', // Not directly supported by API
+      'Email': 'Email',
+      'SMS': 'Otro', // Not directly supported by API
+      'Web': 'Otro',
+      'Otro': 'Otro'
+    };
+    return mapping[uiVector] || 'Otro';
+  };
+
+  // Transform API response to UI format
+  const transformAPIResponse = (apiResponse: FullAnalysisResponse) => {
+    // Get labels from consensus if available, otherwise from classification_labels
+    let labels: Record<string, string> = {};
+    let consensusState: Consensus['state'] | null = null;
+
+    if (apiResponse.consensus) {
+      // Use consensus final_labels
+      consensusState = apiResponse.consensus.state;
+      const aiLabels = apiResponse.metadata?.classification_labels ||
+                       apiResponse.case_study?.metadata?.ai_labels || {};
+
+      // Build labels object from consensus final_labels
+      apiResponse.consensus.final_labels.forEach(label => {
+        labels[label] = aiLabels[label] || 'Verificado por consenso';
+      });
+    } else {
+      // Use classification_labels directly
+      labels = apiResponse.metadata?.classification_labels ||
+               apiResponse.case_study?.metadata?.ai_labels || {};
+    }
+
+    // Transform labels object to array format for UI
+    const markersDetected = Object.entries(labels).map(([type, explanation]) => ({
+      type,
+      explanation,
+      // No confidence scores from API - removed fake values
+    }));
+
+    return {
+      title: apiResponse.title,
+      summary: apiResponse.summary,
+      theme: apiResponse.metadata?.theme,
+      region: apiResponse.metadata?.region,
+      caseNumber: apiResponse.case_study?.case_number,
+      consensusState,
+      consensus: apiResponse.consensus,
+      markersDetected,
+      vectores: apiResponse.metadata?.vectores_de_transmision || [],
+      relatedDocuments: apiResponse.case_study?.metadata?.related_documents || [],
+      webSearchResults: apiResponse.case_study?.metadata?.web_search_results || [],
+      fullResult: apiResponse
+    };
+  };
+
+  const performRealAIAnalysis = async () => {
     setIsAnalyzing(true);
     setAnalysisProgress(0);
     setAnalysisComplete(false);
 
-    const interval = setInterval(() => {
-      setAnalysisProgress(prev => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setIsAnalyzing(false);
-          setAnalysisComplete(true);
-          
-          // Obtener el label del medio de transmisión seleccionado
-          const selectedMedium = transmissionMediums.find(m => m.value === transmissionMedium);
-          const primaryVector = selectedMedium?.label || 'Redes sociales';
-          
-          // Generar vectores adicionales relacionados de forma aleatoria
-          const additionalVectors = transmissionMediums
-            .filter(m => m.value !== transmissionMedium)
-            .sort(() => Math.random() - 0.5)
-            .slice(0, Math.floor(Math.random() * 3) + 1) // 1-3 vectores adicionales
-            .map(m => m.label);
-          
-          const allVectors = [primaryVector, ...additionalVectors];
-          
-          // Simulate AI analysis result
-          setAiAnalysis({
-            veracity: 'Infección Desinformativa Activa',
-            confidence: 0.87,
-            markersDetected: [
-              { type: 'Falso', confidence: 0.94 },
-              { type: 'Sensacionalista', confidence: 0.78 },
-              { type: 'Manipulado', confidence: 0.85 }
-            ],
-            summary: 'El contenido presenta patrones epidemiológicos consistentes con desinformación médica. Alto riesgo de propagación exponencial debido a apelación emocional y falsa autoridad científica.',
-            sources: allVectors,
-            recommendation: 'Aislamiento inmediato y verificación por especialistas'
-          });
-          
-          return 100;
+    try {
+      // Determine if it's URL or text
+      const urlRegex = /(https?:\/\/[^\s]+)/g;
+      const urls = content.match(urlRegex);
+      const isUrl = urls && urls.length > 0;
+
+      // Prepare content for analysis
+      const analysisContent = isUrl
+        ? { url: urls[0] } // Send first URL found
+        : { text: content };
+
+      // Map transmission vector to API format
+      const apiVector = mapTransmissionVector(transmissionMedium);
+
+      // Call real AI analysis with progress updates
+      const result = await analyzeContent(
+        analysisContent,
+        apiVector,
+        (progress, status) => {
+          setAnalysisProgress(progress);
         }
-        return prev + Math.random() * 15;
+      );
+
+      // Analysis complete - set results
+      setIsAnalyzing(false);
+      setAnalysisComplete(true);
+      setAnalysisProgress(100);
+
+      // Transform API response to UI format
+      const transformedData = transformAPIResponse(result);
+
+      // Update all UI state with transformed data
+      setNewsTitle(transformedData.title);
+      setNewsContent(transformedData.summary);
+
+      // Set theme if available
+      if (transformedData.theme) {
+        setContentTheme(transformedData.theme);
+      }
+
+      // Set case number from API (not generated)
+      if (transformedData.caseNumber) {
+        setCaseNumber(`CASO-${transformedData.caseNumber}`);
+      }
+
+      // Determine veracity message based on consensus
+      let veracityMessage = 'Análisis Completado';
+      if (transformedData.consensusState === 'human_consensus') {
+        veracityMessage = 'Verificado por Humanos';
+      } else if (transformedData.consensusState === 'conflicted') {
+        veracityMessage = 'Opiniones Divididas';
+      } else if (transformedData.consensusState === 'ai_only') {
+        veracityMessage = 'Análisis AI';
+      }
+
+      // Store full analysis result with proper markers
+      setAiAnalysis({
+        veracity: veracityMessage,
+        consensusState: transformedData.consensusState,
+        consensus: transformedData.consensus,
+        markersDetected: transformedData.markersDetected,
+        summary: transformedData.summary,
+        theme: transformedData.theme,
+        region: transformedData.region,
+        sources: transformedData.vectores.length > 0 ? transformedData.vectores : [transmissionMedium],
+        recommendation: transformedData.consensusState === 'human_consensus'
+          ? 'Análisis verificado por la comunidad'
+          : 'Revisa los resultados del análisis',
+        fullResult: transformedData.fullResult
       });
-    }, 200);
+
+    } catch (error: any) {
+      console.error('Error en análisis AI:', error);
+      setIsAnalyzing(false);
+      setAnalysisProgress(0);
+
+      // Show error to user
+      setAiAnalysis({
+        veracity: 'Error en Análisis',
+        confidence: 0,
+        markersDetected: [],
+        summary: error.message || 'Ocurrió un error durante el análisis. Por favor, intenta de nuevo.',
+        sources: [],
+        recommendation: 'Verifica tu conexión e intenta nuevamente'
+      });
+      setAnalysisComplete(true);
+    }
   };
 
   const handleSubmit = () => {
@@ -215,8 +327,8 @@ export function ContentUpload() {
       setNewsScreenshot('');
       setNewsSource(null);
     }
-    
-    simulateAIAnalysis();
+
+    performRealAIAnalysis();
   };
 
   const resetForm = () => {
@@ -802,9 +914,27 @@ export function ContentUpload() {
                   <span className="text-[24px] font-bold">Diagnóstico Desinfodémico de Botilito</span>
                 </CardTitle>
                 <div className="flex flex-col items-end space-y-1">
-                  <Badge variant="outline" className="text-sm bg-[#ffe97a]">
-                    Caso: {caseNumber}
-                  </Badge>
+                  <div className="flex flex-wrap gap-2 justify-end">
+                    <Badge variant="outline" className="text-sm bg-[#ffe97a]">
+                      Caso: {caseNumber}
+                    </Badge>
+                    {aiAnalysis.consensusState && (
+                      <Badge
+                        variant="outline"
+                        className={`text-sm ${
+                          aiAnalysis.consensusState === 'human_consensus'
+                            ? 'bg-emerald-100 border-emerald-500 text-emerald-700'
+                            : aiAnalysis.consensusState === 'conflicted'
+                            ? 'bg-orange-100 border-orange-500 text-orange-700'
+                            : 'bg-blue-100 border-blue-500 text-blue-700'
+                        }`}
+                      >
+                        {aiAnalysis.consensusState === 'human_consensus' && '✓ Verificado por Humanos'}
+                        {aiAnalysis.consensusState === 'conflicted' && '⚠ Opiniones Divididas'}
+                        {aiAnalysis.consensusState === 'ai_only' && '🤖 Análisis AI'}
+                      </Badge>
+                    )}
+                  </div>
                   {reportDateTime && (
                     <p className="text-xs text-muted-foreground">
                       {reportDateTime}
@@ -836,8 +966,9 @@ export function ContentUpload() {
                         
                         {/* Overlay con etiquetas detectadas */}
                         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent flex items-end justify-center p-4">
-                          <div className="flex flex-wrap gap-2 justify-center">
-                            {aiAnalysis.markersDetected?.slice(0, 3).map((marker: any, index: number) => {
+                          <TooltipProvider>
+                            <div className="flex flex-wrap gap-2 justify-center">
+                              {aiAnalysis.markersDetected?.slice(0, 3).map((marker: any, index: number) => {
                               const getMarkerColor = (type: string) => {
                                 const colorMap: { [key: string]: string } = {
                                   'Verdadero': 'bg-emerald-500 hover:bg-emerald-600',
@@ -889,23 +1020,27 @@ export function ContentUpload() {
                               };
 
                               return (
-                                <Badge 
-                                  key={index}
-                                  className={`${getMarkerColor(marker.type)} text-white shadow-lg ${
-                                    index === 0 
-                                      ? 'px-4 py-2 text-base scale-105' 
-                                      : 'px-3 py-1.5 text-sm'
-                                  }`}
-                                >
-                                  {getMarkerIcon(marker.type)}
-                                  <span className="ml-1.5">{marker.type}</span>
-                                  <span className={`ml-1.5 opacity-90 ${index === 0 ? 'text-sm' : 'text-xs'}`}>
-                                    {(marker.confidence * 100).toFixed(0)}%
-                                  </span>
-                                </Badge>
+                                <Tooltip key={index}>
+                                  <TooltipTrigger asChild>
+                                    <Badge
+                                      className={`${getMarkerColor(marker.type)} text-white shadow-lg cursor-help ${
+                                        index === 0
+                                          ? 'px-4 py-2 text-base scale-105'
+                                          : 'px-3 py-1.5 text-sm'
+                                      }`}
+                                    >
+                                      {getMarkerIcon(marker.type)}
+                                      <span className="ml-1.5">{marker.type}</span>
+                                    </Badge>
+                                  </TooltipTrigger>
+                                  <TooltipContent className="max-w-xs">
+                                    <p className="text-sm">{marker.explanation}</p>
+                                  </TooltipContent>
+                                </Tooltip>
                               );
                             })}
-                          </div>
+                            </div>
+                          </TooltipProvider>
                         </div>
                       </div>
                     </div>
@@ -935,6 +1070,17 @@ export function ContentUpload() {
                           <Label className="text-sm">Tema:</Label>
                           <Badge variant="outline" className="text-xs border-primary/40 bg-primary/10">
                             {contentTheme}
+                          </Badge>
+                        </div>
+                      )}
+
+                      {/* Región del contenido */}
+                      {aiAnalysis.region && (
+                        <div className="flex items-center space-x-2">
+                          <Tag className="h-4 w-4 text-primary" />
+                          <Label className="text-sm">Región:</Label>
+                          <Badge variant="outline" className="text-xs border-primary/40 bg-primary/10">
+                            {aiAnalysis.region}
                           </Badge>
                         </div>
                       )}
