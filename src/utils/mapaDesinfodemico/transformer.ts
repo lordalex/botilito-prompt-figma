@@ -12,9 +12,7 @@ export function transformMapaData(apiData: MapaResult) {
       noticiasReportadas: apiData.magnitude.noticias_reportadas,
       noticiasReportadasSemana: apiData.magnitude.incremento_semanal,
       noticiasReportadasMes: apiData.magnitude.incremento_semanal * 4, // Estimate
-      detectadas
-
-PorIA: apiData.magnitude.detectadas_por_ia,
+      detectadasPorIA: apiData.magnitude.detectadas_por_ia,
       deteccionesPorHumanos: apiData.magnitude.validadas_por_humanos,
       tiempoDeteccionIA: parseTimeString(apiData.magnitude.tiempo_promedio_deteccion),
       tiempoDeteccionHumanos: parseTimeString(apiData.magnitude.tiempo_promedio_validacion),
