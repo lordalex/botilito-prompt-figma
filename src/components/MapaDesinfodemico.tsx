@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import botilitoImage from 'figma:asset/e27a276e6ff0e187a67cf54678c265c1c38adbf7.png';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
@@ -6,7 +6,9 @@ import { Badge } from './ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Progress } from './ui/progress';
 import { Separator } from './ui/separator';
-import { Alert, AlertDescription } from './ui/alert';
+import { Alert, AlertDescription, AlertTitle } from './ui/alert';
+import { generateMapa } from '../utils/mapaDesinfodemico/api';
+import { transformMapaData } from '../utils/mapaDesinfodemico/transformer';
 import { 
   Activity, TrendingUp, TrendingDown, AlertTriangle, Shield,
   MapPin, Users, Bot, Gauge, Zap, Clock, Target, Flame,
@@ -82,6 +84,7 @@ const regionesColombia = [
 const COLORS = ['#00B4D8', '#0077B6', '#7209B7', '#F72585', '#06FFA5', '#FFD60A'];
 
 export function MapaDesinfodemico() {
+  // State for filters and UI
   const [regionSeleccionada, setRegionSeleccionada] = useState('andina');
   const [periodoTiempo, setPeriodoTiempo] = useState('semanal');
   const [dimensionActiva, setDimensionActiva] = useState('magnitud');
@@ -91,12 +94,45 @@ export function MapaDesinfodemico() {
   const [filtroEstado, setFiltroEstado] = useState('todos');
   const [filtroTema, setFiltroTema] = useState('todos');
 
+  // State for API data
+  const [mapaData, setMapaData] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [jobStatus, setJobStatus] = useState<string>('');
+
   const region = regionesColombia.find(r => r.id === regionSeleccionada);
 
+  // Load mapa data on mount
+  useEffect(() => {
+    loadMapaData();
+  }, []);
+
+  async function loadMapaData() {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const result = await generateMapa((status) => {
+        setJobStatus(status);
+      });
+
+      if (result.result) {
+        const transformed = transformMapaData(result.result);
+        setMapaData(transformed);
+      }
+    } catch (err: any) {
+      console.error('Error loading mapa:', err);
+      setError(err.message || 'Error al cargar el mapa desinfodémico');
+    } finally {
+      setLoading(false);
+    }
+  }
+
   // DATOS DE INDICADORES POR DIMENSIÓN
+  // Use API data if available, otherwise fall back to mock data
 
   // 1. DIMENSIÓN: MAGNITUD
-  const datosMagnitud = {
+  const datosMagnitud = mapaData?.datosMagnitud || {
     noticiasReportadas: 1567,
     noticiasReportadasSemana: 234,
     noticiasReportadasMes: 892,
@@ -114,7 +150,7 @@ export function MapaDesinfodemico() {
   };
 
   // 2. DIMENSIÓN: TEMPORALIDAD
-  const datosTemporalidad = {
+  const datosTemporalidad = mapaData?.datosTemporalidad || {
     velocidadDeteccion: 3.8,
     tiempoViralizacionPromedio: 6.2,
     evolucionSemanal: [
@@ -130,7 +166,7 @@ export function MapaDesinfodemico() {
   };
 
   // 3. DIMENSIÓN: ALCANCE O VIRULENCIA
-  const datosAlcance = {
+  const datosAlcance = mapaData?.datosAlcance || {
     indiceViralidad: 2.7,
     rangoViralizacion: { min: 100, max: 125000, promedio: 8450 },
     nivelEngagement: 78,
@@ -144,17 +180,20 @@ export function MapaDesinfodemico() {
       { rango: '1K-10K', casos: 589, porcentaje: 38 },
       { rango: '10K-50K', casos: 378, porcentaje: 24 },
       { rango: '50K+', casos: 144, porcentaje: 9 }
-    ]
+    ],
+    casosCriticos: 0,
+    vectoresPrincipales: []
   };
 
   // 4. DIMENSIÓN: GEOGRÁFICOS
-  const datosGeograficos = {
+  const datosGeograficos = mapaData?.datosGeograficos || {
     casosPorRegion: regionesColombia.map(r => ({
       region: r.nombre,
       casos: Math.floor(Math.random() * 1000) + 100,
       densidad: (Math.random() * 50 + 10).toFixed(1),
       color: r.color
     })),
+    regionMasAfectada: 'Andina',
     fuentesInternacionalesVsNacionales: {
       internacionales: 423,
       nacionales: 1144,
@@ -170,7 +209,7 @@ export function MapaDesinfodemico() {
   };
 
   // 5. DIMENSIÓN: DESCRIPTIVOS
-  const datosDescriptivos = {
+  const datosDescriptivos = mapaData?.datosDescriptivos || {
     porSector: [
       { sector: 'Política', casos: 567, porcentaje: 36 },
       { sector: 'Salud', casos: 423, porcentaje: 27 },
@@ -200,12 +239,13 @@ export function MapaDesinfodemico() {
   };
 
   // 6. DIMENSIÓN: MITIGACIÓN
-  const datosMitigacion = {
+  const datosMitigacion = mapaData?.datosMitigacion || {
     consensoValidacionHumana: 84,
     consensoHumanoVsIA: {
       acuerdo: 81,
       desacuerdo: 19
     },
+    casosEnDesacuerdo: 190,
     distribucionDesacuerdo: [
       { categoria: 'IA dice Falso, Humanos Verdadero', casos: 67, porcentaje: 35 },
       { categoria: 'IA dice Verdadero, Humanos Falso', casos: 45, porcentaje: 24 },
@@ -218,6 +258,7 @@ export function MapaDesinfodemico() {
       { titulo: 'Subsidio del gobierno es un fraude', reportes: 267 },
       { titulo: 'Celebridad apoya candidato político', reportes: 234 }
     ],
+    recomendaciones: [],
     // Nuevos indicadores basados en otras interfaces
     casosPorPrioridad: [
       { prioridad: 'Alta', casos: 234, porcentaje: 15 },
@@ -275,6 +316,56 @@ export function MapaDesinfodemico() {
     if (porcentaje >= 40) return 'text-orange-600 bg-orange-50 border-orange-200';
     return 'text-green-600 bg-green-50 border-green-200';
   };
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-8">
+        <div className="flex justify-center">
+          <img
+            src={botilitoImage}
+            alt="Botilito generando mapa"
+            className="w-48 h-48 object-contain animate-bounce"
+          />
+        </div>
+        <Card className="w-full max-w-3xl shadow-lg border-2">
+          <CardContent className="p-8 space-y-6">
+            <h2 className="text-2xl font-bold flex items-center justify-center gap-2">
+              <Bot className="h-6 w-6 text-primary" />
+              Generando mapa desinfodémico...
+            </h2>
+            <div className="space-y-2">
+              <Progress value={jobStatus === 'completed' ? 100 : jobStatus === 'processing' ? 60 : 30} className="w-full h-3" />
+              <p className="text-sm text-center text-muted-foreground">
+                Estado: {jobStatus === 'pending' ? 'Iniciando análisis...' :
+                        jobStatus === 'processing' ? 'Procesando datos...' :
+                        'Finalizando...'}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-6">
+        <Alert variant="destructive" className="max-w-2xl">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Error al cargar el mapa</AlertTitle>
+          <AlertDescription className="mt-2">
+            {error}
+          </AlertDescription>
+        </Alert>
+        <Button onClick={loadMapaData} variant="outline" className="gap-2">
+          <RefreshCw className="h-4 w-4" />
+          Reintentar
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
