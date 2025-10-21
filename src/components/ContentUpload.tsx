@@ -385,6 +385,7 @@ export function ContentUpload() {
     setContent('');
     setUploadedFiles([]);
     setTransmissionMedium('');
+    setIsAnalyzing(false);
     setAnalysisComplete(false);
     setAiAnalysis(null);
     setAnalysisProgress(0);
@@ -665,7 +666,7 @@ export function ContentUpload() {
   return (
     <div className="max-w-5xl mx-auto space-y-6 pt-[20px] pr-[0px] pb-[0px] pl-[0px]">
       {/* Franja superior de Botilito cuando el análisis está completo */}
-      {analysisComplete && (
+      {analysisComplete && !isAnalyzing && (
         <div className="bg-[#ffe97a] border-2 border-[#ffda00] rounded-lg p-4 shadow-lg">
           <div className="flex items-center space-x-4">
             <img 
@@ -684,8 +685,9 @@ export function ContentUpload() {
           </div>
         </div>
       )}
-      
-      {!analysisComplete && (
+
+      {/* Upload Form - Only show when not analyzing and not complete */}
+      {!analysisComplete && !isAnalyzing && (
         <>
           {/* Main Upload Card */}
           <Card>
@@ -928,35 +930,52 @@ export function ContentUpload() {
         </>
       )}
 
-      {/* Analysis Progress */}
+      {/* Loader Page - Clean centered view during analysis */}
       {isAnalyzing && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <Bot className="h-5 w-5 text-primary animate-pulse" />
-              <span>Botilito está diagnosticando...</span>
-            </CardTitle>
-            <CardDescription>
-              Aplicando análisis epidemiológico para detectar patrones de desinformación y evaluar su potencial viral. Esto puede tomar hasta 2-3 minutos.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <Progress value={analysisProgress} className="w-full" />
-              <p className="text-sm text-muted-foreground text-center">
-                {analysisProgress < 20 && "Secuenciando contenido desinfodémico..."}
-                {analysisProgress >= 20 && analysisProgress < 50 && "Identificando vectores de transmisión..."}
-                {analysisProgress >= 50 && analysisProgress < 80 && "Calculando índice de infectividad..."}
-                {analysisProgress >= 80 && analysisProgress < 95 && "Generando diagnóstico epidemiológico..."}
-                {analysisProgress >= 95 && "Finalizando análisis..."}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-8">
+          {/* Botilito Character */}
+          <div className="flex justify-center">
+            <img
+              src={botilitoImage}
+              alt="Botilito analizando"
+              className="w-48 h-48 object-contain animate-bounce"
+            />
+          </div>
+
+          {/* Loader Card */}
+          <Card className="w-full max-w-3xl shadow-lg border-2">
+            <CardContent className="p-8 space-y-6">
+              {/* Title */}
+              <div className="text-center space-y-3">
+                <h2 className="text-2xl font-bold flex items-center justify-center gap-2">
+                  <Bot className="h-6 w-6 text-primary" />
+                  Botilito está diagnosticando...
+                </h2>
+                <p className="text-muted-foreground text-base">
+                  Aplicando análisis epidemiológico para detectar patrones de desinformación y evaluar su potencial viral
+                </p>
+              </div>
+
+              {/* Progress Bar */}
+              <div className="space-y-4">
+                <Progress value={analysisProgress} className="w-full h-3" />
+
+                {/* Status Text */}
+                <p className="text-sm text-muted-foreground text-center font-medium">
+                  {analysisProgress < 20 && "Secuenciando contenido desinfodémico..."}
+                  {analysisProgress >= 20 && analysisProgress < 50 && "Identificando vectores de transmisión..."}
+                  {analysisProgress >= 50 && analysisProgress < 80 && "Calculando índice de infectividad..."}
+                  {analysisProgress >= 80 && analysisProgress < 95 && "Generando diagnóstico epidemiológico..."}
+                  {analysisProgress >= 95 && "Finalizando análisis..."}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       )}
 
-      {/* Analysis Results */}
-      {analysisComplete && aiAnalysis && (
+      {/* Analysis Results - Only show when complete and not analyzing */}
+      {analysisComplete && !isAnalyzing && aiAnalysis && (
         <div className="space-y-6">
           <Card>
             <CardHeader>
