@@ -36,6 +36,7 @@ export function ContentUpload() {
   const [reportDateTime, setReportDateTime] = useState('');
   const [newsSource, setNewsSource] = useState<{name: string, url: string} | null>(null);
   const [reportedBy, setReportedBy] = useState('');
+  const [textareaRows, setTextareaRows] = useState(1);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -53,6 +54,53 @@ export function ContentUpload() {
     { value: 'Web' as TransmissionVector, label: 'Web/Sitio', icon: Link2 },
     { value: 'Otro' as TransmissionVector, label: 'Otra plataforma digital', icon: Share2 },
   ];
+
+  // Auto-expand textarea based on content length
+  const calculateTextareaRows = (text: string): number => {
+    if (!text || text.length === 0) return 1;
+
+    // Count newlines in the text
+    const newlineCount = (text.match(/\n/g) || []).length;
+
+    // Check if it's a URL (short and compact)
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const isOnlyUrl = urlRegex.test(text.trim()) && text.trim().length < 200 && newlineCount === 0;
+
+    if (isOnlyUrl) return 1;
+
+    // Base calculation on content length
+    let rows = 1;
+    if (text.length > 50 && text.length <= 150) rows = 2;
+    else if (text.length > 150 && text.length <= 300) rows = 3;
+    else if (text.length > 300 && text.length <= 500) rows = 4;
+    else if (text.length > 500 && text.length <= 800) rows = 5;
+    else if (text.length > 800) rows = 6;
+
+    // Add rows for newlines (each newline adds a row)
+    rows = Math.max(rows, Math.min(newlineCount + 1, 6));
+
+    // Cap at 6 rows maximum
+    return Math.min(rows, 6);
+  };
+
+  // Handle content change with auto-detection and auto-expand
+  const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newContent = e.target.value;
+    setContent(newContent);
+
+    // Auto-expand textarea based on content
+    const newRows = calculateTextareaRows(newContent);
+    setTextareaRows(newRows);
+
+    // Auto-detect content type (URL vs text)
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const hasUrl = urlRegex.test(newContent);
+    if (hasUrl) {
+      setContentType('url');
+    } else {
+      setContentType('texto');
+    }
+  };
 
   const handleFileUpload = (files: FileList | null) => {
     if (!files) return;
@@ -346,6 +394,7 @@ export function ContentUpload() {
     setReportDateTime('');
     setNewsSource(null);
     setReportedBy('');
+    setTextareaRows(1);
   };
 
   // Función helper para dibujar rectángulos redondeados
@@ -747,7 +796,7 @@ export function ContentUpload() {
 
                     {/* Sección Inferior: Barra de Input */}
                     <div className="space-y-2">
-                      <div className="relative flex items-center bg-white border-2 border-secondary/60 rounded-[8px] shadow-sm h-11">
+                      <div className="relative flex items-start bg-white border-2 border-secondary/60 rounded-[8px] shadow-sm min-h-11">
                         {/* Botón + integrado a la izquierda */}
                         <button
                           type="button"
@@ -762,15 +811,15 @@ export function ContentUpload() {
                         <Textarea
                           placeholder="Pega aquí una URL, texto sospechoso, o escribe lo que quieras analizar..."
                           value={content}
-                          onChange={(e) => setContent(e.target.value)}
+                          onChange={handleContentChange}
                           onKeyDown={(e) => {
                             if (e.key === 'Enter' && !e.shiftKey) {
                               e.preventDefault();
                               handleSubmit(e as any);
                             }
                           }}
-                          rows={1}
-                          className="flex-1 resize-none border-0 bg-transparent px-3 h-11 focus:outline-none focus:ring-0 focus-visible:ring-0 focus-visible:border-0 placeholder:text-muted-foreground text-sm leading-[2.75rem] flex items-center transition-none"
+                          rows={textareaRows}
+                          className="flex-1 resize-none border-0 bg-transparent px-3 min-h-11 focus:outline-none focus:ring-0 focus-visible:ring-0 focus-visible:border-0 placeholder:text-muted-foreground text-sm leading-relaxed transition-all duration-200"
                         />
                       </div>
                       {content.length > 0 && (

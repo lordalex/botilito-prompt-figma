@@ -107,6 +107,41 @@ botilito/
 
 ---
 
+## 🎨 UI/UX Improvements
+
+### Smart Textarea with Auto-Expand (COMPLETED)
+
+**Implementation Date:** 2025-01-20
+**Branch:** `textfield` → merged to `main`
+**Component:** `src/components/ContentUpload.tsx`
+
+#### Features:
+- **Auto-detection**: Detects URL vs text content in real-time as user types/pastes
+- **Smart expansion**: Dynamically adjusts from 1-6 rows based on content length
+- **URL handling**: URLs stay compact at 1 row (under 200 chars)
+- **Text expansion**:
+  - Short text (50-150 chars): 2 rows
+  - Medium text (150-300 chars): 3 rows
+  - Long text (300-500 chars): 4 rows
+  - Very long (500-800 chars): 5 rows
+  - Extra long (800+ chars): 6 rows (max)
+- **Newline support**: Each newline adds a row (capped at 6)
+- **Smooth transitions**: 200ms animation between row changes
+- **Prevents overflow**: No more text going outside the textarea
+
+#### Key Changes:
+- Added `textareaRows` state (line 39)
+- Created `calculateTextareaRows()` function (lines 58-84)
+- Created `handleContentChange()` handler with auto-detection (lines 86-103)
+- Updated Textarea component to use dynamic rows (line 820)
+- Fixed parent container to allow vertical growth (line 799)
+- Reset functionality restores to 1 row (line 397)
+
+#### Location:
+`src/components/ContentUpload.tsx:762-822`
+
+---
+
 ## 🔑 Important Configuration
 
 ### Environment Variables (.env)
@@ -289,6 +324,7 @@ export function Component({ props }: ComponentProps) {
 - [x] Login/Register forms with validation
 - [x] Session management and persistence
 - [x] Main app navigation and routing
+- [x] Smart textarea with auto-expand (ContentUpload.tsx)
 
 ### 🔜 Next Priorities:
 
@@ -418,15 +454,23 @@ git log --oneline -10
 
 ---
 
-**Last Updated:** 2025-10-19
-**Current Focus:** Supabase Authentication Implementation (Complete - Testing Phase)
-**Active Branch:** `login`
+**Last Updated:** 2025-01-20
+**Current Focus:** UI/UX Improvements (Smart Textarea - Complete)
+**Active Branch:** `textfield` (ready to merge)
 
 ---
 
 ## 🧠 Memory Notes
 
-### Recent Changes (2025-10-19):
+### Recent Changes (2025-01-20):
+1. Created `textfield` branch for textarea improvements
+2. Implemented smart auto-expand textarea in ContentUpload.tsx
+3. Added real-time URL detection on paste/typing
+4. Dynamic row expansion (1-6 rows) based on content length
+5. Smooth 200ms transitions between row sizes
+6. Fixed textarea overflow issues
+
+### Previous Session (2025-10-19):
 1. Created new git repository and `login` branch
 2. Fixed `.env` file with proper Vite variable naming
 3. Implemented complete Supabase authentication system
@@ -435,7 +479,9 @@ git log --oneline -10
 6. Dev server running successfully on port 3001
 
 ### Important Context for Next Session:
+- Textarea auto-expand ready for manual testing
+- Ready to merge `textfield` branch to `main`
+- More UI improvements planned for content upload flow
 - Authentication is fully implemented but needs user testing
 - Supabase dashboard email settings may need configuration
-- UserProfile component could be enhanced to display user metadata
-- Content upload/review features are next in priority after auth testing
+- Content upload/review features in active development
