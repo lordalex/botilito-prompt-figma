@@ -104,7 +104,12 @@ export function MapaDesinfodemico() {
 
   // Load mapa data on mount
   useEffect(() => {
-    loadMapaData();
+    // TODO: Re-enable once backend is stable
+    // loadMapaData().catch((err) => {
+    //   console.error('Uncaught error in loadMapaData:', err);
+    //   setError(err.message || 'Error inesperado al cargar el mapa');
+    //   setLoading(false);
+    // });
   }, []);
 
   async function loadMapaData() {
