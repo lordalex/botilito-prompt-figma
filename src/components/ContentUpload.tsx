@@ -209,6 +209,7 @@ export function ContentUpload() {
       vectores: apiResponse.metadata?.vectores_de_transmision || [],
       relatedDocuments: apiResponse.case_study?.metadata?.related_documents || [],
       webSearchResults: apiResponse.case_study?.metadata?.web_search_results || [],
+      finalVerdict: apiResponse.metadata?.comprehensive_judgement?.final_verdict || 'Análisis en proceso',
       fullResult: apiResponse
     };
   };
@@ -286,6 +287,7 @@ export function ContentUpload() {
         recommendation: transformedData.consensusState === 'human_consensus'
           ? 'Análisis verificado por la comunidad'
           : 'Revisa los resultados del análisis',
+        finalVerdict: transformedData.finalVerdict,
         fullResult: transformedData.fullResult
       });
 
@@ -935,17 +937,18 @@ export function ContentUpload() {
               <span>Botilito está diagnosticando...</span>
             </CardTitle>
             <CardDescription>
-              Aplicando análisis epidemiológico para detectar patrones de desinformación y evaluar su potencial viral
+              Aplicando análisis epidemiológico para detectar patrones de desinformación y evaluar su potencial viral. Esto puede tomar hasta 2-3 minutos.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
               <Progress value={analysisProgress} className="w-full" />
               <p className="text-sm text-muted-foreground text-center">
-                {analysisProgress < 30 && "Secuenciando contenido desinfodémico..."}
-                {analysisProgress >= 30 && analysisProgress < 60 && "Identificando vectores de transmisión..."}
-                {analysisProgress >= 60 && analysisProgress < 90 && "Calculando índice de infectividad..."}
-                {analysisProgress >= 90 && "Generando diagnóstico epidemiológico..."}
+                {analysisProgress < 20 && "Secuenciando contenido desinfodémico..."}
+                {analysisProgress >= 20 && analysisProgress < 50 && "Identificando vectores de transmisión..."}
+                {analysisProgress >= 50 && analysisProgress < 80 && "Calculando índice de infectividad..."}
+                {analysisProgress >= 80 && analysisProgress < 95 && "Generando diagnóstico epidemiológico..."}
+                {analysisProgress >= 95 && "Finalizando análisis..."}
               </p>
             </div>
           </CardContent>
@@ -1151,7 +1154,7 @@ export function ContentUpload() {
 
               <div>
                 <h4 className="text-[20px]">Evaluación epidemiológica:</h4>
-                <p className="text-sm text-muted-foreground mt-1">{aiAnalysis.summary}</p>
+                <p className="text-sm text-muted-foreground mt-1">{aiAnalysis.finalVerdict}</p>
               </div>
 
               <div>

@@ -163,7 +163,7 @@ export async function pollJobUntilComplete(
   jobId: string,
   onProgress?: (progress: number, status: string) => void
 ): Promise<FullAnalysisResponse> {
-  const maxRetries = 20 // 20 * 3s = 60s max wait
+  const maxRetries = 60 // 60 * 3s = 180s (3 minutes) max wait
   const pollInterval = 3000 // 3 seconds
 
   for (let attempt = 0; attempt < maxRetries; attempt++) {
@@ -172,9 +172,11 @@ export async function pollJobUntilComplete(
     // Calculate simulated progress based on status and attempts
     let progress = 0
     if (jobStatus.status === 'pending') {
-      progress = Math.min(20 + (attempt * 2), 30)
+      // Pending: 0-20% (slower progression)
+      progress = Math.min(10 + (attempt * 0.5), 20)
     } else if (jobStatus.status === 'processing') {
-      progress = Math.min(30 + (attempt * 3), 90)
+      // Processing: 20-95% (steady progression)
+      progress = Math.min(20 + (attempt * 1.5), 95)
     } else if (jobStatus.status === 'completed') {
       progress = 100
     } else if (jobStatus.status === 'failed') {
@@ -204,7 +206,7 @@ export async function pollJobUntilComplete(
   }
 
   // Timeout
-  throw new Error('El análisis está tomando más tiempo del esperado. Por favor, intenta de nuevo.')
+  throw new Error('El análisis está tomando más tiempo del esperado. Por favor, intenta de nuevo más tarde.')
 }
 
 /**
