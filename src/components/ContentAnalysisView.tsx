@@ -49,6 +49,8 @@ export function ContentAnalysisView({ contentId = "CAS-2024-001" }: ContentAnaly
     source: 'Noticias Falsas 24',
     submittedBy: 'carlos.martinez@email.com',
     submittedAt: '2024-01-15T14:45:00Z',
+    summary: 'BREAKING: Supuesto hallazgo revolucionario en medicina promete curar todas las enfermedades\n\nBOGOTÁ, Colombia - Un grupo de científicos colombianos afirma haber desarrollado una revolucionaria "cura universal" que supuestamente puede tratar desde el cáncer hasta el resfriado común en cuestión de horas. El anuncio, realizado a través de redes sociales sin revisión científica, ha generado controversia en la comunidad médica internacional.',
+    summaryBotilito: '¡Kiubo! Botilito aquí con el diagnóstico: Este contenido es DESINFORMACIÓN TÓXICA pura. El artículo afirma que el 89% de los delitos en Bogotá son cometidos por inmigrantes venezolanos, usando supuestos "datos oficiales" que las autoridades habrían ocultado. FALSO TOTAL parce.\n\nLo que Botilito encontró:\n- Las estadísticas no coinciden con datos reales de la Policía Nacional de Colombia\n- Usa lenguaje xenofóbico como "invasión" para generar odio\n- La fuente "Noticias Falsas 24" no es verificable ni confiable\n- Promueve discriminación y puede incitar violencia contra población migrante\n\nRiesgo epidemiológico: CRÍTICO (R0: 4.7) - Este contenido se propaga rapidísimo por WhatsApp y Facebook. ¡Cuidado!',
     botilloAnalysis: {
       primaryDiagnosis: 'Desinformación Tóxica',
       confidence: 0.96,
@@ -434,18 +436,8 @@ export function ContentAnalysisView({ contentId = "CAS-2024-001" }: ContentAnaly
                 <div>
                   <Label>Contenido analizado:</Label>
                   <div className="bg-gray-50 p-4 rounded border mt-1">
-                    <p className="text-sm leading-relaxed">
-                      <strong>BREAKING: Supuesto hallazgo revolucionario en medicina promete curar todas las enfermedades</strong>
-                      <br /><br />
-                      BOGOTÁ, Colombia - Un grupo de científicos colombianos afirma haber desarrollado una revolucionaria "cura universal" que supuestamente puede tratar desde el cáncer hasta el resfriado común en cuestión de horas. El anuncio, realizado a través de redes sociales sin revisión científica, ha generado controversia en la comunidad médica internacional.
-                      <br /><br />
-                      Según el comunicado difundido masivamente en WhatsApp y Facebook, el tratamiento consiste en una mezcla de "extractos naturales amazónicos" combinados con "nanotecnología cuántica". Los supuestos investigadores aseguran que han probado el tratamiento en "miles de pacientes" con una tasa de éxito del 100%.
-                      <br /><br />
-                      "Este descubrimiento cambiará la historia de la humanidad", declaró en el video viral el presunto líder del equipo, quien se presenta como "Dr. Alejandro Ramírez, especialista en medicina alternativa". Sin embargo, verificaciones preliminares indican que no existe registro de este profesional en el Colegio Médico Colombiano.
-                      <br /><br />
-                      La Organización Mundial de la Salud (OMS) y el Ministerio de Salud de Colombia han emitido alertas advirtiendo sobre la peligrosidad de este tipo de desinformación médica, especialmente considerando que puede llevar a personas a abandonar tratamientos médicos efectivos.
-                      <br /><br />
-                      El contenido, que ha sido compartido más de 50,000 veces en las últimas 24 horas, incluye testimonios emocionales de supuestos pacientes "curados" y promete resultados "garantizados" a cambio de una consulta inicial de $200,000 COP.
+                    <p className="text-sm leading-relaxed whitespace-pre-line">
+                      {analysisResult.summaryBotilito || analysisResult.summary || 'No hay resumen disponible'}
                     </p>
                   </div>
                 </div>
