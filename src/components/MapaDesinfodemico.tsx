@@ -697,8 +697,8 @@ export function MapaDesinfodemico() {
 
                 <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200">
                   <CardHeader className="pb-2">
-                    <CardDescription className="text-orange-700">Tiempo de Viralización</CardDescription>
-                    <CardTitle className="text-3xl text-orange-900">{datosTemporalidad.tiempoViralizacionPromedio}h</CardTitle>
+                    <CardDescription className="text-orange-700">Tiempo de Viralización *</CardDescription>
+                    <CardTitle className="text-3xl text-orange-900">{datosTemporalidad.tiempoViralizacionPromedio}h *</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="flex items-center space-x-1 text-xs text-orange-700">
@@ -733,8 +733,8 @@ export function MapaDesinfodemico() {
               {/* Comparativa Verdaderas vs Falsas */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg">Tiempo de Viralización: Noticias Verdaderas vs Falsas</CardTitle>
-                  <CardDescription>Comparación de peligrosidad por velocidad de propagación</CardDescription>
+                  <CardTitle className="text-lg">Tiempo de Viralización: Noticias Verdaderas vs Falsas *</CardTitle>
+                  <CardDescription>Comparación de peligrosidad por velocidad de propagación *</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <ResponsiveContainer width="100%" height={250}>
@@ -751,7 +751,7 @@ export function MapaDesinfodemico() {
                   <Alert className="mt-4 border-orange-200 bg-orange-50">
                     <AlertTriangle className="h-4 w-4 text-orange-600" />
                     <AlertDescription className="text-orange-800">
-                      Las noticias falsas se viralizan <strong>2.6x más rápido</strong> que las verdaderas, con un tiempo promedio de {datosTemporalidad.comparativaVerdaderasVsFalsas[1].tiempo}h vs {datosTemporalidad.comparativaVerdaderasVsFalsas[0].tiempo}h
+                      Las noticias falsas se viralizan <strong>2.6x más rápido *</strong> que las verdaderas, con un tiempo promedio de {datosTemporalidad.comparativaVerdaderasVsFalsas[1].tiempo}h vs {datosTemporalidad.comparativaVerdaderasVsFalsas[0].tiempo}h *
                     </AlertDescription>
                   </Alert>
                 </CardContent>
@@ -790,8 +790,8 @@ export function MapaDesinfodemico() {
 
                 <Card className="bg-gradient-to-br from-yellow-50 to-yellow-100 border-yellow-200">
                   <CardHeader className="pb-2">
-                    <CardDescription className="text-yellow-700">Nivel de Engagement</CardDescription>
-                    <CardTitle className="text-3xl text-yellow-900">{datosAlcance.nivelEngagement}%</CardTitle>
+                    <CardDescription className="text-yellow-700">Nivel de Engagement *</CardDescription>
+                    <CardTitle className="text-3xl text-yellow-900">{datosAlcance.nivelEngagement}% *</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="flex items-center space-x-1 text-xs text-yellow-700">
@@ -803,13 +803,13 @@ export function MapaDesinfodemico() {
 
                 <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
                   <CardHeader className="pb-2">
-                    <CardDescription className="text-purple-700">Alcance Promedio</CardDescription>
-                    <CardTitle className="text-2xl text-purple-900">{datosAlcance.rangoViralizacion.promedio.toLocaleString()}</CardTitle>
+                    <CardDescription className="text-purple-700">Alcance Promedio *</CardDescription>
+                    <CardTitle className="text-2xl text-purple-900">{datosAlcance.rangoViralizacion.promedio.toLocaleString()} *</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="flex items-center justify-between text-xs text-purple-700">
-                      <span>Min: {datosAlcance.rangoViralizacion.min}</span>
-                      <span>Max: {(datosAlcance.rangoViralizacion.max / 1000).toFixed(0)}K</span>
+                      <span>Min: {datosAlcance.rangoViralizacion.min} *</span>
+                      <span>Max: {(datosAlcance.rangoViralizacion.max / 1000).toFixed(0)}K *</span>
                     </div>
                   </CardContent>
                 </Card>
@@ -818,8 +818,8 @@ export function MapaDesinfodemico() {
               {/* Distribución de Viralidad */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg">Distribución de Viralización por Rango</CardTitle>
-                  <CardDescription>Porcentaje y rango de mayor viralización de noticias falsas</CardDescription>
+                  <CardTitle className="text-lg">Distribución de Viralización por Rango *</CardTitle>
+                  <CardDescription>Porcentaje y rango de mayor viralización de noticias falsas *</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <ResponsiveContainer width="100%" height={300}>
@@ -839,26 +839,26 @@ export function MapaDesinfodemico() {
               {/* Efectividad de Alcance */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg">Efectividad de Alcance: Verdaderas vs Falsas</CardTitle>
-                  <CardDescription>Evalúa competencia comunicacional entre información verificada y desinformación</CardDescription>
+                  <CardTitle className="text-lg">Efectividad de Alcance: Verdaderas vs Falsas *</CardTitle>
+                  <CardDescription>Evalúa competencia comunicacional entre información verificada y desinformación *</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-2 gap-4 mb-4">
                     <div className="p-4 bg-green-50 border-2 border-green-200 rounded-lg text-center">
-                      <p className="text-sm text-green-700 mb-1">Noticias Verdaderas</p>
-                      <p className="text-3xl text-green-900">{datosAlcance.efectividadAlcance.verdaderas.toLocaleString()}</p>
+                      <p className="text-sm text-green-700 mb-1">Noticias Verdaderas *</p>
+                      <p className="text-3xl text-green-900">{datosAlcance.efectividadAlcance.verdaderas.toLocaleString()} *</p>
                       <p className="text-xs text-green-600 mt-1">interacciones promedio</p>
                     </div>
                     <div className="p-4 bg-red-50 border-2 border-red-200 rounded-lg text-center">
-                      <p className="text-sm text-red-700 mb-1">Noticias Falsas</p>
-                      <p className="text-3xl text-red-900">{datosAlcance.efectividadAlcance.falsas.toLocaleString()}</p>
+                      <p className="text-sm text-red-700 mb-1">Noticias Falsas *</p>
+                      <p className="text-3xl text-red-900">{datosAlcance.efectividadAlcance.falsas.toLocaleString()} *</p>
                       <p className="text-xs text-red-600 mt-1">interacciones promedio</p>
                     </div>
                   </div>
                   <Alert className="border-red-200 bg-red-50">
                     <AlertCircle className="h-4 w-4 text-red-600" />
                     <AlertDescription className="text-red-800">
-                      <strong>Brecha de efectividad:</strong> Las noticias falsas tienen {(datosAlcance.efectividadAlcance.falsas / datosAlcance.efectividadAlcance.verdaderas).toFixed(1)}x más alcance que las verdaderas. Ratio de competencia: {(datosAlcance.efectividadAlcance.ratio * 100).toFixed(0)}%
+                      <strong>Brecha de efectividad *:</strong> Las noticias falsas tienen {(datosAlcance.efectividadAlcance.falsas / datosAlcance.efectividadAlcance.verdaderas).toFixed(1)}x más alcance que las verdaderas. Ratio de competencia: {(datosAlcance.efectividadAlcance.ratio * 100).toFixed(0)}% *
                     </AlertDescription>
                   </Alert>
                 </CardContent>
@@ -939,25 +939,25 @@ export function MapaDesinfodemico() {
               {/* Fuentes Internacionales vs Nacionales */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg">Fuentes Internacionales vs Nacionales</CardTitle>
-                  <CardDescription>Analiza el origen de los emisores de desinformación</CardDescription>
+                  <CardTitle className="text-lg">Fuentes Internacionales vs Nacionales *</CardTitle>
+                  <CardDescription>Analiza el origen de los emisores de desinformación *</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-2 gap-4 mb-4">
                     <div className="p-6 bg-blue-50 border-2 border-blue-200 rounded-lg text-center">
                       <Globe className="h-8 w-8 text-blue-600 mx-auto mb-2" />
-                      <p className="text-3xl text-blue-900 mb-1">{datosGeograficos.fuentesInternacionalesVsNacionales.internacionales}</p>
+                      <p className="text-3xl text-blue-900 mb-1">{datosGeograficos.fuentesInternacionalesVsNacionales.internacionales} *</p>
                       <p className="text-sm text-blue-700">Fuentes Internacionales</p>
                       <Badge className="bg-blue-600 text-white mt-2">
-                        {datosGeograficos.fuentesInternacionalesVsNacionales.porcentajeInternacional}%
+                        {datosGeograficos.fuentesInternacionalesVsNacionales.porcentajeInternacional}% *
                       </Badge>
                     </div>
                     <div className="p-6 bg-green-50 border-2 border-green-200 rounded-lg text-center">
                       <MapPin className="h-8 w-8 text-green-600 mx-auto mb-2" />
-                      <p className="text-3xl text-green-900 mb-1">{datosGeograficos.fuentesInternacionalesVsNacionales.nacionales}</p>
+                      <p className="text-3xl text-green-900 mb-1">{datosGeograficos.fuentesInternacionalesVsNacionales.nacionales} *</p>
                       <p className="text-sm text-green-700">Fuentes Nacionales</p>
                       <Badge className="bg-green-600 text-white mt-2">
-                        {100 - datosGeograficos.fuentesInternacionalesVsNacionales.porcentajeInternacional}%
+                        {100 - datosGeograficos.fuentesInternacionalesVsNacionales.porcentajeInternacional}% *
                       </Badge>
                     </div>
                   </div>
@@ -1079,8 +1079,8 @@ export function MapaDesinfodemico() {
               {/* Ranking de Personalidades Atacadas */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg">Ranking de Personalidades Más Atacadas</CardTitle>
-                  <CardDescription>Lista de figuras públicas difamadas o mencionadas en desinformación</CardDescription>
+                  <CardTitle className="text-lg">Ranking de Personalidades Más Atacadas *</CardTitle>
+                  <CardDescription>Lista de figuras públicas difamadas o mencionadas en desinformación *</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
@@ -1105,21 +1105,21 @@ export function MapaDesinfodemico() {
               {/* Sector Más Eficiente */}
               <Card className="bg-gradient-to-br from-blue-50 to-purple-50 border-blue-200">
                 <CardHeader>
-                  <CardTitle className="text-lg">Sector Más Eficiente en Alcance</CardTitle>
-                  <CardDescription>Compara viralización por área temática</CardDescription>
+                  <CardTitle className="text-lg">Sector Más Eficiente en Alcance *</CardTitle>
+                  <CardDescription>Compara viralización por área temática *</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="text-center p-6">
                     <Trophy className="h-12 w-12 text-yellow-500 mx-auto mb-4" />
-                    <h3 className="text-2xl mb-2">{datosDescriptivos.sectorMasEficiente.sector}</h3>
+                    <h3 className="text-2xl mb-2">{datosDescriptivos.sectorMasEficiente.sector} *</h3>
                     <div className="grid grid-cols-2 gap-4 mt-4">
                       <div className="p-3 bg-white rounded-lg">
-                        <p className="text-xs text-muted-foreground mb-1">Alcance Promedio</p>
-                        <p className="text-xl text-blue-700">{datosDescriptivos.sectorMasEficiente.alcancePromedio.toLocaleString()}</p>
+                        <p className="text-xs text-muted-foreground mb-1">Alcance Promedio *</p>
+                        <p className="text-xl text-blue-700">{datosDescriptivos.sectorMasEficiente.alcancePromedio.toLocaleString()} *</p>
                       </div>
                       <div className="p-3 bg-white rounded-lg">
-                        <p className="text-xs text-muted-foreground mb-1">Nivel de Viralidad</p>
-                        <p className="text-xl text-purple-700">{datosDescriptivos.sectorMasEficiente.viralidad}%</p>
+                        <p className="text-xs text-muted-foreground mb-1">Nivel de Viralidad *</p>
+                        <p className="text-xl text-purple-700">{datosDescriptivos.sectorMasEficiente.viralidad}% *</p>
                       </div>
                     </div>
                   </div>
@@ -1206,8 +1206,8 @@ export function MapaDesinfodemico() {
               {/* Distribución de Desacuerdos */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg">Porcentaje de Desacuerdo Humano vs IA</CardTitle>
-                  <CardDescription>Señala límites de automatización y áreas de mejora para la IA</CardDescription>
+                  <CardTitle className="text-lg">Porcentaje de Desacuerdo Humano vs IA *</CardTitle>
+                  <CardDescription>Señala límites de automatización y áreas de mejora para la IA *</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
@@ -1237,8 +1237,8 @@ export function MapaDesinfodemico() {
               {/* Ranking de Noticias Más Reportadas */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg">Ranking de Noticias Más Reportadas</CardTitle>
-                  <CardDescription>Detecta alertas ciudadanas y temas de mayor preocupación</CardDescription>
+                  <CardTitle className="text-lg">Ranking de Noticias Más Reportadas *</CardTitle>
+                  <CardDescription>Detecta alertas ciudadanas y temas de mayor preocupación *</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
@@ -1281,9 +1281,9 @@ export function MapaDesinfodemico() {
                   </CardHeader>
                   <CardContent className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">Epidemiólogos activos</span>
+                      <span className="text-sm text-muted-foreground">Epidemiólogos activos *</span>
                       <Badge className="bg-emerald-600 text-white text-lg px-3 py-1">
-                        {datosMitigacion.redEpidemiologos.totalActivos}
+                        {datosMitigacion.redEpidemiologos.totalActivos} *
                       </Badge>
                     </div>
                     <Separator />
@@ -1308,30 +1308,30 @@ export function MapaDesinfodemico() {
                   <CardHeader>
                     <CardTitle className="flex items-center space-x-2">
                       <Syringe className="h-5 w-5 text-purple-700" />
-                      <span>Red de Inmunizadores</span>
+                      <span>Red de Inmunizadores *</span>
                     </CardTitle>
-                    <CardDescription>Especialistas en estrategias de inmunización</CardDescription>
+                    <CardDescription>Especialistas en estrategias de inmunización *</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">Inmunizadores activos</span>
+                      <span className="text-sm text-muted-foreground">Inmunizadores activos *</span>
                       <Badge className="bg-purple-600 text-white text-lg px-3 py-1">
-                        {datosMitigacion.redInmunizadores.totalActivos}
+                        {datosMitigacion.redInmunizadores.totalActivos} *
                       </Badge>
                     </div>
                     <Separator />
                     <div className="space-y-2">
                       <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">Estrategias desarrolladas</span>
-                        <span className="font-medium">{datosMitigacion.redInmunizadores.estrategiasDesarrolladas}</span>
+                        <span className="text-muted-foreground">Estrategias desarrolladas *</span>
+                        <span className="font-medium">{datosMitigacion.redInmunizadores.estrategiasDesarrolladas} *</span>
                       </div>
                       <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">Estrategias activas</span>
-                        <span className="font-medium">{datosMitigacion.redInmunizadores.estrategiasActivas}</span>
+                        <span className="text-muted-foreground">Estrategias activas *</span>
+                        <span className="font-medium">{datosMitigacion.redInmunizadores.estrategiasActivas} *</span>
                       </div>
                       <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">Alcance total</span>
-                        <span className="font-medium">{(datosMitigacion.redInmunizadores.alcanceTotal / 1000000).toFixed(1)}M</span>
+                        <span className="text-muted-foreground">Alcance total *</span>
+                        <span className="font-medium">{(datosMitigacion.redInmunizadores.alcanceTotal / 1000000).toFixed(1)}M *</span>
                       </div>
                     </div>
                   </CardContent>
@@ -1389,8 +1389,8 @@ export function MapaDesinfodemico() {
               {/* Vectores de Contagio */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg">Vectores de Contagio (Tipo de Contenido)</CardTitle>
-                  <CardDescription>Distribución por formato del contenido desinfodémico</CardDescription>
+                  <CardTitle className="text-lg">Vectores de Contagio (Tipo de Contenido) *</CardTitle>
+                  <CardDescription>Distribución por formato del contenido desinfodémico *</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <ResponsiveContainer width="100%" height={300}>
@@ -1419,8 +1419,8 @@ export function MapaDesinfodemico() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-lg">Casos por Nivel de Prioridad</CardTitle>
-                    <CardDescription>Clasificación según urgencia de intervención</CardDescription>
+                    <CardTitle className="text-lg">Casos por Nivel de Prioridad *</CardTitle>
+                    <CardDescription>Clasificación según urgencia de intervención *</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
@@ -1498,7 +1498,7 @@ export function MapaDesinfodemico() {
                     <Hash className="h-5 w-5 text-yellow-700" />
                     <span>Sistema de Codificación de Casos</span>
                   </CardTitle>
-                  <CardDescription>Formato estándar: TIPO-VECTOR-FECHA-SECUENCIA</CardDescription>
+                  <CardDescription>Formato estándar: TIPO-VECTOR-FECHA-SECUENCIA *</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -1507,17 +1507,17 @@ export function MapaDesinfodemico() {
                       <p className="text-3xl font-bold text-yellow-900">{datosMitigacion.sistemaCodificacion.totalCasos}</p>
                     </div>
                     <div className="p-4 bg-white border-2 border-yellow-300 rounded-lg text-center">
-                      <p className="text-sm text-muted-foreground mb-1">Casos hoy</p>
-                      <p className="text-3xl font-bold text-yellow-900">{datosMitigacion.sistemaCodificacion.casosHoy}</p>
+                      <p className="text-sm text-muted-foreground mb-1">Casos hoy *</p>
+                      <p className="text-3xl font-bold text-yellow-900">{datosMitigacion.sistemaCodificacion.casosHoy} *</p>
                     </div>
                     <div className="p-4 bg-white border-2 border-yellow-300 rounded-lg text-center">
                       <p className="text-sm text-muted-foreground mb-1">Esta semana</p>
                       <p className="text-3xl font-bold text-yellow-900">{datosMitigacion.sistemaCodificacion.casosSemana}</p>
                     </div>
                     <div className="p-4 bg-white border-2 border-yellow-300 rounded-lg text-center flex flex-col items-center justify-center">
-                      <p className="text-sm text-muted-foreground mb-1">Formato</p>
+                      <p className="text-sm text-muted-foreground mb-1">Formato *</p>
                       <Badge className="bg-yellow-600 text-white font-mono text-xs px-2 py-1">
-                        {datosMitigacion.sistemaCodificacion.formatoEjemplo}
+                        {datosMitigacion.sistemaCodificacion.formatoEjemplo} *
                       </Badge>
                     </div>
                   </div>
@@ -1559,9 +1559,9 @@ export function MapaDesinfodemico() {
           <div className="flex items-start space-x-3 p-3 bg-orange-50 border border-orange-200 rounded-lg">
             <Clock className="h-5 w-5 text-orange-600 mt-0.5 flex-shrink-0" />
             <div>
-              <h4 className="text-sm text-orange-900">Ventana Crítica de {datosTemporalidad.tiempoViralizacionPromedio}h</h4>
+              <h4 className="text-sm text-orange-900">Ventana Crítica de {datosTemporalidad.tiempoViralizacionPromedio}h *</h4>
               <p className="text-xs text-orange-700 mt-1">
-                Las noticias falsas se viralizan en promedio en {datosTemporalidad.tiempoViralizacionPromedio} horas. 
+                Las noticias falsas se viralizan en promedio en {datosTemporalidad.tiempoViralizacionPromedio} horas *.
                 Priorizar detección temprana y respuesta rápida dentro de esta ventana crítica.
               </p>
             </div>
@@ -1572,7 +1572,7 @@ export function MapaDesinfodemico() {
             <div>
               <h4 className="text-sm text-yellow-900">Índice de Viralidad en {datosAlcance.indiceViralidad}</h4>
               <p className="text-xs text-yellow-700 mt-1">
-                El potencial de contagio es significativo con engagement del {datosAlcance.nivelEngagement}%. 
+                El potencial de contagio es significativo con engagement del {datosAlcance.nivelEngagement}% *.
                 Implementar estrategias de inmunización en sectores de mayor riesgo.
               </p>
             </div>
@@ -1590,6 +1590,15 @@ export function MapaDesinfodemico() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Leyenda de Datos Mock */}
+      <Alert className="border-blue-200 bg-blue-50/50">
+        <AlertCircle className="h-4 w-4 text-blue-600" />
+        <AlertDescription className="text-blue-800 text-sm">
+          <strong>* = Datos de prueba:</strong> Los valores marcados con asterisco (*) son datos de ejemplo o estimaciones.
+          Una vez la API esté completamente estable, estos serán reemplazados con datos reales del sistema.
+        </AlertDescription>
+      </Alert>
     </div>
   );
 }
