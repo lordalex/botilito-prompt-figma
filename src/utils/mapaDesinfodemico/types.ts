@@ -43,6 +43,7 @@ export interface MapaResult {
  */
 export interface MagnitudeDimension {
   noticias_reportadas: number;
+  noticias_reportadas_mes: number; // Reports in last 30 days
   detectadas_por_ia: number;
   validadas_por_humanos: number;
   incremento_semanal: number;
@@ -58,6 +59,7 @@ export interface TemporalityDimension {
   reportados: TimeSeriesPoint[];
   detectados: TimeSeriesPoint[];
   validados: TimeSeriesPoint[];
+  tiempo_viralizacion_promedio: string; // Average viralization time
 }
 
 /**
@@ -74,7 +76,15 @@ export interface TimeSeriesPoint {
  */
 export interface VirulenceDimension {
   indice_viralidad: number;
+  nivel_engagement: number;
   casos_criticos: number;
+  ventana_critica_horas: number;
+  rango_viralizacion: {
+    min: number;
+    max: number;
+    avg: number;
+  };
+  distribucion_viralidad: Record<string, number>; // {"1-10": 15, "11-50": 0, ...}
   vectores_principales: string[]; // ["WhatsApp", "Facebook", "Twitter"]
 }
 
@@ -85,11 +95,15 @@ export interface VirulenceDimension {
 export interface GeographicDimension {
   casos_por_region: Record<string, number>; // {"Bogotá": 450, "Antioquia": 320}
   region_mas_afectada: string;
-  clustering_data?: Array<{
-    cluster_id: string;
-    regions: string[];
-    total_casos: number;
-    centroid: { lat: number; lon: number };
+  fuentes_origen: {
+    Nacional: number;
+    Internacional: number;
+  };
+  total_regiones_activas: number;
+  clusters_espaciales: Array<{
+    region: string;
+    casos: number;
+    porcentaje: number;
   }>;
 }
 
@@ -102,6 +116,8 @@ export interface DescriptiveDimension {
     tema: string;
     cantidad: number;
   }>;
+  casos_por_plataforma: Record<string, number>; // {"URL": 15, "WhatsApp": 10}
+  sector_mas_eficiente: string;
   clasificaciones: Record<string, number>; // {"Desinformación": 650, "Sátira": 234}
 }
 
@@ -112,6 +128,19 @@ export interface DescriptiveDimension {
 export interface MitigationDimension {
   consenso_humano_ia: number; // 81.5 (percentage)
   casos_en_desacuerdo: number;
+  distribucion_desacuerdo: Record<string, number>;
+  noticias_mas_reportadas: Array<{
+    id: string;
+    url?: string;
+    reportes: number;
+  }>;
+  casos_por_estado: {
+    total: number;
+    pendientes: number;
+    detectados: number;
+    validados: number;
+  };
+  vectores_contagio: Record<string, number>; // {"Texto": 15, "Imagen": 5}
   recomendaciones: InterventionRecommendation[];
 }
 
@@ -138,48 +167,22 @@ export interface SourceRanking {
 
 /**
  * Dimensión 7: Evolución por Perfil de Usuario
- * Análisis de cómo diferentes perfiles de usuarios propagan desinformación
+ * Análisis de actividad de reportes por usuario a través del tiempo
  */
-export interface EvolucionPerfilDimension {
-  perfiles: Array<{
-    tipo_perfil: string; // "Influencer", "Bot", "Usuario regular", etc.
-    total_casos: number;
-    alcance_promedio: number;
-    tasa_viralidad: number;
-  }>;
-  evolucion_temporal: Array<{
-    fecha: string;
-    perfil: string;
-    casos: number;
-  }>;
-  top_propagadores: Array<{
-    usuario: string;
-    plataforma: string;
-    casos_propagados: number;
-    alcance_total: number;
-  }>;
-}
+export type EvolucionPerfilDimension = Array<{
+  nombre: string;
+  departamento: string;
+  serie_temporal: TimeSeriesPoint[];
+  total_reportes: number;
+}>
 
 /**
  * Dimensión 8: Tendencias por Mecanismo
  * Análisis de los mecanismos y técnicas de propagación de desinformación
  */
-export interface TendenciasMecanismoDimension {
-  mecanismos: Array<{
-    tipo: string; // "Bots automatizados", "Cadenas de WhatsApp", "Deepfakes", etc.
-    frecuencia: number;
-    efectividad: number; // 0-100
-    tendencia: 'ascendente' | 'descendente' | 'estable';
-  }>;
-  tecnicas_manipulacion: Array<{
-    tecnica: string;
-    casos: number;
-    descripcion: string;
-  }>;
-  nuevas_amenazas: Array<{
-    tipo: string;
-    primera_deteccion: string;
-    nivel_riesgo: 'bajo' | 'medio' | 'alto' | 'crítico';
-    descripcion: string;
-  }>;
-}
+export type TendenciasMecanismoDimension = Array<{
+  mecanismo: string; // "URL", "WhatsApp", "Twitter/X", etc.
+  serie_temporal: TimeSeriesPoint[];
+  total_reportes: number;
+  porcentaje_total: number;
+}>
