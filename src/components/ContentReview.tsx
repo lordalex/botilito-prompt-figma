@@ -7,8 +7,8 @@ import { Input } from './ui/input';
 import { Separator } from './ui/separator';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
-import { 
-  Search, Filter, Bot, FileText, Image, Video, Volume2, 
+import {
+  Search, Filter, Bot, FileText, Image, Video, Volume2,
   CheckCircle, AlertTriangle, Clock, Eye, Hash, Layers,
   Calendar, User, Shield, XCircle, AlertCircle, ArrowLeft,
   Newspaper, Tag, ExternalLink, Syringe, Target, Activity,
@@ -16,8 +16,11 @@ import {
   Crosshair, Brain, BookOpen, CheckSquare, Plus, Edit, Trash2,
   Download, Twitter, Facebook, Linkedin
 } from 'lucide-react';
+import { useHistorialData } from '../utils/historial/useHistorialData';
 
 export function ContentReview() {
+  // Fetch real data from API
+  const { loading: apiLoading, error: apiError, cases: apiCases } = useHistorialData();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
@@ -59,277 +62,53 @@ export function ContentReview() {
 
   const [editingVaccineId, setEditingVaccineId] = useState<string | null>(null);
 
-  // Mock data con casos históricos completos
-  const historialCasos = [
-    {
-      id: 'T-WB-20241015-156',
-      type: 'text',
-      title: 'Artículo sobre vacunas y efectos secundarios',
-      content: 'Las vacunas contra COVID-19 causan problemas cardíacos en el 90% de los vacunados según estudio reciente de la Universidad de Harvard. Miles de casos reportados...',
-      headline: 'Estudio de Harvard revela efectos cardíacos masivos de vacunas COVID',
-      url: 'https://noticiasfalsas.com/vacunas-corazon',
-      screenshot: 'https://images.unsplash.com/photo-1584036561566-baf8f5f1b144?w=800',
-      source: { name: 'Noticias Falsas', url: 'https://noticiasfalsas.com' },
-      theme: 'Salud y Medicina',
+  // Transform API data to match the component's expected format
+  const historialCasos = apiCases.map(apiCase => {
+    // Get the markers and their display data
+    const markersDetected = apiCase.diagnosticLabels.map(label => ({
+      type: label.label,
+      confidence: label.percentage / 100
+    }));
+
+    const consensusMarkers = apiCase.diagnosticLabels.map(label => label.label.toLowerCase().replace(' ', '_'));
+    const consensusPercentages = apiCase.diagnosticLabels.reduce((acc, label) => {
+      acc[label.label.toLowerCase().replace(' ', '_')] = label.percentage;
+      return acc;
+    }, {} as Record<string, number>);
+
+    return {
+      id: apiCase.displayId,
+      type: apiCase.submissionType.toLowerCase(),
+      title: apiCase.title,
+      content: apiCase.title, // Use title as content
+      headline: apiCase.title,
+      url: apiCase.url,
+      screenshot: null, // No screenshot in API data
+      source: {
+        name: new URL(apiCase.url).hostname.replace('www.', ''),
+        url: apiCase.url
+      },
+      theme: 'General', // Would need to be in API
       aiAnalysis: {
-        veracity: 'Falso',
-        confidence: 0.92,
-        detectedMarkers: ['falso', 'enganoso', 'sensacionalista'],
-        issues: ['No existe tal estudio de Harvard', 'Estadísticas inventadas', 'Fuente no confiable'],
-        summary: 'Contenido presenta desinformación médica grave. Alto riesgo de propagación por apelación emocional y falsa autoridad científica.',
-        sources: ['WhatsApp', 'Facebook', 'Twitter'],
-        markersDetected: [
-          { type: 'Falso', confidence: 0.92 },
-          { type: 'Engañoso', confidence: 0.87 },
-          { type: 'Sensacionalista', confidence: 0.79 }
-        ]
-      },
-      consensusMarkers: ['falso', 'enganoso', 'sensacionalista'],
-      consensusPercentages: {
-        'falso': 92,
-        'enganoso': 87,
-        'sensacionalista': 79
-      },
-      status: 'verified',
-      submittedBy: 'usuario_123',
-      submittedAt: '2024-01-15T10:30:00Z',
-      verifiedAt: '2024-01-15T14:22:00Z',
-      humanVerifiers: 8,
-      priority: 'high',
-      votesCount: 8,
-    },
-    {
-      id: 'I-FB-20241015-234',
-      type: 'image',
-      title: 'Imagen de manifestación política',
-      content: 'imagen_manifestacion_2024.jpg',
-      description: 'Foto que supuestamente muestra protesta masiva en la capital el mes pasado',
-      screenshot: 'https://images.unsplash.com/photo-1529107386315-e1a2ed48a620?w=800',
-      source: { name: 'Redes Sociales', url: 'https://facebook.com' },
-      theme: 'Política y Sociedad',
-      aiAnalysis: {
-        veracity: 'Sin contexto',
-        confidence: 0.78,
-        detectedMarkers: ['sin_contexto', 'manipulado'],
-        issues: ['La imagen es de 2019', 'Contexto diferente', 'Fecha manipulada'],
-        summary: 'Imagen real pero usada fuera de contexto temporal y geográfico para crear narrativa falsa.',
-        sources: ['Facebook', 'Instagram', 'Telegram'],
-        markersDetected: [
-          { type: 'Sin contexto', confidence: 0.78 },
-          { type: 'Manipulado', confidence: 0.65 }
-        ]
-      },
-      consensusMarkers: ['sin_contexto', 'enganoso'],
-      consensusPercentages: {
-        'sin_contexto': 78,
-        'enganoso': 65
-      },
-      status: 'verified',
-      submittedBy: 'usuario_456',
-      submittedAt: '2024-01-15T09:15:00Z',
-      verifiedAt: '2024-01-15T12:45:00Z',
-      humanVerifiers: 5,
-      priority: 'medium',
-      votesCount: 5,
-    },
-    {
-      id: 'V-YT-20241015-089',
-      type: 'video',
-      title: 'Video de declaraciones presidenciales oficiales',
-      content: 'declaraciones_presidente_economia.mp4',
-      description: 'Video de rueda de prensa oficial del presidente sobre medidas económicas',
-      screenshot: 'https://images.unsplash.com/photo-1588681664899-f142ff2dc9b1?w=800',
-      source: { name: 'Canal Presidencial', url: 'https://presidencia.gov.co' },
-      theme: 'Política y Economía',
-      aiAnalysis: {
-        veracity: 'Verdadero',
-        confidence: 0.95,
-        detectedMarkers: ['verdadero'],
-        issues: [],
-        summary: 'Contenido verificado de fuente oficial gubernamental. Información precisa y contextualizada.',
-        sources: ['YouTube', 'Sitio oficial'],
-        markersDetected: [
-          { type: 'Verdadero', confidence: 0.95 }
-        ]
-      },
-      consensusMarkers: ['verdadero'],
-      consensusPercentages: {
-        'verdadero': 95
-      },
-      status: 'verified',
-      submittedBy: 'usuario_789',
-      submittedAt: '2024-01-15T08:45:00Z',
-      verifiedAt: '2024-01-15T09:10:00Z',
-      humanVerifiers: 3,
-      priority: 'low',
-      votesCount: 3,
-    },
-    {
-      id: 'A-WA-20241014-312',
-      type: 'audio',
-      title: 'Audio de WhatsApp sobre emergencia sanitaria',
-      content: 'audio_emergencia_sanitaria.m4a',
-      description: 'Mensaje de voz humorístico imitando alerta de emergencia sanitaria',
-      screenshot: 'https://images.unsplash.com/photo-1614680376593-902f74cf0d41?w=800',
-      source: { name: 'WhatsApp', url: '#' },
-      theme: 'Salud y Humor',
-      aiAnalysis: {
-        veracity: 'Satírico/Humorístico',
+        veracity: apiCase.finalVerdict,
         confidence: 0.85,
-        detectedMarkers: ['satirico'],
+        detectedMarkers: consensusMarkers,
         issues: [],
-        summary: 'Contenido claramente satírico sin intención de desinformar. Contexto humorístico evidente.',
-        sources: ['WhatsApp'],
-        markersDetected: [
-          { type: 'Satírico/Humorístico', confidence: 0.85 }
-        ]
+        summary: `Caso con ${apiCase.humanVotesCount} verificadores. Estado: ${apiCase.verificationMethod}`,
+        sources: [apiCase.submissionType],
+        markersDetected
       },
-      consensusMarkers: ['satirico'],
-      consensusPercentages: {
-        'satirico': 85
-      },
-      status: 'verified',
-      submittedBy: 'usuario_012',
-      submittedAt: '2024-01-14T16:20:00Z',
-      verifiedAt: '2024-01-14T18:30:00Z',
-      humanVerifiers: 6,
-      priority: 'low',
-      votesCount: 6,
-    },
-    {
-      id: 'T-TW-20241014-445',
-      type: 'text',
-      title: 'Tweet sobre subsidio gubernamental falso',
-      content: 'Gobierno anuncia subsidio de $500.000 para todos. Registrate en este link antes del viernes para recibir tu dinero. Solo necesitas cédula y datos bancarios...',
-      headline: 'Nuevo subsidio universal de $500.000 - Regístrate ya',
-      url: 'https://subsidios-falsos.com/registro',
-      screenshot: 'https://images.unsplash.com/photo-1563986768609-322da13575f3?w=800',
-      source: { name: 'Dominio Falso', url: 'https://subsidios-falsos.com' },
-      theme: 'Phishing y Estafas',
-      aiAnalysis: {
-        veracity: 'Suplantación de identidad',
-        confidence: 0.94,
-        detectedMarkers: ['suplantacion_identidad', 'falso', 'enganoso'],
-        issues: ['Dominio no gubernamental', 'Solicita datos personales', 'No hay anuncio oficial'],
-        summary: 'Intento de phishing suplantando identidad gubernamental. Alto riesgo de fraude financiero.',
-        sources: ['Twitter', 'WhatsApp'],
-        markersDetected: [
-          { type: 'Suplantación de identidad', confidence: 0.94 },
-          { type: 'Falso', confidence: 0.91 },
-          { type: 'Engañoso', confidence: 0.88 }
-        ]
-      },
-      consensusMarkers: ['suplantacion_identidad', 'falso', 'enganoso'],
-      consensusPercentages: {
-        'suplantacion_identidad': 94,
-        'falso': 91,
-        'enganoso': 88
-      },
-      status: 'verified',
-      submittedBy: 'usuario_345',
-      submittedAt: '2024-01-14T11:20:00Z',
-      verifiedAt: '2024-01-14T15:00:00Z',
-      humanVerifiers: 12,
-      priority: 'high',
-      votesCount: 12,
-    },
-    {
-      id: 'I-IG-20241013-678',
-      type: 'image',
-      title: 'Meme sobre situación económica',
-      content: 'meme_economia_colombia.jpg',
-      description: 'Imagen humorística sobre la economía del país con sátira política',
-      screenshot: 'https://images.unsplash.com/photo-1611329532073-b17d3b645f74?w=800',
-      source: { name: 'Instagram', url: '#' },
-      theme: 'Política y Humor',
-      aiAnalysis: {
-        veracity: 'Satírico/Humorístico',
-        confidence: 0.89,
-        detectedMarkers: ['satirico'],
-        issues: [],
-        summary: 'Contenido satírico con intención humorística. No pretende ser información factual.',
-        sources: ['Instagram', 'Facebook'],
-        markersDetected: [
-          { type: 'Satírico/Humorístico', confidence: 0.89 }
-        ]
-      },
-      consensusMarkers: ['satirico'],
-      consensusPercentages: {
-        'satirico': 89
-      },
-      status: 'verified',
-      submittedBy: 'usuario_567',
-      submittedAt: '2024-01-13T14:30:00Z',
-      verifiedAt: '2024-01-13T16:15:00Z',
-      humanVerifiers: 4,
-      priority: 'low',
-      votesCount: 4,
-    },
-    {
-      id: 'T-WA-20241012-890',
-      type: 'text',
-      title: 'Cadena de WhatsApp sobre remedio casero',
-      content: 'Toma agua con limón y canela en ayunas para curar diabetes en 15 días. Comprobado científicamente por médicos naturistas. Compartelo con todos tus contactos...',
-      headline: 'Cura milagrosa para diabetes en 15 días',
-      url: null,
-      screenshot: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=800',
-      source: { name: 'Cadena WhatsApp', url: '#' },
-      theme: 'Salud y Medicina',
-      aiAnalysis: {
-        veracity: 'Falso',
-        confidence: 0.96,
-        detectedMarkers: ['falso', 'enganoso', 'no_verificable'],
-        issues: ['Promesa médica falsa', 'No existe respaldo científico', 'Peligroso para pacientes'],
-        summary: 'Desinformación médica peligrosa. Podría llevar a pacientes a abandonar tratamientos legítimos.',
-        sources: ['WhatsApp'],
-        markersDetected: [
-          { type: 'Falso', confidence: 0.96 },
-          { type: 'Engañoso', confidence: 0.93 },
-          { type: 'No verificable', confidence: 0.87 }
-        ]
-      },
-      consensusMarkers: [],
-      consensusPercentages: {},
-      status: 'ai_only',
-      submittedBy: 'usuario_890',
-      submittedAt: '2024-01-12T09:45:00Z',
-      verifiedAt: null,
-      humanVerifiers: 0,
-      priority: 'high',
-      votesCount: 0,
-    },
-    {
-      id: 'V-TK-20241011-234',
-      type: 'video',
-      title: 'TikTok sobre teoría conspirativa global',
-      content: 'video_conspiracion_mundial.mp4',
-      description: 'Video promoviendo teorías conspirativas sobre control mundial sin fundamento',
-      screenshot: 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=800',
-      source: { name: 'TikTok', url: '#' },
-      theme: 'Teorías Conspirativas',
-      aiAnalysis: {
-        veracity: 'Teoría conspirativa',
-        confidence: 0.88,
-        detectedMarkers: ['teoria_conspirativa', 'enganoso'],
-        issues: ['Sin evidencia', 'Narrativa conspirativa', 'Fuentes cuestionables'],
-        summary: 'Contenido promueve teorías conspirativas sin base fáctica ni evidencia verificable.',
-        sources: ['TikTok', 'YouTube'],
-        markersDetected: [
-          { type: 'Teoría conspirativa', confidence: 0.88 },
-          { type: 'Engañoso', confidence: 0.82 }
-        ]
-      },
-      consensusMarkers: [],
-      consensusPercentages: {},
-      status: 'ai_only',
-      submittedBy: 'usuario_234',
-      submittedAt: '2024-01-11T18:20:00Z',
-      verifiedAt: null,
-      humanVerifiers: 0,
-      priority: 'medium',
-      votesCount: 0,
-    },
-  ];
+      consensusMarkers,
+      consensusPercentages,
+      status: apiCase.consensusState === 'ai_only' ? 'ai_only' : 'verified',
+      submittedBy: 'usuario',
+      submittedAt: apiCase.createdAt,
+      verifiedAt: apiCase.humanVotesCount > 0 ? apiCase.createdAt : null,
+      humanVerifiers: apiCase.humanVotesCount,
+      priority: apiCase.priority,
+      votesCount: apiCase.humanVotesCount,
+    };
+  });
 
   // Marcadores disponibles
   const marcadoresDisponibles = [
