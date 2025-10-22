@@ -928,7 +928,7 @@ export function MapaDesinfodemico() {
                   <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
                     <h4 className="text-sm text-red-900 mb-2">🔥 Zona de Mayor Concentración</h4>
                     <p className="text-xs text-red-700">
-                      <strong>Bogotá D.C.</strong> presenta la mayor densidad con {datosGeograficos.mapaCalor[1].casos} casos detectados, 
+                      <strong>{datosGeograficos.mapaCalor?.[1]?.departamento || 'Bogotá D.C.'}</strong> presenta la mayor densidad con {datosGeograficos.mapaCalor?.[1]?.casos || 892} casos detectados,
                       representando una zona crítica que requiere atención prioritaria.
                     </p>
                   </div>
