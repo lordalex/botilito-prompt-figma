@@ -77,7 +77,8 @@ export function ContentReview() {
     }, {} as Record<string, number>);
 
     return {
-      id: apiCase.displayId,
+      id: apiCase.id, // UUID from database
+      displayId: apiCase.displayId, // Generated display code (e.g., T-WB-20241015-156)
       type: apiCase.submissionType.toLowerCase(),
       title: apiCase.title,
       content: apiCase.title, // Use title as content
@@ -553,7 +554,10 @@ export function ContentReview() {
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Código del Caso</p>
-                  <p className="font-mono font-medium">{selectedCase.id}</p>
+                  <p className="font-mono font-medium text-sm">{selectedCase.id}</p>
+                  {selectedCase.displayId && (
+                    <p className="text-xs text-muted-foreground mt-0.5">ID: {selectedCase.displayId}</p>
+                  )}
                 </div>
               </div>
 

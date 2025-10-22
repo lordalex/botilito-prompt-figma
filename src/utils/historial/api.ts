@@ -1,4 +1,5 @@
 import { fetchVerificationSummary } from '../humanVerification/api';
+import { supabase } from '../supabase/client';
 import type { HistorialSummaryResult, HistorialCaseUI, HistorialCaseDetail } from './types';
 import type { RecentCase } from '../humanVerification/types';
 import { DIAGNOSTIC_LABELS } from '../humanVerification/types';
@@ -9,6 +10,45 @@ import { DIAGNOSTIC_LABELS } from '../humanVerification/types';
  */
 export async function fetchHistorialData(): Promise<HistorialSummaryResult> {
   return await fetchVerificationSummary();
+}
+
+/**
+ * Fetch complete case details from /vector-async/case/{caseId}
+ * Requires authentication
+ *
+ * @param caseId - The UUID of the case
+ * @returns Complete case details including documents and user vote
+ */
+export async function fetchCaseDetails(caseId: string) {
+  try {
+    // Get current session for auth token
+    const { data: { session } } = await supabase.auth.getSession();
+
+    if (!session) {
+      throw new Error('Usuario no autenticado');
+    }
+
+    const response = await fetch(
+      `https://mdkswlgcqsmgfmcuorxq.supabase.co/functions/v1/vector-async/case/${caseId}`,
+      {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        }
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Error ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error fetching case details:', error);
+    throw error;
+  }
 }
 
 /**
