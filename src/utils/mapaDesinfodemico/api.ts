@@ -2,7 +2,7 @@ import { supabase } from '../supabase/client';
 import type { MapaJobResponse, MapaJobStatus } from './types';
 
 // Mapa Desinfodémico API base URL
-const MAPA_API_URL = 'https://mdkswlgcqsmgfmcuorxq.supabase.co/functions/v1/mapa-async-auth';
+const MAPA_API_URL = 'https://mdkswlgcqsmgfmcuorxq.supabase.co/functions/v1/infodemic-map-async';
 
 /**
  * Create a new mapa desinfodémico generation job

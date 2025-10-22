@@ -22,7 +22,7 @@ export interface MapaJobStatus {
 }
 
 /**
- * Complete mapa desinfodémico result with all 6 dimensions
+ * Complete mapa desinfodémico result with all 8 dimensions
  */
 export interface MapaResult {
   magnitude: MagnitudeDimension;
@@ -31,6 +31,8 @@ export interface MapaResult {
   geographic: GeographicDimension;
   descriptive: DescriptiveDimension;
   mitigation: MitigationDimension;
+  evolucion_por_perfil: EvolucionPerfilDimension;
+  tendencias_por_mecanismo: TendenciasMecanismoDimension;
   sources: SourceRanking[];
   timestamp: string;
 }
@@ -83,6 +85,12 @@ export interface VirulenceDimension {
 export interface GeographicDimension {
   casos_por_region: Record<string, number>; // {"Bogotá": 450, "Antioquia": 320}
   region_mas_afectada: string;
+  clustering_data?: Array<{
+    cluster_id: string;
+    regions: string[];
+    total_casos: number;
+    centroid: { lat: number; lon: number };
+  }>;
 }
 
 /**
@@ -126,4 +134,52 @@ export interface SourceRanking {
   tipo: string; // "Twitter", "WhatsApp", etc.
   casos_detectados: number;
   porcentaje_total: number;
+}
+
+/**
+ * Dimensión 7: Evolución por Perfil de Usuario
+ * Análisis de cómo diferentes perfiles de usuarios propagan desinformación
+ */
+export interface EvolucionPerfilDimension {
+  perfiles: Array<{
+    tipo_perfil: string; // "Influencer", "Bot", "Usuario regular", etc.
+    total_casos: number;
+    alcance_promedio: number;
+    tasa_viralidad: number;
+  }>;
+  evolucion_temporal: Array<{
+    fecha: string;
+    perfil: string;
+    casos: number;
+  }>;
+  top_propagadores: Array<{
+    usuario: string;
+    plataforma: string;
+    casos_propagados: number;
+    alcance_total: number;
+  }>;
+}
+
+/**
+ * Dimensión 8: Tendencias por Mecanismo
+ * Análisis de los mecanismos y técnicas de propagación de desinformación
+ */
+export interface TendenciasMecanismoDimension {
+  mecanismos: Array<{
+    tipo: string; // "Bots automatizados", "Cadenas de WhatsApp", "Deepfakes", etc.
+    frecuencia: number;
+    efectividad: number; // 0-100
+    tendencia: 'ascendente' | 'descendente' | 'estable';
+  }>;
+  tecnicas_manipulacion: Array<{
+    tecnica: string;
+    casos: number;
+    descripcion: string;
+  }>;
+  nuevas_amenazas: Array<{
+    tipo: string;
+    primera_deteccion: string;
+    nivel_riesgo: 'bajo' | 'medio' | 'alto' | 'crítico';
+    descripcion: string;
+  }>;
 }

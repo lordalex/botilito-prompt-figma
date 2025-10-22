@@ -75,9 +75,10 @@ export function transformMapaData(apiData: MapaResult) {
         .map(([departamento, casos]) => ({
           departamento,
           casos,
-          lat: 0, // TODO: Add coordinates to API
-          lon: 0
-        }))
+          lat: apiData.geographic.clustering_data?.[0]?.centroid?.lat || 0, // Use clustering data if available
+          lon: apiData.geographic.clustering_data?.[0]?.centroid?.lon || 0
+        })),
+      clusteringData: apiData.geographic.clustering_data // Pass through clustering data if available
     },
 
     // Dimensión 5: Descriptivos
@@ -160,7 +161,21 @@ export function transformMapaData(apiData: MapaResult) {
         formatoEjemplo: 'T-WB-20241015-156'
       },
       recomendaciones: apiData.mitigation.recomendaciones
-    }
+    },
+
+    // Dimensión 7: Evolución por Perfil (Nueva)
+    datosEvolucionPerfil: apiData.evolucion_por_perfil ? {
+      perfiles: apiData.evolucion_por_perfil.perfiles,
+      evolucionTemporal: apiData.evolucion_por_perfil.evolucion_temporal,
+      topPropagadores: apiData.evolucion_por_perfil.top_propagadores
+    } : null,
+
+    // Dimensión 8: Tendencias por Mecanismo (Nueva)
+    datosTendenciasMecanismo: apiData.tendencias_por_mecanismo ? {
+      mecanismos: apiData.tendencias_por_mecanismo.mecanismos,
+      tecnicasManipulacion: apiData.tendencias_por_mecanismo.tecnicas_manipulacion,
+      nuevasAmenazas: apiData.tendencias_por_mecanismo.nuevas_amenazas
+    } : null
   };
 }
 
