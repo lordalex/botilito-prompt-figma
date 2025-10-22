@@ -37,6 +37,12 @@ interface ContentAnalysisViewProps {
 
 export function ContentAnalysisView({ contentId = "CAS-2024-001" }: ContentAnalysisViewProps) {
 
+  // TODO: Replace mock data with real API call
+  // When integrating real API:
+  // 1. Call getJobStatus(jobId) from utils/aiAnalysis.ts
+  // 2. Extract Botilito summary using: extractBotilitoSummary(jobStatus)
+  // 3. Display resultBotilito.text (falls back to result.summary)
+
   // Datos simulados del contenido analizado por Botilito
   const analysisResult = {
     id: contentId,

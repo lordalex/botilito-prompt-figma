@@ -1,7 +1,7 @@
 import { supabase } from './supabase/client'
 
 // API Base URL for Supabase Functions
-const SUPABASE_FUNCTION_URL = 'https://mdkswlgcqsmgfmcuorxq.supabase.co/functions/v1/ingest-async-auth-enriched'
+const SUPABASE_FUNCTION_URL = 'https://mdkswlgcqsmgfmcuorxq.supabase.co/functions/v1/ingest-async-auth'
 
 // Types based on OpenAPI spec
 export type TransmissionVector = 'WhatsApp' | 'Telegram' | 'Facebook' | 'Twitter' | 'Email' | 'Otro'
@@ -21,6 +21,9 @@ export interface JobStatusResponse {
   id: string
   status: 'pending' | 'processing' | 'completed' | 'failed'
   result?: FullAnalysisResponse
+  resultBotilito?: {
+    text: string
+  }
   error?: {
     message: string
     stack?: string
@@ -84,7 +87,6 @@ export interface FullAnalysisResponse {
   url?: string
   title: string
   summary: string
-  summaryBotilito?: string
   created_at: string
   metadata?: DocumentMetadata
   case_study?: CaseStudy
@@ -208,6 +210,20 @@ export async function pollJobUntilComplete(
 
   // Timeout
   throw new Error('El análisis está tomando más tiempo del esperado. Por favor, intenta de nuevo más tarde.')
+}
+
+/**
+ * Extract Botilito summary text from job status response
+ * Returns the Botilito-personalized summary if available, otherwise falls back to regular summary
+ */
+export function extractBotilitoSummary(jobStatus: JobStatusResponse): string | undefined {
+  // Primary: Use Botilito's personalized summary if available
+  if (jobStatus.resultBotilito?.text) {
+    return jobStatus.resultBotilito.text
+  }
+
+  // Fallback: Use regular summary from result
+  return jobStatus.result?.summary
 }
 
 /**
