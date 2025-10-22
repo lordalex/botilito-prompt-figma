@@ -29,6 +29,8 @@ export async function fetchCaseDetails(caseId: string) {
       throw new Error('Usuario no autenticado');
     }
 
+    console.log('🔍 Fetching case details for caseId:', caseId);
+
     const response = await fetch(
       `https://mdkswlgcqsmgfmcuorxq.supabase.co/functions/v1/vector-async/case-detail/${caseId}`,
       {
@@ -40,14 +42,28 @@ export async function fetchCaseDetails(caseId: string) {
       }
     );
 
+    console.log('📡 Response status:', response.status, response.statusText);
+
     if (!response.ok) {
-      throw new Error(`Error ${response.status}: ${response.statusText}`);
+      // Try to get error details from response body
+      let errorMessage = `Error ${response.status}: ${response.statusText}`;
+      try {
+        const errorData = await response.json();
+        console.error('❌ Server error details:', errorData);
+        errorMessage = errorData.error || errorData.message || errorMessage;
+      } catch (e) {
+        // Response body might not be JSON
+        const errorText = await response.text();
+        console.error('❌ Server error text:', errorText);
+      }
+      throw new Error(errorMessage);
     }
 
     const data = await response.json();
+    console.log('✅ Case details received:', data);
     return data;
   } catch (error) {
-    console.error('Error fetching case details:', error);
+    console.error('❌ Error fetching case details:', error);
     throw error;
   }
 }

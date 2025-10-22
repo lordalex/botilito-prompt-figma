@@ -76,9 +76,12 @@ export function ContentReview() {
       try {
         setLoadingDetails(true);
         const details = await fetchCaseDetails(selectedCaseId);
+        console.log('📊 Case Details Loaded:', details);
+        console.log('📍 Marcadores:', details?.analisis_del_caso?.marcadores);
+        console.log('📍 Evaluación:', details?.evaluacion_epidemiologica);
         setCaseDetails(details);
       } catch (error) {
-        console.error('Error loading case details:', error);
+        console.error('❌ Error loading case details:', error);
         setCaseDetails(null);
       } finally {
         setLoadingDetails(false);
