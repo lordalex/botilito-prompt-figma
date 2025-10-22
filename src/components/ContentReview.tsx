@@ -17,6 +17,7 @@ import {
   Download, Twitter, Facebook, Linkedin
 } from 'lucide-react';
 import { useHistorialData } from '../utils/historial/useHistorialData';
+import { fetchCaseDetails } from '../utils/historial/api';
 
 export function ContentReview() {
   // Fetch real data from API
@@ -25,6 +26,8 @@ export function ContentReview() {
   const [selectedFilter, setSelectedFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
+  const [caseDetails, setCaseDetails] = useState<any>(null);
+  const [loadingDetails, setLoadingDetails] = useState(false);
   const casesPerPage = 10;
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -61,6 +64,29 @@ export function ContentReview() {
   });
 
   const [editingVaccineId, setEditingVaccineId] = useState<string | null>(null);
+
+  // Fetch full case details when a case is selected
+  useEffect(() => {
+    if (!selectedCaseId) {
+      setCaseDetails(null);
+      return;
+    }
+
+    async function loadCaseDetails() {
+      try {
+        setLoadingDetails(true);
+        const details = await fetchCaseDetails(selectedCaseId);
+        setCaseDetails(details);
+      } catch (error) {
+        console.error('Error loading case details:', error);
+        setCaseDetails(null);
+      } finally {
+        setLoadingDetails(false);
+      }
+    }
+
+    loadCaseDetails();
+  }, [selectedCaseId]);
 
   // Transform API data to match the component's expected format
   const historialCasos = apiCases.map(apiCase => {
@@ -668,11 +694,13 @@ export function ContentReview() {
                 </div>
               </div>
 
-              {/* Evaluación */}
-              {selectedCase.aiAnalysis.summary && (
+              {/* Evaluación epidemiológica */}
+              {(caseDetails?.evaluacion_epidemiologica || selectedCase.aiAnalysis.summary) && (
                 <div className="mt-6">
                   <h4>Evaluación epidemiológica:</h4>
-                  <p className="text-sm text-muted-foreground mt-1">{selectedCase.aiAnalysis.summary}</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {caseDetails?.evaluacion_epidemiologica || selectedCase.aiAnalysis.summary}
+                  </p>
                 </div>
               )}
             </div>
@@ -695,7 +723,9 @@ export function ContentReview() {
                       </div>
                       <div>
                         <p className="text-xs text-muted-foreground">Analizado por IA</p>
-                        <p className="text-sm font-medium">Botilito</p>
+                        <p className="text-sm font-medium">
+                          {caseDetails?.analisis_del_caso?.participantes?.ia || 'Botilito'}
+                        </p>
                       </div>
                     </div>
 
@@ -709,20 +739,22 @@ export function ContentReview() {
                       <div>
                         <p className="text-xs text-muted-foreground">Red de Epidemiólogos</p>
                         <p className="text-sm font-medium">
-                          {selectedCase.status === 'verified' 
-                            ? `${selectedCase.humanVerifiers} epidemiólogos participaron`
-                            : 'Pendiente verificación humana'
+                          {caseDetails?.analisis_del_caso?.participantes?.humanos_conteo
+                            ? `${caseDetails.analisis_del_caso.participantes.humanos_conteo} epidemiólogos participaron`
+                            : selectedCase.status === 'verified'
+                              ? `${selectedCase.humanVerifiers} epidemiólogos participaron`
+                              : 'Pendiente verificación humana'
                           }
                         </p>
                       </div>
                     </div>
                   </div>
 
-                  {selectedCase.status === 'verified' && selectedCase.verifiedAt && (
+                  {(caseDetails?.analisis_del_caso?.verificado_el || (selectedCase.status === 'verified' && selectedCase.verifiedAt)) && (
                     <div className="text-right">
                       <p className="text-xs text-muted-foreground">Verificado el</p>
                       <p className="text-sm font-medium">
-                        {new Date(selectedCase.verifiedAt).toLocaleDateString('es-CO', {
+                        {new Date(caseDetails?.analisis_del_caso?.verificado_el || selectedCase.verifiedAt).toLocaleDateString('es-CO', {
                           day: 'numeric',
                           month: 'short',
                           year: 'numeric'
@@ -737,64 +769,86 @@ export function ContentReview() {
                 {/* Marcadores detectados unificados (IA + Red Humana) */}
                 <div>
                   <Label className="text-sm mb-2">Marcadores de diagnóstico detectados:</Label>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {(() => {
-                      // Obtener marcadores de IA
-                      const aiMarkers = selectedCase.aiAnalysis.markersDetected.map((m: any) => m.type.toLowerCase().replace(/\s+/g, '_').replace(/\//g, '_'));
-                      const aiConfidences: { [key: string]: number } = {};
-                      selectedCase.aiAnalysis.markersDetected.forEach((m: any) => {
-                        const id = m.type.toLowerCase().replace(/\s+/g, '_').replace(/\//g, '_');
-                        aiConfidences[id] = m.confidence;
-                      });
-                      
-                      // Obtener marcadores humanos
-                      const humanMarkers = selectedCase.consensusMarkers || [];
-                      const humanPercentages = selectedCase.consensusPercentages || {};
-                      
-                      // Unificar todos los marcadores únicos
-                      const allMarkerIds = Array.from(new Set([...aiMarkers, ...humanMarkers]));
-                      
-                      return allMarkerIds.map((marcadorId: string, idx: number) => {
-                        const marcador = getMarcador(marcadorId);
-                        if (!marcador) return null;
-                        const Icon = marcador.icon;
-                        
-                        const detectedByAI = aiMarkers.includes(marcadorId);
-                        const detectedByHumans = humanMarkers.includes(marcadorId);
-                        
-                        // Calcular porcentaje unificado
-                        let unifiedPercentage = 0;
-                        if (detectedByAI && detectedByHumans) {
-                          // Promedio entre ambos
-                          const aiConf = aiConfidences[marcadorId] * 100;
-                          const humanConf = humanPercentages[marcadorId] || 0;
-                          unifiedPercentage = Math.round((aiConf + humanConf) / 2);
-                        } else if (detectedByAI) {
-                          unifiedPercentage = Math.round(aiConfidences[marcadorId] * 100);
-                        } else if (detectedByHumans) {
-                          unifiedPercentage = humanPercentages[marcadorId] || 0;
+                  {loadingDetails ? (
+                    <div className="text-sm text-muted-foreground">Cargando marcadores...</div>
+                  ) : (
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {(() => {
+                        // Get pre-merged marcadores from case-detail endpoint
+                        const marcadores = caseDetails?.analisis_del_caso?.marcadores || [];
+
+                        if (marcadores.length === 0) {
+                          // Fallback to summary data if no marcadores available
+                          return selectedCase.aiAnalysis.markersDetected.map((m: any, idx: number) => {
+                            const marcadorId = m.type.toLowerCase().replace(/\s+/g, '_').replace(/\//g, '_');
+                            const marcador = getMarcador(marcadorId);
+                            if (!marcador) return null;
+                            const Icon = marcador.icon;
+                            const confidence = Math.round(m.confidence * 100);
+
+                            return (
+                              <span key={idx} className="inline-flex items-center space-x-1 px-2 py-1 rounded-md border bg-white border-gray-200 text-xs">
+                                <Icon className="h-3 w-3 text-muted-foreground" />
+                                <span>{marcador.label}</span>
+                                <span className="font-medium text-muted-foreground">
+                                  {confidence}%
+                                </span>
+                              </span>
+                            );
+                          });
                         }
-                        
-                        return (
-                          <span key={idx} className="inline-flex items-center space-x-1 px-2 py-1 rounded-md border bg-white border-gray-200 text-xs">
-                            <Icon className={`h-3 w-3 ${marcador.color}`} />
-                            <span>{marcador.label}</span>
-                            <span className="font-medium text-muted-foreground">
-                              {unifiedPercentage}%
+
+                        // Use pre-merged marcadores from case-detail endpoint
+                        // marcadores = [{ label: "Falso", confidence: 92 }, ...]
+                        return marcadores.map((marker: any, idx: number) => {
+                          // Map label name to marcador ID
+                          const marcadorId = marker.label.toLowerCase().replace(/\s+/g, '_').replace(/\//g, '_');
+                          const marcador = getMarcador(marcadorId);
+
+                          if (!marcador) {
+                            // Render unknown marker with default styling
+                            return (
+                              <span key={idx} className="inline-flex items-center space-x-1 px-2 py-1 rounded-md border bg-white border-gray-200 text-xs">
+                                <AlertCircle className="h-3 w-3 text-muted-foreground" />
+                                <span>{marker.label}</span>
+                                <span className="font-medium text-muted-foreground">
+                                  {marker.confidence}%
+                                </span>
+                              </span>
+                            );
+                          }
+
+                          const Icon = marcador.icon;
+
+                          // Color coding based on confidence
+                          const getConfidenceColor = (pct: number) => {
+                            if (pct >= 80) return 'text-red-600 bg-red-50 border-red-300';
+                            if (pct >= 60) return 'text-orange-600 bg-orange-50 border-orange-300';
+                            if (pct >= 40) return 'text-yellow-600 bg-yellow-50 border-yellow-300';
+                            return 'text-blue-600 bg-blue-50 border-blue-300';
+                          };
+
+                          return (
+                            <span key={idx} className={`inline-flex items-center space-x-1 px-2 py-1 rounded-md border text-xs ${getConfidenceColor(marker.confidence)}`}>
+                              <Icon className="h-3 w-3" />
+                              <span className="font-medium">{marcador.label}</span>
+                              <span className="font-bold">
+                                {marker.confidence}%
+                              </span>
                             </span>
-                          </span>
-                        );
-                      });
-                    })()}
-                  </div>
+                          );
+                        });
+                      })()}
+                    </div>
+                  )}
                 </div>
 
-                {/* Issues detectados */}
-                {selectedCase.aiAnalysis.issues && selectedCase.aiAnalysis.issues.length > 0 && (
+                {/* Problemas identificados */}
+                {(caseDetails?.analisis_del_caso?.problemas_identificados?.length > 0 || (selectedCase.aiAnalysis.issues && selectedCase.aiAnalysis.issues.length > 0)) && (
                   <div>
                     <Label className="text-sm mb-2">Problemas identificados:</Label>
                     <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
-                      {selectedCase.aiAnalysis.issues.map((issue: string, idx: number) => (
+                      {(caseDetails?.analisis_del_caso?.problemas_identificados || selectedCase.aiAnalysis.issues || []).map((issue: string, idx: number) => (
                         <li key={idx}>{issue}</li>
                       ))}
                     </ul>
@@ -806,13 +860,13 @@ export function ContentReview() {
                   <Label className="text-sm mb-2">Nivel de confianza del análisis IA:</Label>
                   <div className="flex items-center space-x-3">
                     <div className="flex-1 bg-white rounded-full h-3 border border-blue-200">
-                      <div 
+                      <div
                         className="bg-blue-500 h-full rounded-full transition-all"
-                        style={{ width: `${selectedCase.aiAnalysis.confidence * 100}%` }}
+                        style={{ width: `${caseDetails?.analisis_del_caso?.nivel_de_confianza_ia || (selectedCase.aiAnalysis.confidence * 100)}%` }}
                       />
                     </div>
                     <span className="text-sm font-medium">
-                      {(selectedCase.aiAnalysis.confidence * 100).toFixed(0)}%
+                      {caseDetails?.analisis_del_caso?.nivel_de_confianza_ia || (selectedCase.aiAnalysis.confidence * 100).toFixed(0)}%
                     </span>
                   </div>
                 </div>

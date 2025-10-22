@@ -13,11 +13,12 @@ export async function fetchHistorialData(): Promise<HistorialSummaryResult> {
 }
 
 /**
- * Fetch complete case details from /vector-async/case/{caseId}
+ * Fetch complete case details from /vector-async/case-detail/{caseId}
+ * This endpoint provides pre-processed data specifically for the detail view
  * Requires authentication
  *
- * @param caseId - The UUID of the case
- * @returns Complete case details including documents and user vote
+ * @param caseId - The UUID or display ID of the case
+ * @returns Complete case details with merged AI + human analysis
  */
 export async function fetchCaseDetails(caseId: string) {
   try {
@@ -29,7 +30,7 @@ export async function fetchCaseDetails(caseId: string) {
     }
 
     const response = await fetch(
-      `https://mdkswlgcqsmgfmcuorxq.supabase.co/functions/v1/vector-async/case/${caseId}`,
+      `https://mdkswlgcqsmgfmcuorxq.supabase.co/functions/v1/vector-async/case-detail/${caseId}`,
       {
         method: 'GET',
         headers: {
