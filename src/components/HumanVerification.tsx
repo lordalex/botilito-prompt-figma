@@ -1,5 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import botilitoImage from 'figma:asset/e27a276e6ff0e187a67cf54678c265c1c38adbf7.png';
+import { useVerificationData } from '../utils/humanVerification/useVerificationData';
+import { CONSENSUS_STATES, PRIORITY_LEVELS, DIAGNOSTIC_LABELS } from '../utils/humanVerification/types';
+import { submitHumanVerification } from '../utils/humanVerification/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -75,7 +78,11 @@ export function HumanVerification() {
     progressToNext: 0
   });
 
-  const pendingContents = [
+  // Use the verification data hook
+  const { loading, error, summaryData, cases, userStats, refresh } = useVerificationData();
+
+  // Use API data if available, otherwise fall back to mock data
+  const pendingContents = cases.length > 0 ? cases : [
     {
       id: 'T-WB-20241014-001',
       type: 'text',
@@ -350,18 +357,36 @@ export function HumanVerification() {
     }
   };
 
-  const handleVerificationSubmit = () => {
+  const handleVerificationSubmit = async () => {
     if (!selectedContent || marcadoresDiagnostico.length === 0) return;
-    
-    // Simulate verification submission
-    console.log('Verificación enviada:', {
-      contenido: selectedContent,
-      marcadores: marcadoresDiagnostico,
-      justificaciones: marcadoresJustificaciones,
-      enlaces: marcadoresEnlaces,
-      notas: verificationNotes
-    });
-    
+
+    try {
+      // Submit actual verification to API
+      const result = await submitHumanVerification(
+        selectedContent,
+        marcadoresDiagnostico,
+        verificationNotes
+      );
+
+      if (!result.success) {
+        console.error('Error al enviar verificación:', result.message);
+        // Could show error toast here
+        return;
+      }
+
+      console.log('Verificación enviada exitosamente:', {
+        contenido: selectedContent,
+        marcadores: marcadoresDiagnostico,
+        justificaciones: marcadoresJustificaciones,
+        enlaces: marcadoresEnlaces,
+        notas: verificationNotes
+      });
+    } catch (error) {
+      console.error('Error al enviar verificación:', error);
+      // Could show error toast here
+      return;
+    }
+
     // Calcular puntos basados en criterios detallados
     const basePoints = 20; // XP base por realizar un diagnóstico
     const markerBonus = marcadoresDiagnostico.length * 5; // 5 XP por cada marcador aplicado
@@ -445,9 +470,11 @@ export function HumanVerification() {
       nextLevelXP: nextLevel ? nextLevel.minXP : currentLevel.maxXP,
       progressToNext
     });
-    
     // Mostrar diálogo de éxito
     setShowSuccessDialog(true);
+
+    // Refresh data after successful submission
+    refresh();
   };
 
   const handleCloseSuccessDialog = () => {
@@ -554,6 +581,30 @@ export function HumanVerification() {
   };
 
   const selectedContentData = pendingContents.find(c => c.id === selectedContent);
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[500px] space-y-4">
+        <div className="animate-spin rounded-full h-16 w-16 border-4 border-yellow-400 border-t-transparent"></div>
+        <p className="text-gray-600">Cargando casos pendientes de verificación...</p>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error && !cases.length) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[500px] space-y-4">
+        <AlertTriangle className="h-16 w-16 text-orange-500" />
+        <p className="text-gray-600">Error al cargar los casos</p>
+        <p className="text-sm text-gray-500">{error}</p>
+        <Button onClick={refresh} variant="outline">
+          Intentar de nuevo
+        </Button>
+      </div>
+    );
+  }
 
   // Componente de diálogo de éxito gamificado (alineado con sistema de UserProfile)
   const renderSuccessDialog = () => (
@@ -725,9 +776,9 @@ export function HumanVerification() {
         {/* Franja superior de Botilito */}
         <div className="bg-[#ffe97a] border-2 border-[#ffda00] rounded-lg p-4 shadow-lg">
           <div className="flex items-center space-x-4">
-            <img 
-              src={botilitoImage} 
-              alt="Botilito" 
+            <img
+              src={botilitoImage}
+              alt="Botilito"
               className="w-24 h-24 object-contain mt-[0px] mr-[16px] mb-[-18px] ml-[0px]"
             />
             <div className="flex-1">
@@ -740,6 +791,53 @@ export function HumanVerification() {
             </div>
           </div>
         </div>
+
+        {/* Estadísticas del Sistema */}
+        {summaryData && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-blue-600 font-medium">Casos Totales</p>
+                    <p className="text-2xl font-bold text-blue-900">
+                      {summaryData.kpis.total_cases.toLocaleString()}
+                    </p>
+                  </div>
+                  <FileText className="h-8 w-8 text-blue-500 opacity-50" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-purple-600 font-medium">Documentos</p>
+                    <p className="text-2xl font-bold text-purple-900">
+                      {summaryData.kpis.total_documents.toLocaleString()}
+                    </p>
+                  </div>
+                  <Layers className="h-8 w-8 text-purple-500 opacity-50" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-green-600 font-medium">Pendientes de Verificación</p>
+                    <p className="text-2xl font-bold text-green-900">
+                      {pendingContents.filter(c => c.consensusState === 'ai_only').length}
+                    </p>
+                  </div>
+                  <Clock className="h-8 w-8 text-green-500 opacity-50" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
         {/* Solo la cola de casos pendientes */}
         <Card>
