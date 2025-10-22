@@ -1,44 +1,111 @@
 import { supabase } from '../supabase/client';
-import type { VerificationSummaryResponse, VerificationSummaryResult } from './types';
+import type { JobCreationResponse, VerificationSummaryResponse, VerificationSummaryResult } from './types';
 
-// Vector Async Summary API base URL
-const VECTOR_SUMMARY_URL = 'https://mdkswlgcqsmgfmcuorxq.supabase.co/functions/v1/vector-async/summary';
+// Vector Async API base URLs
+const VECTOR_ASYNC_BASE_URL = 'https://mdkswlgcqsmgfmcuorxq.supabase.co/functions/v1/vector-async';
+const SUMMARY_ENDPOINT = `${VECTOR_ASYNC_BASE_URL}/summary`;
+const STATUS_ENDPOINT = `${VECTOR_ASYNC_BASE_URL}/status`;
 
 /**
- * Fetch verification summary data
+ * Poll job status with exponential backoff
+ * @param jobId - The job ID to poll
+ * @param maxAttempts - Maximum number of polling attempts (default: 30)
+ * @param initialDelay - Initial delay in ms (default: 1000)
+ * @returns Job result when completed
+ */
+async function pollJobStatus(
+  jobId: string,
+  maxAttempts: number = 30,
+  initialDelay: number = 1000
+): Promise<VerificationSummaryResult> {
+  let attempts = 0;
+  let delay = initialDelay;
+
+  while (attempts < maxAttempts) {
+    try {
+      const response = await fetch(`${STATUS_ENDPOINT}/${jobId}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error al verificar el estado: ${response.status}`);
+      }
+
+      const data: VerificationSummaryResponse = await response.json();
+
+      // Job completed successfully
+      if (data.status === 'completed' && data.result) {
+        return data.result;
+      }
+
+      // Job failed
+      if (data.status === 'failed') {
+        throw new Error(data.error?.message || 'La generación del resumen falló');
+      }
+
+      // Job still processing - wait and retry
+      if (data.status === 'pending' || data.status === 'processing') {
+        await new Promise(resolve => setTimeout(resolve, delay));
+        attempts++;
+        // Exponential backoff: increase delay up to 5 seconds
+        delay = Math.min(delay * 1.5, 5000);
+        continue;
+      }
+
+      throw new Error(`Estado desconocido: ${data.status}`);
+    } catch (error) {
+      if (attempts >= maxAttempts - 1) {
+        throw error;
+      }
+      attempts++;
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+
+  throw new Error('Tiempo de espera agotado. Por favor, intenta de nuevo.');
+}
+
+/**
+ * Fetch verification summary data using async job pattern
  * Returns cases pending human verification and system statistics
+ *
+ * Flow:
+ * 1. POST to /summary to create job
+ * 2. Poll /status/{jobId} until completed
+ * 3. Return result
  *
  * @returns Verification summary with KPIs, recent cases, and distributions
  * @throws Error if API request fails
  */
 export async function fetchVerificationSummary(): Promise<VerificationSummaryResult> {
   try {
-    const response = await fetch(VECTOR_SUMMARY_URL, {
-      method: 'GET',
+    // Step 1: Create the job
+    const createResponse = await fetch(SUMMARY_ENDPOINT, {
+      method: 'POST',
       headers: {
         'Content-Type': 'application/json'
-      }
+      },
+      body: JSON.stringify({ query: null })
     });
 
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: 'Error desconocido' }));
-      throw new Error(error.error || `Error ${response.status}: ${response.statusText}`);
+    if (!createResponse.ok) {
+      const error = await createResponse.json().catch(() => ({ error: 'Error desconocido' }));
+      throw new Error(error.error || `Error ${createResponse.status}: ${createResponse.statusText}`);
     }
 
-    const data: VerificationSummaryResponse = await response.json();
+    const createData: JobCreationResponse = await createResponse.json();
+    const jobId = createData.job_id;
 
-    // Check if the response is already completed
-    if (data.status === 'completed' && data.result) {
-      return data.result;
+    if (!jobId) {
+      throw new Error('No se recibió un ID de trabajo válido');
     }
 
-    // If status is pending or processing, we might need to poll
-    // For now, we'll throw an error if data is not ready
-    if (data.status === 'failed') {
-      throw new Error(data.error?.message || 'La generación del resumen falló');
-    }
-
-    throw new Error('Los datos aún no están listos. Por favor, intenta de nuevo.');
+    // Step 2: Poll for results
+    const result = await pollJobStatus(jobId);
+    return result;
   } catch (error) {
     console.error('Error fetching verification summary:', error);
     throw error;

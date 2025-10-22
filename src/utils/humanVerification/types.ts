@@ -1,7 +1,14 @@
 // Types for Human Verification Summary API
 
 /**
- * Main summary response from vector-async/summary endpoint
+ * Job creation response from POST to /summary
+ */
+export interface JobCreationResponse {
+  job_id: string;
+}
+
+/**
+ * Job status response from GET to /status/{jobId}
  */
 export interface VerificationSummaryResponse {
   id: string;
