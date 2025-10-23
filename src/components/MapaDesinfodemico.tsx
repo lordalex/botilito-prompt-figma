@@ -204,20 +204,26 @@ export function MapaDesinfodemico() {
       console.error('%c║                                                                            ║', 'color: #ef4444; font-weight: bold; font-size: 16px');
       console.error('%c╚════════════════════════════════════════════════════════════════════════════╝', 'color: #ef4444; font-weight: bold; font-size: 16px');
 
+      // Safe error property access with defaults
+      const errorMessage = err?.message || String(err) || 'Unknown error';
+      const errorName = err?.name || 'Error';
+      const errorStack = err?.stack || 'No stack trace available';
+
       console.error('\n%c❌ ERROR LOADING MAPA:', 'color: #ef4444; font-weight: bold');
       console.error('   Time Until Error:', `${errorTime}s`);
-      console.error('   Error Message:', err.message);
-      console.error('   Error Type:', err.name);
+      console.error('   Error Message:', errorMessage);
+      console.error('   Error Type:', errorName);
 
       console.error('\n%c📋 COMPLETE ERROR DETAILS:', 'color: #ef4444; font-weight: bold');
       console.error({
-        message: err.message,
-        name: err.name,
-        stack: err.stack
+        message: errorMessage,
+        name: errorName,
+        stack: errorStack,
+        rawError: err
       });
 
       console.error('\n%c🔧 USER-FACING ERROR:', 'color: #ef4444; font-weight: bold');
-      const userError = err.message || 'Error al cargar el mapa desinfodémico';
+      const userError = errorMessage || 'Error al cargar el mapa desinfodémico';
       console.error('   Message:', userError);
 
       setError(userError);
