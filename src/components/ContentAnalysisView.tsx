@@ -124,6 +124,15 @@ export function ContentAnalysisView({ contentId = "CAS-2024-001" }: ContentAnaly
     }
   };
 
+  // 🔍 DEBUG: Log data structure
+  console.log('🔍 DEBUG - Analysis Result:', {
+    hasSummary: !!analysisResult.summary,
+    hasMetadata: !!analysisResult.metadata,
+    hasResultBotilito: !!analysisResult.metadata?.resultBotilito,
+    botilitoSummary: analysisResult.metadata?.resultBotilito?.summary?.substring(0, 50) + '...',
+    regularSummary: analysisResult.summary?.substring(0, 50) + '...'
+  });
+
   const getMarkerIcon = (type: string) => {
     const iconMap: { [key: string]: React.ReactNode } = {
       'Falso': <XCircle className="h-4 w-4" />,
