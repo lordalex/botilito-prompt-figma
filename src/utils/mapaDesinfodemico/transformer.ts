@@ -17,13 +17,41 @@ import type { MapaResult, TimeSeriesPoint } from './types';
  * - magnitude, temporality, virulence, geographic, descriptive, mitigation
  */
 export function transformMapaData(apiData: MapaResult) {
+  console.log('%c🔄 [TRANSFORMER] Starting data transformation...', 'color: #8b5cf6; font-size: 14px; font-weight: bold');
+  console.log('%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color: #8b5cf6');
+
   // Check if this is the NEW structure or OLD structure
   const isNewStructure = 'dimension_magnitud' in apiData && apiData.dimension_magnitud !== undefined;
 
+  console.log('%c🔍 [TRANSFORMER] Structure detection:', 'color: #3b82f6; font-weight: bold');
+  console.log('%c📦 Input data keys:', 'color: #06b6d4', Object.keys(apiData));
+
   if (isNewStructure) {
-    return transformNewStructure(apiData);
+    console.log('%c🆕 [TRANSFORMER] Using NEW structure transformer', 'color: #10b981; font-weight: bold');
+    console.log('%c✓ Found: dimension_magnitud', 'color: #10b981');
+    console.log('%c✓ Structure: { global_kpis, dimension_X.indicadores/graficos/tablas }', 'color: #10b981');
+
+    const result = transformNewStructure(apiData);
+
+    console.log('%c✅ [TRANSFORMER] Transformation complete (NEW)', 'color: #10b981; font-weight: bold');
+    console.log('%c📊 Output keys:', 'color: #3b82f6', Object.keys(result));
+    console.log('%c🎯 Global KPIs:', 'color: #f59e0b', result.globalKPIs);
+    console.log('%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color: #10b981');
+
+    return result;
   } else {
-    return transformOldStructure(apiData);
+    console.log('%c📜 [TRANSFORMER] Using OLD structure transformer', 'color: #f59e0b; font-weight: bold');
+    console.log('%c✓ Found: magnitude, temporality, virulence...', 'color: #f59e0b');
+    console.log('%c✓ Structure: { magnitude, temporality, virulence, geographic, ... }', 'color: #f59e0b');
+
+    const result = transformOldStructure(apiData);
+
+    console.log('%c✅ [TRANSFORMER] Transformation complete (OLD)', 'color: #10b981; font-weight: bold');
+    console.log('%c📊 Output keys:', 'color: #3b82f6', Object.keys(result));
+    console.log('%c🎯 Global KPIs (mock):', 'color: #f59e0b', result.globalKPIs);
+    console.log('%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color: #10b981');
+
+    return result;
   }
 }
 

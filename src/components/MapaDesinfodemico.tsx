@@ -112,20 +112,49 @@ export function MapaDesinfodemico() {
   }, []);
 
   async function loadMapaData() {
+    console.log('%c🗺️ [MAPA COMPONENT] Starting data load...', 'color: #ec4899; font-size: 14px; font-weight: bold');
+    console.log('%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color: #ec4899');
+
     setLoading(true);
     setError(null);
 
     try {
+      console.log('%c📞 [MAPA COMPONENT] Calling generateMapa()...', 'color: #3b82f6; font-weight: bold');
+
       const result = await generateMapa((status) => {
+        console.log('%c📊 [MAPA COMPONENT] Job status update:', 'color: #f59e0b', status);
         setJobStatus(status);
       });
 
+      console.log('%c✅ [MAPA COMPONENT] generateMapa() returned:', 'color: #10b981; font-weight: bold', result);
+
       if (result.result) {
+        console.log('%c🔄 [MAPA COMPONENT] Transforming data...', 'color: #8b5cf6; font-weight: bold');
+
         const transformed = transformMapaData(result.result);
+
+        console.log('%c✅ [MAPA COMPONENT] Data transformed successfully', 'color: #10b981; font-weight: bold');
+        console.log('%c📊 [MAPA COMPONENT] Transformed data structure:', 'color: #06b6d4', {
+          keys: Object.keys(transformed),
+          datosMagnitud: transformed.datosMagnitud,
+          globalKPIs: transformed.globalKPIs
+        });
+
         setMapaData(transformed);
+
+        console.log('%c🎉 [MAPA COMPONENT] Data loaded and set to state!', 'color: #10b981; font-size: 14px; font-weight: bold');
+        console.log('%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color: #10b981');
+      } else {
+        console.warn('%c⚠️ [MAPA COMPONENT] No result data in response', 'color: #f59e0b; font-weight: bold');
       }
     } catch (err: any) {
-      console.error('Error loading mapa:', err);
+      console.error('%c❌ [MAPA COMPONENT] Error loading mapa:', 'color: #ef4444; font-weight: bold', err);
+      console.error('%c📋 Error details:', 'color: #ef4444', {
+        message: err.message,
+        stack: err.stack
+      });
+      console.log('%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color: #ef4444');
+
       setError(err.message || 'Error al cargar el mapa desinfodémico');
     } finally {
       setLoading(false);
