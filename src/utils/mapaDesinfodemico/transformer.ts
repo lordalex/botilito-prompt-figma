@@ -2,9 +2,8 @@ import type { MapaResult, TimeSeriesPoint } from './types';
 
 /**
  * Transform Edge Function API response to dashboard format
- * BACKWARD COMPATIBLE: Handles both old and new API structures
  *
- * NEW STRUCTURE (from Edge Function):
+ * STRUCTURE (from mapa-infodemico-indicadores):
  * - global_kpis: { casos_activos, tasa_reproduccion_r0, indice_gravedad_igc, ... }
  * - dimension_magnitud: { indicadores: {...}, graficos: {...}, tablas: {...} }
  * - dimension_temporalidad: { indicadores: {...}, graficos: {...}, tablas: {...} }
@@ -12,57 +11,16 @@ import type { MapaResult, TimeSeriesPoint } from './types';
  * - dimension_geografica: { indicadores: {...}, tablas: {...} }
  * - dimension_descriptiva: { indicadores: {...}, graficos: {...} }
  * - dimension_mitigacion: { indicadores: {...} }
- *
- * OLD STRUCTURE (legacy):
- * - magnitude, temporality, virulence, geographic, descriptive, mitigation
  */
 export function transformMapaData(apiData: MapaResult) {
   console.log('%c🔄 [TRANSFORMER] Starting data transformation...', 'color: #8b5cf6; font-size: 14px; font-weight: bold');
   console.log('%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color: #8b5cf6');
-
-  // Check if this is the NEW structure or OLD structure
-  const isNewStructure = 'dimension_magnitud' in apiData && apiData.dimension_magnitud !== undefined;
-
-  console.log('%c🔍 [TRANSFORMER] Structure detection:', 'color: #3b82f6; font-weight: bold');
   console.log('%c📦 Input data keys:', 'color: #06b6d4', Object.keys(apiData));
 
-  if (isNewStructure) {
-    console.log('%c🆕 [TRANSFORMER] Using NEW structure transformer', 'color: #10b981; font-weight: bold');
-    console.log('%c✓ Found: dimension_magnitud', 'color: #10b981');
-    console.log('%c✓ Structure: { global_kpis, dimension_X.indicadores/graficos/tablas }', 'color: #10b981');
-
-    const result = transformNewStructure(apiData);
-
-    console.log('%c✅ [TRANSFORMER] Transformation complete (NEW)', 'color: #10b981; font-weight: bold');
-    console.log('%c📊 Output keys:', 'color: #3b82f6', Object.keys(result));
-    console.log('%c🎯 Global KPIs:', 'color: #f59e0b', result.globalKPIs);
-    console.log('%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color: #10b981');
-
-    return result;
-  } else {
-    console.log('%c📜 [TRANSFORMER] Using OLD structure transformer', 'color: #f59e0b; font-weight: bold');
-    console.log('%c✓ Found: magnitude, temporality, virulence...', 'color: #f59e0b');
-    console.log('%c✓ Structure: { magnitude, temporality, virulence, geographic, ... }', 'color: #f59e0b');
-
-    const result = transformOldStructure(apiData);
-
-    console.log('%c✅ [TRANSFORMER] Transformation complete (OLD)', 'color: #10b981; font-weight: bold');
-    console.log('%c📊 Output keys:', 'color: #3b82f6', Object.keys(result));
-    console.log('%c🎯 Global KPIs (mock):', 'color: #f59e0b', result.globalKPIs);
-    console.log('%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color: #10b981');
-
-    return result;
-  }
-}
-
-/**
- * Transform NEW Edge Function structure
- */
-function transformNewStructure(apiData: any) {
   const { global_kpis, dimension_magnitud, dimension_temporalidad, dimension_alcance_virulencia,
           dimension_geografica, dimension_descriptiva, dimension_mitigacion } = apiData;
 
-  return {
+  const result = {
     // ===== DIMENSIÓN 1: MAGNITUD =====
     datosMagnitud: {
       noticiasReportadas: dimension_magnitud.indicadores.noticias_reportadas_totales,
@@ -288,6 +246,13 @@ function transformNewStructure(apiData: any) {
     datosEvolucionPerfil: null,
     datosTendenciasMecanismo: null
   };
+
+  console.log('%c✅ [TRANSFORMER] Transformation complete', 'color: #10b981; font-weight: bold');
+  console.log('%c📊 Output keys:', 'color: #3b82f6', Object.keys(result));
+  console.log('%c🎯 Global KPIs:', 'color: #f59e0b', result.globalKPIs);
+  console.log('%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color: #10b981');
+
+  return result;
 }
 
 /**
@@ -414,247 +379,4 @@ function getClassificationColor(clasificacion: string): string {
   };
 
   return colorMap[clasificacion] || '#6b7280';
-}
-
-/**
- * Transform OLD API structure (legacy compatibility)
- */
-function transformOldStructure(apiData: any) {
-  return {
-    // Dimensión 1: Magnitud
-    datosMagnitud: {
-      noticiasReportadas: apiData.magnitude?.noticias_reportadas || 0,
-      noticiasReportadasSemana: apiData.magnitude?.incremento_semanal || 0,
-      noticiasReportadasMes: apiData.magnitude?.noticias_reportadas_mes || 0,
-      deteccionesPorIA: apiData.magnitude?.detectadas_por_ia || 0,
-      deteccionesPorHumanos: apiData.magnitude?.validadas_por_humanos || 0,
-      tiempoDeteccionIA: parseTimeString(apiData.magnitude?.tiempo_promedio_deteccion || "0h"),
-      tiempoDeteccionHumanos: parseTimeString(apiData.magnitude?.tiempo_promedio_validacion || "0h"),
-      fuentesGeneradoras: apiData.sources?.slice(0, 5).map((source: any) => ({
-        fuente: source.nombre,
-        casos: source.casos_detectados,
-        tipo: source.tipo
-      })) || []
-    },
-
-    // Dimensión 2: Temporalidad
-    datosTemporalidad: {
-      velocidadDeteccion: parseTimeString(apiData.magnitude?.tiempo_promedio_deteccion || "0h"),
-      tiempoViralizacionPromedio: parseTimeString(apiData.temporality?.tiempo_viralizacion_promedio || "0h"),
-      evolucionSemanal: transformToWeeklySeries(
-        apiData.temporality?.reportados || [],
-        apiData.temporality?.detectados || [],
-        apiData.temporality?.validados || []
-      ),
-      comparativaVerdaderasVsFalsas: [
-        { tipo: 'Verdaderas', interacciones: 3250, tiempo: 12.4 },
-        { tipo: 'Falsas', interacciones: 8975, tiempo: 4.8 }
-      ]
-    },
-
-    // Dimensión 3: Virulencia/Alcance
-    datosAlcance: {
-      indiceViralidad: apiData.virulence?.indice_viralidad || 0,
-      casosCriticos: apiData.virulence?.casos_criticos || 0,
-      vectoresPrincipales: apiData.virulence?.vectores_principales || [],
-      rangoViralizacion: {
-        min: apiData.virulence?.rango_viralizacion?.min || 0,
-        max: apiData.virulence?.rango_viralizacion?.max || 100,
-        promedio: apiData.virulence?.rango_viralizacion?.avg || 0
-      },
-      nivelEngagement: apiData.virulence?.nivel_engagement || 0,
-      efectividadAlcance: {
-        verdaderas: 3250,
-        falsas: 8975,
-        ratio: 0.36
-      },
-      distribucionViralidad: Object.entries(apiData.virulence?.distribucion_viralidad || {}).map(([rango, casos]) => {
-        const total = Object.values(apiData.virulence?.distribucion_viralidad || {}).reduce((sum: number, val: any) => sum + val, 0);
-        return {
-          rango: rango.replace('1-10', '0-10').replace('11-50', '11-50').replace('51-100', '51-100').replace('101+', '100+'),
-          casos: casos as number,
-          porcentaje: total > 0 ? Math.round((casos as number / total) * 100) : 0
-        };
-      })
-    },
-
-    // Dimensión 4: Geográficos
-    datosGeograficos: {
-      casosPorRegion: Object.entries(apiData.geographic?.casos_por_region || {}).map(([region, casos]) => ({
-        region,
-        casos: casos as number,
-        densidad: calculateDensity(casos as number).toFixed(1),
-        color: getRegionColor(region)
-      })),
-      regionMasAfectada: apiData.geographic?.region_mas_afectada || 'N/A',
-      fuentesInternacionalesVsNacionales: {
-        internacionales: apiData.geographic?.fuentes_origen?.Internacional || 0,
-        nacionales: apiData.geographic?.fuentes_origen?.Nacional || 0,
-        porcentajeInternacional: Math.round((apiData.geographic?.fuentes_origen?.Internacional || 0) /
-          ((apiData.geographic?.fuentes_origen?.Internacional || 0) + (apiData.geographic?.fuentes_origen?.Nacional || 1)) * 100) || 0
-      },
-      mapaCalor: Object.entries(apiData.geographic?.casos_por_region || {})
-        .slice(0, 5)
-        .map(([departamento, casos]) => ({
-          departamento,
-          casos: casos as number,
-          lat: getCoordinatesForRegion(departamento).lat,
-          lon: getCoordinatesForRegion(departamento).lon
-        })),
-      totalRegionesActivas: apiData.geographic?.total_regiones_activas || 0,
-      clustersEspaciales: apiData.geographic?.clusters_espaciales || []
-    },
-
-    // Dimensión 5: Descriptivos
-    datosDescriptivos: {
-      porSector: (apiData.descriptive?.temas_principales || []).map((tema: any) => {
-        const total = apiData.magnitude?.noticias_reportadas || 1;
-        return {
-          sector: tema.tema,
-          casos: tema.cantidad,
-          porcentaje: Math.round((tema.cantidad / total) * 100)
-        };
-      }),
-      plataformasPropagacion: Object.entries(apiData.descriptive?.casos_por_plataforma || {})
-        .map(([plataforma, casos]) => ({
-          plataforma,
-          casos: casos as number,
-          porcentaje: Math.round((casos as number / (apiData.magnitude?.noticias_reportadas || 1)) * 100)
-        }))
-        .sort((a, b) => b.casos - a.casos)
-        .slice(0, 5),
-      personalidadesAtacadas: [
-        { nombre: 'Presidente de la República', ataques: 234 },
-        { nombre: 'Alcalde de Bogotá', ataques: 189 }
-      ],
-      sectorMasEficiente: {
-        sector: apiData.descriptive?.sector_mas_eficiente || 'N/A',
-        alcancePromedio: 12500,
-        viralidad: apiData.virulence?.indice_viralidad || 0
-      }
-    },
-
-    // Dimensión 6: Mitigación
-    datosMitigacion: {
-      consensoValidacionHumana: apiData.mitigation?.consenso_humano_ia || 0,
-      consensoHumanoVsIA: {
-        acuerdo: Math.round(apiData.mitigation?.consenso_humano_ia || 0),
-        desacuerdo: Math.round(100 - (apiData.mitigation?.consenso_humano_ia || 0))
-      },
-      casosEnDesacuerdo: apiData.mitigation?.casos_en_desacuerdo || 0,
-      distribucionDesacuerdo: Object.entries(apiData.mitigation?.distribucion_desacuerdo || {})
-        .map(([categoria, casos]) => {
-          const total = Object.values(apiData.mitigation?.distribucion_desacuerdo || {}).reduce((sum: number, val: any) => sum + val, 0);
-          return {
-            categoria,
-            casos: casos as number,
-            porcentaje: total > 0 ? Math.round((casos as number / total) * 100) : 0
-          };
-        }),
-      noticiasMasReportadas: (apiData.mitigation?.noticias_mas_reportadas || []).map((noticia: any) => ({
-        titulo: noticia.url || `Documento ${noticia.id.substring(0, 8)}...`,
-        reportes: noticia.reportes
-      })),
-      casosPorPrioridad: [
-        { prioridad: 'Alta', casos: apiData.virulence?.casos_criticos || 0, porcentaje: 15 },
-        { prioridad: 'Media', casos: Math.floor((apiData.magnitude?.noticias_reportadas_mes || 0) * 0.38), porcentaje: 38 },
-        { prioridad: 'Baja', casos: Math.floor((apiData.magnitude?.noticias_reportadas_mes || 0) * 0.47), porcentaje: 47 }
-      ],
-      redEpidemiologos: {
-        totalActivos: 47,
-        casosProcesados: apiData.magnitude?.validadas_por_humanos || 0,
-        tiempoPromedioVerificacion: parseTimeString(apiData.magnitude?.tiempo_promedio_validacion || "0h"),
-        consensoPromedio: apiData.mitigation?.consenso_humano_ia || 0
-      },
-      redInmunizadores: {
-        totalActivos: 32,
-        estrategiasDesarrolladas: 156,
-        estrategiasActivas: 134,
-        alcanceTotal: 1250000
-      },
-      marcadoresDiagnostico: transformClassificationsToMarkers(apiData.descriptive?.clasificaciones || {}),
-      vectoresContagio: Object.entries(apiData.mitigation?.vectores_contagio || {})
-        .map(([tipo, casos]) => {
-          const total = Object.values(apiData.mitigation?.vectores_contagio || {}).reduce((sum: number, val: any) => sum + val, 0);
-          const typeMap: Record<string, string> = {
-            'Texto': 'T',
-            'Imagen': 'I',
-            'Video': 'V',
-            'Audio': 'A'
-          };
-          return {
-            tipo: `${tipo} (${typeMap[tipo] || 'X'})`,
-            casos: casos as number,
-            porcentaje: total > 0 ? Math.round((casos as number / total) * 100) : 0,
-            codigo: typeMap[tipo] || 'X'
-          };
-        }),
-      casosPorEstado: [
-        {
-          estado: 'Validados',
-          casos: apiData.mitigation?.casos_por_estado?.validados || 0,
-          porcentaje: (apiData.mitigation?.casos_por_estado?.total || 0) > 0 ?
-            Math.round(((apiData.mitigation?.casos_por_estado?.validados || 0) / apiData.mitigation?.casos_por_estado?.total) * 100) : 0,
-          color: '#10b981'
-        },
-        {
-          estado: 'Solo IA',
-          casos: apiData.mitigation?.casos_por_estado?.detectados || 0,
-          porcentaje: (apiData.mitigation?.casos_por_estado?.total || 0) > 0 ?
-            Math.round(((apiData.mitigation?.casos_por_estado?.detectados || 0) / apiData.mitigation?.casos_por_estado?.total) * 100) : 0,
-          color: '#3b82f6'
-        },
-        {
-          estado: 'Pendientes',
-          casos: apiData.mitigation?.casos_por_estado?.pendientes || 0,
-          porcentaje: (apiData.mitigation?.casos_por_estado?.total || 0) > 0 ?
-            Math.round(((apiData.mitigation?.casos_por_estado?.pendientes || 0) / apiData.mitigation?.casos_por_estado?.total) * 100) : 0,
-          color: '#94a3b8'
-        }
-      ],
-      sistemaCodificacion: {
-        totalCasos: apiData.mitigation?.casos_por_estado?.total || 0,
-        casosHoy: Math.floor((apiData.magnitude?.incremento_semanal || 0) / 7),
-        casosSemana: apiData.magnitude?.incremento_semanal || 0,
-        formatoEjemplo: 'T-WB-20241015-156'
-      },
-      recomendaciones: apiData.mitigation?.recomendaciones || []
-    },
-
-    // Legacy global KPIs (mock for old structure)
-    globalKPIs: {
-      casosActivos: apiData.magnitude?.noticias_reportadas_mes || 0,
-      tasaReproduccionR0: 1.2,
-      indiceGravedadIGC: 65,
-      tiempoDeteccion: apiData.magnitude?.tiempo_promedio_deteccion || "0h",
-      infectividad: 0,
-      virulencia: 0
-    },
-
-    // Dimensión 7 y 8
-    datosEvolucionPerfil: apiData.evolucion_por_perfil || null,
-    datosTendenciasMecanismo: apiData.tendencias_por_mecanismo || null
-  };
-}
-
-/**
- * Transform classifications to diagnostic markers
- */
-function transformClassificationsToMarkers(clasificaciones: Record<string, number>) {
-  const colorMap: Record<string, string> = {
-    'Falso': '#ef4444',
-    'Engañoso': '#f97316',
-    'Sensacionalista': '#fb923c',
-    'Sin contexto': '#f59e0b',
-    'Desinformación': '#ef4444'
-  };
-
-  const total = Object.values(clasificaciones).reduce((sum, val) => sum + val, 0);
-
-  return Object.entries(clasificaciones).map(([tipo, casos]) => ({
-    tipo,
-    casos,
-    porcentaje: total > 0 ? Math.round((casos / total) * 100) : 0,
-    color: colorMap[tipo] || '#6b7280'
-  }));
 }

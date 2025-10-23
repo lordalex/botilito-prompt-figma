@@ -83,18 +83,9 @@ export async function getMapaJobStatus(jobId: string): Promise<MapaJobStatus> {
   console.log('%c📊 [MAPA API] Job status:', 'color: #f59e0b; font-weight: bold', jobStatus.status);
 
   if (jobStatus.status === 'completed' && jobStatus.result) {
-    console.log('%c✅ [MAPA API] Job completed! Result structure:', 'color: #10b981; font-weight: bold');
+    console.log('%c✅ [MAPA API] Job completed!', 'color: #10b981; font-weight: bold');
     console.log('%c📦 Result keys:', 'color: #3b82f6', Object.keys(jobStatus.result));
     console.log('%c📦 Full result payload:', 'color: #06b6d4', jobStatus.result);
-
-    // Log structure type detection
-    if ('dimension_magnitud' in jobStatus.result) {
-      console.log('%c🆕 [MAPA API] Detected NEW API structure (dimension_magnitud)', 'color: #10b981; font-weight: bold');
-    } else if ('magnitude' in jobStatus.result) {
-      console.log('%c📜 [MAPA API] Detected OLD API structure (magnitude)', 'color: #f59e0b; font-weight: bold');
-    } else {
-      console.warn('%c⚠️ [MAPA API] Unknown API structure!', 'color: #f59e0b; font-weight: bold');
-    }
   } else if (jobStatus.status === 'failed') {
     console.error('%c❌ [MAPA API] Job failed:', 'color: #ef4444; font-weight: bold', jobStatus.error);
   } else {
