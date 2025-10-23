@@ -41,7 +41,7 @@ export function ContentAnalysisView({ contentId = "CAS-2024-001" }: ContentAnaly
   // When integrating real API:
   // 1. Call getJobStatus(jobId) from utils/aiAnalysis.ts
   // 2. Extract Botilito summary using: extractBotilitoSummary(jobStatus)
-  // 3. Display resultBotilito.text (falls back to result.summary)
+  // 3. Botilito summary is at: result.metadata.resultBotilito.summary
 
   // Datos simulados del contenido analizado por Botilito
   const analysisResult = {
@@ -56,7 +56,15 @@ export function ContentAnalysisView({ contentId = "CAS-2024-001" }: ContentAnaly
     submittedBy: 'carlos.martinez@email.com',
     submittedAt: '2024-01-15T14:45:00Z',
     summary: 'BREAKING: Supuesto hallazgo revolucionario en medicina promete curar todas las enfermedades\n\nBOGOTÁ, Colombia - Un grupo de científicos colombianos afirma haber desarrollado una revolucionaria "cura universal" que supuestamente puede tratar desde el cáncer hasta el resfriado común en cuestión de horas. El anuncio, realizado a través de redes sociales sin revisión científica, ha generado controversia en la comunidad médica internacional.',
-    summaryBotilito: '¡Kiubo! Botilito aquí con el diagnóstico: Este contenido es DESINFORMACIÓN TÓXICA pura. El artículo afirma que el 89% de los delitos en Bogotá son cometidos por inmigrantes venezolanos, usando supuestos "datos oficiales" que las autoridades habrían ocultado. FALSO TOTAL parce.\n\nLo que Botilito encontró:\n- Las estadísticas no coinciden con datos reales de la Policía Nacional de Colombia\n- Usa lenguaje xenofóbico como "invasión" para generar odio\n- La fuente "Noticias Falsas 24" no es verificable ni confiable\n- Promueve discriminación y puede incitar violencia contra población migrante\n\nRiesgo epidemiológico: CRÍTICO (R0: 4.7) - Este contenido se propaga rapidísimo por WhatsApp y Facebook. ¡Cuidado!',
+    metadata: {
+      resultBotilito: {
+        tone: 'casual',
+        summary: '¡Kiubo! Botilito aquí con el diagnóstico: Este contenido es DESINFORMACIÓN TÓXICA pura. El artículo afirma que el 89% de los delitos en Bogotá son cometidos por inmigrantes venezolanos, usando supuestos "datos oficiales" que las autoridades habrían ocultado. FALSO TOTAL parce.\n\nLo que Botilito encontró:\n- Las estadísticas no coinciden con datos reales de la Policía Nacional de Colombia\n- Usa lenguaje xenofóbico como "invasión" para generar odio\n- La fuente "Noticias Falsas 24" no es verificable ni confiable\n- Promueve discriminación y puede incitar violencia contra población migrante\n\nRiesgo epidemiológico: CRÍTICO (R0: 4.7) - Este contenido se propaga rapidísimo por WhatsApp y Facebook. ¡Cuidado!',
+        sentiment: 'alarma',
+        coreMessage: 'Desinformación xenofóbica con estadísticas falsas',
+        awarenessMessage: 'Este tipo de contenido promueve discriminación y puede incitar violencia'
+      }
+    },
     botilloAnalysis: {
       primaryDiagnosis: 'Desinformación Tóxica',
       confidence: 0.96,
@@ -443,7 +451,7 @@ export function ContentAnalysisView({ contentId = "CAS-2024-001" }: ContentAnaly
                   <Label>Contenido analizado:</Label>
                   <div className="bg-gray-50 p-4 rounded border mt-1">
                     <p className="text-sm leading-relaxed whitespace-pre-line">
-                      {analysisResult.summaryBotilito || analysisResult.summary || 'No hay resumen disponible'}
+                      {analysisResult.metadata?.resultBotilito?.summary || analysisResult.summary || 'No hay resumen disponible'}
                     </p>
                   </div>
                 </div>

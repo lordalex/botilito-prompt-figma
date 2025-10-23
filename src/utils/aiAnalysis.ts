@@ -21,9 +21,6 @@ export interface JobStatusResponse {
   id: string
   status: 'pending' | 'processing' | 'completed' | 'failed'
   result?: FullAnalysisResponse
-  resultBotilito?: {
-    text: string
-  }
   error?: {
     message: string
     stack?: string
@@ -57,6 +54,14 @@ export interface WebSearchResult {
   snippet?: string
 }
 
+export interface ResultBotilito {
+  tone: string
+  summary: string
+  sentiment: string
+  coreMessage: string
+  awarenessMessage: string
+}
+
 export interface DocumentMetadata {
   theme?: string
   region?: string
@@ -64,6 +69,10 @@ export interface DocumentMetadata {
   isTextSubmission?: boolean
   submissionType?: string
   vectores_de_transmision?: string[]
+  resultBotilito?: ResultBotilito
+  reported_by?: string
+  web_search_evaluation?: any
+  comprehensive_judgement?: any
 }
 
 export interface CaseStudyMetadata {
@@ -217,9 +226,9 @@ export async function pollJobUntilComplete(
  * Returns the Botilito-personalized summary if available, otherwise falls back to regular summary
  */
 export function extractBotilitoSummary(jobStatus: JobStatusResponse): string | undefined {
-  // Primary: Use Botilito's personalized summary if available
-  if (jobStatus.resultBotilito?.text) {
-    return jobStatus.resultBotilito.text
+  // Primary: Use Botilito's personalized summary from metadata
+  if (jobStatus.result?.metadata?.resultBotilito?.summary) {
+    return jobStatus.result.metadata.resultBotilito.summary
   }
 
   // Fallback: Use regular summary from result
