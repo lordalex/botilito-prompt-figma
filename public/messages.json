@@ -1,0 +1,10 @@
+{
+  "auth": {
+    "login": {
+      "submit_button": "¡Pa' dentro!"
+    },
+    "register": {
+      "submit_button": "¡Vamos pa'dentro!"
+    }
+  }
+}

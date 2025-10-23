@@ -1,0 +1,24 @@
+{
+  "views": {
+    "loginView": {
+      "formClassName": "space-y-5",
+      "fieldOverrides": {
+        "email": { "order": 1, "label": "Usuario o correo electrónico", "placeholder": "usuario@ejemplo.com" },
+        "password": { "order": 2, "label": "Contraseña", "placeholder": "••••••••" }
+      }
+    },
+    "registerView": {
+      "formClassName": "space-y-6",
+      "fieldOverrides": {
+        "fullName": { "order": 1, "label": "Nombre y apellido", "placeholder": "Tu nombre completo" },
+        "email": { "order": 2, "label": "Correo electrónico", "placeholder": "tu@ejemplo.com" },
+        "phone": { "order": 3, "label": "Número de teléfono", "placeholder": "3001234567" },
+        "department": { "order": 4, "label": "Departamento", "placeholder": "Selecciona" },
+        "city": { "order": 5, "label": "Ciudad/Municipio", "placeholder": "Tu ciudad" },
+        "birthDate": { "order": 6, "label": "Fecha de nacimiento" },
+        "password": { "order": 7, "label": "Contraseña", "placeholder": "••••••••" },
+        "confirmPassword": { "order": 8, "label": "Confirmar contraseña", "placeholder": "••••••••" }
+      }
+    }
+  }
+}

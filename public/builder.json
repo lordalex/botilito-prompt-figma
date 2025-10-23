@@ -1,0 +1,12 @@
+{
+  "authFlows": {
+    "loginFlow": {
+      "baseModel": "login_schema",
+      "view": "loginView"
+    },
+    "registerFlow": {
+      "baseModel": "register_schema",
+      "view": "registerView"
+    }
+  }
+}

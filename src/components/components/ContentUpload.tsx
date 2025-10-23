@@ -36,7 +36,6 @@ export function ContentUpload() {
   const [reportDateTime, setReportDateTime] = useState('');
   const [newsSource, setNewsSource] = useState<{name: string, url: string} | null>(null);
   const [reportedBy, setReportedBy] = useState('');
-  const [textareaRows, setTextareaRows] = useState(1);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -54,53 +53,6 @@ export function ContentUpload() {
     { value: 'Web' as TransmissionVector, label: 'Web/Sitio', icon: Link2 },
     { value: 'Otro' as TransmissionVector, label: 'Otra plataforma digital', icon: Share2 },
   ];
-
-  // Auto-expand textarea based on content length
-  const calculateTextareaRows = (text: string): number => {
-    if (!text || text.length === 0) return 1;
-
-    // Count newlines in the text
-    const newlineCount = (text.match(/\n/g) || []).length;
-
-    // Check if it's a URL (short and compact)
-    const urlRegex = /(https?:\/\/[^\s]+)/g;
-    const isOnlyUrl = urlRegex.test(text.trim()) && text.trim().length < 200 && newlineCount === 0;
-
-    if (isOnlyUrl) return 1;
-
-    // Base calculation on content length
-    let rows = 1;
-    if (text.length > 50 && text.length <= 150) rows = 2;
-    else if (text.length > 150 && text.length <= 300) rows = 3;
-    else if (text.length > 300 && text.length <= 500) rows = 4;
-    else if (text.length > 500 && text.length <= 800) rows = 5;
-    else if (text.length > 800) rows = 6;
-
-    // Add rows for newlines (each newline adds a row)
-    rows = Math.max(rows, Math.min(newlineCount + 1, 6));
-
-    // Cap at 6 rows maximum
-    return Math.min(rows, 6);
-  };
-
-  // Handle content change with auto-detection and auto-expand
-  const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const newContent = e.target.value;
-    setContent(newContent);
-
-    // Auto-expand textarea based on content
-    const newRows = calculateTextareaRows(newContent);
-    setTextareaRows(newRows);
-
-    // Auto-detect content type (URL vs text)
-    const urlRegex = /(https?:\/\/[^\s]+)/g;
-    const hasUrl = urlRegex.test(newContent);
-    if (hasUrl) {
-      setContentType('url');
-    } else {
-      setContentType('texto');
-    }
-  };
 
   const handleFileUpload = (files: FileList | null) => {
     if (!files) return;
@@ -199,19 +151,16 @@ export function ContentUpload() {
 
     return {
       title: apiResponse.title,
-      summary: apiResponse.summary,      
+      summary: apiResponse.summary,
       theme: apiResponse.metadata?.theme,
       region: apiResponse.metadata?.region,
       caseNumber: apiResponse.case_study?.case_number,
       consensusState,
       consensus: apiResponse.consensus,
       markersDetected,
-      summaryBotilito: apiResponse.metadata.summaryBotilito,
-      judgementBotilito: apiResponse.metadata.judgementBotilito,
       vectores: apiResponse.metadata?.vectores_de_transmision || [],
       relatedDocuments: apiResponse.case_study?.metadata?.related_documents || [],
       webSearchResults: apiResponse.case_study?.metadata?.web_search_results || [],
-      finalVerdict: apiResponse.metadata?.judgementBotilito.summary || 'Análisis en proceso',
       fullResult: apiResponse
     };
   };
@@ -254,8 +203,7 @@ export function ContentUpload() {
 
       // Update all UI state with transformed data
       setNewsTitle(transformedData.title);
-      console.log(transformedData.summaryBotilito.summary);
-      setNewsContent(transformedData.summaryBotilito.summary);
+      setNewsContent(transformedData.summary);
 
       // Set theme if available
       if (transformedData.theme) {
@@ -290,7 +238,6 @@ export function ContentUpload() {
         recommendation: transformedData.consensusState === 'human_consensus'
           ? 'Análisis verificado por la comunidad'
           : 'Revisa los resultados del análisis',
-        finalVerdict: transformedData.finalVerdict,
         fullResult: transformedData.fullResult
       });
 
@@ -388,7 +335,6 @@ export function ContentUpload() {
     setContent('');
     setUploadedFiles([]);
     setTransmissionMedium('');
-    setIsAnalyzing(false);
     setAnalysisComplete(false);
     setAiAnalysis(null);
     setAnalysisProgress(0);
@@ -400,7 +346,6 @@ export function ContentUpload() {
     setReportDateTime('');
     setNewsSource(null);
     setReportedBy('');
-    setTextareaRows(1);
   };
 
   // Función helper para dibujar rectángulos redondeados
@@ -669,7 +614,7 @@ export function ContentUpload() {
   return (
     <div className="max-w-5xl mx-auto space-y-6 pt-[20px] pr-[0px] pb-[0px] pl-[0px]">
       {/* Franja superior de Botilito cuando el análisis está completo */}
-      {analysisComplete && !isAnalyzing && (
+      {analysisComplete && (
         <div className="bg-[#ffe97a] border-2 border-[#ffda00] rounded-lg p-4 shadow-lg">
           <div className="flex items-center space-x-4">
             <img 
@@ -688,9 +633,8 @@ export function ContentUpload() {
           </div>
         </div>
       )}
-
-      {/* Upload Form - Only show when not analyzing and not complete */}
-      {!analysisComplete && !isAnalyzing && (
+      
+      {!analysisComplete && (
         <>
           {/* Main Upload Card */}
           <Card>
@@ -803,7 +747,7 @@ export function ContentUpload() {
 
                     {/* Sección Inferior: Barra de Input */}
                     <div className="space-y-2">
-                      <div className="relative flex items-start bg-white border-2 border-secondary/60 rounded-[8px] shadow-sm min-h-11">
+                      <div className="relative flex items-center bg-white border-2 border-secondary/60 rounded-[8px] shadow-sm h-11">
                         {/* Botón + integrado a la izquierda */}
                         <button
                           type="button"
@@ -818,15 +762,15 @@ export function ContentUpload() {
                         <Textarea
                           placeholder="Pega aquí una URL, texto sospechoso, o escribe lo que quieras analizar..."
                           value={content}
-                          onChange={handleContentChange}
+                          onChange={(e) => setContent(e.target.value)}
                           onKeyDown={(e) => {
                             if (e.key === 'Enter' && !e.shiftKey) {
                               e.preventDefault();
                               handleSubmit(e as any);
                             }
                           }}
-                          rows={textareaRows}
-                          className="flex-1 resize-none border-0 bg-transparent px-3 min-h-11 focus:outline-none focus:ring-0 focus-visible:ring-0 focus-visible:border-0 placeholder:text-muted-foreground text-sm leading-relaxed transition-all duration-200"
+                          rows={1}
+                          className="flex-1 resize-none border-0 bg-transparent px-3 h-11 focus:outline-none focus:ring-0 focus-visible:ring-0 focus-visible:border-0 placeholder:text-muted-foreground text-sm leading-[2.75rem] flex items-center transition-none"
                         />
                       </div>
                       {content.length > 0 && (
@@ -933,52 +877,34 @@ export function ContentUpload() {
         </>
       )}
 
-      {/* Loader Page - Clean centered view during analysis */}
+      {/* Analysis Progress */}
       {isAnalyzing && (
-        <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-8">
-          {/* Botilito Character */}
-          <div className="flex justify-center">
-            <img
-              src={botilitoImage}
-              alt="Botilito analizando"
-              className="w-48 h-48 object-contain animate-bounce"
-            />
-          </div>
-
-          {/* Loader Card */}
-          <Card className="w-full max-w-3xl shadow-lg border-2">
-            <CardContent className="p-8 space-y-6">
-              {/* Title */}
-              <div className="text-center space-y-3">
-                <h2 className="text-2xl font-bold flex items-center justify-center gap-2">
-                  <Bot className="h-6 w-6 text-primary" />
-                  Botilito está diagnosticando...
-                </h2>
-                <p className="text-muted-foreground text-base">
-                  Aplicando análisis epidemiológico para detectar patrones de desinformación y evaluar su potencial viral
-                </p>
-              </div>
-
-              {/* Progress Bar */}
-              <div className="space-y-4">
-                <Progress value={analysisProgress} className="w-full h-3" />
-
-                {/* Status Text */}
-                <p className="text-sm text-muted-foreground text-center font-medium">
-                  {analysisProgress < 20 && "Secuenciando contenido desinfodémico..."}
-                  {analysisProgress >= 20 && analysisProgress < 50 && "Identificando vectores de transmisión..."}
-                  {analysisProgress >= 50 && analysisProgress < 80 && "Calculando índice de infectividad..."}
-                  {analysisProgress >= 80 && analysisProgress < 95 && "Generando diagnóstico epidemiológico..."}
-                  {analysisProgress >= 95 && "Finalizando análisis..."}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <Bot className="h-5 w-5 text-primary animate-pulse" />
+              <span>Botilito está diagnosticando...</span>
+            </CardTitle>
+            <CardDescription>
+              Aplicando análisis epidemiológico para detectar patrones de desinformación y evaluar su potencial viral
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              <Progress value={analysisProgress} className="w-full" />
+              <p className="text-sm text-muted-foreground text-center">
+                {analysisProgress < 30 && "Secuenciando contenido desinfodémico..."}
+                {analysisProgress >= 30 && analysisProgress < 60 && "Identificando vectores de transmisión..."}
+                {analysisProgress >= 60 && analysisProgress < 90 && "Calculando índice de infectividad..."}
+                {analysisProgress >= 90 && "Generando diagnóstico epidemiológico..."}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
-      {/* Analysis Results - Only show when complete and not analyzing */}
-      {analysisComplete && !isAnalyzing && aiAnalysis && (
+      {/* Analysis Results */}
+      {analysisComplete && aiAnalysis && (
         <div className="space-y-6">
           <Card>
             <CardHeader>
@@ -1176,7 +1102,7 @@ export function ContentUpload() {
 
               <div>
                 <h4 className="text-[20px]">Evaluación epidemiológica:</h4>
-                <p className="text-sm text-muted-foreground mt-1">{aiAnalysis.finalVerdict}</p>
+                <p className="text-sm text-muted-foreground mt-1">{aiAnalysis.summary}</p>
               </div>
 
               <div>

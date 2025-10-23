@@ -1,0 +1,86 @@
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+// ... (otras importaciones)
+import { Users, Bot, FileText, Image as ImageIcon, Video, Volume2, Calendar, Shield, Layers, Hash, AlertTriangle, Eye, CheckCircle, Loader2 } from 'lucide-react';
+import { getPendingCases, submitHumanDiagnosis } from '../utils/apiService';
+import { CaseDetailView } from './CaseDetailView';
+import { VerificationSuccessDialog } from './VerificationSuccessDialog';
+import { useVoteTracker } from './VoteTrackerProvider';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
+import { Button } from './ui/button';
+import { Badge } from './ui/badge';
+import { Skeleton } from './ui/skeleton';
+import { Input } from './ui/input';
+
+type Case = Awaited<ReturnType<typeof getPendingCases>>[0];
+// ... (funciones auxiliares getTypeVisuals, getPriorityBadge, etc.)
+
+export function HumanVerification() {
+  const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
+  const [pendingCases, setPendingCases] = useState<Case[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  const { trackNewVote, getVoteStatusForCase, setRefreshCallback } = useVoteTracker();
+
+  const fetchCases = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const cases = await getPendingCases();
+      setPendingCases(cases);
+    } catch (err) {
+      setError('No se pudieron cargar los casos.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchCases();
+    setRefreshCallback(fetchCases);
+  }, [setRefreshCallback, fetchCases]);
+  
+  const handleVerificationSubmit = async (diagnosis: any) => {
+    const { jobId } = await submitHumanDiagnosis(diagnosis.caseId, diagnosis);
+    trackNewVote(diagnosis.caseId, jobId);
+    setSelectedCaseId(null); // Volver a la lista inmediatamente
+  };
+  
+  if (selectedCaseId) {
+    return <CaseDetailView caseId={selectedCaseId} onBackToList={() => setSelectedCaseId(null)} onSubmit={handleVerificationSubmit} />;
+  }
+
+  // ... (JSX de la lista de casos, con la lógica del botón actualizada)
+  return (
+    <div className="space-y-6">
+      {/* ... Banner y Header ... */}
+      <Card>
+        <CardHeader>
+            <CardTitle>Cola de Verificación Humana</CardTitle>
+            <CardDescription>{pendingCases.length} casos esperando tu análisis.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+          {isLoading ? <p>Cargando...</p> : 
+           pendingCases.map(caso => {
+              const voteStatus = getVoteStatusForCase(caso.id);
+              const isProcessing = voteStatus === 'processing';
+              return (
+                <div key={caso.id} className={`p-4 border rounded-lg ${isProcessing ? 'opacity-50' : 'cursor-pointer hover:bg-muted/50'}`} onClick={() => !isProcessing && setSelectedCaseId(caso.id)}>
+                    <div className="flex justify-between">
+                        <h4>{caso.title}</h4>
+                        {isProcessing ? (
+                            <Badge variant="outline"><Loader2 className="h-3 w-3 mr-1 animate-spin" />Procesando</Badge>
+                        ) : (
+                            <Button size="sm">Verificar</Button>
+                        )}
+                    </div>
+                </div>
+              )
+           })
+          }
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
