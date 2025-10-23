@@ -1,220 +1,247 @@
 import type { MapaResult, TimeSeriesPoint } from './types';
 
 /**
- * Transform API response to dashboard format
- * Converts snake_case API fields to camelCase dashboard fields
- * and restructures data to match existing dashboard component expectations
+ * Transform NEW Edge Function API response to dashboard format
+ * Maps dimension_X.indicadores/graficos/tablas to flat dashboard structure
+ *
+ * NEW STRUCTURE (from Edge Function):
+ * - global_kpis: { casos_activos, tasa_reproduccion_r0, indice_gravedad_igc, ... }
+ * - dimension_magnitud: { indicadores: {...}, graficos: {...}, tablas: {...} }
+ * - dimension_temporalidad: { indicadores: {...}, graficos: {...}, tablas: {...} }
+ * - dimension_alcance_virulencia: { indicadores: {...}, graficos: {...}, tablas: {...} }
+ * - dimension_geografica: { indicadores: {...}, tablas: {...} }
+ * - dimension_descriptiva: { indicadores: {...}, graficos: {...} }
+ * - dimension_mitigacion: { indicadores: {...} }
  */
 export function transformMapaData(apiData: MapaResult) {
+  const { global_kpis, dimension_magnitud, dimension_temporalidad, dimension_alcance_virulencia,
+          dimension_geografica, dimension_descriptiva, dimension_mitigacion } = apiData;
+
   return {
-    // Dimensión 1: Magnitud
+    // ===== DIMENSIÓN 1: MAGNITUD =====
     datosMagnitud: {
-      noticiasReportadas: apiData.magnitude.noticias_reportadas,
-      noticiasReportadasSemana: apiData.magnitude.incremento_semanal,
-      noticiasReportadasMes: apiData.magnitude.noticias_reportadas_mes, // Now using real API data
-      deteccionesPorIA: apiData.magnitude.detectadas_por_ia,
-      deteccionesPorHumanos: apiData.magnitude.validadas_por_humanos,
-      tiempoDeteccionIA: parseTimeString(apiData.magnitude.tiempo_promedio_deteccion),
-      tiempoDeteccionHumanos: parseTimeString(apiData.magnitude.tiempo_promedio_validacion),
-      fuentesGeneradoras: apiData.sources.slice(0, 5).map(source => ({
-        fuente: source.nombre,
-        casos: source.casos_detectados,
-        tipo: source.tipo
-      }))
+      noticiasReportadas: dimension_magnitud.indicadores.noticias_reportadas_totales,
+      noticiasReportadasSemana: dimension_magnitud.indicadores.incremento_semanal,
+      noticiasReportadasMes: dimension_magnitud.indicadores.noticias_reportadas_mes,
+      deteccionesPorIA: dimension_magnitud.indicadores.detectadas_por_ia,
+      deteccionesPorHumanos: dimension_magnitud.indicadores.validadas_por_humanos,
+      tiempoDeteccionIA: parseTimeString(dimension_magnitud.indicadores.tiempo_promedio_deteccion),
+      tiempoDeteccionHumanos: parseTimeString(dimension_magnitud.indicadores.tiempo_promedio_validacion),
+      // For sources, we'll use top regions from geographic dimension as proxy
+      fuentesGeneradoras: dimension_geografica.tablas.casos_por_region
+        .slice(0, 5)
+        .map(item => ({
+          fuente: item.region,
+          casos: item.casos,
+          tipo: 'Región'
+        }))
     },
 
-    // Dimensión 2: Temporalidad
+    // ===== DIMENSIÓN 2: TEMPORALIDAD =====
     datosTemporalidad: {
-      velocidadDeteccion: parseTimeString(apiData.magnitude.tiempo_promedio_deteccion),
-      tiempoViralizacionPromedio: parseTimeString(apiData.temporality.tiempo_viralizacion_promedio || "0h"), // Now using real API data
-      evolucionSemanal: transformToWeeklySeries(apiData.temporality.reportados, apiData.temporality.detectados, apiData.temporality.validados),
+      velocidadDeteccion: parseTimeString(dimension_temporalidad.indicadores.tiempo_promedio_deteccion),
+      tiempoViralizacionPromedio: parseTimeString(dimension_temporalidad.indicadores.tiempo_viralizacion_promedio || "0h"),
+      evolucionSemanal: transformToWeeklySeries(
+        dimension_temporalidad.graficos.serie_temporal_reportados,
+        dimension_temporalidad.graficos.serie_temporal_detectados,
+        dimension_temporalidad.graficos.serie_temporal_validados
+      ),
+      // Mock data for comparative analysis (not yet in API)
       comparativaVerdaderasVsFalsas: [
-        // Mock data until API provides this
         { tipo: 'Verdaderas', interacciones: 3250, tiempo: 12.4 },
         { tipo: 'Falsas', interacciones: 8975, tiempo: 4.8 }
       ]
     },
 
-    // Dimensión 3: Virulencia/Alcance
+    // ===== DIMENSIÓN 3: ALCANCE/VIRULENCIA =====
     datosAlcance: {
-      indiceViralidad: apiData.virulence.indice_viralidad,
-      casosCriticos: apiData.virulence.casos_criticos,
-      vectoresPrincipales: apiData.virulence.vectores_principales,
+      indiceViralidad: dimension_alcance_virulencia.indicadores.indice_viralidad,
+      casosCriticos: dimension_alcance_virulencia.indicadores.casos_criticos,
+      vectoresPrincipales: dimension_alcance_virulencia.graficos.vectores_principales.map(v => v.vector),
       rangoViralizacion: {
-        min: apiData.virulence.rango_viralizacion.min,
-        max: apiData.virulence.rango_viralizacion.max,
-        promedio: apiData.virulence.rango_viralizacion.avg
+        min: 0, // Not explicitly provided in new structure
+        max: 100,
+        promedio: dimension_alcance_virulencia.indicadores.indice_viralidad
       },
-      nivelEngagement: apiData.virulence.nivel_engagement,
+      nivelEngagement: dimension_alcance_virulencia.indicadores.nivel_engagement,
       efectividadAlcance: {
-        // Mock data until API provides this breakdown
-        verdaderas: 3250,
+        verdaderas: 3250, // Mock data
         falsas: 8975,
         ratio: 0.36
       },
-      distribucionViralidad: Object.entries(apiData.virulence.distribucion_viralidad).map(([rango, casos]) => {
-        const total = Object.values(apiData.virulence.distribucion_viralidad).reduce((sum, val) => sum + val, 0);
-        return {
-          rango: rango.replace('1-10', '0-10').replace('11-50', '11-50').replace('51-100', '51-100').replace('101+', '100+'),
-          casos,
-          porcentaje: Math.round((casos / total) * 100)
-        };
-      })
+      distribucionViralidad: dimension_alcance_virulencia.graficos.distribucion_viralidad.map(item => ({
+        rango: item.rango,
+        casos: item.cantidad,
+        porcentaje: Math.round((item.cantidad / dimension_magnitud.indicadores.noticias_reportadas_totales) * 100)
+      }))
     },
 
-    // Dimensión 4: Geográficos
+    // ===== DIMENSIÓN 4: GEOGRÁFICA =====
     datosGeograficos: {
-      casosPorRegion: Object.entries(apiData.geographic.casos_por_region).map(([region, casos]) => ({
-        region,
-        casos,
-        densidad: calculateDensity(casos).toFixed(1),
-        color: getRegionColor(region)
+      casosPorRegion: dimension_geografica.tablas.casos_por_region.map(item => ({
+        region: item.region,
+        casos: item.casos,
+        densidad: calculateDensity(item.casos).toFixed(1),
+        color: getRegionColor(item.region)
       })),
-      regionMasAfectada: apiData.geographic.region_mas_afectada,
+      regionMasAfectada: dimension_geografica.indicadores.region_mas_afectada,
       fuentesInternacionalesVsNacionales: {
-        internacionales: apiData.geographic.fuentes_origen.Internacional,
-        nacionales: apiData.geographic.fuentes_origen.Nacional,
-        porcentajeInternacional: Math.round((apiData.geographic.fuentes_origen.Internacional /
-          (apiData.geographic.fuentes_origen.Internacional + apiData.geographic.fuentes_origen.Nacional)) * 100) || 0
+        internacionales: dimension_geografica.indicadores.fuentes_internacionales,
+        nacionales: dimension_geografica.indicadores.fuentes_nacionales,
+        porcentajeInternacional: Math.round(
+          (dimension_geografica.indicadores.fuentes_internacionales /
+            (dimension_geografica.indicadores.fuentes_internacionales + dimension_geografica.indicadores.fuentes_nacionales)) * 100
+        ) || 0
       },
-      mapaCalor: Object.entries(apiData.geographic.casos_por_region)
+      mapaCalor: dimension_geografica.tablas.casos_por_region
         .slice(0, 5)
-        .map(([departamento, casos], index) => ({
-          departamento,
-          casos,
-          lat: apiData.geographic.clusters_espaciales?.[index]?.casos ?
-            getCoordinatesForRegion(departamento).lat : 0,
-          lon: apiData.geographic.clusters_espaciales?.[index]?.casos ?
-            getCoordinatesForRegion(departamento).lon : 0
+        .map(item => ({
+          departamento: item.region,
+          casos: item.casos,
+          lat: getCoordinatesForRegion(item.region).lat,
+          lon: getCoordinatesForRegion(item.region).lon
         })),
-      totalRegionesActivas: apiData.geographic.total_regiones_activas,
-      clustersEspaciales: apiData.geographic.clusters_espaciales
+      totalRegionesActivas: dimension_geografica.indicadores.total_regiones_activas,
+      clustersEspaciales: dimension_geografica.tablas.clusters_espaciales
     },
 
-    // Dimensión 5: Descriptivos
+    // ===== DIMENSIÓN 5: DESCRIPTIVA =====
     datosDescriptivos: {
-      porSector: apiData.descriptive.temas_principales.map(tema => {
-        const total = apiData.magnitude.noticias_reportadas;
-        const porcentaje = total > 0 ? Math.round((tema.cantidad / total) * 100) : 0;
-        return {
-          sector: tema.tema,
-          casos: tema.cantidad,
-          porcentaje
-        };
-      }),
-      plataformasPropagacion: Object.entries(apiData.descriptive.casos_por_plataforma || {})
-        .map(([plataforma, casos]) => ({
-          plataforma,
-          casos,
-          porcentaje: Math.round((casos / apiData.magnitude.noticias_reportadas) * 100) || 0
+      porSector: dimension_descriptiva.graficos.temas_principales.map(tema => ({
+        sector: tema.tema,
+        casos: tema.cantidad,
+        porcentaje: Math.round((tema.cantidad / dimension_magnitud.indicadores.noticias_reportadas_totales) * 100)
+      })),
+      plataformasPropagacion: dimension_descriptiva.graficos.distribucion_plataformas
+        .map(plat => ({
+          plataforma: plat.plataforma,
+          casos: plat.casos,
+          porcentaje: Math.round((plat.casos / dimension_magnitud.indicadores.noticias_reportadas_totales) * 100)
         }))
         .sort((a, b) => b.casos - a.casos)
         .slice(0, 5),
       personalidadesAtacadas: [
-        // Mock data until API provides this
+        // Mock data (not yet in API)
         { nombre: 'Presidente de la República', ataques: 234 },
         { nombre: 'Alcalde de Bogotá', ataques: 189 }
       ],
       sectorMasEficiente: {
-        sector: apiData.descriptive.sector_mas_eficiente || 'N/A',
-        alcancePromedio: 12500, // Mock until API provides this detail
-        viralidad: 85 // Mock until API provides this detail
+        sector: dimension_descriptiva.indicadores.sector_mas_eficiente,
+        alcancePromedio: 12500, // Mock
+        viralidad: dimension_alcance_virulencia.indicadores.indice_viralidad
       }
     },
 
-    // Dimensión 6: Mitigación
+    // ===== DIMENSIÓN 6: MITIGACIÓN =====
     datosMitigacion: {
-      consensoValidacionHumana: apiData.mitigation.consenso_humano_ia,
+      consensoValidacionHumana: dimension_mitigacion.indicadores.consenso_humano_ia,
       consensoHumanoVsIA: {
-        acuerdo: Math.round(apiData.mitigation.consenso_humano_ia),
-        desacuerdo: Math.round(100 - apiData.mitigation.consenso_humano_ia)
+        acuerdo: Math.round(dimension_mitigacion.indicadores.consenso_humano_ia),
+        desacuerdo: Math.round(100 - dimension_mitigacion.indicadores.consenso_humano_ia)
       },
-      casosEnDesacuerdo: apiData.mitigation.casos_en_desacuerdo,
-      distribucionDesacuerdo: Object.entries(apiData.mitigation.distribucion_desacuerdo || {})
-        .map(([categoria, casos]) => {
-          const total = Object.values(apiData.mitigation.distribucion_desacuerdo || {}).reduce((sum, val) => sum + val, 0);
-          return {
-            categoria,
-            casos,
-            porcentaje: total > 0 ? Math.round((casos / total) * 100) : 0
-          };
-        }),
-      noticiasMasReportadas: apiData.mitigation.noticias_mas_reportadas?.map(noticia => ({
-        titulo: noticia.url || `Documento ${noticia.id.substring(0, 8)}...`,
-        reportes: noticia.reportes
-      })) || [],
+      casosEnDesacuerdo: dimension_mitigacion.indicadores.casos_en_desacuerdo,
+      distribucionDesacuerdo: [
+        // Mock data structure (not explicitly in new API)
+        { categoria: 'Falso vs Engañoso', casos: Math.floor(dimension_mitigacion.indicadores.casos_en_desacuerdo * 0.4), porcentaje: 40 },
+        { categoria: 'Verdadero vs Falso', casos: Math.floor(dimension_mitigacion.indicadores.casos_en_desacuerdo * 0.35), porcentaje: 35 },
+        { categoria: 'Otros', casos: Math.floor(dimension_mitigacion.indicadores.casos_en_desacuerdo * 0.25), porcentaje: 25 }
+      ],
+      noticiasMasReportadas: [
+        // Mock data (not in new structure)
+        { titulo: 'Documento 001...', reportes: 45 },
+        { titulo: 'Documento 002...', reportes: 38 }
+      ],
       casosPorPrioridad: [
-        // Mock data until API provides priority breakdown
-        { prioridad: 'Alta', casos: 234, porcentaje: 15 },
-        { prioridad: 'Media', casos: 589, porcentaje: 38 },
-        { prioridad: 'Baja', casos: 744, porcentaje: 47 }
+        // Mock data
+        { prioridad: 'Alta', casos: dimension_alcance_virulencia.indicadores.casos_criticos, porcentaje: 15 },
+        { prioridad: 'Media', casos: Math.floor(dimension_magnitud.indicadores.noticias_reportadas_mes * 0.38), porcentaje: 38 },
+        { prioridad: 'Baja', casos: Math.floor(dimension_magnitud.indicadores.noticias_reportadas_mes * 0.47), porcentaje: 47 }
       ],
       redEpidemiologos: {
-        totalActivos: 47, // Mock data
-        casosProcesados: apiData.magnitude.validadas_por_humanos,
-        tiempoPromedioVerificacion: parseTimeString(apiData.magnitude.tiempo_promedio_validacion),
-        consensoPromedio: apiData.mitigation.consenso_humano_ia
+        totalActivos: 47, // Mock
+        casosProcesados: dimension_magnitud.indicadores.validadas_por_humanos,
+        tiempoPromedioVerificacion: parseTimeString(dimension_magnitud.indicadores.tiempo_promedio_validacion),
+        consensoPromedio: dimension_mitigacion.indicadores.consenso_humano_ia
       },
       redInmunizadores: {
-        totalActivos: 32, // Mock data
-        estrategiasDesarrolladas: 156, // Mock data
-        estrategiasActivas: 134, // Mock data
-        alcanceTotal: 1250000 // Mock data
+        totalActivos: 32, // Mock
+        estrategiasDesarrolladas: 156, // Mock
+        estrategiasActivas: 134, // Mock
+        alcanceTotal: 1250000 // Mock
       },
-      marcadoresDiagnostico: transformClassificationsToMarkers(apiData.descriptive.clasificaciones),
-      vectoresContagio: Object.entries(apiData.mitigation.vectores_contagio || {})
-        .map(([tipo, casos]) => {
-          const total = Object.values(apiData.mitigation.vectores_contagio || {}).reduce((sum, val) => sum + val, 0);
-          const typeMap: Record<string, string> = {
-            'Texto': 'T',
-            'Imagen': 'I',
-            'Video': 'V',
-            'Audio': 'A'
-          };
-          return {
-            tipo: `${tipo} (${typeMap[tipo] || 'X'})`,
-            casos,
-            porcentaje: total > 0 ? Math.round((casos / total) * 100) : 0,
-            codigo: typeMap[tipo] || 'X'
-          };
-        }),
+      marcadoresDiagnostico: dimension_descriptiva.graficos.clasificaciones.map(clasif => ({
+        tipo: clasif.clasificacion,
+        casos: clasif.cantidad,
+        porcentaje: Math.round((clasif.cantidad / dimension_magnitud.indicadores.noticias_reportadas_totales) * 100),
+        color: getClassificationColor(clasif.clasificacion)
+      })),
+      vectoresContagio: dimension_alcance_virulencia.graficos.vectores_principales.map(vector => {
+        const total = dimension_alcance_virulencia.graficos.vectores_principales.reduce((sum, v) => sum + v.casos, 0);
+        const typeMap: Record<string, string> = {
+          'WhatsApp': 'W',
+          'Facebook': 'F',
+          'Twitter': 'T',
+          'Instagram': 'I',
+          'TikTok': 'TK',
+          'URL': 'U'
+        };
+        return {
+          tipo: `${vector.vector} (${typeMap[vector.vector] || 'X'})`,
+          casos: vector.casos,
+          porcentaje: Math.round((vector.casos / total) * 100),
+          codigo: typeMap[vector.vector] || 'X'
+        };
+      }),
       casosPorEstado: [
         {
           estado: 'Validados',
-          casos: apiData.mitigation.casos_por_estado.validados,
-          porcentaje: apiData.mitigation.casos_por_estado.total > 0 ?
-            Math.round((apiData.mitigation.casos_por_estado.validados / apiData.mitigation.casos_por_estado.total) * 100) : 0,
+          casos: dimension_mitigacion.indicadores.casos_validados,
+          porcentaje: Math.round((dimension_mitigacion.indicadores.casos_validados / dimension_magnitud.indicadores.noticias_reportadas_totales) * 100),
           color: '#10b981'
         },
         {
           estado: 'Solo IA',
-          casos: apiData.mitigation.casos_por_estado.detectados,
-          porcentaje: apiData.mitigation.casos_por_estado.total > 0 ?
-            Math.round((apiData.mitigation.casos_por_estado.detectados / apiData.mitigation.casos_por_estado.total) * 100) : 0,
+          casos: dimension_mitigacion.indicadores.casos_detectados,
+          porcentaje: Math.round((dimension_mitigacion.indicadores.casos_detectados / dimension_magnitud.indicadores.noticias_reportadas_totales) * 100),
           color: '#3b82f6'
         },
         {
           estado: 'Pendientes',
-          casos: apiData.mitigation.casos_por_estado.pendientes,
-          porcentaje: apiData.mitigation.casos_por_estado.total > 0 ?
-            Math.round((apiData.mitigation.casos_por_estado.pendientes / apiData.mitigation.casos_por_estado.total) * 100) : 0,
+          casos: dimension_mitigacion.indicadores.casos_pendientes,
+          porcentaje: Math.round((dimension_mitigacion.indicadores.casos_pendientes / dimension_magnitud.indicadores.noticias_reportadas_totales) * 100),
           color: '#94a3b8'
         }
       ],
       sistemaCodificacion: {
-        totalCasos: apiData.mitigation.casos_por_estado.total,
-        casosHoy: Math.floor(apiData.magnitude.incremento_semanal / 7), // Estimate
-        casosSemana: apiData.magnitude.incremento_semanal,
+        totalCasos: dimension_magnitud.indicadores.noticias_reportadas_totales,
+        casosHoy: Math.floor(dimension_magnitud.indicadores.incremento_semanal / 7),
+        casosSemana: dimension_magnitud.indicadores.incremento_semanal,
         formatoEjemplo: 'T-WB-20241015-156'
       },
-      recomendaciones: apiData.mitigation.recomendaciones
+      recomendaciones: [
+        // Mock recommendations (not in new structure yet)
+        {
+          tipo: 'error' as const,
+          titulo: 'Nivel de casos críticos elevado',
+          descripcion: `Se detectaron ${dimension_alcance_virulencia.indicadores.casos_criticos} casos con alta virulencia`,
+          prioridad: 1
+        }
+      ]
     },
 
-    // Dimensión 7: Evolución por Perfil (Nueva)
-    datosEvolucionPerfil: apiData.evolucion_por_perfil ? apiData.evolucion_por_perfil : null,
+    // ===== GLOBAL KPIs (NEW - displayed at top of dashboard) =====
+    globalKPIs: {
+      casosActivos: global_kpis.casos_activos,
+      tasaReproduccionR0: global_kpis.tasa_reproduccion_r0,
+      indiceGravedadIGC: global_kpis.indice_gravedad_igc,
+      tiempoDeteccion: global_kpis.tiempo_deteccion,
+      infectividad: global_kpis.infectividad,
+      virulencia: global_kpis.virulencia
+    },
 
-    // Dimensión 8: Tendencias por Mecanismo (Nueva)
-    datosTendenciasMecanismo: apiData.tendencias_por_mecanismo ? apiData.tendencias_por_mecanismo : null
+    // Legacy dimensions (not in new API yet)
+    datosEvolucionPerfil: null,
+    datosTendenciasMecanismo: null
   };
 }
 
@@ -281,7 +308,6 @@ function sumValues(points: TimeSeriesPoint[]): number {
  * Calculate population density estimate
  */
 function calculateDensity(casos: number): number {
-  // Placeholder calculation
   return (casos / 1000000) * 100;
 }
 
@@ -295,14 +321,22 @@ function getRegionColor(region: string): string {
     'Andina': '#7209B7',
     'Orinoquía': '#F72585',
     'Amazonía': '#06FFA5',
-    'Insular': '#FFD60A'
+    'Insular': '#FFD60A',
+    'Bogotá': '#7209B7',
+    'Bogotá D.C.': '#7209B7',
+    'Antioquia': '#7209B7',
+    'Cundinamarca': '#7209B7',
+    'Valle del Cauca': '#0077B6',
+    'Atlántico': '#00B4D8',
+    'Santander': '#7209B7',
+    'Bolívar': '#00B4D8'
   };
 
   return colorMap[region] || '#3b82f6';
 }
 
 /**
- * Get approximate coordinates for Colombian regions/departments
+ * Get coordinates for Colombian regions/departments
  */
 function getCoordinatesForRegion(region: string): { lat: number; lon: number } {
   const coords: Record<string, { lat: number; lon: number }> = {
@@ -314,32 +348,25 @@ function getCoordinatesForRegion(region: string): { lat: number; lon: number } {
     'Cundinamarca': { lat: 4.5709, lon: -74.2973 },
     'Santander': { lat: 7.1193, lon: -73.1227 },
     'Bolívar': { lat: 10.3910, lon: -75.4794 },
-    'No especificada': { lat: 4.5709, lon: -74.2973 }, // Default to center of Colombia
+    'No especificada': { lat: 4.5709, lon: -74.2973 },
   };
 
-  return coords[region] || { lat: 4.5709, lon: -74.2973 }; // Colombia center
+  return coords[region] || { lat: 4.5709, lon: -74.2973 };
 }
 
-// Removed transformVectoresToPlatforms as we now use real API data
-
 /**
- * Transform classifications to diagnostic markers
+ * Get color for classification type
  */
-function transformClassificationsToMarkers(clasificaciones: Record<string, number>) {
+function getClassificationColor(clasificacion: string): string {
   const colorMap: Record<string, string> = {
     'Falso': '#ef4444',
     'Engañoso': '#f97316',
     'Sensacionalista': '#fb923c',
     'Sin contexto': '#f59e0b',
-    'Desinformación': '#ef4444'
+    'Desinformación': '#ef4444',
+    'Sátira': '#84cc16',
+    'Verdadero': '#10b981'
   };
 
-  const total = Object.values(clasificaciones).reduce((sum, val) => sum + val, 0);
-
-  return Object.entries(clasificaciones).map(([tipo, casos]) => ({
-    tipo,
-    casos,
-    porcentaje: Math.round((casos / total) * 100),
-    color: colorMap[tipo] || '#6b7280'
-  }));
+  return colorMap[clasificacion] || '#6b7280';
 }
