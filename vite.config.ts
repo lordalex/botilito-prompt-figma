@@ -63,12 +63,9 @@ export default defineConfig({
   server: {
 allowedHosts: ['.lordalexand.dev'],
 host: '0.0.0.0',
-    port: 3001,
+    port: 3000,
     open: true,
-    https: {
-      key: fs.readFileSync('/etc/letsencrypt/live/botilito2.lordalexand.dev/privkey.pem'),
-      cert: fs.readFileSync('/etc/letsencrypt/live/botilito2.lordalexand.dev/fullchain.pem'),
-    },
   },
 });
+
 
