@@ -27,6 +27,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 vite.config.ts
+vite.config.local.ts
 
 # MCP Config (may contain sensitive data)
 .mcp.json
