@@ -112,51 +112,119 @@ export function MapaDesinfodemico() {
   }, []);
 
   async function loadMapaData() {
-    console.log('%c🗺️ [MAPA COMPONENT] Starting data load...', 'color: #ec4899; font-size: 14px; font-weight: bold');
-    console.log('%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color: #ec4899');
+    console.log('\n\n\n');
+    console.log('%c╔════════════════════════════════════════════════════════════════════════════╗', 'color: #ec4899; font-weight: bold; font-size: 16px');
+    console.log('%c║                                                                            ║', 'color: #ec4899; font-weight: bold; font-size: 16px');
+    console.log('%c║                  🗺️  MAPA COMPONENT - LOADING DATA                        ║', 'color: #ec4899; font-weight: bold; font-size: 16px');
+    console.log('%c║                                                                            ║', 'color: #ec4899; font-weight: bold; font-size: 16px');
+    console.log('%c╚════════════════════════════════════════════════════════════════════════════╝', 'color: #ec4899; font-weight: bold; font-size: 16px');
+
+    const componentStartTime = Date.now();
+
+    console.log('\n%c🔧 COMPONENT STATE:', 'color: #3b82f6; font-weight: bold');
+    console.log('   Setting loading state: true');
+    console.log('   Clearing previous errors');
 
     setLoading(true);
     setError(null);
 
     try {
-      console.log('%c📞 [MAPA COMPONENT] Calling generateMapa()...', 'color: #3b82f6; font-weight: bold');
+      console.log('\n%c📞 CALLING API...', 'color: #3b82f6; font-weight: bold');
+      console.log('   Function: generateMapa()');
+      console.log('   With progress callback: Yes');
 
       const result = await generateMapa((status) => {
-        console.log('%c📊 [MAPA COMPONENT] Job status update:', 'color: #f59e0b', status);
+        console.log('\n%c📊 JOB STATUS UPDATE FROM COMPONENT:', 'color: #f59e0b; font-weight: bold');
+        console.log('   New Status:', status);
+        console.log('   Updating component state...');
         setJobStatus(status);
       });
 
-      console.log('%c✅ [MAPA COMPONENT] generateMapa() returned:', 'color: #10b981; font-weight: bold', result);
+      const apiTime = ((Date.now() - componentStartTime) / 1000).toFixed(1);
+
+      console.log('\n\n%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color: #10b981; font-weight: bold');
+      console.log('%c  API CALL COMPLETE', 'color: #10b981; font-weight: bold; font-size: 14px');
+      console.log('%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color: #10b981; font-weight: bold');
+
+      console.log('\n%c✅ generateMapa() RETURNED:', 'color: #10b981; font-weight: bold');
+      console.log('   Time Taken:', `${apiTime}s`);
+      console.log('   Result Status:', result.status);
+      console.log('   Has Result Data:', !!result.result);
 
       if (result.result) {
-        console.log('%c🔄 [MAPA COMPONENT] Transforming data...', 'color: #8b5cf6; font-weight: bold');
+        console.log('\n%c🔄 TRANSFORMING DATA FOR DASHBOARD...', 'color: #8b5cf6; font-weight: bold');
 
+        const transformStartTime = Date.now();
         const transformed = transformMapaData(result.result);
+        const transformTime = ((Date.now() - transformStartTime) / 1000).toFixed(1);
 
-        console.log('%c✅ [MAPA COMPONENT] Data transformed successfully', 'color: #10b981; font-weight: bold');
-        console.log('%c📊 [MAPA COMPONENT] Transformed data structure:', 'color: #06b6d4', {
-          keys: Object.keys(transformed),
-          datosMagnitud: transformed.datosMagnitud,
-          globalKPIs: transformed.globalKPIs
+        console.log('\n%c✅ TRANSFORMATION COMPLETE:', 'color: #10b981; font-weight: bold');
+        console.log('   Time Taken:', `${transformTime}s`);
+        console.log('   Output Keys:', Object.keys(transformed));
+
+        console.log('\n%c📊 TRANSFORMED DATA PREVIEW:', 'color: #06b6d4; font-weight: bold');
+        console.log('   Magnitud Data:', {
+          noticiasReportadas: transformed.datosMagnitud.noticiasReportadas,
+          deteccionesPorIA: transformed.datosMagnitud.deteccionesPorIA,
+          deteccionesPorHumanos: transformed.datosMagnitud.deteccionesPorHumanos
         });
+        console.log('   Global KPIs:', transformed.globalKPIs);
 
+        console.log('\n%c💾 UPDATING COMPONENT STATE...', 'color: #8b5cf6; font-weight: bold');
         setMapaData(transformed);
+        console.log('   ✓ State updated with transformed data');
 
-        console.log('%c🎉 [MAPA COMPONENT] Data loaded and set to state!', 'color: #10b981; font-size: 14px; font-weight: bold');
-        console.log('%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color: #10b981');
+        const totalTime = ((Date.now() - componentStartTime) / 1000).toFixed(1);
+
+        console.log('\n\n%c╔════════════════════════════════════════════════════════════════════════════╗', 'color: #10b981; font-weight: bold; font-size: 16px');
+        console.log('%c║                                                                            ║', 'color: #10b981; font-weight: bold; font-size: 16px');
+        console.log('%c║                  🎉 COMPONENT DATA LOAD SUCCESSFUL!                        ║', 'color: #10b981; font-weight: bold; font-size: 16px');
+        console.log('%c║                                                                            ║', 'color: #10b981; font-weight: bold; font-size: 16px');
+        console.log('%c╚════════════════════════════════════════════════════════════════════════════╝', 'color: #10b981; font-weight: bold; font-size: 16px');
+
+        console.log('\n%c📊 COMPLETE SUMMARY:', 'color: #10b981; font-weight: bold');
+        console.log('   Total Time (Component):', `${totalTime}s`);
+        console.log('   API Call Time:', `${apiTime}s`);
+        console.log('   Transform Time:', `${transformTime}s`);
+        console.log('   Data Loaded:', 'Yes');
+        console.log('   UI Ready:', 'Yes');
+
       } else {
-        console.warn('%c⚠️ [MAPA COMPONENT] No result data in response', 'color: #f59e0b; font-weight: bold');
+        console.warn('\n%c⚠️ WARNING: No result data in response', 'color: #f59e0b; font-weight: bold; font-size: 14px');
+        console.warn('   Status:', result.status);
+        console.warn('   This might indicate the job completed but returned no data');
       }
+
     } catch (err: any) {
-      console.error('%c❌ [MAPA COMPONENT] Error loading mapa:', 'color: #ef4444; font-weight: bold', err);
-      console.error('%c📋 Error details:', 'color: #ef4444', {
+      const errorTime = ((Date.now() - componentStartTime) / 1000).toFixed(1);
+
+      console.error('\n\n%c╔════════════════════════════════════════════════════════════════════════════╗', 'color: #ef4444; font-weight: bold; font-size: 16px');
+      console.error('%c║                                                                            ║', 'color: #ef4444; font-weight: bold; font-size: 16px');
+      console.error('%c║                  ❌ COMPONENT ERROR                                        ║', 'color: #ef4444; font-weight: bold; font-size: 16px');
+      console.error('%c║                                                                            ║', 'color: #ef4444; font-weight: bold; font-size: 16px');
+      console.error('%c╚════════════════════════════════════════════════════════════════════════════╝', 'color: #ef4444; font-weight: bold; font-size: 16px');
+
+      console.error('\n%c❌ ERROR LOADING MAPA:', 'color: #ef4444; font-weight: bold');
+      console.error('   Time Until Error:', `${errorTime}s`);
+      console.error('   Error Message:', err.message);
+      console.error('   Error Type:', err.name);
+
+      console.error('\n%c📋 COMPLETE ERROR DETAILS:', 'color: #ef4444; font-weight: bold');
+      console.error({
         message: err.message,
+        name: err.name,
         stack: err.stack
       });
-      console.log('%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color: #ef4444');
 
-      setError(err.message || 'Error al cargar el mapa desinfodémico');
+      console.error('\n%c🔧 USER-FACING ERROR:', 'color: #ef4444; font-weight: bold');
+      const userError = err.message || 'Error al cargar el mapa desinfodémico';
+      console.error('   Message:', userError);
+
+      setError(userError);
+
     } finally {
+      console.log('\n%c🔧 COMPONENT CLEANUP:', 'color: #64748b; font-weight: bold');
+      console.log('   Setting loading state: false');
       setLoading(false);
     }
   }

@@ -13,12 +13,27 @@ import type { MapaResult, TimeSeriesPoint } from './types';
  * - dimension_mitigacion: { indicadores: {...} }
  */
 export function transformMapaData(apiData: MapaResult) {
-  console.log('%c🔄 [TRANSFORMER] Starting data transformation...', 'color: #8b5cf6; font-size: 14px; font-weight: bold');
-  console.log('%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color: #8b5cf6');
-  console.log('%c📦 Input data keys:', 'color: #06b6d4', Object.keys(apiData));
+  console.log('\n\n');
+  console.log('%c╔════════════════════════════════════════════════════════════════════════════╗', 'color: #8b5cf6; font-weight: bold; font-size: 14px');
+  console.log('%c║                      🔄 DATA TRANSFORMATION                                ║', 'color: #8b5cf6; font-weight: bold; font-size: 14px');
+  console.log('%c╚════════════════════════════════════════════════════════════════════════════╝', 'color: #8b5cf6; font-weight: bold; font-size: 14px');
+
+  console.log('\n%c📦 INPUT DATA STRUCTURE:', 'color: #06b6d4; font-weight: bold');
+  console.log('   Top-level keys:', Object.keys(apiData));
+
+  console.log('\n%c🔍 VALIDATING INPUT DATA...', 'color: #f59e0b; font-weight: bold');
 
   const { global_kpis, dimension_magnitud, dimension_temporalidad, dimension_alcance_virulencia,
           dimension_geografica, dimension_descriptiva, dimension_mitigacion } = apiData;
+
+  // Validation logging
+  console.log('   ✓ global_kpis:', global_kpis ? 'Present' : 'MISSING');
+  console.log('   ✓ dimension_magnitud:', dimension_magnitud ? 'Present' : 'MISSING');
+  console.log('   ✓ dimension_temporalidad:', dimension_temporalidad ? 'Present' : 'MISSING');
+  console.log('   ✓ dimension_alcance_virulencia:', dimension_alcance_virulencia ? 'Present' : 'MISSING');
+  console.log('   ✓ dimension_geografica:', dimension_geografica ? 'Present' : 'MISSING');
+  console.log('   ✓ dimension_descriptiva:', dimension_descriptiva ? 'Present' : 'MISSING');
+  console.log('   ✓ dimension_mitigacion:', dimension_mitigacion ? 'Present' : 'MISSING');
 
   const result = {
     // ===== DIMENSIÓN 1: MAGNITUD =====
@@ -247,10 +262,39 @@ export function transformMapaData(apiData: MapaResult) {
     datosTendenciasMecanismo: null
   };
 
-  console.log('%c✅ [TRANSFORMER] Transformation complete', 'color: #10b981; font-weight: bold');
-  console.log('%c📊 Output keys:', 'color: #3b82f6', Object.keys(result));
-  console.log('%c🎯 Global KPIs:', 'color: #f59e0b', result.globalKPIs);
-  console.log('%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color: #10b981');
+  console.log('\n%c🔄 TRANSFORMING DATA BY DIMENSION...', 'color: #8b5cf6; font-weight: bold');
+  console.log('   ✓ Magnitud (Dimension 1)');
+  console.log('   ✓ Temporalidad (Dimension 2)');
+  console.log('   ✓ Alcance/Virulencia (Dimension 3)');
+  console.log('   ✓ Geográfica (Dimension 4)');
+  console.log('   ✓ Descriptiva (Dimension 5)');
+  console.log('   ✓ Mitigación (Dimension 6)');
+  console.log('   ✓ Global KPIs');
+
+  console.log('\n\n%c╔════════════════════════════════════════════════════════════════════════════╗', 'color: #10b981; font-weight: bold; font-size: 14px');
+  console.log('%c║                  ✅ TRANSFORMATION COMPLETE                                ║', 'color: #10b981; font-weight: bold; font-size: 14px');
+  console.log('%c╚════════════════════════════════════════════════════════════════════════════╝', 'color: #10b981; font-weight: bold; font-size: 14px');
+
+  console.log('\n%c📊 OUTPUT DATA STRUCTURE:', 'color: #3b82f6; font-weight: bold');
+  console.log('   Dashboard format keys:', Object.keys(result));
+
+  console.log('\n%c🎯 GLOBAL KPIs:', 'color: #f59e0b; font-weight: bold');
+  console.log('   Casos Activos:', result.globalKPIs.casosActivos);
+  console.log('   Tasa Reproducción (R₀):', result.globalKPIs.tasaReproduccionR0);
+  console.log('   Índice Gravedad (IGC):', result.globalKPIs.indiceGravedadIGC);
+  console.log('   Tiempo Detección:', result.globalKPIs.tiempoDeteccion);
+  console.log('   Infectividad:', result.globalKPIs.infectividad);
+  console.log('   Virulencia:', result.globalKPIs.virulencia);
+
+  console.log('\n%c📈 KEY METRICS:', 'color: #06b6d4; font-weight: bold');
+  console.log('   Total Noticias:', result.datosMagnitud.noticiasReportadas);
+  console.log('   Detectadas IA:', result.datosMagnitud.deteccionesPorIA);
+  console.log('   Validadas Humanos:', result.datosMagnitud.deteccionesPorHumanos);
+  console.log('   Región Más Afectada:', result.datosGeograficos.regionMasAfectada);
+  console.log('   Consenso IA-Humano:', `${result.datosMitigacion.consensoValidacionHumana}%`);
+
+  console.log('\n%c📦 COMPLETE TRANSFORMED OUTPUT:', 'color: #10b981');
+  console.log(JSON.stringify(result, null, 2));
 
   return result;
 }

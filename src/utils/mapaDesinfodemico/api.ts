@@ -12,21 +12,34 @@ const MAPA_API_URL = 'https://mdkswlgcqsmgfmcuorxq.supabase.co/functions/v1/mapa
  * @throws Error if authentication fails or API request fails
  */
 export async function createMapaJob(): Promise<MapaJobResponse> {
-  console.log('%c🚀 [MAPA API] Creating new job...', 'color: #10b981; font-weight: bold');
-  console.log('%c📍 API URL:', 'color: #3b82f6; font-weight: bold', MAPA_API_URL);
+  console.log('\n%c╔════════════════════════════════════════════════════════════════════════════╗', 'color: #10b981; font-weight: bold');
+  console.log('%c║                       🚀 CREATING MAPA JOB                                 ║', 'color: #10b981; font-weight: bold');
+  console.log('%c╚════════════════════════════════════════════════════════════════════════════╝', 'color: #10b981; font-weight: bold');
+
+  console.log('\n%c📍 ENDPOINT:', 'color: #3b82f6; font-weight: bold');
+  console.log('  ', MAPA_API_URL);
 
   // Get current session
   const { data: { session } } = await supabase.auth.getSession();
 
   if (!session?.access_token) {
-    console.error('%c❌ [MAPA API] No active session', 'color: #ef4444; font-weight: bold');
+    console.error('\n%c❌ ERROR: No active session', 'color: #ef4444; font-weight: bold');
     throw new Error('No hay sesión activa. Por favor, inicia sesión.');
   }
 
-  console.log('%c🔑 [MAPA API] Auth token present:', 'color: #8b5cf6', `${session.access_token.substring(0, 20)}...`);
+  console.log('\n%c🔑 AUTHENTICATION:', 'color: #8b5cf6; font-weight: bold');
+  console.log('   Token:', `${session.access_token.substring(0, 30)}...`);
 
   const requestBody = {};
-  console.log('%c📤 [MAPA API] Request body:', 'color: #f59e0b', requestBody);
+  console.log('\n%c📤 REQUEST:', 'color: #f59e0b; font-weight: bold');
+  console.log('   Method: POST');
+  console.log('   Headers:', {
+    'Authorization': 'Bearer [TOKEN]',
+    'Content-Type': 'application/json'
+  });
+  console.log('   Body:', JSON.stringify(requestBody, null, 2));
+
+  console.log('\n%c⏳ Sending request...', 'color: #94a3b8');
 
   const response = await fetch(MAPA_API_URL, {
     method: 'POST',
@@ -37,18 +50,24 @@ export async function createMapaJob(): Promise<MapaJobResponse> {
     body: JSON.stringify(requestBody)
   });
 
-  console.log('%c📥 [MAPA API] Response status:', 'color: #ec4899', response.status, response.statusText);
+  console.log('\n%c📥 RESPONSE:', 'color: #ec4899; font-weight: bold');
+  console.log('   Status:', response.status, response.statusText);
+  console.log('   Headers:', Object.fromEntries(response.headers.entries()));
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: 'Error desconocido' }));
-    console.error('%c❌ [MAPA API] Error response:', 'color: #ef4444; font-weight: bold', error);
+    console.error('\n%c❌ ERROR RESPONSE:', 'color: #ef4444; font-weight: bold');
+    console.error(JSON.stringify(error, null, 2));
     throw new Error(error.error || `Error ${response.status}: ${response.statusText}`);
   }
 
   const result = await response.json();
-  console.log('%c✅ [MAPA API] Job created successfully:', 'color: #10b981; font-weight: bold', result);
-  console.log('%c🆔 Job ID:', 'color: #3b82f6', result.job_id);
-  console.log('%c📊 Initial status:', 'color: #f59e0b', result.status);
+  console.log('\n%c✅ SUCCESS - JOB CREATED:', 'color: #10b981; font-weight: bold');
+  console.log('   Job ID:', result.job_id);
+  console.log('   Status:', result.status);
+  console.log('   Message:', result.message);
+  console.log('\n%c📦 FULL RESPONSE PAYLOAD:', 'color: #06b6d4');
+  console.log(JSON.stringify(result, null, 2));
 
   return result;
 }
@@ -63,33 +82,74 @@ export async function createMapaJob(): Promise<MapaJobResponse> {
  */
 export async function getMapaJobStatus(jobId: string): Promise<MapaJobStatus> {
   const statusUrl = `${MAPA_API_URL}/status/${jobId}`;
-  console.log('%c🔍 [MAPA API] Checking job status...', 'color: #06b6d4; font-weight: bold');
-  console.log('%c📍 Status URL:', 'color: #3b82f6', statusUrl);
-  console.log('%c🆔 Job ID:', 'color: #8b5cf6', jobId);
+
+  console.log('\n%c╔════════════════════════════════════════════════════════════════════════════╗', 'color: #06b6d4; font-weight: bold');
+  console.log('%c║                     🔍 CHECKING JOB STATUS                                 ║', 'color: #06b6d4; font-weight: bold');
+  console.log('%c╚════════════════════════════════════════════════════════════════════════════╝', 'color: #06b6d4; font-weight: bold');
+
+  console.log('\n%c🆔 JOB ID:', 'color: #8b5cf6; font-weight: bold');
+  console.log('  ', jobId);
+
+  console.log('\n%c📍 ENDPOINT:', 'color: #3b82f6; font-weight: bold');
+  console.log('  ', statusUrl);
+
+  console.log('\n%c📤 REQUEST:', 'color: #f59e0b; font-weight: bold');
+  console.log('   Method: GET');
+  console.log('   Auth: Not required (public status endpoint)');
+
+  console.log('\n%c⏳ Fetching status...', 'color: #94a3b8');
 
   const response = await fetch(statusUrl, {
     method: 'GET'
   });
 
-  console.log('%c📥 [MAPA API] Status response:', 'color: #ec4899', response.status, response.statusText);
+  console.log('\n%c📥 RESPONSE:', 'color: #ec4899; font-weight: bold');
+  console.log('   Status:', response.status, response.statusText);
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: 'Error desconocido' }));
-    console.error('%c❌ [MAPA API] Status check failed:', 'color: #ef4444; font-weight: bold', error);
+    console.error('\n%c❌ STATUS CHECK FAILED:', 'color: #ef4444; font-weight: bold');
+    console.error(JSON.stringify(error, null, 2));
     throw new Error(error.error || `Error ${response.status}: ${response.statusText}`);
   }
 
   const jobStatus = await response.json();
-  console.log('%c📊 [MAPA API] Job status:', 'color: #f59e0b; font-weight: bold', jobStatus.status);
+
+  console.log('\n%c📊 JOB STATUS:', 'color: #f59e0b; font-weight: bold');
+  console.log('   Current Status:', jobStatus.status);
+  console.log('   Created At:', jobStatus.created_at);
+  if (jobStatus.completed_at) {
+    console.log('   Completed At:', jobStatus.completed_at);
+  }
 
   if (jobStatus.status === 'completed' && jobStatus.result) {
-    console.log('%c✅ [MAPA API] Job completed!', 'color: #10b981; font-weight: bold');
-    console.log('%c📦 Result keys:', 'color: #3b82f6', Object.keys(jobStatus.result));
-    console.log('%c📦 Full result payload:', 'color: #06b6d4', jobStatus.result);
+    console.log('\n%c✅ JOB COMPLETED!', 'color: #10b981; font-weight: bold; font-size: 14px');
+    console.log('\n%c📦 RESULT STRUCTURE:', 'color: #3b82f6; font-weight: bold');
+    console.log('   Top-level keys:', Object.keys(jobStatus.result));
+
+    if (jobStatus.result.global_kpis) {
+      console.log('\n%c🌍 GLOBAL KPIs:', 'color: #8b5cf6; font-weight: bold');
+      console.log(JSON.stringify(jobStatus.result.global_kpis, null, 2));
+    }
+
+    console.log('\n%c📐 DIMENSIONS PRESENT:', 'color: #06b6d4; font-weight: bold');
+    const dimensions = Object.keys(jobStatus.result).filter(k => k.startsWith('dimension_'));
+    dimensions.forEach(dim => {
+      console.log(`   ✓ ${dim}`);
+    });
+
+    console.log('\n%c📦 COMPLETE RESULT PAYLOAD:', 'color: #10b981');
+    console.log(JSON.stringify(jobStatus.result, null, 2));
+
   } else if (jobStatus.status === 'failed') {
-    console.error('%c❌ [MAPA API] Job failed:', 'color: #ef4444; font-weight: bold', jobStatus.error);
+    console.error('\n%c❌ JOB FAILED:', 'color: #ef4444; font-weight: bold; font-size: 14px');
+    console.error('   Error:', jobStatus.error);
+    console.error('\n%c📦 FULL ERROR DETAILS:', 'color: #ef4444');
+    console.error(JSON.stringify(jobStatus.error, null, 2));
+
   } else {
-    console.log('%c⏳ [MAPA API] Job still processing...', 'color: #f59e0b', jobStatus.status);
+    console.log('\n%c⏳ JOB STILL PROCESSING...', 'color: #f59e0b; font-size: 14px');
+    console.log('   Status:', jobStatus.status);
   }
 
   return jobStatus;
@@ -110,13 +170,25 @@ export async function pollMapaJob(
   const maxRetries = 60; // 60 * 3s = 3 minutes max wait
   const pollInterval = 3000; // 3 seconds
 
-  console.log('%c⏱️ [MAPA POLL] Starting to poll job...', 'color: #8b5cf6; font-weight: bold');
-  console.log('%c🆔 Job ID:', 'color: #3b82f6', jobId);
-  console.log('%c⚙️ Max retries:', 'color: #f59e0b', maxRetries);
-  console.log('%c⚙️ Poll interval:', 'color: #f59e0b', `${pollInterval / 1000}s`);
+  console.log('\n%c╔════════════════════════════════════════════════════════════════════════════╗', 'color: #8b5cf6; font-weight: bold');
+  console.log('%c║                       ⏱️  POLLING JOB STATUS                               ║', 'color: #8b5cf6; font-weight: bold');
+  console.log('%c╚════════════════════════════════════════════════════════════════════════════╝', 'color: #8b5cf6; font-weight: bold');
+
+  console.log('\n%c⚙️  POLLING CONFIG:', 'color: #f59e0b; font-weight: bold');
+  console.log('   Job ID:', jobId);
+  console.log('   Max Retries:', maxRetries);
+  console.log('   Poll Interval:', `${pollInterval / 1000}s`);
+  console.log('   Max Wait Time:', `${(maxRetries * pollInterval) / 1000}s (${(maxRetries * pollInterval) / 60000} minutes)`);
+
+  const startTime = Date.now();
 
   for (let attempt = 0; attempt < maxRetries; attempt++) {
-    console.log('%c🔄 [MAPA POLL] Attempt:', 'color: #06b6d4', `${attempt + 1}/${maxRetries}`);
+    const elapsedSeconds = ((Date.now() - startTime) / 1000).toFixed(1);
+
+    console.log('\n%c─────────────────────────────────────────────────────────────────────────────', 'color: #64748b');
+    console.log('%c🔄 POLL ATTEMPT #' + (attempt + 1), 'color: #06b6d4; font-weight: bold');
+    console.log('   Progress:', `${attempt + 1}/${maxRetries}`);
+    console.log('   Elapsed Time:', `${elapsedSeconds}s`);
 
     const jobStatus = await getMapaJobStatus(jobId);
 
@@ -127,26 +199,44 @@ export async function pollMapaJob(
 
     // Check if completed successfully
     if (jobStatus.status === 'completed' && jobStatus.result) {
-      console.log('%c✅ [MAPA POLL] Job completed successfully!', 'color: #10b981; font-weight: bold');
+      const totalTime = ((Date.now() - startTime) / 1000).toFixed(1);
+      console.log('\n%c╔════════════════════════════════════════════════════════════════════════════╗', 'color: #10b981; font-weight: bold; font-size: 14px');
+      console.log('%c║                    ✅ POLLING COMPLETE - SUCCESS!                         ║', 'color: #10b981; font-weight: bold; font-size: 14px');
+      console.log('%c╚════════════════════════════════════════════════════════════════════════════╝', 'color: #10b981; font-weight: bold; font-size: 14px');
+      console.log('\n%c📊 SUMMARY:', 'color: #10b981; font-weight: bold');
+      console.log('   Total Attempts:', attempt + 1);
+      console.log('   Total Time:', `${totalTime}s`);
+      console.log('   Status:', jobStatus.status);
       return jobStatus;
     }
 
     // Check if failed
     if (jobStatus.status === 'failed') {
       const errorMsg = jobStatus.error?.message || 'El análisis falló';
-      console.error('%c❌ [MAPA POLL] Job failed:', 'color: #ef4444; font-weight: bold', errorMsg);
+      console.error('\n%c╔════════════════════════════════════════════════════════════════════════════╗', 'color: #ef4444; font-weight: bold; font-size: 14px');
+      console.error('%c║                      ❌ POLLING FAILED                                     ║', 'color: #ef4444; font-weight: bold; font-size: 14px');
+      console.error('%c╚════════════════════════════════════════════════════════════════════════════╝', 'color: #ef4444; font-weight: bold; font-size: 14px');
+      console.error('\n%c📊 SUMMARY:', 'color: #ef4444; font-weight: bold');
+      console.error('   Attempts Before Failure:', attempt + 1);
+      console.error('   Error Message:', errorMsg);
       throw new Error(errorMsg);
     }
 
     // Wait before next poll (unless this is the last attempt)
     if (attempt < maxRetries - 1) {
-      console.log('%c⏳ [MAPA POLL] Waiting 3s before next check...', 'color: #94a3b8');
+      console.log('\n%c⏳ Waiting 3s before next check...', 'color: #94a3b8');
       await new Promise(resolve => setTimeout(resolve, pollInterval));
     }
   }
 
   // Timeout
-  console.error('%c⏱️ [MAPA POLL] Timeout reached!', 'color: #ef4444; font-weight: bold');
+  const totalTime = ((Date.now() - startTime) / 1000).toFixed(1);
+  console.error('\n%c╔════════════════════════════════════════════════════════════════════════════╗', 'color: #ef4444; font-weight: bold; font-size: 14px');
+  console.error('%c║                      ⏱️  POLLING TIMEOUT                                   ║', 'color: #ef4444; font-weight: bold; font-size: 14px');
+  console.error('%c╚════════════════════════════════════════════════════════════════════════════╝', 'color: #ef4444; font-weight: bold; font-size: 14px');
+  console.error('\n%c📊 TIMEOUT DETAILS:', 'color: #ef4444; font-weight: bold');
+  console.error('   Max Retries Reached:', maxRetries);
+  console.error('   Total Time Elapsed:', `${totalTime}s`);
   throw new Error('Tiempo de espera agotado. El mapa está tomando más tiempo del esperado. Por favor, intenta de nuevo.');
 }
 
@@ -160,14 +250,25 @@ export async function pollMapaJob(
 export async function generateMapa(
   onProgress?: (status: string) => void
 ): Promise<MapaJobStatus> {
-  console.log('%c🎬 [MAPA] Starting mapa generation workflow...', 'color: #ec4899; font-size: 14px; font-weight: bold');
-  console.log('%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color: #ec4899');
+  console.log('\n\n');
+  console.log('%c╔════════════════════════════════════════════════════════════════════════════╗', 'color: #ec4899; font-weight: bold; font-size: 16px');
+  console.log('%c║                                                                            ║', 'color: #ec4899; font-weight: bold; font-size: 16px');
+  console.log('%c║              🗺️  MAPA DESINFODÉMICO GENERATION WORKFLOW                   ║', 'color: #ec4899; font-weight: bold; font-size: 16px');
+  console.log('%c║                                                                            ║', 'color: #ec4899; font-weight: bold; font-size: 16px');
+  console.log('%c╚════════════════════════════════════════════════════════════════════════════╝', 'color: #ec4899; font-weight: bold; font-size: 16px');
+
+  const workflowStartTime = Date.now();
 
   // Step 1: Create job
-  console.log('%c📝 [MAPA] Step 1: Creating job...', 'color: #3b82f6; font-weight: bold');
+  console.log('\n\n%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color: #3b82f6; font-weight: bold');
+  console.log('%c  STEP 1: CREATE JOB', 'color: #3b82f6; font-weight: bold; font-size: 14px');
+  console.log('%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color: #3b82f6; font-weight: bold');
+
   const { job_id, status } = await createMapaJob();
 
-  console.log('%c✅ [MAPA] Job created successfully', 'color: #10b981; font-weight: bold');
+  console.log('\n%c✅ STEP 1 COMPLETE', 'color: #10b981; font-weight: bold; font-size: 14px');
+  console.log('   Job ID:', job_id);
+  console.log('   Initial Status:', status);
 
   // Notify initial status
   if (onProgress) {
@@ -175,11 +276,25 @@ export async function generateMapa(
   }
 
   // Step 2: Poll until complete
-  console.log('%c🔄 [MAPA] Step 2: Polling for completion...', 'color: #3b82f6; font-weight: bold');
+  console.log('\n\n%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color: #3b82f6; font-weight: bold');
+  console.log('%c  STEP 2: POLL FOR COMPLETION', 'color: #3b82f6; font-weight: bold; font-size: 14px');
+  console.log('%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color: #3b82f6; font-weight: bold');
+
   const result = await pollMapaJob(job_id, onProgress);
 
-  console.log('%c🎉 [MAPA] Workflow completed!', 'color: #10b981; font-size: 14px; font-weight: bold');
-  console.log('%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color: #10b981');
+  const workflowTotalTime = ((Date.now() - workflowStartTime) / 1000).toFixed(1);
+
+  console.log('\n\n%c╔════════════════════════════════════════════════════════════════════════════╗', 'color: #10b981; font-weight: bold; font-size: 16px');
+  console.log('%c║                                                                            ║', 'color: #10b981; font-weight: bold; font-size: 16px');
+  console.log('%c║                    🎉 WORKFLOW COMPLETED SUCCESSFULLY!                     ║', 'color: #10b981; font-weight: bold; font-size: 16px');
+  console.log('%c║                                                                            ║', 'color: #10b981; font-weight: bold; font-size: 16px');
+  console.log('%c╚════════════════════════════════════════════════════════════════════════════╝', 'color: #10b981; font-weight: bold; font-size: 16px');
+
+  console.log('\n%c📊 WORKFLOW SUMMARY:', 'color: #10b981; font-weight: bold');
+  console.log('   Job ID:', job_id);
+  console.log('   Final Status:', result.status);
+  console.log('   Total Workflow Time:', `${workflowTotalTime}s`);
+  console.log('   Result Data Size:', result.result ? `${Object.keys(result.result).length} top-level keys` : 'N/A');
 
   return result;
 }
