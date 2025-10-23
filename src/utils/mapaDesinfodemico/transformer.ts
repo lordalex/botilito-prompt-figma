@@ -144,25 +144,25 @@ export function transformMapaData(apiData: MapaResult) {
         { nombre: 'Alcalde de Bogotá', ataques: 189 }
       ],
       sectorMasEficiente: {
-        sector: dimension_descriptiva.indicadores.sector_mas_eficiente,
+        sector: dimension_descriptiva.indicadores?.sector_mas_eficiente || 'No especificado',
         alcancePromedio: 12500, // Mock
-        viralidad: dimension_alcance_virulencia.indicadores.indice_viralidad
+        viralidad: dimension_alcance_virulencia.indicadores?.indice_viralidad || 0
       }
     },
 
     // ===== DIMENSIÓN 6: MITIGACIÓN =====
     datosMitigacion: {
-      consensoValidacionHumana: dimension_mitigacion.indicadores.consenso_humano_ia,
+      consensoValidacionHumana: dimension_mitigacion.indicadores?.consenso_humano_ia || 0,
       consensoHumanoVsIA: {
-        acuerdo: Math.round(dimension_mitigacion.indicadores.consenso_humano_ia),
-        desacuerdo: Math.round(100 - dimension_mitigacion.indicadores.consenso_humano_ia)
+        acuerdo: Math.round(dimension_mitigacion.indicadores?.consenso_humano_ia || 0),
+        desacuerdo: Math.round(100 - (dimension_mitigacion.indicadores?.consenso_humano_ia || 0))
       },
-      casosEnDesacuerdo: dimension_mitigacion.indicadores.casos_en_desacuerdo,
+      casosEnDesacuerdo: dimension_mitigacion.indicadores?.casos_en_desacuerdo || 0,
       distribucionDesacuerdo: [
         // Mock data structure (not explicitly in new API)
-        { categoria: 'Falso vs Engañoso', casos: Math.floor(dimension_mitigacion.indicadores.casos_en_desacuerdo * 0.4), porcentaje: 40 },
-        { categoria: 'Verdadero vs Falso', casos: Math.floor(dimension_mitigacion.indicadores.casos_en_desacuerdo * 0.35), porcentaje: 35 },
-        { categoria: 'Otros', casos: Math.floor(dimension_mitigacion.indicadores.casos_en_desacuerdo * 0.25), porcentaje: 25 }
+        { categoria: 'Falso vs Engañoso', casos: Math.floor((dimension_mitigacion.indicadores?.casos_en_desacuerdo || 0) * 0.4), porcentaje: 40 },
+        { categoria: 'Verdadero vs Falso', casos: Math.floor((dimension_mitigacion.indicadores?.casos_en_desacuerdo || 0) * 0.35), porcentaje: 35 },
+        { categoria: 'Otros', casos: Math.floor((dimension_mitigacion.indicadores?.casos_en_desacuerdo || 0) * 0.25), porcentaje: 25 }
       ],
       noticiasMasReportadas: [
         // Mock data (not in new structure)
@@ -171,15 +171,15 @@ export function transformMapaData(apiData: MapaResult) {
       ],
       casosPorPrioridad: [
         // Mock data
-        { prioridad: 'Alta', casos: dimension_alcance_virulencia.indicadores.casos_criticos, porcentaje: 15 },
-        { prioridad: 'Media', casos: Math.floor(dimension_magnitud.indicadores.noticias_reportadas_mes * 0.38), porcentaje: 38 },
-        { prioridad: 'Baja', casos: Math.floor(dimension_magnitud.indicadores.noticias_reportadas_mes * 0.47), porcentaje: 47 }
+        { prioridad: 'Alta', casos: dimension_alcance_virulencia.indicadores?.casos_criticos || 0, porcentaje: 15 },
+        { prioridad: 'Media', casos: Math.floor((dimension_magnitud.indicadores?.noticias_reportadas_mes || 0) * 0.38), porcentaje: 38 },
+        { prioridad: 'Baja', casos: Math.floor((dimension_magnitud.indicadores?.noticias_reportadas_mes || 0) * 0.47), porcentaje: 47 }
       ],
       redEpidemiologos: {
         totalActivos: 47, // Mock
-        casosProcesados: dimension_magnitud.indicadores.validadas_por_humanos,
-        tiempoPromedioVerificacion: parseTimeString(dimension_magnitud.indicadores.tiempo_promedio_validacion),
-        consensoPromedio: dimension_mitigacion.indicadores.consenso_humano_ia
+        casosProcesados: dimension_magnitud.indicadores?.validadas_por_humanos || 0,
+        tiempoPromedioVerificacion: parseTimeString(dimension_magnitud.indicadores?.tiempo_promedio_validacion),
+        consensoPromedio: dimension_mitigacion.indicadores?.consenso_humano_ia || 0
       },
       redInmunizadores: {
         totalActivos: 32, // Mock
@@ -244,7 +244,7 @@ export function transformMapaData(apiData: MapaResult) {
         {
           tipo: 'error' as const,
           titulo: 'Nivel de casos críticos elevado',
-          descripcion: `Se detectaron ${dimension_alcance_virulencia.indicadores.casos_criticos} casos con alta virulencia`,
+          descripcion: `Se detectaron ${dimension_alcance_virulencia.indicadores?.casos_criticos || 0} casos con alta virulencia`,
           prioridad: 1
         }
       ]
