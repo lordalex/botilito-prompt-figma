@@ -57,8 +57,8 @@ export function Login({ onLogin, onGoToRegister }: LoginProps) {
           </div>
           
           <div className="relative z-10 grid lg:grid-cols-2 gap-0 h-full">
-            {/* Lado izquierdo - Presentación de Botilito */}
-            <div className="bg-gradient-to-br from-primary to-secondary lg:p-12 flex flex-col justify-center items-center text-center p-[48px]">
+            {/* Lado izquierdo - Presentación de Botilito (oculto en móvil) */}
+            <div className="hidden lg:flex bg-gradient-to-br from-primary to-secondary lg:p-12 flex-col justify-center items-center text-center">
               {/* Burbuja de diálogo */}
               <div className="bg-white rounded-2xl p-6 mb-8 relative shadow-lg max-w-md">
                 <h1 className="text-3xl font-bold text-black mb-4">
@@ -75,26 +75,41 @@ export function Login({ onLogin, onGoToRegister }: LoginProps) {
 
               {/* Botilito Character - Imagen oficial */}
               <div className="relative">
-                <img 
-                  src={botilitoImage} 
-                  alt="Botilito - El ex-agente digital convertido en luchador contra la desinformación" 
+                <img
+                  src={botilitoImage}
+                  alt="Botilito - El ex-agente digital convertido en luchador contra la desinformación"
                   className="w-72 h-auto drop-shadow-2xl"
                 />
               </div>
             </div>
 
             {/* Lado derecho - Formulario de login */}
-            <div className="bg-white lg:p-12 flex flex-col justify-center px-[130px] py-[48px]">
+            <div className="bg-white flex flex-col justify-center px-4 py-8 sm:px-8 md:px-12 lg:px-[130px] lg:py-[48px] overflow-y-auto">
               <div className="max-w-xl mx-auto w-full">
+                {/* Mobile greeting - solo visible en móvil */}
+                <div className="lg:hidden flex flex-col items-center mb-6">
+                  <img
+                    src={botilitoImage}
+                    alt="Botilito"
+                    className="w-32 h-auto mb-3"
+                  />
+                  <h2 className="text-xl font-bold text-black text-center">
+                    ¡Kiubo! Soy Botilito
+                  </h2>
+                  <p className="text-sm text-gray-600 text-center mt-2 max-w-xs">
+                    Luchando contra la desinformación
+                  </p>
+                </div>
+
                 {/* Header del formulario */}
                 <div className="text-center mb-6">
-                  <div className="inline-block bg-primary text-black px-8 py-4 rounded-2xl text-2xl font-bold mb-4">
+                  <div className="inline-block bg-primary text-black px-6 py-3 rounded-2xl text-xl lg:text-2xl font-bold mb-4 lg:px-8 lg:py-4">
                     ¿Me acompañas?
                   </div>
                 </div>
 
                 {/* Formulario */}
-                <form onSubmit={handleSubmit} className="space-y-5">
+                <form onSubmit={handleSubmit} className="space-y-4 md:space-y-5">
                   {/* Error message */}
                   {error && (
                     <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
@@ -104,7 +119,7 @@ export function Login({ onLogin, onGoToRegister }: LoginProps) {
 
                   {/* Campo de usuario/email */}
                   <div className="space-y-2">
-                    <Label htmlFor="email" className="text-gray-700 text-lg">
+                    <Label htmlFor="email" className="text-gray-700 text-base lg:text-lg">
                       Usuario o correo electrónico
                     </Label>
                     <Input
@@ -112,7 +127,7 @@ export function Login({ onLogin, onGoToRegister }: LoginProps) {
                       type="text"
                       value={credentials.email}
                       onChange={(e) => setCredentials(prev => ({ ...prev, email: e.target.value }))}
-                      className="w-full px-6 py-4 text-lg border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
+                      className="w-full px-4 py-3 text-base lg:px-6 lg:py-4 lg:text-lg border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
                       placeholder="usuario@ejemplo.com"
                       required
                     />
@@ -120,7 +135,7 @@ export function Login({ onLogin, onGoToRegister }: LoginProps) {
 
                   {/* Campo de contraseña */}
                   <div className="space-y-2">
-                    <Label htmlFor="password" className="text-gray-700 text-lg">
+                    <Label htmlFor="password" className="text-gray-700 text-base lg:text-lg">
                       Contraseña
                     </Label>
                     <div className="relative">
@@ -129,19 +144,19 @@ export function Login({ onLogin, onGoToRegister }: LoginProps) {
                         type={showPassword ? 'text' : 'password'}
                         value={credentials.password}
                         onChange={(e) => setCredentials(prev => ({ ...prev, password: e.target.value }))}
-                        className="w-full px-6 py-4 pr-14 text-lg border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
+                        className="w-full px-4 py-3 pr-12 text-base lg:px-6 lg:py-4 lg:pr-14 lg:text-lg border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
                         placeholder="••••••••"
                         required
                       />
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors"
+                        className="absolute right-3 lg:right-4 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors"
                       >
                         {showPassword ? (
-                          <EyeOff className="h-6 w-6" />
+                          <EyeOff className="h-5 w-5 lg:h-6 lg:w-6" />
                         ) : (
-                          <Eye className="h-6 w-6" />
+                          <Eye className="h-5 w-5 lg:h-6 lg:w-6" />
                         )}
                       </button>
                     </div>
@@ -161,7 +176,7 @@ export function Login({ onLogin, onGoToRegister }: LoginProps) {
                   <Button
                     type="submit"
                     disabled={isLoading}
-                    className="w-full bg-black hover:bg-gray-800 text-white py-4 text-lg rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full bg-black hover:bg-gray-800 text-white py-3 text-base lg:py-4 lg:text-lg rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isLoading ? (
                       <>
@@ -175,11 +190,11 @@ export function Login({ onLogin, onGoToRegister }: LoginProps) {
 
                   {/* Enlace de registro */}
                   <div className="text-center">
-                    <span className="text-gray-600 text-base">¿No eres miembro? </span>
+                    <span className="text-gray-600 text-sm md:text-base">¿No eres miembro? </span>
                     <button
                       type="button"
                       onClick={onGoToRegister}
-                      className="text-primary hover:text-secondary font-medium text-base transition-colors no-hover-effect"
+                      className="text-primary hover:text-secondary font-medium text-sm md:text-base transition-colors no-hover-effect"
                     >
                       Regístrate ahora
                     </button>
@@ -187,17 +202,17 @@ export function Login({ onLogin, onGoToRegister }: LoginProps) {
                 </form>
                 
                 {/* Logo de Digital-IA en la parte inferior */}
-                <div className="mt-8 pt-6 border-t border-gray-200 flex justify-center">
-                  <a 
-                    href="https://digitalia.gov.co" 
-                    target="_blank" 
+                <div className="mt-6 pt-4 border-t border-gray-200 flex justify-center md:mt-8 md:pt-6">
+                  <a
+                    href="https://digitalia.gov.co"
+                    target="_blank"
                     rel="noopener noreferrer"
                     className="no-hover-effect"
                   >
-                    <img 
-                      src={digitalIALogo} 
-                      alt="Digital-IA - Educomunicación para la paz" 
-                      className="h-28 w-auto object-contain hover:opacity-80 transition-opacity cursor-pointer"
+                    <img
+                      src={digitalIALogo}
+                      alt="Digital-IA - Educomunicación para la paz"
+                      className="h-20 w-auto object-contain hover:opacity-80 transition-opacity cursor-pointer md:h-28"
                     />
                   </a>
                 </div>

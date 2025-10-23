@@ -96,8 +96,8 @@ export function Register({ onRegister, onBackToLogin }: RegisterProps) {
           </div>
           
           <div className="relative z-10 grid lg:grid-cols-2 gap-0 h-full">
-            {/* Lado izquierdo - Presentación de Botilito */}
-            <div className="bg-gradient-to-br from-primary to-secondary p-8 lg:p-12 flex flex-col justify-center items-center text-center">
+            {/* Lado izquierdo - Presentación de Botilito (oculto en móvil) */}
+            <div className="hidden lg:flex bg-gradient-to-br from-primary to-secondary lg:p-12 flex-col justify-center items-center text-center">
               {/* Burbuja de diálogo */}
               <div className="bg-white rounded-2xl p-6 mb-8 relative shadow-lg max-w-md">
                 <h1 className="text-3xl font-bold text-black mb-4">
@@ -114,26 +114,41 @@ export function Register({ onRegister, onBackToLogin }: RegisterProps) {
 
               {/* Botilito Character - Imagen oficial */}
               <div className="relative">
-                <img 
-                  src={botilitoImage} 
-                  alt="Botilito - El ex-agente digital convertido en luchador contra la desinformación" 
+                <img
+                  src={botilitoImage}
+                  alt="Botilito - El ex-agente digital convertido en luchador contra la desinformación"
                   className="w-80 h-auto drop-shadow-2xl"
                 />
               </div>
             </div>
 
             {/* Lado derecho - Formulario de registro */}
-            <div className="bg-white p-8 lg:p-12 flex flex-col justify-center">
+            <div className="bg-white px-4 py-8 sm:px-6 md:px-8 lg:p-12 flex flex-col justify-center overflow-y-auto">
               <div className="max-w-md mx-auto w-full">
+                {/* Mobile greeting - solo visible en móvil */}
+                <div className="lg:hidden flex flex-col items-center mb-4">
+                  <img
+                    src={botilitoImage}
+                    alt="Botilito"
+                    className="w-32 h-auto mb-3"
+                  />
+                  <h2 className="text-xl font-bold text-black text-center">
+                    ¡Únete a la lucha!
+                  </h2>
+                  <p className="text-sm text-gray-600 text-center mt-2 max-w-xs">
+                    Combate la desinformación
+                  </p>
+                </div>
+
                 {/* Header del formulario */}
-                <div className="text-center mb-8">
-                  <div className="inline-block bg-primary text-black px-6 py-3 rounded-2xl text-xl font-bold mb-6">
+                <div className="text-center mb-6 lg:mb-8">
+                  <div className="inline-block bg-primary text-black px-4 py-2 rounded-2xl text-base font-bold mb-4 sm:px-6 sm:py-3 sm:text-xl lg:mb-6">
                     ¡A camellar contra las noticias falsas!
                   </div>
                 </div>
 
                 {/* Formulario */}
-                <form onSubmit={handleSubmit} className="space-y-6">
+                <form onSubmit={handleSubmit} className="space-y-4 md:space-y-5 lg:space-y-6">
                   {/* Error message */}
                   {error && (
                     <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
@@ -191,7 +206,7 @@ export function Register({ onRegister, onBackToLogin }: RegisterProps) {
                   </div>
 
                   {/* Ubicación: Departamento y Ciudad */}
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-4 md:grid md:grid-cols-2">
                     <div className="space-y-2">
                       <Label htmlFor="department" className="text-gray-700 flex items-center space-x-2">
                         <MapPin className="h-4 w-4" />
@@ -248,7 +263,7 @@ export function Register({ onRegister, onBackToLogin }: RegisterProps) {
                   </div>
 
                   {/* Campos de contraseña en fila */}
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-4 md:grid md:grid-cols-2">
                     {/* Campo de contraseña */}
                     <div className="space-y-2">
                       <Label htmlFor="password" className="text-gray-700">
@@ -349,11 +364,11 @@ export function Register({ onRegister, onBackToLogin }: RegisterProps) {
 
                   {/* Enlace de login */}
                   <div className="text-center">
-                    <span className="text-gray-600">¿Ya eres miembro? </span>
+                    <span className="text-gray-600 text-sm md:text-base">¿Ya eres miembro? </span>
                     <button
                       type="button"
                       onClick={onBackToLogin}
-                      className="text-primary hover:text-secondary font-medium transition-colors font-bold"
+                      className="text-primary hover:text-secondary font-medium transition-colors font-bold text-sm md:text-base"
                     >
                       Inicia sesión
                     </button>
