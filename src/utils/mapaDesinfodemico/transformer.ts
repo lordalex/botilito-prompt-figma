@@ -38,15 +38,15 @@ export function transformMapaData(apiData: MapaResult) {
   const result = {
     // ===== DIMENSIÓN 1: MAGNITUD =====
     datosMagnitud: {
-      noticiasReportadas: dimension_magnitud.indicadores.noticias_reportadas_totales,
-      noticiasReportadasSemana: dimension_magnitud.indicadores.incremento_semanal,
-      noticiasReportadasMes: dimension_magnitud.indicadores.noticias_reportadas_mes,
-      deteccionesPorIA: dimension_magnitud.indicadores.detectadas_por_ia,
-      deteccionesPorHumanos: dimension_magnitud.indicadores.validadas_por_humanos,
-      tiempoDeteccionIA: parseTimeString(dimension_magnitud.indicadores.tiempo_promedio_deteccion),
-      tiempoDeteccionHumanos: parseTimeString(dimension_magnitud.indicadores.tiempo_promedio_validacion),
+      noticiasReportadas: dimension_magnitud.indicadores?.noticias_reportadas_total || dimension_magnitud.indicadores?.noticias_reportadas_totales || 0,
+      noticiasReportadasSemana: dimension_magnitud.indicadores?.incremento_semanal || 0,
+      noticiasReportadasMes: dimension_magnitud.indicadores?.noticias_reportadas_mes || 0,
+      deteccionesPorIA: dimension_magnitud.indicadores?.detectadas_por_ia || 0,
+      deteccionesPorHumanos: dimension_magnitud.indicadores?.validadas_por_humanos || 0,
+      tiempoDeteccionIA: parseTimeString(dimension_magnitud.indicadores?.tiempo_promedio_deteccion),
+      tiempoDeteccionHumanos: parseTimeString(dimension_magnitud.indicadores?.tiempo_promedio_validacion),
       // For sources, we'll use top regions from geographic dimension as proxy
-      fuentesGeneradoras: dimension_geografica.tablas.casos_por_region
+      fuentesGeneradoras: (dimension_geografica.tablas?.tabla_casos_por_region || dimension_geografica.tablas?.casos_por_region || [])
         .slice(0, 5)
         .map(item => ({
           fuente: item.region,
@@ -57,12 +57,12 @@ export function transformMapaData(apiData: MapaResult) {
 
     // ===== DIMENSIÓN 2: TEMPORALIDAD =====
     datosTemporalidad: {
-      velocidadDeteccion: parseTimeString(dimension_temporalidad.indicadores.tiempo_promedio_deteccion),
-      tiempoViralizacionPromedio: parseTimeString(dimension_temporalidad.indicadores.tiempo_viralizacion_promedio || "0h"),
+      velocidadDeteccion: parseTimeString(dimension_temporalidad.indicadores?.tiempo_promedio_deteccion),
+      tiempoViralizacionPromedio: parseTimeString(dimension_temporalidad.indicadores?.tiempo_viralizacion_promedio || "0h"),
       evolucionSemanal: transformToWeeklySeries(
-        dimension_temporalidad.graficos.serie_temporal_reportados,
-        dimension_temporalidad.graficos.serie_temporal_detectados,
-        dimension_temporalidad.graficos.serie_temporal_validados
+        dimension_temporalidad.graficos?.serie_temporal_reportados || dimension_temporalidad.graficos?.evolucion_reportes || [],
+        dimension_temporalidad.graficos?.serie_temporal_detectados || [],
+        dimension_temporalidad.graficos?.serie_temporal_validados || []
       ),
       // Mock data for comparative analysis (not yet in API)
       comparativaVerdaderasVsFalsas: [
@@ -73,45 +73,45 @@ export function transformMapaData(apiData: MapaResult) {
 
     // ===== DIMENSIÓN 3: ALCANCE/VIRULENCIA =====
     datosAlcance: {
-      indiceViralidad: dimension_alcance_virulencia.indicadores.indice_viralidad,
-      casosCriticos: dimension_alcance_virulencia.indicadores.casos_criticos,
-      vectoresPrincipales: dimension_alcance_virulencia.graficos.vectores_principales.map(v => v.vector),
+      indiceViralidad: dimension_alcance_virulencia.indicadores?.indice_viralidad || 0,
+      casosCriticos: dimension_alcance_virulencia.indicadores?.casos_criticos || 0,
+      vectoresPrincipales: (dimension_alcance_virulencia.graficos?.vectores_principales || []).map(v => v.vector || v.name),
       rangoViralizacion: {
         min: 0, // Not explicitly provided in new structure
         max: 100,
-        promedio: dimension_alcance_virulencia.indicadores.indice_viralidad
+        promedio: dimension_alcance_virulencia.indicadores?.indice_viralidad || 0
       },
-      nivelEngagement: dimension_alcance_virulencia.indicadores.nivel_engagement,
+      nivelEngagement: dimension_alcance_virulencia.indicadores?.nivel_engagement || 0,
       efectividadAlcance: {
         verdaderas: 3250, // Mock data
         falsas: 8975,
         ratio: 0.36
       },
-      distribucionViralidad: dimension_alcance_virulencia.graficos.distribucion_viralidad.map(item => ({
+      distribucionViralidad: (dimension_alcance_virulencia.graficos?.distribucion_viralidad || []).map(item => ({
         rango: item.rango,
-        casos: item.cantidad,
-        porcentaje: Math.round((item.cantidad / dimension_magnitud.indicadores.noticias_reportadas_totales) * 100)
+        casos: item.cantidad || item.value || 0,
+        porcentaje: Math.round(((item.cantidad || item.value || 0) / (dimension_magnitud.indicadores?.noticias_reportadas_total || dimension_magnitud.indicadores?.noticias_reportadas_totales || 1)) * 100)
       }))
     },
 
     // ===== DIMENSIÓN 4: GEOGRÁFICA =====
     datosGeograficos: {
-      casosPorRegion: dimension_geografica.tablas.casos_por_region.map(item => ({
+      casosPorRegion: (dimension_geografica.tablas?.tabla_casos_por_region || dimension_geografica.tablas?.casos_por_region || []).map(item => ({
         region: item.region,
         casos: item.casos,
         densidad: calculateDensity(item.casos).toFixed(1),
         color: getRegionColor(item.region)
       })),
-      regionMasAfectada: dimension_geografica.indicadores.region_mas_afectada,
+      regionMasAfectada: dimension_geografica.indicadores?.region_mas_afectada || 'No especificada',
       fuentesInternacionalesVsNacionales: {
-        internacionales: dimension_geografica.indicadores.fuentes_internacionales,
-        nacionales: dimension_geografica.indicadores.fuentes_nacionales,
+        internacionales: dimension_geografica.indicadores?.fuentes_internacionales || 0,
+        nacionales: dimension_geografica.indicadores?.fuentes_nacionales || 0,
         porcentajeInternacional: Math.round(
-          (dimension_geografica.indicadores.fuentes_internacionales /
-            (dimension_geografica.indicadores.fuentes_internacionales + dimension_geografica.indicadores.fuentes_nacionales)) * 100
+          ((dimension_geografica.indicadores?.fuentes_internacionales || 0) /
+            ((dimension_geografica.indicadores?.fuentes_internacionales || 0) + (dimension_geografica.indicadores?.fuentes_nacionales || 1))) * 100
         ) || 0
       },
-      mapaCalor: dimension_geografica.tablas.casos_por_region
+      mapaCalor: (dimension_geografica.tablas?.tabla_casos_por_region || dimension_geografica.tablas?.casos_por_region || [])
         .slice(0, 5)
         .map(item => ({
           departamento: item.region,
@@ -119,22 +119,22 @@ export function transformMapaData(apiData: MapaResult) {
           lat: getCoordinatesForRegion(item.region).lat,
           lon: getCoordinatesForRegion(item.region).lon
         })),
-      totalRegionesActivas: dimension_geografica.indicadores.total_regiones_activas,
-      clustersEspaciales: dimension_geografica.tablas.clusters_espaciales
+      totalRegionesActivas: dimension_geografica.indicadores?.total_regiones_activas || 0,
+      clustersEspaciales: dimension_geografica.tablas?.clusters_espaciales || []
     },
 
     // ===== DIMENSIÓN 5: DESCRIPTIVA =====
     datosDescriptivos: {
-      porSector: dimension_descriptiva.graficos.temas_principales.map(tema => ({
-        sector: tema.tema,
-        casos: tema.cantidad,
-        porcentaje: Math.round((tema.cantidad / dimension_magnitud.indicadores.noticias_reportadas_totales) * 100)
+      porSector: (dimension_descriptiva.graficos?.temas_principales || dimension_descriptiva.graficos?.distribucion_temas || []).map(tema => ({
+        sector: tema.tema || tema.name,
+        casos: tema.cantidad || tema.value || 0,
+        porcentaje: Math.round(((tema.cantidad || tema.value || 0) / (dimension_magnitud.indicadores?.noticias_reportadas_total || dimension_magnitud.indicadores?.noticias_reportadas_totales || 1)) * 100)
       })),
-      plataformasPropagacion: dimension_descriptiva.graficos.distribucion_plataformas
+      plataformasPropagacion: (dimension_descriptiva.graficos?.distribucion_plataformas || dimension_descriptiva.graficos?.distribucion_vectores || [])
         .map(plat => ({
-          plataforma: plat.plataforma,
-          casos: plat.casos,
-          porcentaje: Math.round((plat.casos / dimension_magnitud.indicadores.noticias_reportadas_totales) * 100)
+          plataforma: plat.plataforma || plat.name,
+          casos: plat.casos || plat.value || 0,
+          porcentaje: Math.round(((plat.casos || plat.value || 0) / (dimension_magnitud.indicadores?.noticias_reportadas_total || dimension_magnitud.indicadores?.noticias_reportadas_totales || 1)) * 100)
         }))
         .sort((a, b) => b.casos - a.casos)
         .slice(0, 5),
@@ -187,14 +187,15 @@ export function transformMapaData(apiData: MapaResult) {
         estrategiasActivas: 134, // Mock
         alcanceTotal: 1250000 // Mock
       },
-      marcadoresDiagnostico: dimension_descriptiva.graficos.clasificaciones.map(clasif => ({
+      marcadoresDiagnostico: (dimension_descriptiva.graficos?.clasificaciones || []).map(clasif => ({
         tipo: clasif.clasificacion,
         casos: clasif.cantidad,
-        porcentaje: Math.round((clasif.cantidad / dimension_magnitud.indicadores.noticias_reportadas_totales) * 100),
+        porcentaje: Math.round((clasif.cantidad / (dimension_magnitud.indicadores?.noticias_reportadas_total || dimension_magnitud.indicadores?.noticias_reportadas_totales || 1)) * 100),
         color: getClassificationColor(clasif.clasificacion)
       })),
-      vectoresContagio: dimension_alcance_virulencia.graficos.vectores_principales.map(vector => {
-        const total = dimension_alcance_virulencia.graficos.vectores_principales.reduce((sum, v) => sum + v.casos, 0);
+      vectoresContagio: (dimension_alcance_virulencia.graficos?.vectores_principales || dimension_descriptiva.graficos?.distribucion_vectores || []).map(vector => {
+        const allVectors = dimension_alcance_virulencia.graficos?.vectores_principales || dimension_descriptiva.graficos?.distribucion_vectores || [];
+        const total = allVectors.reduce((sum, v) => sum + (v.casos || v.value || 0), 0);
         const typeMap: Record<string, string> = {
           'WhatsApp': 'W',
           'Facebook': 'F',
@@ -203,37 +204,39 @@ export function transformMapaData(apiData: MapaResult) {
           'TikTok': 'TK',
           'URL': 'U'
         };
+        const vectorName = vector.vector || vector.name;
+        const vectorCasos = vector.casos || vector.value || 0;
         return {
-          tipo: `${vector.vector} (${typeMap[vector.vector] || 'X'})`,
-          casos: vector.casos,
-          porcentaje: Math.round((vector.casos / total) * 100),
-          codigo: typeMap[vector.vector] || 'X'
+          tipo: `${vectorName} (${typeMap[vectorName] || 'X'})`,
+          casos: vectorCasos,
+          porcentaje: Math.round((vectorCasos / (total || 1)) * 100),
+          codigo: typeMap[vectorName] || 'X'
         };
       }),
       casosPorEstado: [
         {
           estado: 'Validados',
-          casos: dimension_mitigacion.indicadores.casos_validados,
-          porcentaje: Math.round((dimension_mitigacion.indicadores.casos_validados / dimension_magnitud.indicadores.noticias_reportadas_totales) * 100),
+          casos: dimension_mitigacion.indicadores?.casos_validados || 0,
+          porcentaje: Math.round(((dimension_mitigacion.indicadores?.casos_validados || 0) / (dimension_magnitud.indicadores?.noticias_reportadas_total || dimension_magnitud.indicadores?.noticias_reportadas_totales || 1)) * 100),
           color: '#10b981'
         },
         {
           estado: 'Solo IA',
-          casos: dimension_mitigacion.indicadores.casos_detectados,
-          porcentaje: Math.round((dimension_mitigacion.indicadores.casos_detectados / dimension_magnitud.indicadores.noticias_reportadas_totales) * 100),
+          casos: dimension_mitigacion.indicadores?.casos_detectados || 0,
+          porcentaje: Math.round(((dimension_mitigacion.indicadores?.casos_detectados || 0) / (dimension_magnitud.indicadores?.noticias_reportadas_total || dimension_magnitud.indicadores?.noticias_reportadas_totales || 1)) * 100),
           color: '#3b82f6'
         },
         {
           estado: 'Pendientes',
-          casos: dimension_mitigacion.indicadores.casos_pendientes,
-          porcentaje: Math.round((dimension_mitigacion.indicadores.casos_pendientes / dimension_magnitud.indicadores.noticias_reportadas_totales) * 100),
+          casos: dimension_mitigacion.indicadores?.casos_pendientes || 0,
+          porcentaje: Math.round(((dimension_mitigacion.indicadores?.casos_pendientes || 0) / (dimension_magnitud.indicadores?.noticias_reportadas_total || dimension_magnitud.indicadores?.noticias_reportadas_totales || 1)) * 100),
           color: '#94a3b8'
         }
       ],
       sistemaCodificacion: {
-        totalCasos: dimension_magnitud.indicadores.noticias_reportadas_totales,
-        casosHoy: Math.floor(dimension_magnitud.indicadores.incremento_semanal / 7),
-        casosSemana: dimension_magnitud.indicadores.incremento_semanal,
+        totalCasos: dimension_magnitud.indicadores?.noticias_reportadas_total || dimension_magnitud.indicadores?.noticias_reportadas_totales || 0,
+        casosHoy: Math.floor((dimension_magnitud.indicadores?.incremento_semanal || 0) / 7),
+        casosSemana: dimension_magnitud.indicadores?.incremento_semanal || 0,
         formatoEjemplo: 'T-WB-20241015-156'
       },
       recomendaciones: [
@@ -301,8 +304,11 @@ export function transformMapaData(apiData: MapaResult) {
 
 /**
  * Parse time string like "2.3h" to number
+ * Safely handles undefined/null values
  */
-function parseTimeString(timeStr: string): number {
+function parseTimeString(timeStr: string | undefined | null): number {
+  if (!timeStr) return 0;
+
   const match = timeStr.match(/^(\d+\.?\d*)([mhd])$/);
   if (!match) return 0;
 
