@@ -59,12 +59,19 @@ export default defineConfig({
   build: {
     target: 'esnext',
     outDir: 'build',
-  },
-  server: {
-allowedHosts: ['.lordalexand.dev'],
-host: '0.0.0.0',
+},
+ server: {
+    // The 'allowedHosts' option is generally for preventing DNS rebinding attacks. [16]
+    // In many development setups, especially with HTTPS, this may not be necessary. [1]
+    // If you do need it, the syntax is correct.
+    allowedHosts: ['.lordalexand.dev'],
+    host: '0.0.0.0',
     port: 3000,
     open: true,
+    https: {
+      key: fs.readFileSync('/etc/letsencrypt/live/botilito.lordalexand.dev/privkey.pem'),
+      cert: fs.readFileSync('/etc/letsencrypt/live/botilito.lordalexand.dev/fullchain.pem'),
+    },
   },
 });
 
