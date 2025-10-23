@@ -68,10 +68,6 @@ export default defineConfig({
     host: '0.0.0.0',
     port: 3000,
     open: true,
-    https: {
-      key: fs.readFileSync('/etc/letsencrypt/live/botilito.lordalexand.dev/privkey.pem'),
-      cert: fs.readFileSync('/etc/letsencrypt/live/botilito.lordalexand.dev/fullchain.pem'),
-    },
   },
 });
 
