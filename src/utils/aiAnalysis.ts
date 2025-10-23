@@ -1,7 +1,7 @@
 import { supabase } from './supabase/client'
 
 // API Base URL for Supabase Functions
-const SUPABASE_FUNCTION_URL = 'https://mdkswlgcqsmgfmcuorxq.supabase.co/functions/v1/ingest-async-auth'
+const SUPABASE_FUNCTION_URL = 'https://mdkswlgcqsmgfmcuorxq.supabase.co/functions/v1/ingest-async-auth-enriched'
 
 // Types based on OpenAPI spec
 export type TransmissionVector = 'WhatsApp' | 'Telegram' | 'Facebook' | 'Twitter' | 'Email' | 'Otro'
