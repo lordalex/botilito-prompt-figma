@@ -387,7 +387,7 @@ export function ContentUpload() {
   const resetForm = () => {
     setContent('');
     setUploadedFiles([]);
-    setTransmissionMedium('');
+    setTransmissionMedium('Otro'); // Reset to a default value
     setIsAnalyzing(false);
     setAnalysisComplete(false);
     setAiAnalysis(null);
@@ -574,7 +574,7 @@ export function ContentUpload() {
       };
 
       const color = markerColors[marker.type] || '#6b7280';
-      const confidence = (marker.confidence * 100).toFixed(0);
+      const confidence = marker.confidence ? (marker.confidence * 100).toFixed(0) : 'N/A';
 
       // Badge background con sombra
       yPosition += 15;
@@ -600,8 +600,11 @@ export function ContentUpload() {
       ctx.font = `bold ${index === 0 ? '32' : '26'}px Lexend, sans-serif`;
       ctx.fillText(`${marker.type}`, 60, yPosition + 30);
       
-      ctx.font = `${index === 0 ? '24' : '20'}px Lexend, sans-serif`;
-      ctx.fillText(`Confianza: ${confidence}%`, 60, yPosition + 58);
+      // Since API doesn't provide confidence, we can remove it or show a placeholder
+      if (marker.confidence) {
+        ctx.font = `${index === 0 ? '24' : '20'}px Lexend, sans-serif`;
+        ctx.fillText(`Confianza: ${confidence}%`, 60, yPosition + 58);
+      }
 
       yPosition += 70;
     });
@@ -642,8 +645,8 @@ export function ContentUpload() {
   // Funciones para compartir en redes sociales
   const shareOnTwitter = () => {
     const topMarker = aiAnalysis?.markersDetected?.[0];
-    const markerText = topMarker ? `${topMarker.type} (${(topMarker.confidence * 100).toFixed(0)}%)` : 'contenido analizado';
-    const text = `🔍 Botilito detectó: ${markerText}\n${newsTitle ? `\n"${newsTitle}"\n` : ''}\nCaso: ${caseNumber}\n#Botilito #VerificaciónDeFechos #Desinformación`;
+    const markerText = topMarker ? `${topMarker.type}` : 'contenido analizado';
+    const text = `🔍 Botilito detectó: ${markerText}\n${newsTitle ? `\n"${newsTitle}"\n` : ''}\nCaso: ${caseNumber}\n#Botilito #VerificaciónDeHechos #Desinformación`;
     const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
     window.open(url, '_blank');
   };
@@ -655,7 +658,7 @@ export function ContentUpload() {
 
   const shareOnWhatsApp = () => {
     const topMarker = aiAnalysis?.markersDetected?.[0];
-    const markerText = topMarker ? `${topMarker.type} (${(topMarker.confidence * 100).toFixed(0)}%)` : 'contenido analizado';
+    const markerText = topMarker ? `${topMarker.type}` : 'contenido analizado';
     const text = `🔍 *Botilito* detectó: *${markerText}*\n${newsTitle ? `\n"${newsTitle}"\n` : ''}\nCaso: ${caseNumber}\n\nVerificación completa de desinformación con IA`;
     const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
     window.open(url, '_blank');
@@ -667,18 +670,22 @@ export function ContentUpload() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6 pt-[20px] pr-[0px] pb-[0px] pl-[0px]">
+    // RESPONSIVE: Added responsive padding. p-4 for mobile, md:p-6 for tablets, lg:pt-5 for desktops.
+    <div className="max-w-5xl mx-auto p-4 md:p-6 lg:pt-5 space-y-6">
       {/* Franja superior de Botilito cuando el análisis está completo */}
       {analysisComplete && !isAnalyzing && (
         <div className="bg-[#ffe97a] border-2 border-[#ffda00] rounded-lg p-4 shadow-lg">
-          <div className="flex items-center space-x-4">
+          {/* RESPONSIVE: Stacks vertically on mobile (flex-col), horizontal on medium screens and up (md:flex-row). Centered text on mobile. */}
+          <div className="flex flex-col md:flex-row items-center space-y-4 md:space-y-0 md:space-x-4 text-center md:text-left">
             <img 
               src={botilitoImage} 
               alt="Botilito" 
-              className="w-24 h-24 object-contain mt-[0px] mr-[16px] mb-[-18px] ml-[0px]"
+              // RESPONSIVE: Smaller image on mobile, larger on medium screens. Adjusted margins for stacking.
+              className="w-20 h-20 md:w-24 md:h-24 object-contain mb-2 md:mb-[-18px] md:mr-[16px]"
             />
             <div className="flex-1">
-              <p className="text-xl">
+              {/* RESPONSIVE: Slightly smaller text on mobile. */}
+              <p className="text-lg md:text-xl font-semibold">
                 ¡Mis circuitos ya escanearon esto de arriba a abajo! 🔍⚡
               </p>
               <p className="text-sm mt-1 opacity-80">
@@ -695,7 +702,8 @@ export function ContentUpload() {
           {/* Main Upload Card */}
           <Card>
             <CardHeader>
-              <CardTitle className="font-bold">Ajá! ¿listos para diagnosticar juntos lo que se esconde detrás de lo evidente?</CardTitle>
+              {/* RESPONSIVE: Responsive title font size. */}
+              <CardTitle className="text-xl md:text-2xl font-bold">Ajá! ¿listos para diagnosticar juntos lo que se esconde detrás de lo evidente?</CardTitle>
             </CardHeader>
             <CardContent>
               {/* Universal Input Area */}
@@ -705,28 +713,31 @@ export function ContentUpload() {
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
-                className={`relative border-2 border-solid rounded-xl p-8 transition-all duration-300 bg-[#ffeea9] border-secondary/60 ${
+                // RESPONSIVE: Responsive padding for the drop zone.
+                className={`relative border-2 border-solid rounded-xl p-4 md:p-8 transition-all duration-300 bg-[#ffeea9] border-secondary/60 ${
                   isDragging 
                     ? 'bg-[#ffe68f] border-primary scale-[1.02] shadow-lg' 
                     : 'hover:bg-[#ffeb98] hover:border-primary/80 hover:shadow-md'
                 }`}
               >
-                {/* Layout Horizontal: Botilito a la izquierda, contenido a la derecha */}
-                <div className="grid grid-cols-[auto_1fr] gap-8 items-center">
-                  {/* Columna Derecha: Contenido */}
-                  <div className="space-y-6 col-span-2">
+                {/* RESPONSIVE: Changed to a single-column grid for a simple vertical layout. */}
+                <div className="grid grid-cols-1 gap-6">
+                  <div className="space-y-6">
                     {/* Sección Superior: Formatos Soportados */}
-                    <div className="flex items-center gap-4 px-[92px] py-[0px] bg-[rgb(255,233,122)] rounded-[10px] border-2 border-[#ffda00]">
+                    {/* RESPONSIVE: Stacks on mobile, responsive padding instead of fixed px. */}
+                    <div className="flex flex-col md:flex-row items-center gap-4 p-4 md:p-6 bg-[rgb(255,233,122)] rounded-[10px] border-2 border-[#ffda00]">
                       {/* Botilito a la izquierda */}
-                      <img src={botilitoImage} alt="Botilito" className="h-[100px] w-[100px] object-contain flex-shrink-0 pt-[4px] pr-[0px] pb-[0px] pl-[0px]" />
+                      {/* RESPONSIVE: Smaller image on mobile. */}
+                      <img src={botilitoImage} alt="Botilito" className="h-20 w-20 md:h-[100px] md:w-[100px] object-contain flex-shrink-0" />
                       
                       {/* Contenido a la derecha */}
                       <div className="flex-1 space-y-3">
-                        <p className="text-left px-[7px] py-[0px]">
+                        <p className="text-center md:text-left">
                           <strong>En Digital-IA me incorporaron tecnología para analizar:</strong>
                         </p>
                         <TooltipProvider>
-                          <div className="flex flex-wrap items-center gap-2">
+                          {/* RESPONSIVE: Centers the badges on mobile when they wrap. */}
+                          <div className="flex flex-wrap items-center justify-center md:justify-start gap-2">
                             {/* Enlaces */}
                             <Tooltip>
                               <TooltipTrigger asChild>
@@ -822,7 +833,8 @@ export function ContentUpload() {
                           onKeyDown={(e) => {
                             if (e.key === 'Enter' && !e.shiftKey) {
                               e.preventDefault();
-                              handleSubmit(e as any);
+                              // FIX: Corrected to call handleSubmit without arguments.
+                              handleSubmit();
                             }
                           }}
                           rows={textareaRows}
@@ -982,13 +994,17 @@ export function ContentUpload() {
         <div className="space-y-6">
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center space-x-2 text-[24px]">
+              {/* RESPONSIVE: Header stacks vertically on mobile, switches to row on medium screens. */}
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                {/* RESPONSIVE: Title font size adjusted. */}
+                <CardTitle className="flex items-center space-x-2 text-xl md:text-2xl">
                   <Bot className="h-5 w-5 text-primary" />
-                  <span className="text-[24px] font-bold">Diagnóstico Desinfodémico de Botilito</span>
+                  <span className="font-bold">Diagnóstico Desinfodémico de Botilito</span>
                 </CardTitle>
-                <div className="flex flex-col items-end space-y-1">
-                  <div className="flex flex-wrap gap-2 justify-end">
+                {/* RESPONSIVE: Aligns items to the start on mobile, end on medium screens. */}
+                <div className="flex flex-col items-start md:items-end space-y-1 w-full md:w-auto">
+                   {/* RESPONSIVE: Badges justify to the start on mobile. */}
+                  <div className="flex flex-wrap gap-2 justify-start md:justify-end">
                     <Badge variant="outline" className="text-sm bg-[#ffe97a]">
                       Caso: {caseNumber}
                     </Badge>
@@ -1031,11 +1047,12 @@ export function ContentUpload() {
                   {newsScreenshot && (
                     <div>
                       <Label>Captura de la noticia:</Label>
-                      <div className="mt-2 rounded-lg overflow-hidden border-2 border-secondary/40 relative max-h-48">
+                      <div className="mt-2 rounded-lg overflow-hidden border-2 border-secondary/40 relative max-h-40 md:max-h-48">
                         <img 
                           src={newsScreenshot} 
                           alt="Captura de la noticia" 
-                          className="w-full h-48 object-cover object-top"
+                           // RESPONSIVE: Responsive image height.
+                          className="w-full h-40 md:h-48 object-cover object-top"
                         />
                         
                         {/* Overlay con etiquetas detectadas */}
@@ -1096,11 +1113,12 @@ export function ContentUpload() {
                               return (
                                 <Tooltip key={index}>
                                   <TooltipTrigger asChild>
+                                    {/* RESPONSIVE: Smaller badges on mobile. */}
                                     <Badge
                                       className={`${getMarkerColor(marker.type)} text-white shadow-lg cursor-help ${
                                         index === 0
-                                          ? 'px-4 py-2 text-base scale-105'
-                                          : 'px-3 py-1.5 text-sm'
+                                          ? 'px-3 py-1.5 text-sm sm:px-4 sm:py-2 sm:text-base scale-105'
+                                          : 'px-2 py-1 text-xs sm:px-3 sm:py-1.5 sm:text-sm'
                                       }`}
                                     >
                                       {getMarkerIcon(marker.type)}
@@ -1175,7 +1193,8 @@ export function ContentUpload() {
               )}
 
               <div>
-                <h4 className="text-[20px]">Evaluación epidemiológica:</h4>
+                {/* RESPONSIVE: Responsive title size. */}
+                <h4 className="text-lg md:text-xl font-semibold">Evaluación epidemiológica:</h4>
                 <p className="text-sm text-muted-foreground mt-1">{aiAnalysis.finalVerdict}</p>
               </div>
 
@@ -1233,9 +1252,9 @@ export function ContentUpload() {
                 <div>
                   <Label className="flex items-center space-x-2 mb-3">
                     <Share2 className="h-4 w-4 text-primary" />
-                    <span>¡Vamos a inmunizar a todo el país! Comparte este diagnóstico en tus redes sociales.</span>
+                    <span>¡Vamos a inmunizar a todo el país! Comparte este diagnóstico.</span>
                   </Label>
-                  <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-3">
                     <Button
                       onClick={shareOnTwitter}
                       size="icon"
