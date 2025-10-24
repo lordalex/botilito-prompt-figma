@@ -42,7 +42,7 @@ function transformAPIResponse(apiResponse: FullAnalysisResponse) {
     summary: apiResponse.summary,
     theme: apiResponse.metadata?.theme,
     region: apiResponse.metadata?.region,
-    caseNumber: apiResponse.case_study?.case_number,
+    caseNumber: apiResponse.case_study?.case_id || apiResponse.case_study?.case_number,
     consensusState,
     consensus: apiResponse.consensus,
     markersDetected,
@@ -52,7 +52,14 @@ function transformAPIResponse(apiResponse: FullAnalysisResponse) {
     relatedDocuments: apiResponse.case_study?.metadata?.related_documents || [],
     webSearchResults: apiResponse.case_study?.metadata?.web_search_results || [],
     finalVerdict: apiResponse.metadata?.judgementBotilito.summary || 'Análisis en proceso',
-    fullResult: apiResponse
+    fullResult: {
+      ...apiResponse,
+      metadata: {
+        ...apiResponse.metadata,
+        reported_by: apiResponse.metadata?.reported_by || apiResponse.case_study?.metadata?.reported_by,
+        source: apiResponse.metadata?.source || apiResponse.case_study?.metadata?.source,
+      }
+    }
   };
 }
 
