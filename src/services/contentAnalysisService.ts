@@ -37,6 +37,23 @@ function transformAPIResponse(apiResponse: FullAnalysisResponse) {
     explanation,
   }));
 
+  // Extract source from various possible locations
+  const extractSource = () => {
+    const source = apiResponse.metadata?.source ||
+                   apiResponse.case_study?.metadata?.source ||
+                   apiResponse.source;
+
+    // Debug logging
+    console.log('🔍 Source extraction debug:', {
+      'metadata.source': apiResponse.metadata?.source,
+      'case_study.metadata.source': apiResponse.case_study?.metadata?.source,
+      'apiResponse.source': apiResponse.source,
+      'extracted': source
+    });
+
+    return source;
+  };
+
   return {
     title: apiResponse.title,
     summary: apiResponse.summary,
@@ -57,7 +74,7 @@ function transformAPIResponse(apiResponse: FullAnalysisResponse) {
       metadata: {
         ...apiResponse.metadata,
         reported_by: apiResponse.metadata?.reported_by || apiResponse.case_study?.metadata?.reported_by,
-        source: apiResponse.metadata?.source || apiResponse.case_study?.metadata?.source,
+        source: extractSource(),
       }
     }
   };

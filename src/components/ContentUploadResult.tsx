@@ -9,7 +9,7 @@ import {
   Newspaper, ExternalLink, Tag, XCircle, Skull, Ban, Flame, Target,
   Music, Send, Youtube, Mail, Smartphone, Instagram
 } from 'lucide-react';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 
 interface ContentUploadResultProps {
   result: any;
@@ -37,6 +37,17 @@ export function ContentUploadResult({ result, onReset }: ContentUploadResultProp
   const reportedBy = fullResult?.metadata?.reported_by || null;
   const newsSource = fullResult?.metadata?.source || fullResult?.source || null;
   const transmissionSources = vectores && vectores.length > 0 ? vectores : ['Web'];
+
+  // Debug logging
+  console.log('📋 ContentUploadResult data:', {
+    caseNumber,
+    reportedBy,
+    newsSource,
+    theme,
+    region,
+    'fullResult.metadata.source': fullResult?.metadata?.source,
+    'fullResult.source': fullResult?.source
+  });
 
   // Generate screenshot URL
   const PLACEHOLDER_IMAGE = 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=800';
@@ -495,33 +506,31 @@ export function ContentUploadResult({ result, onReset }: ContentUploadResultProp
                     {/* Overlay with detected markers - only show when image is loaded */}
                     {imageLoaded && (
                       <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent flex items-end justify-center p-4">
-                        <TooltipProvider delayDuration={200}>
-                          <div className="flex flex-wrap gap-2 justify-center">
-                            {markersDetected?.slice(0, 3).map((marker: any, index: number) => (
-                              <Tooltip key={index}>
-                                <TooltipTrigger asChild>
-                                  <Badge
-                                    className={`${getMarkerColor(marker.type)} text-white shadow-lg cursor-help ${
-                                      index === 0
-                                        ? 'px-3 py-1.5 text-sm sm:px-4 sm:py-2 sm:text-base scale-105'
-                                        : 'px-2 py-1 text-xs sm:px-3 sm:py-1.5 sm:text-sm'
-                                    }`}
-                                  >
-                                    {getMarkerIcon(marker.type, index)}
-                                    <span className="ml-1.5">{marker.type}</span>
-                                  </Badge>
-                                </TooltipTrigger>
-                                <TooltipContent
-                                  className="max-w-xs bg-gray-900 text-white border border-gray-700 px-3 py-2 z-50"
-                                  side="top"
-                                  sideOffset={5}
+                        <div className="flex flex-wrap gap-2 justify-center">
+                          {markersDetected?.slice(0, 3).map((marker: any, index: number) => (
+                            <Tooltip key={index}>
+                              <TooltipTrigger asChild>
+                                <Badge
+                                  className={`${getMarkerColor(marker.type)} text-white shadow-lg cursor-help ${
+                                    index === 0
+                                      ? 'px-3 py-1.5 text-sm sm:px-4 sm:py-2 sm:text-base scale-105'
+                                      : 'px-2 py-1 text-xs sm:px-3 sm:py-1.5 sm:text-sm'
+                                  }`}
                                 >
-                                  <p className="text-sm leading-relaxed">{marker.explanation || 'No hay descripción disponible'}</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            ))}
-                          </div>
-                        </TooltipProvider>
+                                  {getMarkerIcon(marker.type, index)}
+                                  <span className="ml-1.5">{marker.type}</span>
+                                </Badge>
+                              </TooltipTrigger>
+                              <TooltipContent
+                                className="max-w-xs bg-gray-900 text-white border border-gray-700 px-3 py-2"
+                                side="top"
+                                sideOffset={5}
+                              >
+                                <p className="text-sm leading-relaxed">{marker.explanation || 'No hay descripción disponible'}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          ))}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -593,33 +602,31 @@ export function ContentUploadResult({ result, onReset }: ContentUploadResultProp
           {markersDetected && markersDetected.length > 0 && (
             <div className="p-4 bg-secondary/20 border border-secondary/40 rounded-lg">
               <Label className="mb-3 block">Marcadores de clasificación detectados:</Label>
-              <TooltipProvider delayDuration={200}>
-                <div className="flex flex-wrap gap-2">
-                  {markersDetected.map((marker: any, index: number) => (
-                    <Tooltip key={index}>
-                      <TooltipTrigger asChild>
-                        <Badge
-                          className={`${getMarkerColor(marker.type)} text-white shadow-md cursor-help ${
-                            index === 0
-                              ? 'px-4 py-2 text-base scale-105'
-                              : 'px-3 py-1.5 text-sm'
-                          }`}
-                        >
-                          {getMarkerIcon(marker.type, index)}
-                          <span className="ml-1.5">{marker.type}</span>
-                        </Badge>
-                      </TooltipTrigger>
-                      <TooltipContent
-                        className="max-w-xs bg-gray-900 text-white border border-gray-700 px-3 py-2 z-50"
-                        side="top"
-                        sideOffset={5}
+              <div className="flex flex-wrap gap-2">
+                {markersDetected.map((marker: any, index: number) => (
+                  <Tooltip key={index}>
+                    <TooltipTrigger asChild>
+                      <Badge
+                        className={`${getMarkerColor(marker.type)} text-white shadow-md cursor-help ${
+                          index === 0
+                            ? 'px-4 py-2 text-base scale-105'
+                            : 'px-3 py-1.5 text-sm'
+                        }`}
                       >
-                        <p className="text-sm leading-relaxed">{marker.explanation || 'No hay descripción disponible'}</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  ))}
-                </div>
-              </TooltipProvider>
+                        {getMarkerIcon(marker.type, index)}
+                        <span className="ml-1.5">{marker.type}</span>
+                      </Badge>
+                    </TooltipTrigger>
+                    <TooltipContent
+                      className="max-w-xs bg-gray-900 text-white border border-gray-700 px-3 py-2"
+                      side="top"
+                      sideOffset={5}
+                    >
+                      <p className="text-sm leading-relaxed">{marker.explanation || 'No hay descripción disponible'}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                ))}
+              </div>
             </div>
           )}
 
