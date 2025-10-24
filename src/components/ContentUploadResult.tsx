@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import botilitoImage from 'figma:asset/e27a276e6ff0e187a67cf54678c265c1c38adbf7.png';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
@@ -18,6 +18,7 @@ interface ContentUploadResultProps {
 
 export function ContentUploadResult({ result, onReset }: ContentUploadResultProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [imageLoaded, setImageLoaded] = useState(false);
 
   const {
     title,
@@ -471,38 +472,58 @@ export function ContentUploadResult({ result, onReset }: ContentUploadResultProp
                 <div>
                   <Label>Captura de la noticia:</Label>
                   <div className="mt-2 rounded-lg overflow-hidden border-2 border-secondary/40 relative max-h-40 md:max-h-48">
+                    {/* Loading skeleton - shows while image loads */}
+                    {!imageLoaded && (
+                      <div className="w-full h-40 md:h-48 bg-gradient-to-br from-gray-200 via-gray-300 to-gray-200 animate-pulse flex items-center justify-center">
+                        <div className="text-center space-y-2">
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-600 mx-auto"></div>
+                          <p className="text-xs text-gray-600">Cargando captura...</p>
+                        </div>
+                      </div>
+                    )}
+
                     <img
                       src={newsScreenshot}
                       alt="Captura de la noticia"
-                      className="w-full h-40 md:h-48 object-cover object-top"
+                      className={`w-full h-40 md:h-48 object-cover object-top transition-opacity duration-300 ${
+                        imageLoaded ? 'opacity-100' : 'opacity-0 absolute inset-0'
+                      }`}
+                      onLoad={() => setImageLoaded(true)}
+                      onError={() => setImageLoaded(true)}
                     />
 
-                    {/* Overlay with detected markers */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent flex items-end justify-center p-4">
-                      <TooltipProvider>
-                        <div className="flex flex-wrap gap-2 justify-center">
-                          {markersDetected?.slice(0, 3).map((marker: any, index: number) => (
-                            <Tooltip key={index}>
-                              <TooltipTrigger asChild>
-                                <Badge
-                                  className={`${getMarkerColor(marker.type)} text-white shadow-lg cursor-help ${
-                                    index === 0
-                                      ? 'px-3 py-1.5 text-sm sm:px-4 sm:py-2 sm:text-base scale-105'
-                                      : 'px-2 py-1 text-xs sm:px-3 sm:py-1.5 sm:text-sm'
-                                  }`}
+                    {/* Overlay with detected markers - only show when image is loaded */}
+                    {imageLoaded && (
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent flex items-end justify-center p-4">
+                        <TooltipProvider delayDuration={200}>
+                          <div className="flex flex-wrap gap-2 justify-center">
+                            {markersDetected?.slice(0, 3).map((marker: any, index: number) => (
+                              <Tooltip key={index}>
+                                <TooltipTrigger asChild>
+                                  <Badge
+                                    className={`${getMarkerColor(marker.type)} text-white shadow-lg cursor-help ${
+                                      index === 0
+                                        ? 'px-3 py-1.5 text-sm sm:px-4 sm:py-2 sm:text-base scale-105'
+                                        : 'px-2 py-1 text-xs sm:px-3 sm:py-1.5 sm:text-sm'
+                                    }`}
+                                  >
+                                    {getMarkerIcon(marker.type, index)}
+                                    <span className="ml-1.5">{marker.type}</span>
+                                  </Badge>
+                                </TooltipTrigger>
+                                <TooltipContent
+                                  className="max-w-xs bg-gray-900 text-white border border-gray-700 px-3 py-2 z-50"
+                                  side="top"
+                                  sideOffset={5}
                                 >
-                                  {getMarkerIcon(marker.type, index)}
-                                  <span className="ml-1.5">{marker.type}</span>
-                                </Badge>
-                              </TooltipTrigger>
-                              <TooltipContent className="max-w-xs">
-                                <p className="text-sm">{marker.explanation}</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          ))}
-                        </div>
-                      </TooltipProvider>
-                    </div>
+                                  <p className="text-sm leading-relaxed">{marker.explanation || 'No hay descripción disponible'}</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            ))}
+                          </div>
+                        </TooltipProvider>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -572,7 +593,7 @@ export function ContentUploadResult({ result, onReset }: ContentUploadResultProp
           {markersDetected && markersDetected.length > 0 && (
             <div className="p-4 bg-secondary/20 border border-secondary/40 rounded-lg">
               <Label className="mb-3 block">Marcadores de clasificación detectados:</Label>
-              <TooltipProvider>
+              <TooltipProvider delayDuration={200}>
                 <div className="flex flex-wrap gap-2">
                   {markersDetected.map((marker: any, index: number) => (
                     <Tooltip key={index}>
@@ -588,8 +609,12 @@ export function ContentUploadResult({ result, onReset }: ContentUploadResultProp
                           <span className="ml-1.5">{marker.type}</span>
                         </Badge>
                       </TooltipTrigger>
-                      <TooltipContent className="max-w-xs">
-                        <p className="text-sm">{marker.explanation}</p>
+                      <TooltipContent
+                        className="max-w-xs bg-gray-900 text-white border border-gray-700 px-3 py-2 z-50"
+                        side="top"
+                        sideOffset={5}
+                      >
+                        <p className="text-sm leading-relaxed">{marker.explanation || 'No hay descripción disponible'}</p>
                       </TooltipContent>
                     </Tooltip>
                   ))}
