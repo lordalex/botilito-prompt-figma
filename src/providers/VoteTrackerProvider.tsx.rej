@@ -1,0 +1,13 @@
+@@ -1,8 +1,8 @@
+ "use client";
+ import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react';
+-import { api } from '@/utils/apiService'; // Importación correcta
+-import { useToast } from '@/hooks/use-toast';
+-import { useAuth } from '@/providers/AuthProvider'; // Importación necesaria para la sesión
++import { getVoteStatus } from '../utils/voting/api';
++import { useToast } from '../hooks/use-toast';
++import { useAuth } from './AuthProvider'; 
+ 
+ type VoteStatus = 'idle' | 'processing' | 'completed' | 'failed';
+-type TrackedVote = { jobId: string; status: VoteStatus; };
++type TrackedVote = { 
