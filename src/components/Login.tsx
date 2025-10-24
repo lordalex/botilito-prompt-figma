@@ -43,8 +43,10 @@ export function Login({ onLogin, onGoToRegister }: LoginProps) {
   };
 
   return (
+    // The main container now uses min-h-screen to ensure it covers the viewport but can grow if content overflows on mobile.
     <div className="min-h-screen bg-primary">
-      <div className="w-full h-screen">
+      {/* The w-full and min-h-screen ensure the container adapts to the screen height. */}
+      <div className="w-full min-h-screen">
         {/* Contenedor principal con la imagen de referencia como fondo */}
         <div className="relative bg-white h-full overflow-hidden">
           {/* Imagen de fondo de referencia */}
@@ -56,12 +58,29 @@ export function Login({ onLogin, onGoToRegister }: LoginProps) {
             />
           </div>
           
-          <div className="relative z-10 grid lg:grid-cols-2 gap-0 h-full">
+          {/* 
+            RESPONSIVE LAYOUT CHANGE:
+            - `grid-cols-1`: This is the default for mobile, making the layout a single column.
+            - `lg:grid-cols-2`: This activates the two-column layout only on large screens (1024px and up).
+            - `h-full` is changed to `min-h-screen` to allow the content to scroll on mobile if it exceeds the viewport height.
+          */}
+          <div className="relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-0 min-h-screen">
             {/* Lado izquierdo - Presentación de Botilito */}
-            <div className="bg-gradient-to-br from-primary to-secondary lg:p-12 flex flex-col justify-center items-center text-center p-[48px]">
+            {/* 
+              RESPONSIVE SPACING CHANGE:
+              - `p-8`: Base padding for mobile.
+              - `lg:p-12`: Larger padding for desktops.
+              - The original `p-[48px]` is replaced by a more conventional and responsive spacing scale.
+            */}
+            <div className="bg-gradient-to-br from-primary to-secondary p-8 lg:p-12 flex flex-col justify-center items-center text-center">
               {/* Burbuja de diálogo */}
               <div className="bg-white rounded-2xl p-6 mb-8 relative shadow-lg max-w-md">
-                <h1 className="text-3xl font-bold text-black mb-4">
+                {/* 
+                  RESPONSIVE TYPOGRAPHY CHANGE:
+                  - `text-2xl`: Font size for mobile.
+                  - `md:text-3xl`: Larger font size for tablets and desktops.
+                */}
+                <h1 className="text-2xl md:text-3xl font-bold text-black mb-4">
                   ¡Kiubo! Soy Botilito
                 </h1>
                 <p className="text-gray-700 leading-relaxed">
@@ -74,21 +93,38 @@ export function Login({ onLogin, onGoToRegister }: LoginProps) {
               </div>
 
               {/* Botilito Character - Imagen oficial */}
+              {/* 
+                RESPONSIVE SIZING CHANGE:
+                - `w-60`: Smaller image size for mobile.
+                - `lg:w-72`: Original, larger size for desktops.
+              */}
               <div className="relative">
                 <img 
                   src={botilitoImage} 
                   alt="Botilito - El ex-agente digital convertido en luchador contra la desinformación" 
-                  className="w-72 h-auto drop-shadow-2xl"
+                  className="w-60 lg:w-72 h-auto drop-shadow-2xl"
                 />
               </div>
             </div>
 
             {/* Lado derecho - Formulario de login */}
-            <div className="bg-white lg:p-12 flex flex-col justify-center px-[130px] py-[48px]">
+            {/* 
+              RESPONSIVE SPACING CHANGE:
+              - `p-6`: Base padding for mobile.
+              - `sm:p-8`: Slightly more padding for small screens.
+              - `md:p-16`: Generous padding for tablets.
+              - `lg:px-[130px] lg:py-[48px]`: The original, exact padding for large desktops to keep the design immutable.
+            */}
+            <div className="bg-white p-6 sm:p-8 md:p-16 lg:px-[130px] lg:py-[48px] flex flex-col justify-center">
               <div className="max-w-xl mx-auto w-full">
                 {/* Header del formulario */}
                 <div className="text-center mb-6">
-                  <div className="inline-block bg-primary text-black px-8 py-4 rounded-2xl text-2xl font-bold mb-4">
+                  {/* 
+                    RESPONSIVE TYPOGRAPHY AND PADDING CHANGE:
+                    - `px-6 py-3 text-xl`: Smaller padding and font size for mobile.
+                    - `md:px-8 md:py-4 md:text-2xl`: Larger for tablets and up.
+                  */}
+                  <div className="inline-block bg-primary text-black px-6 py-3 md:px-8 md:py-4 rounded-2xl text-xl md:text-2xl font-bold mb-4">
                     ¿Me acompañas?
                   </div>
                 </div>
@@ -104,7 +140,12 @@ export function Login({ onLogin, onGoToRegister }: LoginProps) {
 
                   {/* Campo de usuario/email */}
                   <div className="space-y-2">
-                    <Label htmlFor="email" className="text-gray-700 text-lg">
+                    {/* 
+                      RESPONSIVE TYPOGRAPHY CHANGE:
+                      - `text-base`: Base font size for mobile.
+                      - `md:text-lg`: Larger size for tablets and up.
+                    */}
+                    <Label htmlFor="email" className="text-gray-700 text-base md:text-lg">
                       Usuario o correo electrónico
                     </Label>
                     <Input
@@ -112,7 +153,8 @@ export function Login({ onLogin, onGoToRegister }: LoginProps) {
                       type="text"
                       value={credentials.email}
                       onChange={(e) => setCredentials(prev => ({ ...prev, email: e.target.value }))}
-                      className="w-full px-6 py-4 text-lg border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
+                      // RESPONSIVE TYPOGRAPHY AND PADDING CHANGE: Base styles for mobile, `md:` for larger screens.
+                      className="w-full px-4 py-3 text-base md:px-6 md:py-4 md:text-lg border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
                       placeholder="usuario@ejemplo.com"
                       required
                     />
@@ -120,7 +162,7 @@ export function Login({ onLogin, onGoToRegister }: LoginProps) {
 
                   {/* Campo de contraseña */}
                   <div className="space-y-2">
-                    <Label htmlFor="password" className="text-gray-700 text-lg">
+                    <Label htmlFor="password" className="text-gray-700 text-base md:text-lg">
                       Contraseña
                     </Label>
                     <div className="relative">
@@ -129,7 +171,8 @@ export function Login({ onLogin, onGoToRegister }: LoginProps) {
                         type={showPassword ? 'text' : 'password'}
                         value={credentials.password}
                         onChange={(e) => setCredentials(prev => ({ ...prev, password: e.target.value }))}
-                        className="w-full px-6 py-4 pr-14 text-lg border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
+                        // RESPONSIVE TYPOGRAPHY AND PADDING CHANGE: Base styles for mobile, `md:` for larger screens.
+                        className="w-full px-4 py-3 pr-12 text-base md:px-6 md:py-4 md:pr-14 md:text-lg border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
                         placeholder="••••••••"
                         required
                       />
@@ -139,9 +182,9 @@ export function Login({ onLogin, onGoToRegister }: LoginProps) {
                         className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors"
                       >
                         {showPassword ? (
-                          <EyeOff className="h-6 w-6" />
+                          <EyeOff className="h-5 md:h-6 w-5 md:w-6" />
                         ) : (
-                          <Eye className="h-6 w-6" />
+                          <Eye className="h-5 md:h-6 w-5 md:w-6" />
                         )}
                       </button>
                     </div>
@@ -151,7 +194,7 @@ export function Login({ onLogin, onGoToRegister }: LoginProps) {
                   <div className="text-right">
                     <button
                       type="button"
-                      className="text-base text-gray-600 hover:text-gray-800 transition-colors"
+                      className="text-sm md:text-base text-gray-600 hover:text-gray-800 transition-colors"
                     >
                       Olvidé mi contraseña
                     </button>
@@ -161,7 +204,8 @@ export function Login({ onLogin, onGoToRegister }: LoginProps) {
                   <Button
                     type="submit"
                     disabled={isLoading}
-                    className="w-full bg-black hover:bg-gray-800 text-white py-4 text-lg rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    // RESPONSIVE TYPOGRAPHY AND PADDING CHANGE
+                    className="w-full bg-black hover:bg-gray-800 text-white py-3 text-base md:py-4 md:text-lg rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isLoading ? (
                       <>
@@ -175,11 +219,11 @@ export function Login({ onLogin, onGoToRegister }: LoginProps) {
 
                   {/* Enlace de registro */}
                   <div className="text-center">
-                    <span className="text-gray-600 text-base">¿No eres miembro? </span>
+                    <span className="text-gray-600 text-sm md:text-base">¿No eres miembro? </span>
                     <button
                       type="button"
                       onClick={onGoToRegister}
-                      className="text-primary hover:text-secondary font-medium text-base transition-colors no-hover-effect"
+                      className="text-primary hover:text-secondary font-medium text-sm md:text-base transition-colors no-hover-effect"
                     >
                       Regístrate ahora
                     </button>
@@ -194,10 +238,11 @@ export function Login({ onLogin, onGoToRegister }: LoginProps) {
                     rel="noopener noreferrer"
                     className="no-hover-effect"
                   >
+                    {/* RESPONSIVE SIZING CHANGE: Smaller logo on mobile */}
                     <img 
                       src={digitalIALogo} 
                       alt="Digital-IA - Educomunicación para la paz" 
-                      className="h-28 w-auto object-contain hover:opacity-80 transition-opacity cursor-pointer"
+                      className="h-24 md:h-28 w-auto object-contain hover:opacity-80 transition-opacity cursor-pointer"
                     />
                   </a>
                 </div>
