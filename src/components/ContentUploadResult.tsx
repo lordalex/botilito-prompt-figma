@@ -9,7 +9,8 @@ import {
   Newspaper, ExternalLink, Tag, XCircle, Skull, Ban, Flame, Target,
   Music, Send, Youtube, Mail, Smartphone, Instagram
 } from 'lucide-react';
-import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from './ui/tooltip';
+import * as TooltipPrimitive from "@radix-ui/react-tooltip@1.1.8";
 
 interface ContentUploadResultProps {
   result: any;
@@ -19,6 +20,7 @@ interface ContentUploadResultProps {
 export function ContentUploadResult({ result, onReset }: ContentUploadResultProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [imageLoaded, setImageLoaded] = useState(false);
+  const [selectedMarker, setSelectedMarker] = useState<any | null>(null);
 
   const {
     title,
@@ -508,27 +510,14 @@ export function ContentUploadResult({ result, onReset }: ContentUploadResultProp
                       <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent flex items-end justify-center p-4">
                         <div className="flex flex-wrap gap-2 justify-center">
                           {markersDetected?.slice(0, 3).map((marker: any, index: number) => (
-                            <Tooltip key={index}>
-                              <TooltipTrigger asChild>
-                                <Badge
-                                  className={`${getMarkerColor(marker.type)} text-white shadow-lg cursor-help ${
-                                    index === 0
-                                      ? 'px-3 py-1.5 text-sm sm:px-4 sm:py-2 sm:text-base scale-105'
-                                      : 'px-2 py-1 text-xs sm:px-3 sm:py-1.5 sm:text-sm'
-                                  }`}
-                                >
-                                  {getMarkerIcon(marker.type, index)}
-                                  <span className="ml-1.5">{marker.type}</span>
-                                </Badge>
-                              </TooltipTrigger>
-                              <TooltipContent
-                                className="max-w-xs bg-gray-900 text-white border border-gray-700 px-3 py-2"
-                                side="top"
-                                sideOffset={5}
-                              >
-                                <p className="text-sm leading-relaxed">{marker.explanation || 'No hay descripción disponible'}</p>
-                              </TooltipContent>
-                            </Tooltip>
+                            <Badge
+                              key={index}
+                              onClick={() => setSelectedMarker(marker)}
+                              className={`${getMarkerColor(marker.type)} text-white shadow-lg cursor-pointer hover:opacity-90 transition-opacity px-3 py-1.5 text-sm`}
+                            >
+                              {getMarkerIcon(marker.type, index)}
+                              <span className="ml-1.5">{marker.type}</span>
+                            </Badge>
                           ))}
                         </div>
                       </div>
@@ -604,29 +593,39 @@ export function ContentUploadResult({ result, onReset }: ContentUploadResultProp
               <Label className="mb-3 block">Marcadores de clasificación detectados:</Label>
               <div className="flex flex-wrap gap-2">
                 {markersDetected.map((marker: any, index: number) => (
-                  <Tooltip key={index}>
-                    <TooltipTrigger asChild>
-                      <Badge
-                        className={`${getMarkerColor(marker.type)} text-white shadow-md cursor-help ${
-                          index === 0
-                            ? 'px-4 py-2 text-base scale-105'
-                            : 'px-3 py-1.5 text-sm'
-                        }`}
-                      >
-                        {getMarkerIcon(marker.type, index)}
-                        <span className="ml-1.5">{marker.type}</span>
-                      </Badge>
-                    </TooltipTrigger>
-                    <TooltipContent
-                      className="max-w-xs bg-gray-900 text-white border border-gray-700 px-3 py-2"
-                      side="top"
-                      sideOffset={5}
-                    >
-                      <p className="text-sm leading-relaxed">{marker.explanation || 'No hay descripción disponible'}</p>
-                    </TooltipContent>
-                  </Tooltip>
+                  <Badge
+                    key={index}
+                    onClick={() => setSelectedMarker(marker)}
+                    className={`${getMarkerColor(marker.type)} text-white shadow-md cursor-pointer hover:opacity-90 transition-opacity px-3 py-1.5 text-sm`}
+                  >
+                    {getMarkerIcon(marker.type, index)}
+                    <span className="ml-1.5">{marker.type}</span>
+                  </Badge>
                 ))}
               </div>
+
+              {/* Description Panel */}
+              {selectedMarker && (
+                <div className="mt-4 p-4 bg-gray-900 text-white rounded-lg border-2 border-primary">
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      {getMarkerIcon(selectedMarker.type, 0)}
+                      <h4 className="font-bold text-lg">{selectedMarker.type}</h4>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSelectedMarker(null)}
+                      className="text-white hover:bg-white/20 -mt-1 -mr-1"
+                    >
+                      <XCircle className="h-5 w-5" />
+                    </Button>
+                  </div>
+                  <p className="text-sm leading-relaxed">
+                    {selectedMarker.explanation || 'No hay descripción disponible'}
+                  </p>
+                </div>
+              )}
             </div>
           )}
 
