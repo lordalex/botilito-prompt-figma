@@ -97,8 +97,8 @@ export function Register({ onRegister, onBackToLogin }: RegisterProps) {
           
           <div className="relative z-10 grid lg:grid-cols-2 gap-0 h-full">
             {/* Lado izquierdo - Presentación de Botilito (oculto en móvil) */}
-            <div className="hidden lg:flex bg-gradient-to-br from-primary to-secondary lg:p-12 flex-col justify-center items-center text-center">
-              <div className="flex flex-col items-center max-h-[60vh] lg:max-h-[70vh]">
+            <div className="hidden lg:flex bg-gradient-to-br from-primary to-secondary lg:p-12 flex-col justify-center items-center text-center h-screen overflow-y-auto">
+              <div className="flex flex-col items-center">
                 {/* Burbuja de diálogo */}
                 <div className="bg-white rounded-2xl p-6 mb-8 relative shadow-lg max-w-md">
                   <h1 className="text-3xl font-bold text-black mb-4">

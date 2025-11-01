@@ -72,8 +72,8 @@ export function Login({ onLogin, onGoToRegister }: LoginProps) {
               - `lg:p-12`: Larger padding for desktops.
               - The original `p-[48px]` is replaced by a more conventional and responsive spacing scale.
             */}
-            <div className="bg-gradient-to-br from-primary to-secondary p-8 lg:p-12 flex flex-col justify-center items-center text-center">
-              <div className="flex flex-col items-center max-h-[60vh] lg:max-h-[70vh]">
+            <div className="bg-gradient-to-br from-primary to-secondary p-8 lg:p-12 flex flex-col justify-center items-center text-center h-screen overflow-y-auto">
+              <div className="flex flex-col items-center">
                 {/* Burbuja de diálogo */}
                 <div className="bg-white rounded-2xl p-6 mb-8 relative shadow-lg max-w-md">
                   {/* 
