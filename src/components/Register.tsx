@@ -117,7 +117,7 @@ export function Register({ onRegister, onBackToLogin }: RegisterProps) {
                 <img
                   src={botilitoImage}
                   alt="Botilito - El ex-agente digital convertido en luchador contra la desinformación"
-                  className="w-48 sm:w-60 md:w-72 lg:w-80 xl:w-96 h-auto max-h-[80vh] lg:max-h-[70vh] drop-shadow-2xl"
+                  className="w-48 sm:w-60 md:w-72 lg:w-80 xl:w-96 h-auto max-h-[60vh] lg:max-h-[50vh] drop-shadow-2xl"
                 />
               </div>
             </div>
