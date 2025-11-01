@@ -118,7 +118,7 @@ export function Register({ onRegister, onBackToLogin }: RegisterProps) {
                   <img
                     src={botilitoImage}
                     alt="Botilito - El ex-agente digital convertido en luchador contra la desinformación"
-                    className="w-48 sm:w-60 md:w-72 lg:w-80 xl:w-96 h-auto drop-shadow-2xl"
+                    className="h-auto drop-shadow-2xl max-h-[500px] max-w-[300px] md:max-w-[400px]"
                   />
                 </div>
               </div>
@@ -132,7 +132,7 @@ export function Register({ onRegister, onBackToLogin }: RegisterProps) {
                   <img
                     src={botilitoImage}
                     alt="Botilito"
-                    className="w-32 h-auto mb-3"
+                    className="h-auto mb-3 max-h-[500px] max-w-[300px] md:max-w-[400px]"
                   />
                   <h2 className="text-xl font-bold text-black text-center">
                     ¡Únete a la lucha!
