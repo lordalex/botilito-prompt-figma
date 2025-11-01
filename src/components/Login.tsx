@@ -73,37 +73,39 @@ export function Login({ onLogin, onGoToRegister }: LoginProps) {
               - The original `p-[48px]` is replaced by a more conventional and responsive spacing scale.
             */}
             <div className="bg-gradient-to-br from-primary to-secondary p-8 lg:p-12 flex flex-col justify-center items-center text-center">
-              {/* Burbuja de diálogo */}
-              <div className="bg-white rounded-2xl p-6 mb-8 relative shadow-lg max-w-md">
-                {/* 
-                  RESPONSIVE TYPOGRAPHY CHANGE:
-                  - `text-2xl`: Font size for mobile.
-                  - `md:text-3xl`: Larger font size for tablets and desktops.
-                */}
-                <h1 className="text-2xl md:text-3xl font-bold text-black mb-4">
-                  ¡Kiubo! Soy Botilito
-                </h1>
-                <p className="text-gray-700 leading-relaxed">
-                  Un ex-agente digital de una granja de bots! Me escapé para venirme al bando de los que luchan contra la desinformación desde digitalia.gov.co.
-                </p>
-                {/* Flecha de la burbuja */}
-                <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-full">
-                  <div className="w-0 h-0 border-l-[15px] border-r-[15px] border-t-[20px] border-l-transparent border-r-transparent border-t-white"></div>
+              <div className="flex flex-col items-center max-h-[60vh] lg:max-h-[70vh]">
+                {/* Burbuja de diálogo */}
+                <div className="bg-white rounded-2xl p-6 mb-8 relative shadow-lg max-w-md">
+                  {/* 
+                    RESPONSIVE TYPOGRAPHY CHANGE:
+                    - `text-2xl`: Font size for mobile.
+                    - `md:text-3xl`: Larger font size for tablets and desktops.
+                  */}
+                  <h1 className="text-2xl md:text-3xl font-bold text-black mb-4">
+                    ¡Kiubo! Soy Botilito
+                  </h1>
+                  <p className="text-gray-700 leading-relaxed">
+                    Un ex-agente digital de una granja de bots! Me escapé para venirme al bando de los que luchan contra la desinformación desde digitalia.gov.co.
+                  </p>
+                  {/* Flecha de la burbuja */}
+                  <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-full">
+                    <div className="w-0 h-0 border-l-[15px] border-r-[15px] border-t-[20px] border-l-transparent border-r-transparent border-t-white"></div>
+                  </div>
                 </div>
-              </div>
 
-              {/* Botilito Character - Imagen oficial */}
-              {/* 
-                RESPONSIVE SIZING CHANGE:
-                - `w-60`: Smaller image size for mobile.
-                - `lg:w-72`: Original, larger size for desktops.
-              */}
-              <div className="relative">
-                <img 
-                  src={botilitoImage} 
-                  alt="Botilito - El ex-agente digital convertido en luchador contra la desinformación" 
-                  className="w-48 sm:w-60 md:w-72 lg:w-80 xl:w-96 h-auto max-h-[60vh] lg:max-h-[50vh] drop-shadow-2xl"
-                />
+                {/* Botilito Character - Imagen oficial */}
+                {/* 
+                  RESPONSIVE SIZING CHANGE:
+                  - `w-60`: Smaller image size for mobile.
+                  - `lg:w-72`: Original, larger size for desktops.
+                */}
+                <div className="relative">
+                  <img 
+                    src={botilitoImage} 
+                    alt="Botilito - El ex-agente digital convertido en luchador contra la desinformación" 
+                    className="w-48 sm:w-60 md:w-72 lg:w-80 xl:w-96 h-auto drop-shadow-2xl"
+                  />
+                </div>
               </div>
             </div>
 

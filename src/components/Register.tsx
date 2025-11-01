@@ -98,27 +98,29 @@ export function Register({ onRegister, onBackToLogin }: RegisterProps) {
           <div className="relative z-10 grid lg:grid-cols-2 gap-0 h-full">
             {/* Lado izquierdo - Presentación de Botilito (oculto en móvil) */}
             <div className="hidden lg:flex bg-gradient-to-br from-primary to-secondary lg:p-12 flex-col justify-center items-center text-center">
-              {/* Burbuja de diálogo */}
-              <div className="bg-white rounded-2xl p-6 mb-8 relative shadow-lg max-w-md">
-                <h1 className="text-3xl font-bold text-black mb-4">
-                  ¡Únete a la lucha!
-                </h1>
-                <p className="text-gray-700 leading-relaxed">
-                  Ayúdame a combatir la desinformación y crear un internet más seguro para todos.
-                </p>
-                {/* Flecha de la burbuja */}
-                <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-full">
-                  <div className="w-0 h-0 border-l-[15px] border-r-[15px] border-t-[20px] border-l-transparent border-r-transparent border-t-white"></div>
+              <div className="flex flex-col items-center max-h-[60vh] lg:max-h-[70vh]">
+                {/* Burbuja de diálogo */}
+                <div className="bg-white rounded-2xl p-6 mb-8 relative shadow-lg max-w-md">
+                  <h1 className="text-3xl font-bold text-black mb-4">
+                    ¡Únete a la lucha!
+                  </h1>
+                  <p className="text-gray-700 leading-relaxed">
+                    Ayúdame a combatir la desinformación y crear un internet más seguro para todos.
+                  </p>
+                  {/* Flecha de la burbuja */}
+                  <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-full">
+                    <div className="w-0 h-0 border-l-[15px] border-r-[15px] border-t-[20px] border-l-transparent border-r-transparent border-t-white"></div>
+                  </div>
                 </div>
-              </div>
 
-              {/* Botilito Character - Imagen oficial */}
-              <div className="relative">
-                <img
-                  src={botilitoImage}
-                  alt="Botilito - El ex-agente digital convertido en luchador contra la desinformación"
-                  className="w-48 sm:w-60 md:w-72 lg:w-80 xl:w-96 h-auto max-h-[60vh] lg:max-h-[50vh] drop-shadow-2xl"
-                />
+                {/* Botilito Character - Imagen oficial */}
+                <div className="relative">
+                  <img
+                    src={botilitoImage}
+                    alt="Botilito - El ex-agente digital convertido en luchador contra la desinformación"
+                    className="w-48 sm:w-60 md:w-72 lg:w-80 xl:w-96 h-auto drop-shadow-2xl"
+                  />
+                </div>
               </div>
             </div>
 
