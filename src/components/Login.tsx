@@ -102,7 +102,7 @@ export function Login({ onLogin, onGoToRegister }: LoginProps) {
                 <img 
                   src={botilitoImage} 
                   alt="Botilito - El ex-agente digital convertido en luchador contra la desinformación" 
-                  className="w-60 lg:w-72 h-auto drop-shadow-2xl"
+                  className="w-48 sm:w-60 md:w-72 lg:w-80 xl:w-96 h-auto max-h-screen drop-shadow-2xl"
                 />
               </div>
             </div>
