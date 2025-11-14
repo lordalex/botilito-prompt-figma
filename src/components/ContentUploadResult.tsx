@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import botilitoImage from 'figma:asset/e27a276e6ff0e187a67cf54678c265c1c38adbf7.png';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
@@ -21,6 +21,8 @@ export function ContentUploadResult({ result, onReset }: ContentUploadResultProp
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [selectedMarker, setSelectedMarker] = useState<any | null>(null);
+  const [screenshotUrl, setScreenshotUrl] = useState<string | null>(null);
+  const [screenshotLoading, setScreenshotLoading] = useState(false);
 
   const {
     title,
@@ -51,29 +53,61 @@ export function ContentUploadResult({ result, onReset }: ContentUploadResultProp
     'fullResult.source': fullResult?.source
   });
 
-  // Generate screenshot URL
+  // Placeholder image while screenshot loads
   const PLACEHOLDER_IMAGE = 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=800';
-  const SCREENSHOT_API_KEY = import.meta.env.VITE_SCREENSHOT_API_KEY;
 
-  const generateScreenshotUrl = () => {
-    // Check if there's already a screenshot in the response
-    const existingScreenshot = fullResult?.metadata?.screenshot || fullResult?.screenshot;
-    if (existingScreenshot) return existingScreenshot;
+  // Async screenshot loading using server-side API
+  useEffect(() => {
+    const fetchScreenshot = async () => {
+      // Check if there's already a screenshot in the response
+      const existingScreenshot = fullResult?.metadata?.screenshot || fullResult?.screenshot;
+      if (existingScreenshot) {
+        setScreenshotUrl(existingScreenshot);
+        return;
+      }
 
-    // Check if this is a URL submission
-    const submittedUrl = fullResult?.url;
-    const isTextSubmission = fullResult?.metadata?.isTextSubmission;
+      // Check if this is a URL submission
+      const submittedUrl = fullResult?.url;
+      const isTextSubmission = fullResult?.metadata?.isTextSubmission;
 
-    if (submittedUrl && !isTextSubmission && SCREENSHOT_API_KEY) {
-      // Generate screenshot using screenshotmachine.com
-      return `https://api.screenshotmachine.com/?key=${SCREENSHOT_API_KEY}&url=${encodeURIComponent(submittedUrl)}&dimension=1200x800&format=jpg&cacheLimit=0`;
-    }
+      // If text submission or no URL, use placeholder
+      if (!submittedUrl || isTextSubmission) {
+        setScreenshotUrl(PLACEHOLDER_IMAGE);
+        return;
+      }
 
-    // Default to placeholder for text submissions
-    return PLACEHOLDER_IMAGE;
-  };
+      // Fetch screenshot from server-side API
+      setScreenshotLoading(true);
+      try {
+        const response = await fetch(`/api/screenshot?url=${encodeURIComponent(submittedUrl)}`);
 
-  const newsScreenshot = generateScreenshotUrl();
+        if (!response.ok) {
+          console.error('[Screenshot] API request failed:', response.status);
+          setScreenshotUrl(PLACEHOLDER_IMAGE);
+          return;
+        }
+
+        const data = await response.json();
+
+        if (data.success && data.screenshotUrl) {
+          setScreenshotUrl(data.screenshotUrl);
+        } else {
+          console.error('[Screenshot] Invalid API response:', data);
+          setScreenshotUrl(PLACEHOLDER_IMAGE);
+        }
+      } catch (error) {
+        console.error('[Screenshot] Fetch error:', error);
+        setScreenshotUrl(PLACEHOLDER_IMAGE);
+      } finally {
+        setScreenshotLoading(false);
+      }
+    };
+
+    fetchScreenshot();
+  }, [fullResult]);
+
+  // Use screenshotUrl state instead of direct generation
+  const newsScreenshot = screenshotUrl;
 
   // Helper function for rounded rectangles in canvas
   const drawRoundedRect = (ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius: number) => {
@@ -481,29 +515,33 @@ export function ContentUploadResult({ result, onReset }: ContentUploadResultProp
           {(title || summaryBotilito?.summary) && (
             <div className="p-4 bg-secondary/30 border-2 border-secondary/60 rounded-lg space-y-3">
               {/* Screenshot with overlay markers */}
-              {newsScreenshot && (
+              {(newsScreenshot || screenshotLoading) && (
                 <div>
                   <Label>Captura de la noticia:</Label>
                   <div className="mt-2 rounded-lg overflow-hidden border-2 border-secondary/40 relative max-h-40 md:max-h-48">
-                    {/* Loading skeleton - shows while image loads */}
-                    {!imageLoaded && (
+                    {/* Loading skeleton - shows while screenshot API loads or image loads */}
+                    {(screenshotLoading || !imageLoaded) && (
                       <div className="w-full h-40 md:h-48 bg-gradient-to-br from-gray-200 via-gray-300 to-gray-200 animate-pulse flex items-center justify-center">
                         <div className="text-center space-y-2">
                           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-600 mx-auto"></div>
-                          <p className="text-xs text-gray-600">Cargando captura...</p>
+                          <p className="text-xs text-gray-600">
+                            {screenshotLoading ? 'Generando captura...' : 'Cargando imagen...'}
+                          </p>
                         </div>
                       </div>
                     )}
 
-                    <img
-                      src={newsScreenshot}
-                      alt="Captura de la noticia"
-                      className={`w-full h-40 md:h-48 object-cover object-top transition-opacity duration-300 ${
-                        imageLoaded ? 'opacity-100' : 'opacity-0 absolute inset-0'
-                      }`}
-                      onLoad={() => setImageLoaded(true)}
-                      onError={() => setImageLoaded(true)}
-                    />
+                    {newsScreenshot && (
+                      <img
+                        src={newsScreenshot}
+                        alt="Captura de la noticia"
+                        className={`w-full h-40 md:h-48 object-cover object-top transition-opacity duration-300 ${
+                          imageLoaded ? 'opacity-100' : 'opacity-0 absolute inset-0'
+                        }`}
+                        onLoad={() => setImageLoaded(true)}
+                        onError={() => setImageLoaded(true)}
+                      />
+                    )}
 
                     {/* Overlay with detected markers - only show when image is loaded */}
                     {imageLoaded && (
