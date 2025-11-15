@@ -30,3 +30,6 @@ vite.config.local.ts
 
 # MCP Config (may contain sensitive data)
 .mcp.json
+
+# QA Testing (contains sensitive credentials)
+QA_TESTING.md
