@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Login } from './components/Login';
 import { Register } from './components/Register';
 import { CompleteDashboard } from './components/CompleteDashboard';
@@ -12,70 +12,26 @@ import { ExtensionApp } from './components/extension/ExtensionApp';
 import { MapaDesinfodemico } from './components/MapaDesinfodemico';
 import { DocumentacionIndicadores } from './components/DocumentacionIndicadores';
 import { ImmunizationStudio } from './components/ImmunizationStudio';
-import { getSession, onAuthStateChange, signOut } from './utils/supabase/auth';
+import { useAuth } from './providers/AuthProvider'; // Import the hook
 
 export default function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const { isAuthenticated, isLoading, signOut } = useAuth(); // Use the hook
   const [showRegister, setShowRegister] = useState(false);
   const [activeTab, setActiveTab] = useState('upload');
-  const [isLoading, setIsLoading] = useState(true);
-
-  // Check for existing session on mount
-  useEffect(() => {
-    const checkSession = async () => {
-      try {
-        const session = await getSession();
-        setIsAuthenticated(!!session);
-      } catch (error) {
-        console.error('Error checking session:', error);
-        setIsAuthenticated(false);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    checkSession();
-
-    // Listen for auth state changes
-    const { data: { subscription } } = onAuthStateChange((user) => {
-      setIsAuthenticated(!!user);
-    });
-
-    // Cleanup subscription on unmount
-    return () => {
-      subscription?.unsubscribe();
-    };
-  }, []);
-
-  const handleLogin = () => {
-    setIsAuthenticated(true);
-    setShowRegister(false);
-  };
-
-  const handleRegister = () => {
-    setIsAuthenticated(true);
-    setShowRegister(false);
-  };
 
   const handleLogout = async () => {
     try {
       await signOut();
-      setIsAuthenticated(false);
       setShowRegister(false);
     } catch (error) {
       console.error('Error logging out:', error);
     }
   };
 
-  const goToRegister = () => {
-    setShowRegister(true);
-  };
+  const goToRegister = () => setShowRegister(true);
+  const goToLogin = () => setShowRegister(false);
 
-  const goToLogin = () => {
-    setShowRegister(false);
-  };
-
-  // Show loading spinner while checking session
+  // Show loading spinner while the AuthProvider is checking the session
   if (isLoading) {
     return (
       <div className="min-h-screen bg-primary flex items-center justify-center">
@@ -87,22 +43,14 @@ export default function App() {
     );
   }
 
-  // Si no está autenticado, mostrar la pantalla de login o registro
+  // If not authenticated, show the login or register screen
   if (!isAuthenticated) {
     if (showRegister) {
-      return (
-        <Register 
-          onRegister={handleRegister} 
-          onBackToLogin={goToLogin}
-        />
-      );
+      // The onRegister and onLogin handlers are no longer needed here,
+      // as the AuthProvider handles state changes automatically.
+      return <Register onRegister={() => setShowRegister(false)} onBackToLogin={goToLogin} />;
     }
-    return (
-      <Login 
-        onLogin={handleLogin} 
-        onGoToRegister={goToRegister}
-      />
-    );
+    return <Login onLogin={() => {}} onGoToRegister={goToRegister} />;
   }
 
   const renderContent = () => {
