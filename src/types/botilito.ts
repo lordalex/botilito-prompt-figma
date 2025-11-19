@@ -107,6 +107,7 @@ export interface CaseStudy {
 // Represents the full, detailed analysis response from the backend.
 export interface FullAnalysisResponse {
     id: string;
+    user_id: string; // ID of the user who submitted the analysis
     url?: string;
     title: string;
     summary: string;
@@ -114,4 +115,8 @@ export interface FullAnalysisResponse {
     metadata?: DocumentMetadata;
     case_study?: CaseStudy;
     consensus?: Consensus;
+    risk_analysis?: {
+        final_risk_score: number;
+        risk_level: string;
+    };
 }
