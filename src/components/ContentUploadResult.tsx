@@ -10,8 +10,10 @@ import {
   Music, Send, Youtube, Mail, Smartphone, Instagram
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from './ui/tooltip';
-import * as TooltipPrimitive from "@radix-ui/react-tooltip@1.1.8";
+import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { ScreenshotImage } from './ScreenshotImage';
+import { getSession } from '../utils/supabase/auth';
+import { api } from '../../lib/apiService';
 
 interface ContentUploadResultProps {
   result: any;
@@ -23,6 +25,7 @@ export function ContentUploadResult({ result, onReset }: ContentUploadResultProp
   const [imageLoaded, setImageLoaded] = useState(false);
   const [selectedMarker, setSelectedMarker] = useState<any | null>(null);
   const [newsScreenshot, setNewsScreenshot] = useState<string | null>(null);
+  const [reportedBy, setReportedBy] = useState<string | null>('Cargando...');
 
   const {
     title,
@@ -38,21 +41,30 @@ export function ContentUploadResult({ result, onReset }: ContentUploadResultProp
   } = result;
 
   const createdAt = fullResult?.created_at;
-  const reportedBy = fullResult?.metadata?.reported_by || null;
   const newsSource = fullResult?.metadata?.source || fullResult?.source || null;
   const transmissionSources = vectores && vectores.length > 0 ? vectores : ['Web'];
 
-  // Debug logging
-  console.log('📋 ContentUploadResult data:', {
-    caseNumber,
-    reportedBy,
-    newsSource,
-    theme,
-    region,
-    'fullResult.metadata.source': fullResult?.metadata?.source,
-    'fullResult.source': fullResult?.source
-  });
+  useEffect(() => {
+    const fetchAuthor = async () => {
+        if (!fullResult?.user_id) {
+            setReportedBy('Desconocido');
+            return;
+        }
+        try {
+            const session = await getSession();
+            if (session) {
+                const profile = await api.profile.getById(session, fullResult.user_id);
+                setReportedBy(profile.nombre_completo || profile.email || 'Desconocido');
+            }
+        } catch (error) {
+            console.error("Error fetching author profile:", error);
+            setReportedBy('Desconocido');
+        }
+    };
 
+    fetchAuthor();
+  }, [fullResult?.user_id]);
+  
   useEffect(() => {
     // Pre-fill the screenshot if it already exists in the initial data
     const existingScreenshot = result?.fullResult?.metadata?.screenshot || result?.fullResult?.screenshot;

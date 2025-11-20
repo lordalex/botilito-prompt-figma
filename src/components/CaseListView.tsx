@@ -62,9 +62,10 @@ export function CaseListView() {
   }, [allCases, searchTerm]);
 
   if (selectedCase) {
-    // La conversión a FullAnalysisResponse debe ser robusta
-    const responseForDisplay = {
+    // The transformation to FullAnalysisResponse must be robust and complete.
+    const responseForDisplay: FullAnalysisResponse = {
         id: selectedCase.id,
+        user_id: selectedCase.user_id, // Pass the user_id
         created_at: selectedCase.submittedAt || selectedCase.created_at,
         title: selectedCase.title,
         summary: selectedCase.aiAnalysis?.summary || "Resumen no disponible.",
@@ -73,7 +74,10 @@ export function CaseListView() {
             ...(selectedCase.metadata || {})
         },
         case_study: {
-            case_number: parseInt(selectedCase.id.split('-').pop() || '0', 10),
+            id: selectedCase.case_study_id || selectedCase.id,
+            case_id: selectedCase.case_study_id || selectedCase.id,
+            summary: selectedCase.aiAnalysis?.summary || "Resumen no disponible.",
+            case_number: selectedCase.case_number, // Use the direct case_number field
             metadata: {
                 ai_labels: selectedCase.aiAnalysis?.detectedMarkers.reduce((acc: any, marker: any) => {
                     const type = typeof marker === 'string' ? marker : marker.type;
@@ -81,6 +85,10 @@ export function CaseListView() {
                     return acc;
                 }, {})
             }
+        },
+        risk_analysis: {
+            risk_level: selectedCase.aiAnalysis?.riskLevel || 'Indeterminado',
+            final_risk_score: selectedCase.aiAnalysis?.riskScore || 0
         }
     };
     return (
@@ -89,7 +97,7 @@ export function CaseListView() {
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Volver al Historial
             </Button>
-            <AnalysisResultDisplay response={responseForDisplay as any} />
+            <AnalysisResultDisplay response={responseForDisplay} />
         </div>
     );
   }
