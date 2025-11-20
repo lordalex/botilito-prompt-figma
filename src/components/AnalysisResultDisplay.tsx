@@ -59,7 +59,7 @@ export function AnalysisResultDisplay({ response }: AnalysisResultDisplayProps) 
                 const session = await getSession();
                 if (session) {
                     const profile = await api.profile.getById(session, user_id);
-                    setAuthorName(profile.nombre_completo || 'Sin nombre');
+                    setAuthorName(profile.nombre_completo || profile.email || 'Desconocido');
                 }
             } catch (error) {
                 console.error("Error fetching author profile:", error);
