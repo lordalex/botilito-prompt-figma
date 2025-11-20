@@ -63,3 +63,18 @@ export interface AnalysisJob {
   startTime: string; // ISO string
   endTime?: string; // ISO string
 }
+
+/**
+ * Represents the data structure for a user's profile,
+ * mirroring the 'perfiles_usuario' table in the database.
+ */
+export interface UserProfileData {
+  id: string; // Corresponds to the user's auth ID
+  nombre_completo?: string;
+  numero_telefono?: string;
+  departamento?: string;
+  ciudad?: string;
+  fecha_nacimiento?: string; // Stored as a string for simplicity, e.g., 'YYYY-MM-DD'
+  email?: string;
+  // Note: 'password', 'role', etc., are intentionally omitted for security.
+}

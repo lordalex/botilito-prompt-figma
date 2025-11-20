@@ -1,17 +1,17 @@
-import React from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
-import { Alert, AlertDescription } from './ui/alert';
 import { Label } from './ui/label';
-import { Button } from './ui/button';
 import { 
   AlertTriangle, XCircle, Hash, FileText, Flame, Ban, Skull, Target, 
-  Stethoscope, Bot, ArrowRight, UserCheck, Crosshair, ExternalLink, Activity, 
-  Share2, Facebook, Twitter, Linkedin, MessageCircle, Calendar, Link, FileType,
-  Download, CheckCircle, Smile, Image as ImageIcon, HelpCircle, Eye
+  Stethoscope, Bot, Crosshair, Share2, Facebook, Twitter, Linkedin, 
+  MessageCircle, Calendar, FileType, CheckCircle, Smile, Image as ImageIcon, 
+  HelpCircle, Eye, User
 } from 'lucide-react';
 import type { FullAnalysisResponse } from '../types/botilito';
+import { getSession } from '../utils/supabase/auth';
+import { api } from '../../lib/apiService';
 
 interface AnalysisResultDisplayProps {
   response: FullAnalysisResponse;
@@ -46,16 +46,39 @@ const getRiskColor = (level: string | undefined) => {
 };
 
 export function AnalysisResultDisplay({ response }: AnalysisResultDisplayProps) {
-    const { id, created_at, title, summary, metadata, case_study } = response;
+    const { id, user_id, created_at, title, metadata, case_study, risk_analysis } = response;
+    const [authorName, setAuthorName] = useState('Cargando...');
+
+    useEffect(() => {
+        const fetchAuthor = async () => {
+            if (!user_id) {
+                setAuthorName('Desconocido');
+                return;
+            }
+            try {
+                const session = await getSession();
+                if (session) {
+                    const profile = await api.profile.getById(session, user_id);
+                    setAuthorName(profile.nombre_completo || profile.email || 'Desconocido');
+                }
+            } catch (error) {
+                console.error("Error fetching author profile:", error);
+                setAuthorName('Desconocido');
+            }
+        };
+
+        fetchAuthor();
+    }, [user_id]);
+
     const primaryDiagnosis = case_study?.metadata?.ai_labels ? Object.keys(case_study.metadata.ai_labels)[0] : 'Indeterminado';
-    const riskLevel = 'Crítico'; // Simulado, ya que no viene en la API
-    const confidence = 0.96; // Simulado
+    const riskLevel = risk_analysis?.risk_level || 'Indeterminado';
+    const confidence = risk_analysis?.final_risk_score || 0;
 
     const markersDetected = case_study?.metadata?.ai_labels ? 
         Object.entries(case_study.metadata.ai_labels).map(([type, justification]) => ({
             type,
             justification,
-            confidence: Math.random() * (0.98 - 0.7) + 0.7 // Simulado
+            confidence: Math.random() * (0.98 - 0.7) + 0.7 // Confidence for individual markers is still simulated as it's not in the main response
         })) : [];
 
     const handleShare = (platform: string) => {
@@ -82,12 +105,12 @@ export function AnalysisResultDisplay({ response }: AnalysisResultDisplayProps) 
                     </div>
                 </CardHeader>
                 <CardContent className="p-6 space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-muted/30 rounded-lg">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 p-4 bg-muted/30 rounded-lg">
                         <div className="flex items-start space-x-3">
                             <Hash className="h-5 w-5 text-primary mt-0.5" />
                             <div>
                                 <div className="text-sm text-muted-foreground">Número de Caso</div>
-                                <div className="font-mono">Caso: {case_study?.case_number || id.substring(0, 8)}</div>
+                                <div className="font-mono">Caso: {case_study?.case_number || id}</div>
                             </div>
                         </div>
                         <div className="flex items-start space-x-3">
@@ -102,6 +125,13 @@ export function AnalysisResultDisplay({ response }: AnalysisResultDisplayProps) 
                             <div>
                                 <div className="text-sm text-muted-foreground">Tipo de Contenido</div>
                                 <div className="capitalize">{metadata?.submissionType || 'No especificado'}</div>
+                            </div>
+                        </div>
+                        <div className="flex items-start space-x-3">
+                            <User className="h-5 w-5 text-primary mt-0.5" />
+                            <div>
+                                <div className="text-sm text-muted-foreground">Analizado por</div>
+                                <div>{authorName}</div>
                             </div>
                         </div>
                     </div>
