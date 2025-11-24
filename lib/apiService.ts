@@ -35,6 +35,7 @@ async function authenticatedFetch(baseUrl: string, session: Session, endpoint: s
             'Authorization': `Bearer ${session.access_token}`,
             ...options.headers,
         },
+        cache: options.method === 'GET' ? 'no-store' : 'default', // Prevent caching for GET requests
     });
 
     if (!response.ok) {
@@ -106,6 +107,20 @@ export const api = {
          */
         update: async (session: Session, profileData: Partial<UserProfileData>): Promise<UserProfileData> => {
             // The endpoint is the base URL itself for this function
+            return authenticatedFetch(PROFILE_API_URL, session, '', {
+                method: 'PUT',
+                body: JSON.stringify(profileData),
+            });
+        },
+
+        /**
+         * Creates a new user profile.
+         * @param {Session} session - The user's active session.
+         * @param {UserProfileData} profileData - The complete profile data for the new user.
+         * @returns {Promise<UserProfileData>} The created user's profile data.
+         */
+        create: async (session: Session, profileData: UserProfileData): Promise<UserProfileData> => {
+            // The backend uses PUT with upsert for creation/update
             return authenticatedFetch(PROFILE_API_URL, session, '', {
                 method: 'PUT',
                 body: JSON.stringify(profileData),

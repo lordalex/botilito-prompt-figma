@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Login } from './components/Login';
 import { Register } from './components/Register';
 import { CompleteDashboard } from './components/CompleteDashboard';
@@ -15,9 +15,15 @@ import { ImmunizationStudio } from './components/ImmunizationStudio';
 import { useAuth } from './providers/AuthProvider'; // Import the hook
 
 export default function App() {
-  const { isAuthenticated, isLoading, signOut } = useAuth(); // Use the hook
+  const { isAuthenticated, isLoading, signOut, profileComplete, checkUserProfile } = useAuth(); // Use the hook
   const [showRegister, setShowRegister] = useState(false);
   const [activeTab, setActiveTab] = useState('upload');
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      checkUserProfile();
+    }
+  }, [isAuthenticated]);
 
   const handleLogout = async () => {
     try {
@@ -52,6 +58,22 @@ export default function App() {
     }
     return <Login onLogin={() => {}} onGoToRegister={goToRegister} />;
   }
+
+  // If authenticated but profile is not complete, force profile completion
+  if (!profileComplete) {
+    return (
+      <div className="min-h-screen bg-background p-4 md:p-8">
+        <div className="max-w-4xl mx-auto">
+          <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 rounded-md mb-6" role="alert">
+            <p className="font-bold">¡Casi listo!</p>
+            <p>Por favor, completa tu perfil para continuar.</p>
+          </div>
+          <UserProfile />
+        </div>
+      </div>
+    );
+  }
+
 
   const renderContent = () => {
     switch (activeTab) {

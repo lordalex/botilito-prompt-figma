@@ -19,14 +19,25 @@ async function authenticatedFetch(endpoint: string, options: RequestInit = {}): 
         throw new Error("Authentication error: No active session found.");
     }
 
-    const response = await fetch(`${INGEST_API_BASE_URL}${endpoint}`, {
-        ...options,
+    const config: RequestInit = {
+        method: options.method,
         headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${session.access_token}`,
             ...options.headers,
         },
-    });
+        cache: options.method === 'GET' ? 'no-store' : 'default', // Prevent caching for GET requests
+        ...options
+    };
+    const response = await fetch(`${INGEST_API_BASE_URL}${endpoint}`, config);
+        // The following lines were part of the duplication, removing them.
+        // ...options,
+        // headers: {
+        //     'Content-Type': 'application/json',
+        //     'Authorization': `Bearer ${session.access_token}`,
+        //     ...options.headers,
+        // },
+    // }); // This closing parenthesis was also part of the duplication.
 
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: `HTTP Error: ${response.status} ${response.statusText}` }));

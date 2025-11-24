@@ -9,6 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import registerImage from 'figma:asset/60be6d6fe2b2bb2089603fb76c90d0926c3104a3.png';
 import botilitoImage from 'figma:asset/ce81bb4aba8c9f36807cd145a086a12ce7f876dc.png';
 import { signUp } from '../utils/supabase/auth';
+import { api } from '../../lib/apiService';
+import { UserProfileData } from '../types'; // Import UserProfileData
 
 interface RegisterProps {
   onRegister: () => void;
@@ -64,7 +66,7 @@ export function Register({ onRegister, onBackToLogin }: RegisterProps) {
     setIsLoading(true);
 
     try {
-      await signUp({
+      const { session, user } = await signUp({
         email: credentials.email,
         password: credentials.password,
         name: credentials.fullName,
@@ -72,6 +74,24 @@ export function Register({ onRegister, onBackToLogin }: RegisterProps) {
         location: `${credentials.city}, ${credentials.department}`,
         birthDate: credentials.birthDate
       });
+
+      if (session && user) {
+        // Create user profile in the database
+        const profileData: UserProfileData = {
+          id: user.id,
+          email: credentials.email,
+          nombre_completo: credentials.fullName,
+          numero_telefono: credentials.phone,
+          departamento: credentials.department,
+          ciudad: credentials.city,
+          fecha_nacimiento: credentials.birthDate,
+        };
+        await api.profile.create(session, profileData);
+      } else {
+        // This case might happen if email confirmation is required and user is not immediately signed in
+        console.warn("User signed up but no session immediately available. Profile creation might be delayed or require re-authentication.");
+      }
+
       onRegister();
     } catch (err: any) {
       console.error('Registration error:', err);

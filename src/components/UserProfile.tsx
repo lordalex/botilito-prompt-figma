@@ -13,8 +13,8 @@ import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Separator } from './ui/separator';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
-import { 
-  User, Mail, Calendar, Shield, Trophy, Target, Activity, TrendingUp, Eye, 
+import {
+  User, Mail, Calendar, Shield, Trophy, Target, Activity, TrendingUp, Eye,
   CheckCircle, XCircle, AlertTriangle, Clock, Microscope, Skull, Ban, Flame,
   Award, Star, Lock, Camera, Edit3, Settings, Zap, Brain, Crown, Medal,
   Sparkles, Gift, Coffee, Bot, Globe, Users, FileText, BarChart3,
@@ -28,49 +28,58 @@ import { motion } from 'motion/react';
 // A future step could be to fetch this configuration from a CMS or a database table.
 
 const levels = [
-    { level: 1, title: 'VIGILANTE CENTINELA', subtitle: 'Primera Línea de Defensa', minXP: 0, maxXP: 500, color: 'bg-blue-500', badge: '👁️' },
-    { level: 2, title: 'EPIDEMIÓLOGO DIGITAL VOLUNTARIO', subtitle: 'Analista de Contagio', minXP: 500, maxXP: 2000, color: 'bg-purple-500', badge: '🔬' },
-    { level: 3, title: 'ESPECIALISTA EN INMUNOLOGÍA INFORMATIVA', subtitle: 'Educomunicador Estratégico', minXP: 2000, maxXP: 999999, color: 'bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500', badge: '💉' }
+  { level: 1, title: 'VIGILANTE CENTINELA', subtitle: 'Primera Línea de Defensa', minXP: 0, maxXP: 500, color: 'bg-blue-500', badge: '👁️' },
+  { level: 2, title: 'EPIDEMIÓLOGO DIGITAL VOLUNTARIO', subtitle: 'Analista de Contagio', minXP: 500, maxXP: 2000, color: 'bg-purple-500', badge: '🔬' },
+  { level: 3, title: 'ESPECIALISTA EN INMUNOLOGÍA INFORMATIVA', subtitle: 'Educomunicador Estratégico', minXP: 2000, maxXP: 999999, color: 'bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500', badge: '💉' }
 ];
 
 const missions = [
-    { id: 'escuadron-anti-panico', title: 'Misión: Escuadrón Anti-Pánico', description: 'Desmentir los 3 fakes más virales sobre la economía esta semana', xpReward: 150, progress: 1, target: 3, type: 'weekly', deadline: '2025-10-19', icon: <Shield className="h-5 w-5" />, color: 'bg-red-500', completed: false },
-    { id: 'diagnostico-rapido', title: 'Desafío: Diagnóstico Rápido', description: 'Realiza 10 análisis esta semana', xpReward: 100, progress: 7, target: 10, type: 'weekly', deadline: '2025-10-19', icon: <Zap className="h-5 w-5" />, color: 'bg-yellow-500', completed: false },
+  { id: 'escuadron-anti-panico', title: 'Misión: Escuadrón Anti-Pánico', description: 'Desmentir los 3 fakes más virales sobre la economía esta semana', xpReward: 150, progress: 1, target: 3, type: 'weekly', deadline: '2025-10-19', icon: <Shield className="h-5 w-5" />, color: 'bg-red-500', completed: false },
+  { id: 'diagnostico-rapido', title: 'Desafío: Diagnóstico Rápido', description: 'Realiza 10 análisis esta semana', xpReward: 100, progress: 7, target: 10, type: 'weekly', deadline: '2025-10-19', icon: <Zap className="h-5 w-5" />, color: 'bg-yellow-500', completed: false },
 ];
 
 // --- Component ---
 
 export function UserProfile() {
-  const { user, supabase } = useAuth(); // Get user and session from AuthProvider
+  const { user, supabase, checkUserProfile } = useAuth(); // Get user and session from AuthProvider
   const [profile, setProfile] = useState<UserProfileData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Start in editing mode if the profile is incomplete.
   const [isEditing, setIsEditing] = useState(false);
 
   // --- Data Fetching ---
   useEffect(() => {
     const fetchProfile = async () => {
       if (!user) return;
-      
+
       setIsLoading(true);
       setError(null);
-      
+
       try {
         const session = (await supabase.auth.getSession()).data.session;
         if (!session) throw new Error("Not authenticated");
 
         const data = await api.profile.get(session);
         setProfile(data);
+        // If the full name is missing, automatically enter editing mode.
+        if (!data.nombre_completo) {
+          setIsEditing(true);
+        }
       } catch (err: any) {
-        setError(err.message || "Failed to fetch profile.");
         // If profile doesn't exist (404), initialize a default one for editing
-        if (err.message.includes('404')) {
+        if (err.message.includes('404') || err.message.includes('Profile not found')) {
+          setError(null); // Clear error for 404 - this is expected for new users
+          setIsEditing(true); // Force editing mode for new profiles
           setProfile({
             id: user.id,
             email: user.email,
-            nombre_completo: user.email, // Default to email
+            nombre_completo: '', // Start with an empty name to encourage completion
           });
+        } else {
+          // For other errors, show the error message
+          setError(err.message || "Failed to fetch profile.");
         }
       } finally {
         setIsLoading(false);
@@ -90,7 +99,10 @@ export function UserProfile() {
 
   const handleSaveProfile = async (e: FormEvent) => {
     e.preventDefault();
-    if (!profile) return;
+    if (!profile || !profile.nombre_completo) {
+      setError("Por favor, ingresa tu nombre completo.");
+      return;
+    }
 
     setIsSaving(true);
     setError(null);
@@ -102,6 +114,7 @@ export function UserProfile() {
       const updatedProfile = await api.profile.update(session, profile);
       setProfile(updatedProfile);
       setIsEditing(false); // Exit editing mode on successful save
+      await checkUserProfile(); // Re-check profile to update global state
     } catch (err: any) {
       setError(err.message || "Failed to save profile.");
     } finally {
@@ -135,9 +148,9 @@ export function UserProfile() {
       </Card>
     );
   }
-  
+
   if (!profile) {
-      return <p>No profile data available.</p>; // Should not happen if logic is correct
+    return <p>No profile data available.</p>; // Should not happen if logic is correct
   }
 
   // Gamification calculations (using placeholder values for now)
@@ -147,7 +160,7 @@ export function UserProfile() {
   const progressToNext = nextLevel ? ((currentXP - currentLevel.minXP) / (nextLevel.minXP - currentLevel.minXP)) * 100 : 100;
 
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       className="space-y-8"
@@ -218,7 +231,7 @@ export function UserProfile() {
                       <Label htmlFor="ciudad">Ciudad</Label>
                       <Input id="ciudad" name="ciudad" value={profile.ciudad || ''} onChange={handleInputChange} />
                     </div>
-                     <div className="space-y-2">
+                    <div className="space-y-2">
                       <Label htmlFor="fecha_nacimiento">Fecha de Nacimiento</Label>
                       <Input id="fecha_nacimiento" name="fecha_nacimiento" type="date" value={profile.fecha_nacimiento || ''} onChange={handleInputChange} />
                     </div>
@@ -229,12 +242,12 @@ export function UserProfile() {
                     <Input id="email" name="email" value={profile.email || ''} disabled />
                     <p className="text-xs text-muted-foreground">El email no se puede cambiar.</p>
                   </div>
-                  
+
                   {error && <p className="text-sm text-destructive">{error}</p>}
 
-                  <div className="flex justify-end space-x-4">
-                    <Button type="button" variant="ghost" onClick={() => setIsEditing(false)}>Cancelar</Button>
-                    <Button type="submit" disabled={isSaving}>
+                  <div className="flex flex-col md:flex-row md:justify-end gap-3 md:gap-4">
+                    <Button type="button" variant="ghost" onClick={() => setIsEditing(false)} className="w-full md:w-auto">Cancelar</Button>
+                    <Button type="submit" disabled={isSaving} className="w-full md:w-auto">
                       {isSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
                       Guardar Cambios
                     </Button>
@@ -249,13 +262,13 @@ export function UserProfile() {
                   <div className="flex justify-between items-center"><strong>Teléfono:</strong> <span>{profile.numero_telefono || 'No especificado'}</span></div>
                   <Separator />
                   <div className="flex justify-between items-center"><strong>Ubicación:</strong> <span>{`${profile.ciudad || ''}, ${profile.departamento || 'No especificado'}`}</span></div>
-                   <Separator />
+                  <Separator />
                   <div className="flex justify-between items-center"><strong>Fecha de Nacimiento:</strong> <span>{profile.fecha_nacimiento || 'No especificado'}</span></div>
                 </div>
               )}
             </CardContent>
           </Card>
-          
+
           {/* Gamification: Missions (Static for now) */}
           <Card>
             <CardHeader>
