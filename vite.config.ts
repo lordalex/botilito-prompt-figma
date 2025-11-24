@@ -59,12 +59,25 @@ export default defineConfig({
   build: {
     target: 'esnext',
     outDir: 'build',
+    manifest: true, // Generate manifest for cache busting
+    rollupOptions: {
+      output: {
+        // Add hash to filenames for cache busting
+        entryFileNames: 'assets/[name]-[hash].js',
+        chunkFileNames: 'assets/[name]-[hash].js',
+        assetFileNames: 'assets/[name]-[hash].[ext]'
+      }
+    }
   },
   server: {
-allowedHosts: ['.digitalia.gov.co'],
-host: '0.0.0.0',
+    allowedHosts: ['.digitalia.gov.co'],
+    host: '0.0.0.0',
     port: 3000,
     open: true,
+    // Disable caching in dev mode
+    headers: {
+      'Cache-Control': 'no-store',
+    }
   },
 });
 
