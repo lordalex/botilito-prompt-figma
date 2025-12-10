@@ -70,75 +70,124 @@ export async function fetchCaseDetails(caseId: string) {
 
 /**
  * Generate display ID for a case
- * Format: TYPE-VECTOR-YYYYMMDD-HASH
- * Example: T-WA-20241201-22D
+ * Format: DdRrTtEe######
+ * Example: IAFaTxVe000001
  *
- * TYPE (Content Type):
- * - T: Text/URL
- * - I: Image
- * - V: Video
- * - A: Audio
+ * Components (2 chars each):
+ * - Dd: DETECTOR - Who detected/verified
+ *   - IA: Inteligencia Artificial
+ *   - HU: Humano
+ *   - MX: Mixto (IA + Humano)
  *
- * VECTOR (Transmission Platform):
- * - WA: WhatsApp, FB: Facebook, TW: Twitter/X, IG: Instagram
- * - TK: TikTok, YT: YouTube, TL: Telegram, WB: Web/Site
- * - EM: Email, SM: SMS, OT: Other
+ * - Rr: RED SOCIAL - Platform/source
+ *   - Fa: Facebook, Tw: Twitter/X, Ig: Instagram
+ *   - Tk: TikTok, Yt: YouTube, Wa: WhatsApp
+ *   - Tl: Telegram, Wb: Web/Sitio, Ot: Otro
  *
- * HASH: First 3 characters of UUID (guarantees uniqueness)
+ * - Tt: TIPO/FUENTE - Content type
+ *   - Tx: Texto, Im: Imagen, Vi: Video, Au: Audio
+ *
+ * - Ee: ETIQUETA - Verification label
+ *   - Ve: Verdadero, Fa: Falso, En: Engañoso
+ *   - Mn: Manipulado, Sc: Sin Contexto
+ *   - Nv: No Verificable, Pn: Pendiente
+ *
+ * - ######: Correlativo (6 digits from UUID)
  */
 export function generateDisplayId(caseData: RecentCase): string {
-  // Type prefix - URLs are considered text
-  const typeMap: Record<string, string> = {
-    'URL': 'T',
-    'TEXT': 'T',
-    'IMAGE': 'I',
-    'VIDEO': 'V',
-    'AUDIO': 'A'
+  // DETECTOR: Based on consensus state
+  const detectorMap: Record<string, string> = {
+    'ai_only': 'IA',
+    'human_only': 'HU',
+    'consensus': 'MX',
+    'disagreement': 'MX'
   };
-  const typePrefix = typeMap[caseData.submission_type] || 'T';
+  const detector = detectorMap[caseData.consensus.state] || 'IA';
 
-  // Detect transmission vector from URL
-  const vectorPrefix = detectTransmissionVector(caseData.url);
+  // RED SOCIAL: Detect from URL
+  const redSocial = detectRedSocial(caseData.url);
 
-  // Date from created_at
-  const date = new Date(caseData.created_at);
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  const dateStr = `${year}${month}${day}`;
+  // TIPO/FUENTE: Content type
+  const tipoMap: Record<string, string> = {
+    'URL': 'Tx',
+    'TEXT': 'Tx',
+    'IMAGE': 'Im',
+    'VIDEO': 'Vi',
+    'AUDIO': 'Au'
+  };
+  const tipo = tipoMap[caseData.submission_type] || 'Tx';
 
-  // Hash: first 3 characters of UUID (without dashes), uppercase
-  const hash = caseData.id.replace(/-/g, '').substring(0, 3).toUpperCase();
+  // ETIQUETA: From consensus final_labels or diagnostic_labels
+  const etiqueta = getEtiquetaCode(caseData);
 
-  return `${typePrefix}-${vectorPrefix}-${dateStr}-${hash}`;
+  // CORRELATIVO: 6 digits derived from UUID (ensures uniqueness)
+  // Use first 6 hex chars of UUID converted to decimal, mod 1000000
+  const uuidClean = caseData.id.replace(/-/g, '');
+  const hexValue = parseInt(uuidClean.substring(0, 6), 16);
+  const correlativo = String(hexValue % 1000000).padStart(6, '0');
+
+  return `${detector}${redSocial}${tipo}${etiqueta}${correlativo}`;
 }
 
 /**
- * Detect transmission vector/platform from URL
- * Returns 2-letter code for known platforms, or 'WB' for generic web
+ * Get etiqueta code from case data
  */
-function detectTransmissionVector(url: string): string {
+function getEtiquetaCode(caseData: RecentCase): string {
+  // Priority: consensus final_labels > diagnostic_labels > default
+  const labels = caseData.consensus.final_labels.length > 0
+    ? caseData.consensus.final_labels
+    : caseData.diagnostic_labels;
+
+  if (labels.length === 0) {
+    return 'Pn'; // Pendiente
+  }
+
+  const etiquetaMap: Record<string, string> = {
+    'verdadero': 'Ve',
+    'falso': 'Fa',
+    'enganoso': 'En',
+    'manipulado': 'Mn',
+    'sin_contexto': 'Sc',
+    'no_verificable': 'Nv',
+    'satira': 'St',
+    'parcialmente_falso': 'Pf'
+  };
+
+  // Find first matching label
+  for (const label of labels) {
+    const code = etiquetaMap[label.toLowerCase()];
+    if (code) return code;
+  }
+
+  return 'Pn'; // Default: Pendiente
+}
+
+/**
+ * Detect red social/platform from URL
+ * Returns 2-letter code (title case) for known platforms
+ */
+function detectRedSocial(url: string): string {
   try {
     const urlObj = new URL(url);
     const hostname = urlObj.hostname.toLowerCase().replace('www.', '');
 
-    // Known social media platforms
+    // Known social media platforms (title case codes per Excel spec)
     const platformMap: Record<string, string> = {
-      'whatsapp.com': 'WA',
-      'web.whatsapp.com': 'WA',
-      'facebook.com': 'FB',
-      'fb.com': 'FB',
-      'fb.watch': 'FB',
-      'twitter.com': 'TW',
-      'x.com': 'TW',
-      'instagram.com': 'IG',
-      'tiktok.com': 'TK',
-      'youtube.com': 'YT',
-      'youtu.be': 'YT',
-      'telegram.org': 'TL',
-      't.me': 'TL',
-      'reddit.com': 'RD',
-      'linkedin.com': 'LI',
+      'whatsapp.com': 'Wa',
+      'web.whatsapp.com': 'Wa',
+      'facebook.com': 'Fa',
+      'fb.com': 'Fa',
+      'fb.watch': 'Fa',
+      'twitter.com': 'Tw',
+      'x.com': 'Tw',
+      'instagram.com': 'Ig',
+      'tiktok.com': 'Tk',
+      'youtube.com': 'Yt',
+      'youtu.be': 'Yt',
+      'telegram.org': 'Tl',
+      't.me': 'Tl',
+      'reddit.com': 'Rd',
+      'linkedin.com': 'Li',
     };
 
     // Check exact matches
@@ -153,11 +202,11 @@ function detectTransmissionVector(url: string): string {
       }
     }
 
-    // Default to WB (Web) for generic websites
-    return 'WB';
+    // Default to Wb (Web) for generic websites
+    return 'Wb';
   } catch (e) {
-    // Invalid URL, default to OT (Other)
-    return 'OT';
+    // Invalid URL, default to Ot (Other)
+    return 'Ot';
   }
 }
 
