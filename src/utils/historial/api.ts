@@ -70,43 +70,95 @@ export async function fetchCaseDetails(caseId: string) {
 
 /**
  * Generate display ID for a case
- * Format: TYPE-SOURCE-YYYYMMDD-NNN
- * Example: T-WB-20241015-156
+ * Format: TYPE-VECTOR-YYYYMMDD-HASH
+ * Example: T-WA-20241201-22D
+ *
+ * TYPE (Content Type):
+ * - T: Text/URL
+ * - I: Image
+ * - V: Video
+ * - A: Audio
+ *
+ * VECTOR (Transmission Platform):
+ * - WA: WhatsApp, FB: Facebook, TW: Twitter/X, IG: Instagram
+ * - TK: TikTok, YT: YouTube, TL: Telegram, WB: Web/Site
+ * - EM: Email, SM: SMS, OT: Other
+ *
+ * HASH: First 3 characters of UUID (guarantees uniqueness)
  */
 export function generateDisplayId(caseData: RecentCase): string {
-  // Type prefix
+  // Type prefix - URLs are considered text
   const typeMap: Record<string, string> = {
-    'URL': 'U',
+    'URL': 'T',
     'TEXT': 'T',
     'IMAGE': 'I',
-    'VIDEO': 'V'
+    'VIDEO': 'V',
+    'AUDIO': 'A'
   };
-  const typePrefix = typeMap[caseData.submission_type] || 'X';
+  const typePrefix = typeMap[caseData.submission_type] || 'T';
 
-  // Source from URL
-  let sourcePrefix = 'XX';
-  try {
-    const url = new URL(caseData.url);
-    const hostname = url.hostname.replace('www.', '');
-    const parts = hostname.split('.');
-    if (parts.length >= 2) {
-      sourcePrefix = parts[parts.length - 2].substring(0, 2).toUpperCase();
-    }
-  } catch (e) {
-    // Invalid URL, use default
-  }
+  // Detect transmission vector from URL
+  const vectorPrefix = detectTransmissionVector(caseData.url);
 
-  // Date
+  // Date from created_at
   const date = new Date(caseData.created_at);
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   const dateStr = `${year}${month}${day}`;
 
-  // Sequential number (use last 3 chars of UUID)
-  const seqNum = caseData.id.substring(0, 3).toUpperCase();
+  // Hash: first 3 characters of UUID (without dashes), uppercase
+  const hash = caseData.id.replace(/-/g, '').substring(0, 3).toUpperCase();
 
-  return `${typePrefix}-${sourcePrefix}-${dateStr}-${seqNum}`;
+  return `${typePrefix}-${vectorPrefix}-${dateStr}-${hash}`;
+}
+
+/**
+ * Detect transmission vector/platform from URL
+ * Returns 2-letter code for known platforms, or 'WB' for generic web
+ */
+function detectTransmissionVector(url: string): string {
+  try {
+    const urlObj = new URL(url);
+    const hostname = urlObj.hostname.toLowerCase().replace('www.', '');
+
+    // Known social media platforms
+    const platformMap: Record<string, string> = {
+      'whatsapp.com': 'WA',
+      'web.whatsapp.com': 'WA',
+      'facebook.com': 'FB',
+      'fb.com': 'FB',
+      'fb.watch': 'FB',
+      'twitter.com': 'TW',
+      'x.com': 'TW',
+      'instagram.com': 'IG',
+      'tiktok.com': 'TK',
+      'youtube.com': 'YT',
+      'youtu.be': 'YT',
+      'telegram.org': 'TL',
+      't.me': 'TL',
+      'reddit.com': 'RD',
+      'linkedin.com': 'LI',
+    };
+
+    // Check exact matches
+    if (platformMap[hostname]) {
+      return platformMap[hostname];
+    }
+
+    // Check if hostname contains known platform names
+    for (const [domain, code] of Object.entries(platformMap)) {
+      if (hostname.includes(domain.split('.')[0])) {
+        return code;
+      }
+    }
+
+    // Default to WB (Web) for generic websites
+    return 'WB';
+  } catch (e) {
+    // Invalid URL, default to OT (Other)
+    return 'OT';
+  }
 }
 
 /**
