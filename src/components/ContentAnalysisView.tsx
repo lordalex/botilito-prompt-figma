@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
 import { Alert, AlertDescription } from './ui/alert';
 import { Label } from './ui/label';
 import { ImageWithFallback } from './figma/ImageWithFallback';
+import { analysisPipeline } from '../lib/analysisPipeline';
 import { 
   AlertTriangle, 
   XCircle, 
@@ -32,106 +33,37 @@ import {
 } from 'lucide-react';
 
 interface ContentAnalysisViewProps {
-  contentId?: string;
+  contentToAnalyze: string;
+  analysisResult?: {result: any, user_id: string} | null;
 }
 
-export function ContentAnalysisView({ contentId = "CAS-2024-001" }: ContentAnalysisViewProps) {
+export function ContentAnalysisView({ contentToAnalyze, analysisResult: initialAnalysisResult = null }: ContentAnalysisViewProps) {
+  const [analysisResult, setAnalysisResult] = useState<{result: any, user_id: string} | null>(initialAnalysisResult);
+  const [isLoading, setIsLoading] = useState<boolean>(!initialAnalysisResult);
+  const [error, setError] = useState<string | null>(null);
+  const [progress, setProgress] = useState<{ step: string; status: string }>({ step: '', status: '' });
 
-  // TODO: Replace mock data with real API call
-  // When integrating real API:
-  // 1. Call getJobStatus(jobId) from utils/aiAnalysis.ts
-  // 2. Extract Botilito summary using: extractBotilitoSummary(jobStatus)
-  // 3. Botilito summary is at: result.metadata.resultBotilito.summary
-
-  // Datos simulados del contenido analizado por Botilito
-  const analysisResult = {
-    id: contentId,
-    timestamp: '2024-01-15T14:52:30Z',
-    type: 'url',
-    title: 'Artículo de noticia falsa con contenido xenofóbico',
-    url: 'https://noticiasfalsas24.com/migrantes-venezolanos-crisis-colombia-2024',
-    originalText: 'EXCLUSIVA: Investigación revela que el 89% de los delitos en Bogotá son cometidos por inmigrantes venezolanos, según "datos oficiales" que las autoridades ocultaron. Los ciudadanos colombianos ya perdieron más de 2 millones de empleos por esta invasión.',
-    headline: 'EXCLUSIVA: Datos oficiales revelan que inmigrantes venezolanos cometen 89% de delitos en Bogotá',
-    source: 'Noticias Falsas 24',
-    submittedBy: 'carlos.martinez@email.com',
-    submittedAt: '2024-01-15T14:45:00Z',
-    summary: 'BREAKING: Supuesto hallazgo revolucionario en medicina promete curar todas las enfermedades\n\nBOGOTÁ, Colombia - Un grupo de científicos colombianos afirma haber desarrollado una revolucionaria "cura universal" que supuestamente puede tratar desde el cáncer hasta el resfriado común en cuestión de horas. El anuncio, realizado a través de redes sociales sin revisión científica, ha generado controversia en la comunidad médica internacional.',
-    metadata: {
-      resultBotilito: {
-        tone: 'casual',
-        summary: '¡Kiubo! Botilito aquí con el diagnóstico: Este contenido es DESINFORMACIÓN TÓXICA pura. El artículo afirma que el 89% de los delitos en Bogotá son cometidos por inmigrantes venezolanos, usando supuestos "datos oficiales" que las autoridades habrían ocultado. FALSO TOTAL parce.\n\nLo que Botilito encontró:\n- Las estadísticas no coinciden con datos reales de la Policía Nacional de Colombia\n- Usa lenguaje xenofóbico como "invasión" para generar odio\n- La fuente "Noticias Falsas 24" no es verificable ni confiable\n- Promueve discriminación y puede incitar violencia contra población migrante\n\nRiesgo epidemiológico: CRÍTICO (R0: 4.7) - Este contenido se propaga rapidísimo por WhatsApp y Facebook. ¡Cuidado!',
-        sentiment: 'alarma',
-        coreMessage: 'Desinformación xenofóbica con estadísticas falsas',
-        awarenessMessage: 'Este tipo de contenido promueve discriminación y puede incitar violencia'
-      }
-    },
-    botilloAnalysis: {
-      primaryDiagnosis: 'Desinformación Tóxica',
-      confidence: 0.96,
-      riskLevel: 'Crítico',
-      markersDetected: [
-        { 
-          type: 'Falso', 
-          confidence: 0.94, 
-          virulence: 85,
-          justification: 'Estadística del "89% de delitos" no coincide con datos oficiales. Fuente citada carece de verificación institucional.' 
-        },
-        { 
-          type: 'Discurso de odio (Xenofobia)', 
-          confidence: 0.92, 
-          virulence: 95,
-          justification: 'Uso de término "invasión" y generalización negativa hacia población migrante venezolana promueve discriminación.' 
-        },
-        { 
-          type: 'Incitación a la violencia', 
-          confidence: 0.87, 
-          virulence: 90,
-          justification: 'Narrativa de "amenaza" y "pérdida de empleos" genera clima hostil que puede escalar a confrontación social.' 
-        },
-        { 
-          type: 'Sensacionalista', 
-          confidence: 0.78, 
-          virulence: 55,
-          justification: 'Titular con "EXCLUSIVA" y datos alarmistas busca generar reacciones emocionales antes que informar.' 
-        }
-      ],
-      epidemiologicMetrics: {
-        r0: 4.7,
-        infectivity: 0.94,
-        virulence: 0.89,
-        transmissionSpeed: 0.96,
-        incubationTime: 2.3
-      },
-      transmissionVectors: [
-        { platform: 'Facebook', propagationRisk: 89, active: true },
-        { platform: 'WhatsApp', propagationRisk: 82, active: true },
-        { platform: 'Twitter', propagationRisk: 75, active: true },
-        { platform: 'Telegram', propagationRisk: 68, active: false }
-      ],
-      geographicSpread: [
-        { region: 'Región Andina', riskLevel: 'Crítico', percentage: 89 },
-        { region: 'Región Caribe', riskLevel: 'Alto', percentage: 72 },
-        { region: 'Región Pacífico', riskLevel: 'Medio', percentage: 45 },
-        { region: 'Región Orinoquía', riskLevel: 'Bajo', percentage: 23 }
-      ]
-    },
-    autoActions: {
-      humanVerificationQueued: true,
-      platformsNotified: ['Facebook', 'WhatsApp', 'Twitter'],
-      expertAssigned: 'Especialista en Contenido Tóxico',
-      priority: 'Crítica',
-      estimatedProcessingTime: '24-48 horas'
+  useEffect(() => {
+    if (initialAnalysisResult) {
+      return;
     }
-  };
+    const performAnalysis = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const result = await analysisPipeline(contentToAnalyze, (progressUpdate) => {
+          setProgress(progressUpdate);
+        });
+        setAnalysisResult(result);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'An unknown error occurred.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-  // 🔍 DEBUG: Log data structure
-  console.log('🔍 DEBUG - Analysis Result:', {
-    hasSummary: !!analysisResult.summary,
-    hasMetadata: !!analysisResult.metadata,
-    hasResultBotilito: !!analysisResult.metadata?.resultBotilito,
-    botilitoSummary: analysisResult.metadata?.resultBotilito?.summary?.substring(0, 50) + '...',
-    regularSummary: analysisResult.summary?.substring(0, 50) + '...'
-  });
+    performAnalysis();
+  }, [contentToAnalyze, initialAnalysisResult]);
 
   const getMarkerIcon = (type: string) => {
     const iconMap: { [key: string]: React.ReactNode } = {
@@ -174,6 +106,15 @@ export function ContentAnalysisView({ contentId = "CAS-2024-001" }: ContentAnaly
     return colorMap[type] || 'bg-gray-500 hover:bg-gray-600';
   };
 
+  const getRiskLevelFromJudgement = (judgement?: string) => {
+    if (!judgement) return 'Bajo';
+    if (judgement.includes('¡Alerta Máxima!')) return 'Crítico';
+    if (judgement.includes('¡Cuidado!')) return 'Alto';
+    if (judgement.includes('¡Atención!')) return 'Medio';
+    if (judgement.includes('¡Lamentable Noticia!')) return 'Bajo';
+    return 'Bajo';
+  };
+
   const getRiskColor = (level: string) => {
     switch (level) {
       case 'Crítico': return 'border-red-500 bg-red-50';
@@ -185,7 +126,8 @@ export function ContentAnalysisView({ contentId = "CAS-2024-001" }: ContentAnaly
   };
 
   const handleShare = (platform: string) => {
-    const text = `Diagnóstico Desinfodémico - Caso ${analysisResult.id}: ${analysisResult.botilloAnalysis.primaryDiagnosis} detectado por Botilito`;
+    if (!analysisResult) return;
+    const text = `Diagnóstico Desinfodémico - Caso ${analysisResult.result.case_study?.case_id || 'N/A'}: ${analysisResult.result.metadata?.judgementBotilito?.title || 'Análisis de Botilito'} detectado por Botilito`;
     const url = window.location.href;
     
     switch(platform) {
@@ -203,6 +145,67 @@ export function ContentAnalysisView({ contentId = "CAS-2024-001" }: ContentAnaly
         break;
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="text-center space-y-2">
+          <h1 className="flex items-center justify-center space-x-3">
+            <Bot className="h-8 w-8 text-primary animate-pulse" />
+            <span>Análisis IA en progreso...</span>
+          </h1>
+          <p className="text-muted-foreground">
+            Botilito está trabajando. Por favor espera.
+          </p>
+        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>Estado del Análisis</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div>
+                <Label>Etapa</Label>
+                <p>{progress.step}</p>
+              </div>
+              <div>
+                <Label>Estado</Label>
+                <p>{progress.status}</p>
+              </div>
+              <Progress value={50} className="w-full" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <Alert variant="destructive">
+        <AlertTriangle className="h-4 w-4" />
+        <AlertDescription>{error}</AlertDescription>
+      </Alert>
+    );
+  }
+
+  if (!analysisResult) {
+    return (
+      <Alert>
+        <AlertDescription>No se encontraron resultados del análisis.</AlertDescription>
+      </Alert>
+    );
+  }
+
+  const data = analysisResult.result;
+  const markersDetected = Object.entries(data.metadata?.classification_labels || {})
+    .filter(([, value]) => value === 'True')
+    .map(([key]) => ({
+      type: key,
+      confidence: 0.95, // Static value
+      justification: 'Detectado por el modelo de IA.', // Static value
+      virulence: 50, // Static value
+    }));
 
   return (
     <div className="space-y-6">
@@ -238,14 +241,14 @@ export function ContentAnalysisView({ contentId = "CAS-2024-001" }: ContentAnaly
               <Hash className="h-5 w-5 text-primary mt-0.5" />
               <div>
                 <div className="text-sm text-muted-foreground">Número de Caso</div>
-                <div className="font-mono">Caso: {analysisResult.id}</div>
+                <div className="font-mono">Caso: {data.case_study?.case_id || 'No disponible'}</div>
               </div>
             </div>
             <div className="flex items-start space-x-3">
               <Calendar className="h-5 w-5 text-primary mt-0.5" />
               <div>
                 <div className="text-sm text-muted-foreground">Fecha de Análisis</div>
-                <div>{new Date(analysisResult.timestamp).toLocaleDateString('es-CO', { 
+                <div>{new Date().toLocaleDateString('es-CO', { 
                   day: '2-digit', 
                   month: 'long', 
                   year: 'numeric',
@@ -258,7 +261,7 @@ export function ContentAnalysisView({ contentId = "CAS-2024-001" }: ContentAnaly
               <FileType className="h-5 w-5 text-primary mt-0.5" />
               <div>
                 <div className="text-sm text-muted-foreground">Tipo de Contenido</div>
-                <div className="capitalize">{analysisResult.type === 'url' ? 'Enlace Web' : analysisResult.type}</div>
+                <div className="capitalize">{contentToAnalyze.startsWith('http') ? 'Enlace Web' : 'Texto'}</div>
               </div>
             </div>
           </div>
@@ -270,12 +273,12 @@ export function ContentAnalysisView({ contentId = "CAS-2024-001" }: ContentAnaly
               <span>Título del Contenido</span>
             </Label>
             <div className="bg-red-50 p-4 rounded-lg border-l-4 border-red-500">
-              <p className="italic">{analysisResult.headline}</p>
+              <p className="italic">{data.title}</p>
             </div>
           </div>
 
           {/* Diagnóstico Principal */}
-          <div className={`p-6 rounded-lg border-2 ${getRiskColor(analysisResult.botilloAnalysis.riskLevel)}`}>
+          <div className={`p-6 rounded-lg border-2 ${getRiskColor(getRiskLevelFromJudgement(data.metadata?.judgementBotilito?.title))}`}>
             <div className="flex items-start justify-between mb-4">
               <div className="space-y-2">
                 <div className="flex items-center space-x-2">
@@ -283,20 +286,20 @@ export function ContentAnalysisView({ contentId = "CAS-2024-001" }: ContentAnaly
                   <span className="text-sm text-muted-foreground">Diagnóstico Principal</span>
                 </div>
                 <h3 className="text-red-600">
-                  {analysisResult.botilloAnalysis.primaryDiagnosis}
+                  {data.metadata?.judgementBotilito?.title || 'No disponible'}
                 </h3>
               </div>
               <div className="text-right space-y-1">
                 <Badge className="bg-red-500 text-white">
-                  RIESGO {analysisResult.botilloAnalysis.riskLevel.toUpperCase()}
+                  RIESGO {getRiskLevelFromJudgement(data.metadata?.judgementBotilito?.title).toUpperCase()}
                 </Badge>
                 <div className="text-sm text-muted-foreground">
-                  {(analysisResult.botilloAnalysis.confidence * 100).toFixed(1)}% certeza
+                  95% certeza
                 </div>
               </div>
             </div>
             <Progress 
-              value={analysisResult.botilloAnalysis.confidence * 100} 
+              value={95}
               className="h-3"
             />
           </div>
@@ -306,10 +309,10 @@ export function ContentAnalysisView({ contentId = "CAS-2024-001" }: ContentAnaly
             <Label className="flex items-center space-x-2 mb-3">
               <Crosshair className="h-4 w-4 text-primary" />
               <span>Marcadores de Diagnóstico Detectados</span>
-              <Badge variant="secondary">{analysisResult.botilloAnalysis.markersDetected.length}</Badge>
+              <Badge variant="secondary">{markersDetected.length}</Badge>
             </Label>
             <div className="flex flex-wrap gap-2">
-              {analysisResult.botilloAnalysis.markersDetected.map((marker, index) => (
+              {markersDetected.map((marker: any, index: number) => (
                 <Badge 
                   key={index}
                   className={`${getMarkerColor(marker.type)} text-white px-3 py-1`}
@@ -368,14 +371,14 @@ export function ContentAnalysisView({ contentId = "CAS-2024-001" }: ContentAnaly
               <Link className="h-4 w-4 text-muted-foreground" />
               <div>
                 <div className="text-sm text-muted-foreground">Fuente</div>
-                <div className="text-sm">{analysisResult.source}</div>
+                <div className="text-sm">{data.metadata.web_search_evaluation?.filtered_results?.[0]?.url || 'No disponible'}</div>
               </div>
             </div>
             <div className="flex items-center space-x-3">
               <UserCheck className="h-4 w-4 text-muted-foreground" />
               <div>
                 <div className="text-sm text-muted-foreground">Enviado por</div>
-                <div className="text-sm">{analysisResult.submittedBy}</div>
+                <div className="text-sm">{analysisResult.user_id}</div>
               </div>
             </div>
           </div>
@@ -394,7 +397,7 @@ export function ContentAnalysisView({ contentId = "CAS-2024-001" }: ContentAnaly
       <div className="space-y-6">
         <div className="grid gap-6 lg:grid-cols-2">
             {/* Panel Principal de Diagnóstico */}
-            <Card className={`border-2 ${getRiskColor(analysisResult.botilloAnalysis.riskLevel)}`}>
+            <Card className={`border-2 ${getRiskColor(getRiskLevelFromJudgement(data.metadata.judgementBotilito.title))}`}>
               <CardContent className="p-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
@@ -403,15 +406,15 @@ export function ContentAnalysisView({ contentId = "CAS-2024-001" }: ContentAnaly
                   </div>
                   <Badge className="bg-red-500 text-white text-sm px-2 py-1">
                     <Bot className="h-3 w-3 mr-1" />
-                    {analysisResult.botilloAnalysis.primaryDiagnosis}
+                    {data.metadata.judgementBotilito.title}
                   </Badge>
                 </div>
                 <div className="flex items-center justify-between mt-2">
                   <div className="text-lg text-red-600">
-                    RIESGO {analysisResult.botilloAnalysis.riskLevel.toUpperCase()}
+                    RIESGO {getRiskLevelFromJudgement(data.metadata.judgementBotilito.title).toUpperCase()}
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    {(analysisResult.botilloAnalysis.confidence * 100).toFixed(1)}% certeza
+                    95% certeza
                   </div>
                 </div>
               </CardContent>
@@ -429,7 +432,7 @@ export function ContentAnalysisView({ contentId = "CAS-2024-001" }: ContentAnaly
                 </div>
                 <div className="flex items-center justify-between mt-2">
                   <div className="text-lg text-red-600">
-                    {analysisResult.botilloAnalysis.riskLevel.toUpperCase()}
+                    {getRiskLevelFromJudgement(data.metadata.judgementBotilito.title).toUpperCase()}
                   </div>
                   <div className="text-xs text-red-700">
                     Intervención Requerida
@@ -452,7 +455,7 @@ export function ContentAnalysisView({ contentId = "CAS-2024-001" }: ContentAnaly
                 <div>
                   <Label>Titular detectado:</Label>
                   <div className="bg-red-50 p-3 rounded border-l-4 border-red-400 mt-1">
-                    <p className="italic">{analysisResult.headline}</p>
+                    <p className="italic">{data.title}</p>
                   </div>
                 </div>
                 
@@ -460,23 +463,23 @@ export function ContentAnalysisView({ contentId = "CAS-2024-001" }: ContentAnaly
                   <Label>Contenido analizado:</Label>
                   <div className="bg-gray-50 p-4 rounded border mt-1">
                     <p className="text-sm leading-relaxed whitespace-pre-line">
-                      {analysisResult.metadata?.resultBotilito?.summary || analysisResult.summary || 'No hay resumen disponible'}
+                      {data.summary || 'No hay resumen disponible'}
                     </p>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
+                  {/* <div>
                     <Label>Fuente:</Label>
                     <div className="flex items-center space-x-2 mt-1">
                       <ExternalLink className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm">{analysisResult.source}</span>
+                      <span className="text-sm">{data.source}</span>
                     </div>
-                  </div>
-                  <div>
+                  </div> */}
+                  {/* <div>
                     <Label>Enviado por:</Label>
-                    <p className="text-sm mt-1">{analysisResult.submittedBy}</p>
-                  </div>
+                    <p className="text-sm mt-1">{data.submittedBy}</p>
+                  </div> */}
                 </div>
               </div>
             </CardContent>
@@ -488,12 +491,12 @@ export function ContentAnalysisView({ contentId = "CAS-2024-001" }: ContentAnaly
               <CardTitle className="flex items-center space-x-2">
                 <Crosshair className="h-5 w-5 text-primary" />
                 <span>Marcadores Detectados</span>
-                <Badge variant="secondary">{analysisResult.botilloAnalysis.markersDetected.length}</Badge>
+                <Badge variant="secondary">{markersDetected.length}</Badge>
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid gap-4">
-                {analysisResult.botilloAnalysis.markersDetected.map((marker, index) => {
+                {markersDetected.map((marker: any, index: number) => {
                   const getMarkerColorLight = (type: string) => {
                     const colorMap: { [key: string]: string } = {
                       'Verdadero': 'bg-green-50 border-green-200',
