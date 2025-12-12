@@ -22,7 +22,7 @@ import { DimensionDescriptiva } from './mapa/DimensionDescriptiva';
 import { DimensionMitigacion } from './mapa/DimensionMitigacion';
 
 // TOGGLE: Set to true to use comprehensive mock data, false to use real API data
-const USE_MOCK_DATA = true;
+const USE_MOCK_DATA = false;
 
 // COMPREHENSIVE MOCK DATA: Realistic Colombian-context data for demo/testing purposes
 const mockMapaData = {
