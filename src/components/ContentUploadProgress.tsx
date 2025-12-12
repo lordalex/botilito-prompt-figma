@@ -5,18 +5,11 @@ import { Progress } from './ui/progress';
 import { Bot } from 'lucide-react';
 
 interface ContentUploadProgressProps {
-  progress: number;
+  step: string;
+  status: string;
 }
 
-export function ContentUploadProgress({ progress }: ContentUploadProgressProps) {
-  const getStatusMessage = (p: number) => {
-    if (p < 20) return "Secuenciando contenido desinfodémico...";
-    if (p < 50) return "Identificando vectores de transmisión...";
-    if (p < 80) return "Calculando índice de infectividad...";
-    if (p < 95) return "Generando diagnóstico epidemiológico...";
-    return "Finalizando análisis...";
-  };
-
+export function ContentUploadProgress({ step, status }: ContentUploadProgressProps) {
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-8">
       <div className="flex justify-center">
@@ -38,9 +31,9 @@ export function ContentUploadProgress({ progress }: ContentUploadProgressProps) 
             </p>
           </div>
           <div className="space-y-4">
-            <Progress value={progress} className="w-full h-3" />
+            <Progress value={50} className="w-full h-3 animate-pulse" />
             <p className="text-sm text-muted-foreground text-center font-medium">
-              {getStatusMessage(progress)}
+              {step}: {status}
             </p>
           </div>
         </CardContent>

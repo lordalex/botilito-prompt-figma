@@ -18,6 +18,24 @@ function mapTransmissionVector(uiVector: TransmissionVector): APITransmissionVec
   return mapping[uiVector] || 'Otro';
 }
 
+import { analysisPipeline } from '../lib/analysisPipeline';
+
+export const performAnalysisWithPipeline = async (
+  content: string,
+  onProgress: (progress: { step: string; status: string }) => void
+) => {
+  try {
+    const result = await analysisPipeline(content, onProgress);
+    // The result from the pipeline might not have the same structure as the old API.
+    // For now, we'll return the result directly.
+    // If needed, a new transformation function can be created.
+    return result;
+  } catch (error) {
+    console.error('Error in the new analysis pipeline service:', error);
+    throw error;
+  }
+};
+
 function transformAPIResponse(apiResponse: FullAnalysisResponse) {
   let labels: Record<string, string> = {};
   let consensusState: Consensus['state'] | null = null;
