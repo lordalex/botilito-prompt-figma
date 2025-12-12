@@ -1,18 +1,19 @@
 import React, { useState } from 'react';
-import { performAnalysis } from '../services/contentAnalysisService';
+import { performAnalysisWithPipeline } from '../services/contentAnalysisService';
 import { ContentType, TransmissionVector } from '../utils/caseCodeGenerator';
 import { ContentUploadForm } from './ContentUploadForm';
 import { ContentUploadProgress } from './ContentUploadProgress';
-import { ContentUploadResult } from './ContentUploadResult';
+import { ContentAnalysisView } from './ContentAnalysisView';
 import { ErrorManager } from './ErrorManager';
 
 export function ContentUpload() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [analysisProgress, setAnalysisProgress] = useState(0);
+  const [progress, setProgress] = useState<{ step: string; status: string }>({ step: '', status: '' });
   const [analysisComplete, setAnalysisComplete] = useState(false);
   const [error, setError] = useState<any | null>(null);
   const [aiAnalysis, setAiAnalysis] = useState<any>(null);
   const [lastSubmission, setLastSubmission] = useState<any>(null);
+  const [retryCount, setRetryCount] = useState(0);
   
   const handleStartAnalysis = async (
     content: string, 
@@ -25,10 +26,11 @@ export function ContentUpload() {
     setAnalysisComplete(false);
     setError(null);
     setAiAnalysis(null);
+    setRetryCount(0);
 
     try {
-      const result = await performAnalysis(content, transmissionMedium, (progress, status) => {
-        setAnalysisProgress(progress);
+      const result = await performAnalysisWithPipeline(content, (progressUpdate) => {
+        setProgress(progressUpdate);
       });
       setAiAnalysis(result);
       setAnalysisComplete(true);
@@ -36,7 +38,6 @@ export function ContentUpload() {
       setError({ message: err.message || 'Ocurrió un error desconocido durante el análisis.' });
     } finally {
       setIsAnalyzing(false);
-      setAnalysisProgress(100);
     }
   };
 
@@ -45,12 +46,14 @@ export function ContentUpload() {
     setAnalysisComplete(false);
     setAiAnalysis(null);
     setError(null);
-    setAnalysisProgress(0);
+    setProgress({ step: '', status: '' });
     setLastSubmission(null);
+    setRetryCount(0);
   };
 
   const handleRetry = () => {
-    if (lastSubmission) {
+    if (lastSubmission && retryCount < 3) {
+      setRetryCount(retryCount + 1);
       handleStartAnalysis(
         lastSubmission.content,
         lastSubmission.files,
@@ -61,18 +64,18 @@ export function ContentUpload() {
   };
 
   if (error) {
-    return <ErrorManager error={error} onRetry={handleRetry} onReset={handleReset} />;
+    return <ErrorManager error={error} onRetry={handleRetry} onReset={handleReset} retryCount={retryCount} />;
   }
 
   if (isAnalyzing) {
-    return <ContentUploadProgress progress={analysisProgress} />;
+    return <ContentUploadProgress step={progress.step} status={progress.status} />;
   }
   
   if (analysisComplete && aiAnalysis) {
     return (
-      <ContentUploadResult 
-        result={aiAnalysis} 
-        onReset={handleReset} 
+      <ContentAnalysisView 
+        contentToAnalyze={lastSubmission.content}
+        analysisResult={aiAnalysis}
       />
     );
   }
