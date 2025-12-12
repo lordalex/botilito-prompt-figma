@@ -82,7 +82,7 @@ export default function App() {
       case 'review':
         return <ContentReview />;
       case 'analysis':
-        return <ContentAnalysisView />;
+        return <ContentAnalysisView contentToAnalyze="https://www.semana.com/nacion/articulo/atencion-campeon-mundial-de-patinaje-luz-mery-tristan-fue-asesinada-en-cali/202320/" />;
       case 'verification':
         return <HumanVerification />;
       case 'immunization':

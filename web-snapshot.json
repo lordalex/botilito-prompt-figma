@@ -1,0 +1,200 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Web Snapshot API",
+    "description": "Microservicio encargado de la navegación, limpieza y extracción de texto de URLs públicas mediante Browserless.",
+    "version": "1.0.0",
+    "contact": {
+      "name": "Soporte Técnico"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://mdkswlgcqsmgfmcuorxq.supabase.co/functions/v1/web-snapshot",
+      "description": "Web Snapshot Edge Function"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Token de acceso de Supabase (JWT)."
+      }
+    },
+    "schemas": {
+      "SnapshotRequest": {
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "properties": {
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "example": "https://www.ejemplo.com/noticia-importante",
+            "description": "La URL pública del artículo a procesar."
+          }
+        }
+      },
+      "SnapshotResponsePending": {
+        "type": "object",
+        "properties": {
+          "job_id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending"
+            ],
+            "example": "pending"
+          },
+          "message": {
+            "type": "string",
+            "example": "Snapshot job started."
+          }
+        }
+      },
+      "SnapshotResult": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "processing",
+              "completed",
+              "failed"
+            ]
+          },
+          "current_step": {
+            "type": "string",
+            "example": "Completed"
+          },
+          "result": {
+            "type": "object",
+            "properties": {
+              "original_url": {
+                "type": "string"
+              },
+              "cleaned_text": {
+                "type": "string",
+                "description": "Texto plano extraído del HTML sin etiquetas.",
+                "example": "Este es el contenido del artículo extraído..."
+              },
+              "fetched_at": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          },
+          "error": {
+            "type": "object",
+            "properties": {
+              "message": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/submit": {
+      "post": {
+        "summary": "Enviar URL para extracción",
+        "description": "Inicia un trabajo asíncrono para navegar a una URL y extraer el texto. Retorna un `job_id`.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SnapshotRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Trabajo aceptado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SnapshotResponsePending"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Solicitud inválida.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No autorizado."
+          }
+        }
+      }
+    },
+    "/status/{jobId}": {
+      "get": {
+        "summary": "Consultar estado de extracción",
+        "description": "Polling para verificar si la extracción ha finalizado.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "jobId",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "description": "ID del trabajo retornado por /submit"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Estado del trabajo.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SnapshotResult"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Trabajo no encontrado."
+          }
+        }
+      }
+    }
+  }
+}

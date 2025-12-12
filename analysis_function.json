@@ -1,0 +1,318 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Analysis Pipeline API",
+    "description": "Servicio de análisis de noticias mediante IA. Incluye clasificación, generación de personalidad (Botilito), verificación de hechos externa y búsqueda web paralela.",
+    "version": "1.0.0",
+    "contact": {
+      "name": "Soporte Técnico"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://mdkswlgcqsmgfmcuorxq.supabase.co/functions/v1/analysis_function",
+      "description": "Analysis Pipeline Edge Function"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Token de acceso de Supabase (JWT)."
+      }
+    },
+    "schemas": {
+      "AnalysisRequest": {
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "properties": {
+          "text": {
+            "type": "string",
+            "description": "El contenido textual a analizar.",
+            "example": "Dicen en redes que van a cerrar el transporte público mañana."
+          },
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "URL opcional para vincular metadatos o caché."
+          },
+          "vector_de_transmision": {
+            "type": "string",
+            "enum": [
+              "WhatsApp",
+              "Telegram",
+              "Facebook",
+              "Twitter",
+              "Email",
+              "Otro"
+            ],
+            "default": "Otro",
+            "example": "WhatsApp"
+          }
+        }
+      },
+      "AnalysisResponsePending": {
+        "type": "object",
+        "properties": {
+          "job_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending"
+            ],
+            "example": "pending"
+          },
+          "message": {
+            "type": "string",
+            "example": "Analysis started."
+          }
+        }
+      },
+      "BotilitoJudgement": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "example": "¡Ojo al dato!"
+          },
+          "text": {
+            "type": "string",
+            "example": "Esta info es más falsa que billete de 3 mil pesos."
+          }
+        }
+      },
+      "FactCheckAnalysis": {
+        "type": "object",
+        "properties": {
+          "verdict": {
+            "type": "string",
+            "example": "Falso"
+          },
+          "credibility_score": {
+            "type": "integer",
+            "example": 0
+          },
+          "details": {
+            "type": "string"
+          }
+        }
+      },
+      "MetadataAnalysis": {
+        "type": "object",
+        "properties": {
+          "theme": {
+            "type": "string",
+            "example": "Seguridad"
+          },
+          "region": {
+            "type": "string",
+            "example": "Bogotá"
+          },
+          "classification_labels": {
+            "type": "object",
+            "example": {
+              "Estafa": true
+            }
+          },
+          "judgementBotilito": {
+            "$ref": "#/components/schemas/BotilitoJudgement"
+          },
+          "summaryBotilito": {
+            "$ref": "#/components/schemas/BotilitoJudgement"
+          },
+          "fact_check_analysis": {
+            "$ref": "#/components/schemas/FactCheckAnalysis"
+          },
+          "web_search_evaluation": {
+            "type": "object",
+            "properties": {
+              "filtered_results": {
+                "type": "array",
+                "items": {
+                  "type": "object"
+                }
+              },
+              "verdict": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "AnalysisResultFull": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "processing",
+              "completed",
+              "failed"
+            ]
+          },
+          "current_step": {
+            "type": "string"
+          },
+          "result": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "user_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "title": {
+                "type": "string"
+              },
+              "summary": {
+                "type": "string"
+              },
+              "metadata": {
+                "$ref": "#/components/schemas/MetadataAnalysis"
+              },
+              "case_study": {
+                "type": "object",
+                "properties": {
+                  "case_id": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/submit": {
+      "post": {
+        "summary": "Iniciar análisis",
+        "description": "Envía texto para ser analizado en paralelo por múltiples servicios de IA.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnalysisRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Análisis iniciado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisResponsePending"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Falta texto.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No autorizado."
+          }
+        }
+      }
+    },
+    "/status/{jobId}": {
+      "get": {
+        "summary": "Consultar resultados",
+        "description": "Polling para obtener el objeto JSON complejo con el análisis final.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "jobId",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "description": "ID del trabajo de análisis"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Resultado del análisis.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisResultFull"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Trabajo no encontrado."
+          }
+        }
+      }
+    },
+    "/cleanup-jobs": {
+      "post": {
+        "summary": "Limpieza administrativa",
+        "description": "Limpia trabajos estancados. Requiere auth.",
+        "responses": {
+          "202": {
+            "description": "Limpieza iniciada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Cleanup started"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No autorizado."
+          }
+        }
+      }
+    }
+  }
+}
