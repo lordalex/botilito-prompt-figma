@@ -1,0 +1,5 @@
+feat(analysis): Add API specifications and update App.tsx
+
+This commit adds the OpenAPI specifications for the `analysis_function` and `web-snapshot` services.
+
+It also updates `App.tsx` to remove the hardcoded `contentToAnalyze` prop from the `ContentAnalysisView` component.

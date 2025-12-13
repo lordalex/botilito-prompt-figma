@@ -75,6 +75,38 @@ export interface WebSearchResult {
     snippet?: string;
 }
 
+export interface BotilitoSummary {
+    tone: string;
+    summary: string;
+    sentiment: string;
+}
+
+export interface BotilitoJudgement {
+    tone: string;
+    summary: string;
+    sentiment: string;
+    coreMessage: string;
+    awarenessMessage: string;
+}
+
+export interface FactCheckAnalysis {
+    verified_at: string;
+    original_text: string;
+    external_context_count: number;
+}
+
+export interface WebSearchEvaluation {
+    verdict: string;
+    credibility_score: number;
+    filtered_results: any[];
+}
+
+export interface ComprehensiveJudgement {
+    reasoning: string;
+    final_verdict: string;
+    recommendation: string;
+}
+
 // Metadata associated with the original submitted document.
 export interface DocumentMetadata {
     theme?: string;
@@ -83,6 +115,11 @@ export interface DocumentMetadata {
     isTextSubmission?: boolean;
     submissionType?: string;
     vectores_de_transmision?: string[];
+    summaryBotilito?: BotilitoSummary;
+    judgementBotilito?: BotilitoJudgement;
+    fact_check_analysis?: FactCheckAnalysis;
+    web_search_evaluation?: WebSearchEvaluation;
+    comprehensive_judgement?: ComprehensiveJudgement;
 }
 
 // Metadata associated with the generated case study.

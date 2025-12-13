@@ -4,40 +4,41 @@ import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
 import { Alert, AlertDescription } from './ui/alert';
 import { Label } from './ui/label';
+import { Button } from './ui/button';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { analysisPipeline } from '../lib/analysisPipeline';
 import { 
-  AlertTriangle, 
-  XCircle, 
-  Hash,
-  FileText,
-  Flame,
-  Ban,
-  Skull,
-  Target,
-  Stethoscope,
-  Bot,
-  ArrowRight,
-  UserCheck,
-  Crosshair,
-  ExternalLink,
-  Activity,
-  Share2,
-  Facebook,
-  Twitter,
-  Linkedin,
-  MessageCircle,
-  Calendar,
-  Link,
-  FileType
+  AlertTriangle, XCircle, Hash, FileText, Flame, Ban, Skull, Target, 
+  Stethoscope, Bot, Share2, Facebook, Twitter, Linkedin, 
+  MessageCircle, Calendar, FileType, CheckCircle, Smile, Image as ImageIcon, 
+  HelpCircle, Eye, User, ClipboardCheck, SearchCheck, Gavel, Clock, Globe, RefreshCw, Crosshair
 } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 
 interface ContentAnalysisViewProps {
   contentToAnalyze: string;
   analysisResult?: {result: any, user_id: string} | null;
+  onAnalyzeAnother: () => void;
 }
 
-export function ContentAnalysisView({ contentToAnalyze, analysisResult: initialAnalysisResult = null }: ContentAnalysisViewProps) {
+const getMarkerVisuals = (type: string) => {
+    const lowerType = type.toLowerCase();
+    if (lowerType.includes('falso')) return { icon: <XCircle className="h-4 w-4" />, color: 'bg-red-500 hover:bg-red-600' };
+    if (lowerType.includes('odio') || lowerType.includes('xenofobia')) return { icon: <Skull className="h-4 w-4" />, color: 'bg-red-700 hover:bg-red-800' };
+    if (lowerType.includes('violencia')) return { icon: <Ban className="h-4 w-4" />, color: 'bg-red-900 hover:bg-red-950' };
+    if (lowerType.includes('sensacionalista')) return { icon: <Flame className="h-4 w-4" />, color: 'bg-orange-400 hover:bg-orange-500' };
+    if (lowerType.includes('engañoso')) return { icon: <AlertTriangle className="h-4 w-4" />, color: 'bg-orange-500 hover:bg-orange-600' };
+    if (lowerType.includes('manipulado')) return { icon: <ImageIcon className="h-4 w-4" />, color: 'bg-purple-500 hover:bg-purple-600' };
+    if (lowerType.includes('contexto')) return { icon: <AlertTriangle className="h-4 w-4" />, color: 'bg-amber-500 hover:bg-amber-600' };
+    if (lowerType.includes('satírico')) return { icon: <Smile className="h-4 w-4" />, color: 'bg-blue-500 hover:bg-blue-600' };
+    if (lowerType.includes('conspirativa')) return { icon: <Eye className="h-4 w-4" />, color: 'bg-violet-600 hover:bg-violet-700' };
+    if (lowerType.includes('verificable')) return { icon: <HelpCircle className="h-4 w-4" />, color: 'bg-gray-500 hover:bg-gray-600' };
+    if (lowerType.includes('verdadero')) return { icon: <CheckCircle className="h-4 w-4" />, color: 'bg-emerald-500 hover:bg-emerald-600' };
+    if (lowerType.includes('en revisión')) return { icon: <Clock className="h-4 w-4" />, color: 'bg-sky-500 hover:bg-sky-600' };
+    return { icon: <Target className="h-4 w-4" />, color: 'bg-gray-500 hover:bg-gray-600' };
+};
+
+export function ContentAnalysisView({ contentToAnalyze, analysisResult: initialAnalysisResult = null, onAnalyzeAnother }: ContentAnalysisViewProps) {
   const [analysisResult, setAnalysisResult] = useState<{result: any, user_id: string} | null>(initialAnalysisResult);
   const [isLoading, setIsLoading] = useState<boolean>(!initialAnalysisResult);
   const [error, setError] = useState<string | null>(null);
@@ -65,84 +66,16 @@ export function ContentAnalysisView({ contentToAnalyze, analysisResult: initialA
     performAnalysis();
   }, [contentToAnalyze, initialAnalysisResult]);
 
-  const getMarkerIcon = (type: string) => {
-    const iconMap: { [key: string]: React.ReactNode } = {
-      'Falso': <XCircle className="h-4 w-4" />,
-      'Discurso de odio (Xenofobia)': <Skull className="h-4 w-4" />,
-      'Incitación a la violencia': <Ban className="h-4 w-4" />,
-      'Sensacionalista': <Flame className="h-4 w-4" />,
-    };
-    return iconMap[type] || <Target className="h-4 w-4" />;
-  };
-
-  const getMarkerColor = (type: string) => {
-    const colorMap: { [key: string]: string } = {
-      'Verdadero': 'bg-emerald-500 hover:bg-emerald-600',
-      'Falso': 'bg-red-500 hover:bg-red-600',
-      'Engañoso': 'bg-orange-500 hover:bg-orange-600',
-      'Satírico': 'bg-blue-500 hover:bg-blue-600',
-      'Satírico/Humorístico': 'bg-blue-500 hover:bg-blue-600',
-      'Manipulado': 'bg-purple-500 hover:bg-purple-600',
-      'Discurso de odio': 'bg-red-700 hover:bg-red-800',
-      'Discurso de odio (Xenofobia)': 'bg-red-700 hover:bg-red-800',
-      'Racismo/Xenofobia': 'bg-red-700 hover:bg-red-800',
-      'Sexismo/LGBTQ+fobia': 'bg-red-700 hover:bg-red-800',
-      'Clasismo/Aporofobia': 'bg-red-600 hover:bg-red-700',
-      'Ableismo': 'bg-red-600 hover:bg-red-700',
-      'Incitación a la violencia': 'bg-red-900 hover:bg-red-950',
-      'Sensacionalista': 'bg-orange-400 hover:bg-orange-500',
-      'Sin contexto': 'bg-amber-500 hover:bg-amber-600',
-      'Descontextualizado': 'bg-amber-500 hover:bg-amber-600',
-      'No verificable': 'bg-gray-500 hover:bg-gray-600',
-      'Teoría conspirativa': 'bg-violet-600 hover:bg-violet-700',
-      'Conspiración': 'bg-violet-600 hover:bg-violet-700',
-      'Bot/Coordinado': 'bg-indigo-600 hover:bg-indigo-700',
-      'Propaganda': 'bg-indigo-600 hover:bg-indigo-700',
-      'Suplantación de identidad': 'bg-purple-700 hover:bg-purple-800',
-      'Acoso/Ciberbullying': 'bg-orange-700 hover:bg-orange-800',
-      'Contenido prejuicioso': 'bg-yellow-600 hover:bg-yellow-700',
-      'En revisión': 'bg-gray-400 hover:bg-gray-500'
-    };
-    return colorMap[type] || 'bg-gray-500 hover:bg-gray-600';
-  };
-
-  const getRiskLevelFromJudgement = (judgement?: string) => {
-    if (!judgement) return 'Bajo';
-    if (judgement.includes('¡Alerta Máxima!')) return 'Crítico';
-    if (judgement.includes('¡Cuidado!')) return 'Alto';
-    if (judgement.includes('¡Atención!')) return 'Medio';
-    if (judgement.includes('¡Lamentable Noticia!')) return 'Bajo';
-    return 'Bajo';
-  };
-
-  const getRiskColor = (level: string) => {
-    switch (level) {
-      case 'Crítico': return 'border-red-500 bg-red-50';
-      case 'Alto': return 'border-orange-500 bg-orange-50';
-      case 'Medio': return 'border-yellow-500 bg-yellow-50';
-      case 'Bajo': return 'border-green-500 bg-green-50';
-      default: return 'border-gray-500 bg-gray-50';
-    }
-  };
-
   const handleShare = (platform: string) => {
     if (!analysisResult) return;
-    const text = `Diagnóstico Desinfodémico - Caso ${analysisResult.result.case_study?.case_id || 'N/A'}: ${analysisResult.result.metadata?.judgementBotilito?.title || 'Análisis de Botilito'} detectado por Botilito`;
+    const text = `Diagnóstico Desinfodémico - Caso ${analysisResult.result.case_study?.case_id || 'N/A'}: ${analysisResult.result.metadata?.comprehensive_judgement?.final_verdict || 'Análisis de Botilito'}`;
     const url = window.location.href;
     
     switch(platform) {
-      case 'twitter':
-        window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`, '_blank');
-        break;
-      case 'facebook':
-        window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, '_blank');
-        break;
-      case 'linkedin':
-        window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`, '_blank');
-        break;
-      case 'whatsapp':
-        window.open(`https://wa.me/?text=${encodeURIComponent(text + ' ' + url)}`, '_blank');
-        break;
+      case 'twitter': window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`, '_blank'); break;
+      case 'facebook': window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, '_blank'); break;
+      case 'linkedin': window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`, '_blank'); break;
+      case 'whatsapp': window.open(`https://wa.me/?text=${encodeURIComponent(text + ' ' + url)}`, '_blank'); break;
     }
   };
 
@@ -150,7 +83,7 @@ export function ContentAnalysisView({ contentToAnalyze, analysisResult: initialA
     return (
       <div className="space-y-6">
         <div className="text-center space-y-2">
-          <h1 className="flex items-center justify-center space-x-3">
+          <h1 className="flex items-center justify-center space-x-3 text-xl font-semibold">
             <Bot className="h-8 w-8 text-primary animate-pulse" />
             <span>Análisis IA en progreso...</span>
           </h1>
@@ -159,21 +92,11 @@ export function ContentAnalysisView({ contentToAnalyze, analysisResult: initialA
           </p>
         </div>
         <Card>
-          <CardHeader>
-            <CardTitle>Estado del Análisis</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div>
-                <Label>Etapa</Label>
-                <p>{progress.step}</p>
-              </div>
-              <div>
-                <Label>Estado</Label>
-                <p>{progress.status}</p>
-              </div>
-              <Progress value={50} className="w-full" />
-            </div>
+          <CardHeader><CardTitle>Estado del Análisis</CardTitle></CardHeader>
+          <CardContent className="space-y-4">
+            <div><Label>Etapa: {progress.step}</Label></div>
+            <div><Label>Estado: {progress.status}</Label></div>
+            <Progress value={50} className="w-full" />
           </CardContent>
         </Card>
       </div>
@@ -185,6 +108,7 @@ export function ContentAnalysisView({ contentToAnalyze, analysisResult: initialA
       <Alert variant="destructive">
         <AlertTriangle className="h-4 w-4" />
         <AlertDescription>{error}</AlertDescription>
+        <Button onClick={onAnalyzeAnother} className="mt-4">Analizar otro contenido</Button>
       </Alert>
     );
   }
@@ -193,444 +117,192 @@ export function ContentAnalysisView({ contentToAnalyze, analysisResult: initialA
     return (
       <Alert>
         <AlertDescription>No se encontraron resultados del análisis.</AlertDescription>
+        <Button onClick={onAnalyzeAnother} className="mt-4">Analizar otro contenido</Button>
       </Alert>
     );
   }
 
-  const data = analysisResult.result;
-  const markersDetected = Object.entries(data.metadata?.classification_labels || {})
-    .filter(([, value]) => value === 'True')
-    .map(([key]) => ({
-      type: key,
-      confidence: 0.95, // Static value
-      justification: 'Detectado por el modelo de IA.', // Static value
-      virulence: 50, // Static value
-    }));
+  const { result: data, user_id } = analysisResult;
+  const { id, created_at, title, metadata, case_study } = data;
+
+  const markersDetected = metadata?.classification_labels ? 
+    Object.entries(metadata.classification_labels).map(([type, justification]) => ({
+        type,
+        justification: justification as string,
+    })) : [];
 
   return (
-    <div className="space-y-6">
-      {/* Header Principal */}
-      <div className="text-center space-y-2">
-        <h1 className="flex items-center justify-center space-x-3">
-          <Bot className="h-8 w-8 text-primary" />
-          <span>Análisis IA</span>
-        </h1>
-        <p className="text-muted-foreground">
-          Diagnóstico de Botilito completado
-        </p>
-      </div>
-
-      {/* Diagnóstico Desinfodémico Completo */}
-      <Card className="border-2 border-primary shadow-lg">
-        <CardHeader className="bg-primary/10 border-b border-primary/20">
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center space-x-2">
-              <Stethoscope className="h-6 w-6 text-primary" />
-              <span>Diagnóstico Desinfodémico de Botilito</span>
-            </CardTitle>
-            <Badge className="bg-primary text-primary-foreground">
-              <Bot className="h-3 w-3 mr-1" />
-              IA
-            </Badge>
-          </div>
-        </CardHeader>
-        <CardContent className="p-6 space-y-6">
-          {/* Información del Caso */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-muted/30 rounded-lg">
-            <div className="flex items-start space-x-3">
-              <Hash className="h-5 w-5 text-primary mt-0.5" />
-              <div>
-                <div className="text-sm text-muted-foreground">Número de Caso</div>
-                <div className="font-mono">Caso: {data.case_study?.case_id || 'No disponible'}</div>
-              </div>
-            </div>
-            <div className="flex items-start space-x-3">
-              <Calendar className="h-5 w-5 text-primary mt-0.5" />
-              <div>
-                <div className="text-sm text-muted-foreground">Fecha de Análisis</div>
-                <div>{new Date().toLocaleDateString('es-CO', { 
-                  day: '2-digit', 
-                  month: 'long', 
-                  year: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit'
-                })}</div>
-              </div>
-            </div>
-            <div className="flex items-start space-x-3">
-              <FileType className="h-5 w-5 text-primary mt-0.5" />
-              <div>
-                <div className="text-sm text-muted-foreground">Tipo de Contenido</div>
-                <div className="capitalize">{contentToAnalyze.startsWith('http') ? 'Enlace Web' : 'Texto'}</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Título del Contenido */}
-          <div>
-            <Label className="flex items-center space-x-2 mb-2">
-              <FileText className="h-4 w-4 text-primary" />
-              <span>Título del Contenido</span>
-            </Label>
-            <div className="bg-red-50 p-4 rounded-lg border-l-4 border-red-500">
-              <p className="italic">{data.title}</p>
-            </div>
-          </div>
-
-          {/* Diagnóstico Principal */}
-          <div className={`p-6 rounded-lg border-2 ${getRiskColor(getRiskLevelFromJudgement(data.metadata?.judgementBotilito?.title))}`}>
-            <div className="flex items-start justify-between mb-4">
-              <div className="space-y-2">
-                <div className="flex items-center space-x-2">
-                  <Stethoscope className="h-5 w-5 text-primary" />
-                  <span className="text-sm text-muted-foreground">Diagnóstico Principal</span>
-                </div>
-                <h3 className="text-red-600">
-                  {data.metadata?.judgementBotilito?.title || 'No disponible'}
-                </h3>
-              </div>
-              <div className="text-right space-y-1">
-                <Badge className="bg-red-500 text-white">
-                  RIESGO {getRiskLevelFromJudgement(data.metadata?.judgementBotilito?.title).toUpperCase()}
-                </Badge>
-                <div className="text-sm text-muted-foreground">
-                  95% certeza
-                </div>
-              </div>
-            </div>
-            <Progress 
-              value={95}
-              className="h-3"
-            />
-          </div>
-
-          {/* Marcadores Detectados - Resumen */}
-          <div>
-            <Label className="flex items-center space-x-2 mb-3">
-              <Crosshair className="h-4 w-4 text-primary" />
-              <span>Marcadores de Diagnóstico Detectados</span>
-              <Badge variant="secondary">{markersDetected.length}</Badge>
-            </Label>
-            <div className="flex flex-wrap gap-2">
-              {markersDetected.map((marker: any, index: number) => (
-                <Badge 
-                  key={index}
-                  className={`${getMarkerColor(marker.type)} text-white px-3 py-1`}
-                >
-                  {getMarkerIcon(marker.type)}
-                  <span className="ml-1">{marker.type}</span>
-                  <span className="ml-2 text-xs opacity-80">
-                    {(marker.confidence * 100).toFixed(0)}%
-                  </span>
-                </Badge>
-              ))}
-            </div>
-          </div>
-
-          {/* Botones de Compartir */}
-          <div className="pt-4 border-t">
-            <Label className="flex items-center space-x-2 mb-3">
-              <Share2 className="h-4 w-4 text-primary" />
-              <span>Compartir Diagnóstico</span>
-            </Label>
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={() => handleShare('twitter')}
-                className="flex items-center space-x-2 px-4 py-2 bg-[#1DA1F2] text-white rounded-lg hover:opacity-90 transition-opacity"
-              >
-                <Twitter className="h-4 w-4" />
-                <span>Twitter</span>
-              </button>
-              <button
-                onClick={() => handleShare('facebook')}
-                className="flex items-center space-x-2 px-4 py-2 bg-[#1877F2] text-white rounded-lg hover:opacity-90 transition-opacity"
-              >
-                <Facebook className="h-4 w-4" />
-                <span>Facebook</span>
-              </button>
-              <button
-                onClick={() => handleShare('linkedin')}
-                className="flex items-center space-x-2 px-4 py-2 bg-[#0A66C2] text-white rounded-lg hover:opacity-90 transition-opacity"
-              >
-                <Linkedin className="h-4 w-4" />
-                <span>LinkedIn</span>
-              </button>
-              <button
-                onClick={() => handleShare('whatsapp')}
-                className="flex items-center space-x-2 px-4 py-2 bg-[#25D366] text-white rounded-lg hover:opacity-90 transition-opacity"
-              >
-                <MessageCircle className="h-4 w-4" />
-                <span>WhatsApp</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Fuente y Submisión */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-muted/20 rounded-lg">
-            <div className="flex items-center space-x-3">
-              <Link className="h-4 w-4 text-muted-foreground" />
-              <div>
-                <div className="text-sm text-muted-foreground">Fuente</div>
-                <div className="text-sm">{data.metadata.web_search_evaluation?.filtered_results?.[0]?.url || 'No disponible'}</div>
-              </div>
-            </div>
-            <div className="flex items-center space-x-3">
-              <UserCheck className="h-4 w-4 text-muted-foreground" />
-              <div>
-                <div className="text-sm text-muted-foreground">Enviado por</div>
-                <div className="text-sm">{analysisResult.user_id}</div>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Status de Derivación Automática */}
-      <Alert className="border-blue-200 bg-blue-50">
-        <ArrowRight className="h-4 w-4 text-blue-600" />
-        <AlertDescription className="text-blue-800">
-          <strong>🤖 Botilito:</strong> Este caso ha sido enviado a verificación humana para análisis adicional
-        </AlertDescription>
-      </Alert>
-
-      {/* Diagnóstico y Análisis Unificado */}
-      <div className="space-y-6">
-        <div className="grid gap-6 lg:grid-cols-2">
-            {/* Panel Principal de Diagnóstico */}
-            <Card className={`border-2 ${getRiskColor(getRiskLevelFromJudgement(data.metadata.judgementBotilito.title))}`}>
-              <CardContent className="p-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <Stethoscope className="h-4 w-4 text-primary" />
-                    <span className="text-sm">Diagnóstico</span>
-                  </div>
-                  <Badge className="bg-red-500 text-white text-sm px-2 py-1">
-                    <Bot className="h-3 w-3 mr-1" />
-                    {data.metadata.judgementBotilito.title}
-                  </Badge>
-                </div>
-                <div className="flex items-center justify-between mt-2">
-                  <div className="text-lg text-red-600">
-                    RIESGO {getRiskLevelFromJudgement(data.metadata.judgementBotilito.title).toUpperCase()}
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    95% certeza
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Métricas de Riesgo */}
-            <Card>
-              <CardContent className="p-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <Activity className="h-4 w-4 text-primary" />
-                    <span className="text-sm">Nivel de Riesgo</span>
-                  </div>
-                  <div className="text-2xl">⚠️</div>
-                </div>
-                <div className="flex items-center justify-between mt-2">
-                  <div className="text-lg text-red-600">
-                    {getRiskLevelFromJudgement(data.metadata.judgementBotilito.title).toUpperCase()}
-                  </div>
-                  <div className="text-xs text-red-700">
-                    Intervención Requerida
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-        {/* Contenido Original Analizado */}
-        <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <FileText className="h-5 w-5 text-primary" />
-                <span>Contenido Analizado</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-3">
-                <div>
-                  <Label>Titular detectado:</Label>
-                  <div className="bg-red-50 p-3 rounded border-l-4 border-red-400 mt-1">
-                    <p className="italic">{data.title}</p>
-                  </div>
-                </div>
-                
-                <div>
-                  <Label>Contenido analizado:</Label>
-                  <div className="bg-gray-50 p-4 rounded border mt-1">
-                    <p className="text-sm leading-relaxed whitespace-pre-line">
-                      {data.summary || 'No hay resumen disponible'}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* <div>
-                    <Label>Fuente:</Label>
-                    <div className="flex items-center space-x-2 mt-1">
-                      <ExternalLink className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm">{data.source}</span>
+    <TooltipProvider>
+        <div className="space-y-6">
+            <Card className="border-2 border-primary shadow-lg">
+                <CardHeader className="bg-primary/10 border-b border-primary/20">
+                    <div className="flex items-center justify-between">
+                        <CardTitle className="flex items-center space-x-2">
+                            <Stethoscope className="h-6 w-6 text-primary" />
+                            <span>Diagnóstico Desinfodémico de Botilito</span>
+                        </CardTitle>
+                        <div className="flex items-center space-x-2">
+                            <Button onClick={onAnalyzeAnother} variant="outline" size="sm">
+                                <RefreshCw className="h-4 w-4 mr-2" />
+                                Analizar otro contenido
+                            </Button>
+                            <Badge className="bg-primary text-primary-foreground"><Bot className="h-3 w-3 mr-1" /> IA</Badge>
+                        </div>
                     </div>
-                  </div> */}
-                  {/* <div>
-                    <Label>Enviado por:</Label>
-                    <p className="text-sm mt-1">{data.submittedBy}</p>
-                  </div> */}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+                </CardHeader>
+                <CardContent className="p-6 space-y-8">
+                    {/* TODO: Screenshot URL should come from analysis pipeline */}
+                    <ImageWithFallback
+                        src="https://images.unsplash.com/photo-1588681664899-f142ff2dc9b1?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxuZXdzJTIwd2Vic2l0ZSUyMHNjcmVlbnNob3R8ZW58MXx8fHwxNzU5MTgzOTcyfDA&ixlib=rb-4.1.0&q=80&w=1080"
+                        alt="Vista previa del sitio web analizado"
+                        className="w-full h-auto object-cover rounded border-2"
+                    />
 
-          {/* Marcadores de Diagnóstico Detectados */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <Crosshair className="h-5 w-5 text-primary" />
-                <span>Marcadores Detectados</span>
-                <Badge variant="secondary">{markersDetected.length}</Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4">
-                {markersDetected.map((marker: any, index: number) => {
-                  const getMarkerColorLight = (type: string) => {
-                    const colorMap: { [key: string]: string } = {
-                      'Verdadero': 'bg-green-50 border-green-200',
-                      'Falso': 'bg-red-50 border-red-200',
-                      'Engañoso': 'bg-orange-50 border-orange-200',
-                      'Satírico': 'bg-blue-50 border-blue-200',
-                      'Satírico/Humorístico': 'bg-blue-50 border-blue-200',
-                      'Manipulado': 'bg-purple-50 border-purple-200',
-                      'Discurso de odio': 'bg-red-100 border-red-300',
-                      'Discurso de odio (Xenofobia)': 'bg-red-100 border-red-300',
-                      'Racismo/Xenofobia': 'bg-red-100 border-red-300',
-                      'Sexismo/LGBTQ+fobia': 'bg-red-100 border-red-300',
-                      'Clasismo/Aporofobia': 'bg-red-100 border-red-300',
-                      'Ableismo': 'bg-red-100 border-red-300',
-                      'Propaganda': 'bg-indigo-50 border-indigo-200',
-                      'Spam': 'bg-gray-50 border-gray-200',
-                      'Conspiración': 'bg-violet-50 border-violet-200',
-                      'Teoría conspirativa': 'bg-violet-50 border-violet-200',
-                      'Sesgo Político': 'bg-yellow-50 border-yellow-200',
-                      'Estafa': 'bg-purple-50 border-purple-200',
-                      'Sensacionalista': 'bg-orange-50 border-orange-200',
-                      'Incitación a la violencia': 'bg-red-100 border-red-400',
-                      'Descontextualizado': 'bg-amber-50 border-amber-200',
-                      'Sin contexto': 'bg-amber-50 border-amber-200',
-                      'Parcialmente Cierto': 'bg-orange-50 border-orange-200',
-                      'Contenido Patrocinado': 'bg-indigo-50 border-indigo-200',
-                      'Opinión': 'bg-gray-50 border-gray-200',
-                      'Rumor': 'bg-gray-50 border-gray-200',
-                      'No verificable': 'bg-gray-50 border-gray-200',
-                      'Deepfake': 'bg-purple-50 border-purple-200',
-                      'Sin Verificar': 'bg-gray-50 border-gray-200',
-                      'Bot/Coordinado': 'bg-indigo-50 border-indigo-200',
-                      'Suplantación de identidad': 'bg-purple-50 border-purple-200',
-                      'Acoso/Ciberbullying': 'bg-orange-100 border-orange-300',
-                      'Contenido prejuicioso': 'bg-yellow-50 border-yellow-200',
-                      'En revisión': 'bg-gray-50 border-gray-200'
-                    };
-                    return colorMap[type] || 'bg-gray-50 border-gray-200';
-                  };
-
-                  const getMarkerColorSoft = (type: string) => {
-                    const colorMap: { [key: string]: string } = {
-                      'Verdadero': 'bg-green-100 text-green-700 border-green-200',
-                      'Falso': 'bg-red-100 text-red-700 border-red-200',
-                      'Engañoso': 'bg-orange-100 text-orange-700 border-orange-200',
-                      'Satírico': 'bg-blue-100 text-blue-700 border-blue-200',
-                      'Satírico/Humorístico': 'bg-blue-100 text-blue-700 border-blue-200',
-                      'Manipulado': 'bg-purple-100 text-purple-700 border-purple-200',
-                      'Discurso de odio': 'bg-red-100 text-red-800 border-red-300',
-                      'Discurso de odio (Xenofobia)': 'bg-red-100 text-red-800 border-red-300',
-                      'Racismo/Xenofobia': 'bg-red-100 text-red-800 border-red-300',
-                      'Sexismo/LGBTQ+fobia': 'bg-red-100 text-red-800 border-red-300',
-                      'Clasismo/Aporofobia': 'bg-red-100 text-red-800 border-red-300',
-                      'Ableismo': 'bg-red-100 text-red-800 border-red-300',
-                      'Propaganda': 'bg-indigo-100 text-indigo-700 border-indigo-200',
-                      'Spam': 'bg-gray-100 text-gray-700 border-gray-200',
-                      'Conspiración': 'bg-violet-100 text-violet-700 border-violet-200',
-                      'Teoría conspirativa': 'bg-violet-100 text-violet-700 border-violet-200',
-                      'Sesgo Político': 'bg-yellow-100 text-yellow-700 border-yellow-200',
-                      'Estafa': 'bg-purple-100 text-purple-700 border-purple-200',
-                      'Sensacionalista': 'bg-orange-100 text-orange-700 border-orange-200',
-                      'Incitación a la violencia': 'bg-red-100 text-red-900 border-red-400',
-                      'Descontextualizado': 'bg-amber-100 text-amber-700 border-amber-200',
-                      'Sin contexto': 'bg-amber-100 text-amber-700 border-amber-200',
-                      'Parcialmente Cierto': 'bg-orange-100 text-orange-700 border-orange-200',
-                      'Contenido Patrocinado': 'bg-indigo-100 text-indigo-700 border-indigo-200',
-                      'Opinión': 'bg-gray-100 text-gray-700 border-gray-200',
-                      'Rumor': 'bg-gray-100 text-gray-700 border-gray-200',
-                      'No verificable': 'bg-gray-100 text-gray-700 border-gray-200',
-                      'Deepfake': 'bg-purple-100 text-purple-700 border-purple-200',
-                      'Sin Verificar': 'bg-gray-100 text-gray-700 border-gray-200',
-                      'Bot/Coordinado': 'bg-indigo-100 text-indigo-700 border-indigo-200',
-                      'Suplantación de identidad': 'bg-purple-100 text-purple-700 border-purple-200',
-                      'Acoso/Ciberbullying': 'bg-orange-100 text-orange-800 border-orange-300',
-                      'Contenido prejuicioso': 'bg-yellow-100 text-yellow-700 border-yellow-200',
-                      'En revisión': 'bg-gray-100 text-gray-700 border-gray-200'
-                    };
-                    return colorMap[type] || 'bg-gray-100 text-gray-700 border-gray-200';
-                  };
-
-                  return (
-                    <div key={index} className={`p-4 rounded-lg border space-y-3 ${getMarkerColorLight(marker.type)}`}>
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center space-x-3">
-                          <Badge className={`${getMarkerColorSoft(marker.type)}`}>
-                            {getMarkerIcon(marker.type)}
-                          </Badge>
-                          <div>
-                            <div className="font-medium">{marker.type}</div>
-                            <div className="text-sm text-muted-foreground">
-                              Virulencia: {marker.virulence}%
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-4 bg-muted/30 rounded-lg">
+                        <div className="flex items-start space-x-3">
+                            <Hash className="h-5 w-5 text-primary mt-0.5" />
+                            <div>
+                                <div className="text-sm text-muted-foreground">Número de Caso</div>
+                                <div className="font-mono">{case_study?.case_id || id}</div>
                             </div>
-                          </div>
                         </div>
-                        <div className="text-right space-y-1">
-                          <div className="text-sm font-medium">
-                            {(marker.confidence * 100).toFixed(1)}% confianza
-                          </div>
-                          <Progress value={marker.confidence * 100} className="w-20 h-2" />
+                        <div className="flex items-start space-x-3">
+                            <Calendar className="h-5 w-5 text-primary mt-0.5" />
+                            <div>
+                                <div className="text-sm text-muted-foreground">Fecha de Análisis</div>
+                                <div>{new Date(created_at).toLocaleString('es-CO')}</div>
+                            </div>
                         </div>
-                      </div>
-                      <div className="text-xs text-muted-foreground leading-relaxed pl-10">
-                        <strong>Justificación:</strong> {marker.justification}
-                      </div>
+                        <div className="flex items-start space-x-3">
+                            <FileType className="h-5 w-5 text-primary mt-0.5" />
+                            <div>
+                                <div className="text-sm text-muted-foreground">Tipo de Contenido</div>
+                                <div className="capitalize">{metadata?.submissionType || (contentToAnalyze.startsWith('http') ? 'Enlace Web' : 'Texto')}</div>
+                            </div>
+                        </div>
+                        <div className="flex items-start space-x-3">
+                            <Target className="h-5 w-5 text-primary mt-0.5" />
+                            <div>
+                                <div className="text-sm text-muted-foreground">Tema</div>
+                                <div className="capitalize">{metadata?.theme || 'No especificado'}</div>
+                            </div>
+                        </div>
+                        <div className="flex items-start space-x-3">
+                            <Globe className="h-5 w-5 text-primary mt-0.5" />
+                            <div>
+                                <div className="text-sm text-muted-foreground">Región</div>
+                                <div className="capitalize">{metadata?.region || 'No especificado'}</div>
+                            </div>
+                        </div>
+                        <div className="flex items-start space-x-3">
+                            <User className="h-5 w-5 text-primary mt-0.5" />
+                            <div>
+                                <div className="text-sm text-muted-foreground">Analizado por</div>
+                                <div>{user_id ? 'Usuario' : 'Botilito IA'}</div>
+                            </div>
+                        </div>
                     </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
 
-          {/* Vista previa del sitio web */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Vista Previa</CardTitle>
-              <CardDescription>Captura del contenido analizado</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <ImageWithFallback
-                  src="https://images.unsplash.com/photo-1588681664899-f142ff2dc9b1?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxuZXdzJTIwd2Vic2l0ZSUyMHNjcmVlbnNob3R8ZW58MXx8fHwxNzU5MTgzOTcyfDA&ixlib=rb-4.1.0&q=80&w=1080"
-                  alt="Vista previa del sitio web analizado"
-                  className="w-full h-64 object-cover rounded border"
-                />
-                <Alert className="border-red-200 bg-red-50">
-                  <AlertTriangle className="h-4 w-4 text-red-600" />
-                  <AlertDescription className="text-red-800">
-                    <strong>Advertencia:</strong> Este contenido contiene desinformación de alto riesgo.
-                  </AlertDescription>
-                </Alert>
-              </div>
-            </CardContent>
-          </Card>
-      </div>
-    </div>
+                    <div>
+                        <Label className="flex items-center space-x-2 mb-2"><FileText className="h-4 w-4 text-primary" /><span>Título del Contenido</span></Label>
+                        <div className="bg-muted/50 p-4 rounded-lg border-l-4 border-primary"><p className="italic">{title}</p></div>
+                    </div>
+                    
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center space-x-2 text-lg">
+                                <Gavel className="h-5 w-5 text-primary" />
+                                <span>Veredicto Final</span>
+                            </CardTitle>
+                            <CardDescription>{metadata?.comprehensive_judgement?.final_verdict || 'Indeterminado'}</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div>
+                                <h4 className="font-semibold">Recomendación</h4>
+                                <p className="text-sm text-muted-foreground">{metadata?.comprehensive_judgement?.recommendation}</p>
+                            </div>
+                            <div>
+                                <h4 className="font-semibold">Razonamiento</h4>
+                                <p className="text-sm text-muted-foreground">{metadata?.comprehensive_judgement?.reasoning}</p>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <div>
+                        <Label className="flex items-center space-x-2 mb-3"><Crosshair className="h-4 w-4 text-primary" /><span>Marcadores Detectados</span><Badge variant="secondary">{markersDetected.length}</Badge></Label>
+                        <div className="flex flex-wrap gap-3">
+                            {markersDetected.map((marker, index) => {
+                                const visuals = getMarkerVisuals(marker.type);
+                                return (
+                                    <Tooltip key={index}>
+                                        <TooltipTrigger>
+                                            <Badge className={`${visuals.color} text-white px-3 py-1 text-sm`}>
+                                                {visuals.icon}
+                                                <span className="ml-1.5">{marker.type}</span>
+                                            </Badge>
+                                        </TooltipTrigger>
+                                        <TooltipContent className="max-w-xs">
+                                            <p>{marker.justification}</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center space-x-2">
+                                    <ClipboardCheck className="h-5 w-5 text-primary" />
+                                    <span>Verificación de Hechos</span>
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-3 text-sm">
+                                <div className="flex justify-between">
+                                    <span className="font-semibold">Verificado en:</span>
+                                    <span>{metadata?.fact_check_analysis?.verified_at ? new Date(metadata.fact_check_analysis.verified_at).toLocaleString('es-CO') : 'N/A'}</span>
+                                </div>
+                                <div className="space-y-1">
+                                    <span className="font-semibold">Texto Original Verificado:</span>
+                                    <p className="text-xs text-muted-foreground p-2 bg-muted/50 rounded">{metadata?.fact_check_analysis?.original_text}</p>
+                                </div>
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center space-x-2">
+                                    <SearchCheck className="h-5 w-5 text-primary" />
+                                    <span>Evaluación de Búsqueda Web</span>
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-3 text-sm">
+                                <div className="flex justify-between items-center">
+                                    <span className="font-semibold">Veredicto:</span>
+                                    <Badge variant={metadata?.web_search_evaluation?.credibility_score > 0 ? 'default' : 'destructive'}>
+                                        {metadata?.web_search_evaluation?.verdict}
+                                    </Badge>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                    <span className="font-semibold">Puntaje de Credibilidad:</span>
+                                    <span className="font-bold">{metadata?.web_search_evaluation?.credibility_score || 0}/100</span>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+                    
+                    <div className="pt-6 border-t">
+                        <Label className="flex items-center space-x-2 mb-3"><Share2 className="h-4 w-4 text-primary" /><span>Compartir Diagnóstico</span></Label>
+                        <div className="flex flex-wrap gap-2">
+                            <button onClick={() => handleShare('twitter')} className="flex items-center space-x-2 px-4 py-2 bg-[#1DA1F2] text-white rounded-lg hover:opacity-90 transition-opacity"><Twitter className="h-4 w-4" /><span>Twitter</span></button>
+                            <button onClick={() => handleShare('facebook')} className="flex items-center space-x-2 px-4 py-2 bg-[#1877F2] text-white rounded-lg hover:opacity-90 transition-opacity"><Facebook className="h-4 w-4" /><span>Facebook</span></button>
+                            <button onClick={() => handleShare('linkedin')} className="flex items-center space-x-2 px-4 py-2 bg-[#0A66C2] text-white rounded-lg hover:opacity-90 transition-opacity"><Linkedin className="h-4 w-4" /><span>LinkedIn</span></button>
+                            <button onClick={() => handleShare('whatsapp')} className="flex items-center space-x-2 px-4 py-2 bg-[#25D366] text-white rounded-lg hover:opacity-90 transition-opacity"><MessageCircle className="h-4 w-4" /><span>WhatsApp</span></button>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+        </div>
+    </TooltipProvider>
   );
 }

@@ -19,7 +19,10 @@ interface SnapshotRequest {
 }
 
 interface SnapshotJobResponse {
-  job_id: string;
+  job_id?: string;
+  job?: {
+    id: string;
+  };
 }
 
 interface SnapshotResult {
@@ -50,12 +53,17 @@ async function submitSnapshot(url: string): Promise<string> {
   }
 
   const data: SnapshotJobResponse = await response.json();
-  return data.job_id;
+  const jobId = data.job_id || data.job?.id;
+  if (!jobId) {
+      console.error("Failed to extract job ID from snapshot response", data);
+      throw new Error("Could not find job ID in snapshot submission response.");
+  }
+  return jobId;
 }
 
 async function pollSnapshot(jobId: string, onProgress: (status: string) => void): Promise<string> {
   const maxRetries = 30; // 30 * 2s = 60s
-  const pollInterval = 30000;
+  const pollInterval = 2000; // 2 seconds
   const token = await getSupabaseToken();
 
   for (let i = 0; i < maxRetries; i++) {
@@ -64,7 +72,6 @@ async function pollSnapshot(jobId: string, onProgress: (status: string) => void)
     });
 
     if (!response.ok) {
-      // Don't throw immediately, maybe a transient error
       await new Promise(resolve => setTimeout(resolve, pollInterval));
       continue;
     }
@@ -94,7 +101,9 @@ interface AnalysisRequest {
 }
 
 interface AnalysisJobResponse {
-  job_id: string;
+  job_id?: string;
+  cached?: boolean;
+  data?: any;
 }
 
 export interface AnalysisResult {
@@ -102,14 +111,13 @@ export interface AnalysisResult {
     user_id: string;
     status: string;
     current_step?: string;
-    result?: any; // Replace 'any' with a proper type from your spec
+    result?: any; 
     error?: {
         message: string;
     };
 }
 
-
-async function submitAnalysis(text: string, url?: string): Promise<string> {
+async function submitAnalysis(text: string, url?: string): Promise<string | AnalysisResult> {
   const token = await getSupabaseToken();
   const response = await fetch(`${ANALYSIS_FUNCTION_URL}/submit`, {
     method: 'POST',
@@ -126,12 +134,28 @@ async function submitAnalysis(text: string, url?: string): Promise<string> {
   }
 
   const data: AnalysisJobResponse = await response.json();
-  return data.job_id;
+
+  if (data.cached && data.data) {
+    // It's a cached response, return the final result directly
+    return {
+        id: data.data.id, // This is the result ID, but we are skipping polling
+        status: 'completed',
+        result: data.data,
+        user_id: data.data.user_id,
+    };
+  }
+
+  const jobId = data.job_id;
+  if (!jobId) {
+      console.error("Failed to extract job ID from analysis response", data);
+      throw new Error("Could not find job ID in analysis submission response.");
+  }
+  return jobId;
 }
 
 async function pollAnalysis(jobId: string, onProgress: (status: string) => void): Promise<AnalysisResult> {
     const maxRetries = 60; // 60 * 3s = 180s
-    const pollInterval = 30000;
+    const pollInterval = 3000; // 3 seconds
     const token = await getSupabaseToken();
 
     for (let i = 0; i < maxRetries; i++) {
@@ -177,27 +201,32 @@ export async function analysisPipeline(
   textOrUrl: string,
   onProgress: (progress: { step: string; status: string }) => void
 ): Promise<{ result: any, user_id: string }> {
+  let cleanedText = textOrUrl;
+  let submissionUrl: string | undefined = undefined;
+
   if (isUrl(textOrUrl)) {
+    submissionUrl = textOrUrl;
     onProgress({ step: 'snapshot', status: 'Starting URL snapshot...' });
     const snapshotJobId = await submitSnapshot(textOrUrl);
-    const cleanedText = await pollSnapshot(snapshotJobId, (status) => {
+    cleanedText = await pollSnapshot(snapshotJobId, (status) => {
       onProgress({ step: 'snapshot', status });
     });
-
-    onProgress({ step: 'analysis', status: 'Starting analysis...' });
-    const analysisJobId = await submitAnalysis(cleanedText, textOrUrl);
-    const analysisResult = await pollAnalysis(analysisJobId, (status) => {
-      onProgress({ step: 'analysis', status });
-    });
-
-    return { result: analysisResult.result, user_id: analysisResult.user_id };
-  } else {
-    onProgress({ step: 'analysis', status: 'Starting analysis...' });
-    const analysisJobId = await submitAnalysis(textOrUrl);
-    const analysisResult = await pollAnalysis(analysisJobId, (status) => {
-      onProgress({ step: 'analysis', status });
-    });
-
-    return { result: analysisResult.result, user_id: analysisResult.user_id };
   }
+
+  onProgress({ step: 'analysis', status: 'Starting analysis...' });
+  const submissionResponse = await submitAnalysis(cleanedText, submissionUrl);
+
+  let analysisResult: AnalysisResult;
+  if (typeof submissionResponse === 'string') {
+      // We got a job ID, so we need to poll
+      analysisResult = await pollAnalysis(submissionResponse, (status) => {
+        onProgress({ step: 'analysis', status });
+      });
+  } else {
+      // We got the final result directly from a cached response
+      analysisResult = submissionResponse;
+      onProgress({ step: 'analysis', status: 'completed' });
+  }
+
+  return { result: analysisResult.result, user_id: analysisResult.user_id };
 }
