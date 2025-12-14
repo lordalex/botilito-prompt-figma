@@ -1,111 +1,75 @@
-// Types for Human Verification Summary API
+// Types for Vector-Async API v2.4.0
 
-/**
- * Job creation response from POST to /summary
- */
-export interface JobCreationResponse {
+export interface JobInitiatedResponse {
   job_id: string;
 }
 
-/**
- * Job status response from GET to /status/{jobId}
- */
-export interface VerificationSummaryResponse {
+export interface JobStatusResponse {
   id: string;
   status: 'pending' | 'processing' | 'completed' | 'failed';
-  result?: VerificationSummaryResult;
-  error?: {
-    message: string;
+  result?: SearchResultList | SearchResultSingle;
+  error?: any;
+  trace_log?: any[];
+}
+
+export interface SearchResultList {
+  cases: CaseEnriched[];
+  pagination: {
+    page: number;
+    pageSize: number;
+    returnedCount: number;
+    hasMore: boolean;
   };
 }
 
-/**
- * Summary result data
- */
-export interface VerificationSummaryResult {
-  kpis: {
-    total_cases: number;
-    avg_trust_score: number | null;
-    total_documents: number;
-  };
-  recent_cases: RecentCase[];
-  recent_documents: RecentDocument[];
-  themes_distribution: ThemeDistribution[];
-  regions_distribution: RegionDistribution[];
+export interface SearchResultSingle {
+    case: CaseEnriched;
 }
 
-/**
- * Recent case data structure
- */
-export interface RecentCase {
+export type VerificationSummaryResult = SearchResultList;
+
+export interface CaseEnriched {
   id: string;
-  url: string;
   title: string;
-  priority: 'low' | 'medium' | 'high' | 'critical';
-  consensus: {
-    state: 'ai_only' | 'human_only' | 'consensus' | 'disagreement';
+  status: string;
+  summary: string;
+  content?: string;
+  url?: string;
+  created_at: string;
+  submission_type: 'Text' | 'URL';
+  human_votes?: {
+    count: number;
+    statistics: {
+        label: string;
+        count: number;
+        percentage: number;
+    }[];
+    entries: {
+      vote: string;
+      reason?: string;
+      date: string;
+      user: {
+        id: string;
+        nombre_completo: string;
+        reputation: number;
+        role: string;
+      }
+    }[];
+  };
+  diagnostic_labels: string[];
+  metadata: any;
+  case_judgement?: {
+      reasoning: string;
+      final_verdict: string;
+      recommendation: string;
+  };
+  consensus?: {
+    state: 'human_consensus' | 'ai_only';
     final_labels: string[];
   };
-  created_at: string;
-  submission_type: 'URL' | 'TEXT' | 'IMAGE' | 'VIDEO';
-  diagnostic_labels: string[];
-  human_votes_count: number;
-  related_documents: RelatedDocument[];
-  web_search_results: WebSearchResult[];
 }
 
-/**
- * Related document with similarity score
- */
-export interface RelatedDocument {
-  id: string;
-  url: string;
-  title: string;
-  summary: string;
-  similarity: number;
-}
-
-/**
- * Web search result
- */
-export interface WebSearchResult {
-  title: string;
-  url: string;
-  snippet: string;
-  source: string;
-}
-
-/**
- * Recent document
- */
-export interface RecentDocument {
-  id: string;
-  url: string;
-  theme: string;
-  title: string;
-  created_at: string;
-  replication_count: number;
-}
-
-/**
- * Theme distribution
- */
-export interface ThemeDistribution {
-  name: string;
-  value: number;
-}
-
-/**
- * Region distribution
- */
-export interface RegionDistribution {
-  name: string;
-  value: number;
-}
-
-/**
- * Diagnostic label mapping
- */
+// Keep these constants as they are used by the UI components
 export const DIAGNOSTIC_LABELS: Record<string, {
   label: string;
   color: string;
@@ -212,9 +176,6 @@ export const DIAGNOSTIC_LABELS: Record<string, {
   }
 };
 
-/**
- * Consensus states
- */
 export const CONSENSUS_STATES = {
   'ai_only': {
     label: 'Solo IA',
@@ -242,9 +203,6 @@ export const CONSENSUS_STATES = {
   }
 };
 
-/**
- * Priority levels
- */
 export const PRIORITY_LEVELS = {
   'low': {
     label: 'Baja',

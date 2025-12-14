@@ -152,6 +152,7 @@ export interface FullAnalysisResponse {
     title: string;
     summary: string;
     created_at: string;
+    screenshotUrl?: string;
     metadata?: DocumentMetadata;
     case_study?: CaseStudy;
     consensus?: Consensus;

@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import botilitoImage from 'figma:asset/e27a276e6ff0e187a67cf54678c265c1c38adbf7.png';
 import { useVerificationData } from '../utils/humanVerification/useVerificationData';
-import { CONSENSUS_STATES, PRIORITY_LEVELS, DIAGNOSTIC_LABELS } from '../utils/humanVerification/types';
-import { submitHumanVerification } from '../utils/humanVerification/api';
+import { submitHumanVerification, fetchCaseDetails } from '../utils/humanVerification/api';
+import type { CaseEnriched } from '../../utils/humanVerification/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -10,25 +10,26 @@ import { Textarea } from './ui/textarea';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Checkbox } from './ui/checkbox';
-import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 import { Progress } from './ui/progress';
-import { motion, AnimatePresence } from 'motion/react';
 import { Separator } from './ui/separator';
 import { 
   Users, CheckCircle, XCircle, AlertTriangle, Bot, 
-  FileText, Image, Video, Volume2, ThumbsUp, ThumbsDown, 
-  MessageSquare, Award, Clock, Send, Smile, Heart, Shield,
-  Target, Flame, Vote, DollarSign, Zap, Eye, Ban, Skull,
+  FileText, Image, Video, Volume2, 
+  MessageSquare, Award, Clock, Send, Smile, Shield,
+  Target, Flame, Eye, Ban, Skull,
   Microscope, AlertCircle, HelpCircle,
   Megaphone, Calendar, 
   Filter, Search, Layers, Hash,
-  User, Gauge, Timer, Link, ExternalLink, ArrowLeft, Link2,
-  Newspaper, Tag, Trophy, Star, Sparkles, TrendingUp
+  User, Gauge, Link, ExternalLink, ArrowLeft, Link2,
+  Newspaper, Tag, Trophy, Sparkles, TrendingUp,
+  Gavel, ClipboardCheck, SearchCheck, Globe, Loader2
 } from 'lucide-react';
 import { Alert, AlertDescription } from './ui/alert';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
+import { ImageWithFallback } from './figma/ImageWithFallback';
 
-// Definición de las 19 categorías de marcadores de diagnóstico con enfoque epidemiológico
 const ETIQUETAS_CATEGORIAS = [
   { id: 'verdadero', label: 'Verdadero', icon: CheckCircle, color: 'text-green-600', bg: 'bg-green-50', border: 'border-green-200', virulencia: 0, descripcion: 'Información verificada y respaldada por fuentes confiables' },
   { id: 'falso', label: 'Falso', icon: XCircle, color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-200', virulencia: 90, descripcion: 'Información completamente falsa sin sustento verificable' },
@@ -40,7 +41,7 @@ const ETIQUETAS_CATEGORIAS = [
   { id: 'teoria_conspirativa', label: 'Teoría conspirativa', icon: Eye, color: 'text-violet-600', bg: 'bg-violet-50', border: 'border-violet-200', virulencia: 80, descripcion: 'Narrativas que sugieren conspiraciones sin evidencia sólida' },
   { id: 'discurso_odio_racismo', label: 'Racismo/Xenofobia', icon: Skull, color: 'text-red-800', bg: 'bg-red-100', border: 'border-red-300', virulencia: 95, descripcion: 'Contenido que promueve odio contra grupos raciales o étnicos' },
   { id: 'discurso_odio_sexismo', label: 'Sexismo/LGBTQ+fobia', icon: Ban, color: 'text-red-700', bg: 'bg-red-100', border: 'border-red-300', virulencia: 95, descripcion: 'Contenido discriminatorio por género u orientación sexual' },
-  { id: 'discurso_odio_clasismo', label: 'Clasismo/Aporofobia', icon: DollarSign, color: 'text-red-700', bg: 'bg-red-100', border: 'border-red-300', virulencia: 90, descripcion: 'Discriminación basada en clase social o condición económica' },
+  { id: 'discurso_odio_clasismo', label: 'Clasismo/Aporofobia', icon: AlertTriangle, color: 'text-red-700', bg: 'bg-red-100', border: 'border-red-300', virulencia: 90, descripcion: 'Discriminación basada en clase social o condición económica' },
   { id: 'discurso_odio_ableismo', label: 'Ableismo', icon: Shield, color: 'text-red-700', bg: 'bg-red-100', border: 'border-red-300', virulencia: 90, descripcion: 'Discriminación contra personas con discapacidades' },
   { id: 'incitacion_violencia', label: 'Incitación a la violencia', icon: Flame, color: 'text-red-900', bg: 'bg-red-100', border: 'border-red-400', virulencia: 98, descripcion: 'Contenido que promueve o incita actos violentos' },
   { id: 'acoso_ciberbullying', label: 'Acoso/Ciberbullying', icon: Target, color: 'text-orange-700', bg: 'bg-orange-100', border: 'border-orange-300', virulencia: 85, descripcion: 'Ataques sistemáticos contra individuos específicos en línea' },
@@ -51,17 +52,50 @@ const ETIQUETAS_CATEGORIAS = [
   { id: 'en_revision', label: 'En revisión', icon: Clock, color: 'text-gray-500', bg: 'bg-gray-50', border: 'border-gray-200', virulencia: 40, descripcion: 'Contenido pendiente de verificación adicional' }
 ];
 
+const getMarkerVisuals = (type: string) => {
+    const lowerType = type.toLowerCase();
+    if (lowerType.includes('falso')) return { icon: <XCircle className="h-4 w-4" />, color: 'bg-red-500 hover:bg-red-600' };
+    if (lowerType.includes('odio') || lowerType.includes('xenofobia')) return { icon: <Skull className="h-4 w-4" />, color: 'bg-red-700 hover:bg-red-800' };
+    if (lowerType.includes('violencia')) return { icon: <Ban className="h-4 w-4" />, color: 'bg-red-900 hover:bg-red-950' };
+    if (lowerType.includes('sensacionalista')) return { icon: <Flame className="h-4 w-4" />, color: 'bg-orange-400 hover:bg-orange-500' };
+    if (lowerType.includes('engañoso')) return { icon: <AlertTriangle className="h-4 w-4" />, color: 'bg-orange-500 hover:bg-orange-600' };
+    if (lowerType.includes('manipulado')) return { icon: <Image className="h-4 w-4" />, color: 'bg-purple-500 hover:bg-purple-600' };
+    if (lowerType.includes('contexto')) return { icon: <AlertTriangle className="h-4 w-4" />, color: 'bg-amber-500 hover:bg-amber-600' };
+    if (lowerType.includes('satírico')) return { icon: <Smile className="h-4 w-4" />, color: 'bg-blue-500 hover:bg-blue-600' };
+    if (lowerType.includes('conspirativa')) return { icon: <Eye className="h-4 w-4" />, color: 'bg-violet-600 hover:bg-violet-700' };
+    if (lowerType.includes('verificable')) return { icon: <HelpCircle className="h-4 w-4" />, color: 'bg-gray-500 hover:bg-gray-600' };
+    if (lowerType.includes('verdadero')) return { icon: <CheckCircle className="h-4 w-4" />, color: 'bg-emerald-500 hover:bg-emerald-600' };
+    if (lowerType.includes('en revisión')) return { icon: <Clock className="h-4 w-4" />, color: 'bg-sky-500 hover:bg-sky-600' };
+    return { icon: <Target className="h-4 w-4" />, color: 'bg-gray-500 hover:bg-gray-600' };
+};
+
+const getPriorityBadge = (priority: string) => {
+    switch (priority) {
+      case 'high':
+        return <Badge variant="destructive">Alta Prioridad</Badge>;
+      case 'medium':
+        return <Badge variant="default">Prioridad Media</Badge>;
+      case 'low':
+        return <Badge variant="secondary">Baja Prioridad</Badge>;
+      default:
+        return <Badge variant="outline">Sin Prioridad</Badge>;
+    }
+};
+
 export function HumanVerification() {
-  const [selectedContent, setSelectedContent] = useState<string | null>(null);
+  const [selectedContentId, setSelectedContentId] = useState<string | null>(null);
+  const [selectedCaseDetails, setSelectedCaseDetails] = useState<CaseEnriched | null>(null);
+  const [isDetailLoading, setIsDetailLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
   const [verificationNotes, setVerificationNotes] = useState('');
-  const [verificationResult, setVerificationResult] = useState<string>('');
   const [marcadoresDiagnostico, setMarcadoresDiagnostico] = useState<string[]>([]);
   const [marcadoresJustificaciones, setMarcadoresJustificaciones] = useState<{ [key: string]: string }>({});
   const [marcadoresEnlaces, setMarcadoresEnlaces] = useState<{ [key: string]: string }>({});
-  const [selectedFilter, setSelectedFilter] = useState('all');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
-  const casesPerPage = 10;
+  
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [gamificationData, setGamificationData] = useState({
     pointsEarned: 0,
@@ -78,424 +112,115 @@ export function HumanVerification() {
     progressToNext: 0
   });
 
-  // Use the verification data hook
-  const { loading, error, summaryData, cases, userStats, refresh } = useVerificationData();
+  const { loading, error, summaryData, cases, userStats, refresh } = useVerificationData(page, pageSize);
 
-  // Use API data if available, otherwise fall back to mock data
-  const pendingContents = cases.length > 0 ? cases : [
-    {
-      id: 'T-WB-20241014-001',
-      type: 'text',
-      title: 'Artículo sobre tratamiento alternativo para diabetes',
-      content: 'Un nuevo estudio revela que beber agua con limón en ayunas puede curar la diabetes tipo 2 en solo 30 días. Médicos de Harvard confirman la efectividad del tratamiento...',
-      headline: 'Descubren cura milagrosa para diabetes: solo agua con limón en ayunas',
-      url: 'https://noticiasfalsas.com/cura-diabetes-limon',
-      screenshot: 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=800',
-      source: { name: 'Noticias Falsas', url: 'https://noticiasfalsas.com' },
-      theme: 'Salud y Medicina',
-      aiAnalysis: {
-        veracity: 'Posible Desinformación',
-        confidence: 0.89,
-        detectedMarkers: ['enganoso', 'sensacionalista', 'no_verificable'],
-        issues: ['No se encontraron estudios de Harvard sobre este tema', 'Afirmaciones médicas sin respaldo científico', 'Promete "cura" para enfermedad crónica'],
-        summary: 'El contenido presenta patrones epidemiológicos consistentes con desinformación médica. Alto riesgo de propagación exponencial debido a apelación emocional y falsa autoridad científica.',
-        sources: ['WhatsApp', 'Facebook', 'Twitter'],
-        markersDetected: [
-          { type: 'Engañoso', confidence: 0.89 },
-          { type: 'Sensacionalista', confidence: 0.85 },
-          { type: 'No verificable', confidence: 0.78 }
-        ]
-      },
-      consensusMarkers: [],
-      submittedBy: 'usuario_123',
-      submittedAt: '2024-01-15T10:30:00Z',
-      priority: 'high',
-      votesCount: 0,
-    },
-    {
-      id: 'I-FB-20241014-002',
-      type: 'image',
-      title: 'Foto de manifestación en plaza principal',
-      url: 'https://redessociales.com/manifestacion-falsa',
-      headline: 'Miles protestan contra el gobierno en la plaza central',
-      content: 'manifestacion_plaza_central.jpg',
-      description: 'Imagen que muestra una gran manifestación en la plaza central con miles de personas',
-      screenshot: 'https://images.unsplash.com/photo-1529107386315-e1a2ed48a620?w=800',
-      source: { name: 'Redes Sociales', url: 'https://redessociales.com' },
-      theme: 'Política y Sociedad',
-      aiAnalysis: {
-        veracity: 'Fuera de Contexto',
-        confidence: 0.76,
-        detectedMarkers: ['sin_contexto', 'manipulado'],
-        issues: ['La imagen parece ser de otro evento', 'La fecha no coincide con eventos recientes', 'Metadatos sugieren manipulación'],
-        summary: 'La imagen corresponde a un evento diferente realizado en 2019. Uso fuera de contexto para generar percepción de crisis actual.',
-        sources: ['Facebook', 'Instagram', 'Telegram'],
-        markersDetected: [
-          { type: 'Sin contexto', confidence: 0.76 },
-          { type: 'Manipulado', confidence: 0.68 },
-          { type: 'Engañoso', confidence: 0.72 }
-        ]
-      },
-      consensusMarkers: ['sin_contexto', 'enganoso'],
-      submittedBy: 'usuario_456',
-      submittedAt: '2024-01-15T09:15:00Z',
-      priority: 'medium',
-      votesCount: 2,
-    },
-    {
-      id: 'V-TK-20241014-003',
-      type: 'video',
-      title: 'Video de declaraciones del ministro de economía',
-      url: 'https://videosvirales.com/ministro-economia',
-      headline: 'Ministro anuncia sorprendentes medidas económicas',
-      content: 'declaraciones_ministro_economia.mp4',
-      description: 'Video donde el ministro supuestamente anuncia nuevas medidas económicas',
-      screenshot: 'https://images.unsplash.com/photo-1588681664899-f142ff2dc9b1?w=800',
-      source: { name: 'Videos Virales', url: 'https://videosvirales.com' },
-      theme: 'Economía y Política',
-      aiAnalysis: {
-        veracity: 'Requiere Verificación',
-        confidence: 0.62,
-        detectedMarkers: ['manipulado', 'no_verificable'],
-        issues: ['Calidad de audio inconsistente', 'Movimientos faciales sospechosos', 'No hay registro oficial de esta declaración'],
-        summary: 'Video presenta inconsistencias en sincronización labial y calidad de audio. Posible manipulación mediante deepfake. No existe comunicado oficial que respalde estas declaraciones.',
-        sources: ['TikTok', 'YouTube', 'WhatsApp', 'Twitter'],
-        markersDetected: [
-          { type: 'Manipulado', confidence: 0.82 },
-          { type: 'No verificable', confidence: 0.62 },
-          { type: 'Sensacionalista', confidence: 0.71 }
-        ]
-      },
-      consensusMarkers: ['manipulado'],
-      submittedBy: 'usuario_789',
-      submittedAt: '2024-01-15T08:45:00Z',
-      priority: 'high',
-      votesCount: 1,
-    },
-    {
-      id: '4',
-      type: 'text',
-      title: 'Supuesto mensaje del alcalde sobre toque de queda',
-      url: null,
-      headline: 'URGENTE: Toque de queda total desde mañana',
-      content: 'El alcalde anuncia toque de queda total desde mañana por tres semanas. Compartir urgente con todos sus contactos. La policía patrullará las calles y multará a quien salga.',
-      aiAnalysis: {
-        veracity: 'Falso',
-        confidence: 0.94,
-        detectedMarkers: ['falso', 'sensacionalista'],
-        issues: ['No hay comunicado oficial de la alcaldía', 'Lenguaje alarmista típico de cadenas falsas', 'No coincide con protocolos municipales']
-      },
-      consensusMarkers: ['falso', 'sensacionalista', 'suplantacion_identidad'],
-      submittedBy: 'usuario_234',
-      submittedAt: '2024-01-15T08:20:00Z',
-      priority: 'high',
-      votesCount: 5,
-    },
-    {
-      id: '5',
-      type: 'image',
-      title: 'Captura de pantalla de chat WhatsApp',
-      url: null,
-      headline: null,
-      content: 'chat_supuesta_amenaza.jpg',
-      description: 'Conversación donde supuestamente se planea un ataque en zona comercial',
-      aiAnalysis: {
-        veracity: 'Posible Desinformación',
-        confidence: 0.81,
-        detectedMarkers: ['no_verificable', 'sensacionalista'],
-        issues: ['No es posible verificar autenticidad del chat', 'Contenido alarmista', 'No hay reportes oficiales relacionados']
-      },
-      consensusMarkers: ['no_verificable', 'enganoso', 'sensacionalista'],
-      submittedBy: 'usuario_567',
-      submittedAt: '2024-01-15T07:55:00Z',
-      priority: 'high',
-      votesCount: 3,
-    },
-    {
-      id: '6',
-      type: 'video',
-      title: 'Influencer promocionando inversión cripto "garantizada"',
-      url: null,
-      headline: null,
-      content: 'video_cripto_inversion.mp4',
-      description: 'Persona conocida promete ganancias del 300% en criptomonedas',
-      aiAnalysis: {
-        veracity: 'Engañoso',
-        confidence: 0.88,
-        detectedMarkers: ['enganoso', 'sensacionalista'],
-        issues: ['Promesas de retorno irreales', 'Presión para inversión inmediata', 'Características de esquema Ponzi']
-      },
-      consensusMarkers: ['enganoso', 'falso', 'sensacionalista'],
-      submittedBy: 'usuario_890',
-      submittedAt: '2024-01-15T07:30:00Z',
-      priority: 'medium',
-      votesCount: 7,
-    },
-    {
-      id: '7',
-      type: 'text',
-      title: 'Noticia sobre subsidio del gobierno',
-      url: 'https://subsidios-gov-colombia.online/registro-500mil',
-      headline: 'Gobierno Nacional anuncia subsidio de $500.000 para todos los ciudadanos',
-      content: 'El gobierno anuncia nuevo subsidio de $500.000 para todos los ciudadanos mayores de edad. Regístrese en este link antes del viernes para reclamar su dinero. Se necesita cédula, RUT y datos bancarios para el pago inmediato.',
-      aiAnalysis: {
-        veracity: 'Posible Phishing',
-        confidence: 0.92,
-        detectedMarkers: ['suplantacion_identidad', 'falso', 'enganoso'],
-        issues: ['Link no corresponde a dominio gubernamental', 'No hay anuncio oficial', 'Solicita datos personales sensibles']
-      },
-      consensusMarkers: ['suplantacion_identidad', 'falso', 'enganoso', 'sensacionalista'],
-      submittedBy: 'usuario_345',
-      submittedAt: '2024-01-15T07:10:00Z',
-      priority: 'high',
-      votesCount: 9,
-    },
-    {
-      id: '8',
-      type: 'audio',
-      title: 'Audio de supuesto secuestro en el barrio',
-      url: null,
-      headline: null,
-      content: 'audio_alerta_secuestro.mp3',
-      description: 'Mensaje de voz advirtiendo sobre secuestros en la zona',
-      aiAnalysis: {
-        veracity: 'Fuera de Contexto',
-        confidence: 0.73,
-        detectedMarkers: ['sin_contexto', 'sensacionalista'],
-        issues: ['El audio es de hace 2 años en otra ciudad', 'No hay reportes recientes de secuestros', 'Metadatos de archivo antiguo']
-      },
-      consensusMarkers: ['sin_contexto', 'enganoso', 'sensacionalista'],
-      submittedBy: 'usuario_678',
-      submittedAt: '2024-01-15T06:45:00Z',
-      priority: 'medium',
-      votesCount: 4,
-    },
-    {
-      id: '9',
-      type: 'text',
-      title: 'Publicación sobre vacunas y autismo',
-      url: 'https://medicinanatural.info/vacunas-autismo-verdad-oculta',
-      headline: 'Estudio científico comprueba relación directa entre vacunas infantiles y autismo',
-      content: 'Un estudio reciente comprueba la relación entre vacunas infantiles y autismo que los médicos y las farmacéuticas están ocultando. Miles de padres reportan que sus hijos desarrollaron autismo después de la vacunación. La verdad que no quieren que sepas.',
-      aiAnalysis: {
-        veracity: 'Falso',
-        confidence: 0.97,
-        detectedMarkers: ['falso', 'teoria_conspirativa', 'enganoso'],
-        issues: ['Múltiples estudios científicos desmienten esta teoría', 'Información puede causar daño a la salud pública', 'No cita fuentes verificables']
-      },
-      consensusMarkers: ['falso', 'teoria_conspirativa', 'enganoso', 'sensacionalista'],
-      submittedBy: 'usuario_901',
-      submittedAt: '2024-01-15T06:20:00Z',
-      priority: 'high',
-      votesCount: 12,
-    },
-    {
-      id: '10',
-      type: 'image',
-      title: 'Foto de celebridad con político controversial',
-      url: null,
-      headline: null,
-      content: 'foto_celebridad_politico.jpg',
-      description: 'Imagen sugiere apoyo de celebridad a candidato político',
-      aiAnalysis: {
-        veracity: 'Manipulado',
-        confidence: 0.85,
-        detectedMarkers: ['manipulado', 'enganoso'],
-        issues: ['Análisis forense muestra inconsistencias en iluminación', 'La celebridad desmintió la foto públicamente', 'Bordes borrosos alrededor de las figuras']
-      },
-      consensusMarkers: ['manipulado', 'falso', 'enganoso'],
-      submittedBy: 'usuario_112',
-      submittedAt: '2024-01-15T05:50:00Z',
-      priority: 'medium',
-      votesCount: 6,
-    },
-    {
-      id: '11',
-      type: 'video',
-      title: 'Tutorial de "remedio casero" para COVID-19',
-      url: null,
-      headline: null,
-      content: 'video_remedio_covid.mp4',
-      description: 'Persona explica cómo curar COVID con productos naturales',
-      aiAnalysis: {
-        veracity: 'Desinformación Peligrosa',
-        confidence: 0.96,
-        detectedMarkers: ['falso', 'enganoso', 'sensacionalista'],
-        issues: ['Contradice recomendaciones de OMS', 'No hay evidencia científica de efectividad', 'Puede causar que personas eviten tratamiento médico real']
-      },
-      consensusMarkers: ['falso', 'enganoso', 'sensacionalista', 'contenido_prejuicioso'],
-      submittedBy: 'usuario_223',
-      submittedAt: '2024-01-15T05:15:00Z',
-      priority: 'high',
-      votesCount: 15,
+  useEffect(() => {
+    if (selectedContentId === null) {
+        refresh();
     }
-  ];
+  }, [selectedContentId]);
 
-  // Usar las mismas categorías del banco de marcadores de diagnóstico
-  const verificationOptions = ETIQUETAS_CATEGORIAS;
-
-  const getTypeIcon = (type: string) => {
-    switch (type) {
-      case 'text': return FileText;
-      case 'image': return Image;
-      case 'video': return Video;
-      case 'audio': return Volume2;
-      default: return FileText;
+  const handleSelectCase = async (caseId: string) => {
+    setIsDetailLoading(true);
+    setSelectedContentId(caseId);
+    try {
+        const details = await fetchCaseDetails(caseId);
+        setSelectedCaseDetails(details);
+    } catch (error) {
+        console.error("Error fetching case details:", error);
+    } finally {
+        setIsDetailLoading(false);
     }
   };
 
-  const getPriorityBadge = (priority: string) => {
-    switch (priority) {
-      case 'high':
-        return <Badge variant="destructive">Alta Prioridad</Badge>;
-      case 'medium':
-        return <Badge variant="default">Prioridad Media</Badge>;
-      case 'low':
-        return <Badge variant="secondary">Baja Prioridad</Badge>;
-      default:
-        return <Badge variant="outline">Sin Prioridad</Badge>;
-    }
+  const handleBackToList = () => {
+    setSelectedContentId(null);
+    setSelectedCaseDetails(null);
+    setVerificationNotes('');
+    setMarcadoresDiagnostico([]);
+    setMarcadoresJustificaciones({});
+    setMarcadoresEnlaces({});
+    refresh();
   };
 
   const handleVerificationSubmit = async () => {
-    if (!selectedContent || marcadoresDiagnostico.length === 0) return;
+    if (!selectedContentId || marcadoresDiagnostico.length === 0) return;
 
+    setIsSubmitting(true);
     try {
-      // Submit actual verification to API
       const result = await submitHumanVerification(
-        selectedContent,
+        selectedContentId,
         marcadoresDiagnostico,
         verificationNotes
       );
 
       if (!result.success) {
         console.error('Error al enviar verificación:', result.message);
-        // Could show error toast here
+        setIsSubmitting(false);
         return;
       }
-
-      console.log('Verificación enviada exitosamente:', {
-        contenido: selectedContent,
-        marcadores: marcadoresDiagnostico,
-        justificaciones: marcadoresJustificaciones,
-        enlaces: marcadoresEnlaces,
-        notas: verificationNotes
+      
+      // Gamification logic
+      const basePoints = 20;
+      const markerBonus = marcadoresDiagnostico.length * 5;
+      const justificationBonus = Object.keys(marcadoresJustificaciones).filter(k => marcadoresJustificaciones[k].length > 20).length * 10;
+      const linkBonus = Object.keys(marcadoresEnlaces).filter(k => marcadoresEnlaces[k]).length * 15;
+      const totalPoints = basePoints + markerBonus + justificationBonus + linkBonus;
+      
+      const levels = [
+        { level: 1, title: 'VIGILANTE CENTINELA', subtitle: 'Primera Línea de Defensa', minXP: 0, maxXP: 500, badge: '👁️' },
+        { level: 2, title: 'EPIDEMIÓLOGO DIGITAL VOLUNTARIO', subtitle: 'Analista de Contagio', minXP: 500, maxXP: 2000, badge: '🔬' },
+        { level: 3, title: 'ESPECIALISTA EN INMUNOLOGÍA INFORMATIVA', subtitle: 'Educomunicador Estratégico', minXP: 2000, maxXP: 999999, badge: '💉' }
+      ];
+      
+      const currentXP = (userStats?.points || 0) + totalPoints;
+      const getCurrentLevel = (xp: number) => {
+        return levels.find(level => xp >= level.minXP && xp < level.maxXP) || levels[levels.length - 1];
+      };
+      
+      const currentLevel = getCurrentLevel(currentXP);
+      const nextLevel = levels.find(level => level.level === currentLevel.level + 1);
+      const progressToNext = nextLevel ? 
+        Math.round(((currentXP - currentLevel.minXP) / (nextLevel.minXP - currentLevel.minXP)) * 100)
+        : 100;
+      
+      const totalDiagnoses = (userStats?.total_verifications || 0) + 1;
+      const streak = userStats?.streak || 0;
+      
+      setGamificationData({
+        pointsEarned: totalPoints,
+        currentLevel: currentLevel.title,
+        currentLevelBadge: currentLevel.badge,
+        currentLevelSubtitle: currentLevel.subtitle,
+        totalDiagnoses,
+        streak,
+        newBadge: null,
+        newBadgeIcon: null,
+        newBadgeDescription: null,
+        currentXP,
+        nextLevelXP: nextLevel ? nextLevel.minXP : currentLevel.maxXP,
+        progressToNext
       });
+
+      setShowSuccessDialog(true);
+
     } catch (error) {
       console.error('Error al enviar verificación:', error);
-      // Could show error toast here
-      return;
+    } finally {
+      setIsSubmitting(false);
     }
-
-    // Calcular puntos basados en criterios detallados
-    const basePoints = 20; // XP base por realizar un diagnóstico
-    const markerBonus = marcadoresDiagnostico.length * 5; // 5 XP por cada marcador aplicado
-    const justificationBonus = Object.keys(marcadoresJustificaciones).filter(k => marcadoresJustificaciones[k].length > 20).length * 10; // 10 XP por justificación detallada
-    const linkBonus = Object.keys(marcadoresEnlaces).filter(k => marcadoresEnlaces[k]).length * 15; // 15 XP por cada enlace de fuente
-    const totalPoints = basePoints + markerBonus + justificationBonus + linkBonus;
-    
-    // Sistema de niveles epidemiológicos (mismo que UserProfile)
-    const levels = [
-      { 
-        level: 1, 
-        title: 'VIGILANTE CENTINELA', 
-        subtitle: 'Primera Línea de Defensa',
-        minXP: 0, 
-        maxXP: 500, 
-        badge: '👁️'
-      },
-      { 
-        level: 2, 
-        title: 'EPIDEMIÓLOGO DIGITAL VOLUNTARIO', 
-        subtitle: 'Analista de Contagio',
-        minXP: 500, 
-        maxXP: 2000, 
-        badge: '🔬'
-      },
-      { 
-        level: 3, 
-        title: 'ESPECIALISTA EN INMUNOLOGÍA INFORMATIVA', 
-        subtitle: 'Educomunicador Estratégico',
-        minXP: 2000, 
-        maxXP: 999999, 
-        badge: '💉'
-      }
-    ];
-    
-    // Simular XP actual del usuario (850 = Nivel 2)
-    const currentXP = 850 + totalPoints;
-    const getCurrentLevel = (xp: number) => {
-      return levels.find(level => xp >= level.minXP && xp < level.maxXP) || levels[levels.length - 1];
-    };
-    
-    const currentLevel = getCurrentLevel(currentXP);
-    const nextLevel = levels.find(level => level.level === currentLevel.level + 1);
-    const progressToNext = nextLevel ? 
-      Math.round(((currentXP - currentLevel.minXP) / (nextLevel.minXP - currentLevel.minXP)) * 100)
-      : 100;
-    
-    // Simular total de diagnósticos completados
-    const totalDiagnoses = 28 + 1; // María tiene 28, ahora 29
-    
-    // Racha diaria
-    const streak = 12; // Misma racha que en el perfil
-    
-    // Insignias desbloqueables (alineadas con UserProfile)
-    const availableBadges = [
-      { id: 'analista-contagio', name: 'Analista de Contagio', icon: '🔬', description: 'Nivel 2 desbloqueado', threshold: 500 },
-      { id: 'detector-25', name: 'Detector Activo', icon: '👁️', description: '25 diagnósticos completados', threshold: 25 },
-      { id: 'racha-7', name: 'Constancia Inicial', icon: '🔥', description: '7 días consecutivos', threshold: 7 },
-      { id: 'precision', name: 'Precisión Destacada', icon: '🎯', description: '90%+ de precisión', threshold: 90 }
-    ];
-    
-    // Verificar si se desbloquea una nueva insignia
-    let newBadge = null;
-    if (totalDiagnoses === 25) {
-      newBadge = availableBadges.find(b => b.id === 'detector-25');
-    } else if (totalDiagnoses === 30) {
-      newBadge = availableBadges.find(b => b.id === 'precision');
-    }
-    
-    setGamificationData({
-      pointsEarned: totalPoints,
-      currentLevel: currentLevel.title,
-      currentLevelBadge: currentLevel.badge,
-      currentLevelSubtitle: currentLevel.subtitle,
-      totalDiagnoses,
-      streak,
-      newBadge: newBadge ? newBadge.name : null,
-      newBadgeIcon: newBadge ? newBadge.icon : null,
-      newBadgeDescription: newBadge ? newBadge.description : null,
-      currentXP,
-      nextLevelXP: nextLevel ? nextLevel.minXP : currentLevel.maxXP,
-      progressToNext
-    });
-    // Mostrar diálogo de éxito
-    setShowSuccessDialog(true);
-
-    // Refresh data after successful submission
-    refresh();
   };
 
   const handleCloseSuccessDialog = () => {
-    // Cerrar el diálogo
     setShowSuccessDialog(false);
-    
-    // Limpiar formulario y regresar a la cola
     setTimeout(() => {
-      setSelectedContent(null);
-      setVerificationNotes('');
-      setVerificationResult('');
-      setMarcadoresDiagnostico([]);
-      setMarcadoresJustificaciones({});
-      setMarcadoresEnlaces({});
+      handleBackToList();
     }, 300);
   };
 
   const toggleMarcadorDiagnostico = (marcadorId: string) => {
     setMarcadoresDiagnostico(prev => {
       if (prev.includes(marcadorId)) {
-        // Si se está quitando, también eliminar su justificación y enlace
         const newJustificaciones = { ...marcadoresJustificaciones };
         const newEnlaces = { ...marcadoresEnlaces };
         delete newJustificaciones[marcadorId];
@@ -510,115 +235,23 @@ export function HumanVerification() {
   };
 
   const updateMarcadorJustificacion = (marcadorId: string, justificacion: string) => {
-    setMarcadoresJustificaciones(prev => ({
-      ...prev,
-      [marcadorId]: justificacion
-    }));
+    setMarcadoresJustificaciones(prev => ({ ...prev, [marcadorId]: justificacion }));
   };
 
   const updateMarcadorEnlace = (marcadorId: string, enlace: string) => {
-    setMarcadoresEnlaces(prev => ({
-      ...prev,
-      [marcadorId]: enlace
-    }));
+    setMarcadoresEnlaces(prev => ({ ...prev, [marcadorId]: enlace }));
   };
 
-  const getMarcador = (marcadorId: string) => {
-    return ETIQUETAS_CATEGORIAS.find(c => c.id === marcadorId);
-  };
+  const getMarcador = (marcadorId: string) => ETIQUETAS_CATEGORIAS.find(c => c.id === marcadorId);
 
-  const getMarcadorBadgeColor = (marcadorId: string) => {
-    const marcador = getMarcador(marcadorId);
-    if (!marcador) return 'bg-gray-100 text-gray-700 border-gray-300';
-    
-    const colorMap: { [key: string]: string } = {
-      'verdadero': 'bg-green-100 text-green-700 border-green-300',
-      'falso': 'bg-red-100 text-red-700 border-red-300',
-      'enganoso': 'bg-orange-100 text-orange-700 border-orange-300',
-      'satirico': 'bg-blue-100 text-blue-700 border-blue-300',
-      'manipulado': 'bg-purple-100 text-purple-700 border-purple-300',
-      'sin_contexto': 'bg-amber-100 text-amber-700 border-amber-300',
-      'no_verificable': 'bg-gray-100 text-gray-700 border-gray-300',
-      'teoria_conspirativa': 'bg-violet-100 text-violet-700 border-violet-300',
-      'discurso_odio_racismo': 'bg-red-200 text-red-900 border-red-400',
-      'discurso_odio_sexismo': 'bg-red-200 text-red-900 border-red-400',
-      'discurso_odio_clasismo': 'bg-red-200 text-red-900 border-red-400',
-      'discurso_odio_ableismo': 'bg-red-200 text-red-900 border-red-400',
-      'incitacion_violencia': 'bg-red-300 text-red-950 border-red-500',
-      'acoso_ciberbullying': 'bg-orange-200 text-orange-900 border-orange-400',
-      'contenido_prejuicioso': 'bg-yellow-100 text-yellow-800 border-yellow-300',
-      'bot_coordinado': 'bg-indigo-100 text-indigo-700 border-indigo-300',
-      'suplantacion_identidad': 'bg-purple-200 text-purple-900 border-purple-400',
-      'sensacionalista': 'bg-orange-100 text-orange-600 border-orange-300',
-      'en_revision': 'bg-gray-100 text-gray-600 border-gray-300'
-    };
-    return colorMap[marcadorId] || 'bg-gray-100 text-gray-700 border-gray-300';
-  };
-
-  const getMarcadorColor = (marcadorId: string) => {
-    const colorMap: { [key: string]: string } = {
-      'verdadero': 'bg-emerald-500 hover:bg-emerald-600',
-      'falso': 'bg-red-500 hover:bg-red-600',
-      'enganoso': 'bg-orange-500 hover:bg-orange-600',
-      'satirico': 'bg-blue-500 hover:bg-blue-600',
-      'manipulado': 'bg-purple-500 hover:bg-purple-600',
-      'sin_contexto': 'bg-amber-500 hover:bg-amber-600',
-      'no_verificable': 'bg-gray-500 hover:bg-gray-600',
-      'teoria_conspirativa': 'bg-violet-600 hover:bg-violet-700',
-      'discurso_odio_racismo': 'bg-red-700 hover:bg-red-800',
-      'discurso_odio_sexismo': 'bg-red-700 hover:bg-red-800',
-      'discurso_odio_clasismo': 'bg-red-600 hover:bg-red-700',
-      'discurso_odio_ableismo': 'bg-red-600 hover:bg-red-700',
-      'incitacion_violencia': 'bg-red-900 hover:bg-red-950',
-      'acoso_ciberbullying': 'bg-orange-700 hover:bg-orange-800',
-      'contenido_prejuicioso': 'bg-yellow-600 hover:bg-yellow-700',
-      'bot_coordinado': 'bg-indigo-600 hover:bg-indigo-700',
-      'suplantacion_identidad': 'bg-purple-700 hover:bg-purple-800',
-      'sensacionalista': 'bg-orange-400 hover:bg-orange-500',
-      'en_revision': 'bg-gray-400 hover:bg-gray-500'
-    };
-    return colorMap[marcadorId] || 'bg-gray-500 hover:bg-gray-600';
-  };
-
-  const selectedContentData = pendingContents.find(c => c.id === selectedContent);
-
-  // Loading state
-  if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[500px] space-y-4">
-        <div className="animate-spin rounded-full h-16 w-16 border-4 border-yellow-400 border-t-transparent"></div>
-        <p className="text-gray-600">Cargando casos pendientes de verificación...</p>
-      </div>
-    );
-  }
-
-  // Error state
-  if (error && !cases.length) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[500px] space-y-4">
-        <AlertTriangle className="h-16 w-16 text-orange-500" />
-        <p className="text-gray-600">Error al cargar los casos</p>
-        <p className="text-sm text-gray-500">{error}</p>
-        <Button onClick={refresh} variant="outline">
-          Intentar de nuevo
-        </Button>
-      </div>
-    );
-  }
-
-  // Componente de diálogo de éxito gamificado (alineado con sistema de UserProfile)
   const renderSuccessDialog = () => (
-    <Dialog open={showSuccessDialog} onOpenChange={(open) => {
-      // Solo permitir cerrar mediante el botón, no con ESC o clic fuera
-      if (!open) return;
-    }}>
+    <Dialog open={showSuccessDialog} onOpenChange={(open) => { if (!open) return; }}>
       <DialogContent 
         className="max-w-md border-4 border-primary shadow-2xl [&>button]:hidden"
         onEscapeKeyDown={(e) => e.preventDefault()}
         onPointerDownOutside={(e) => e.preventDefault()}
       >
         <div className="relative">
-          {/* Confetti effect background */}
           <div className="absolute inset-0 overflow-hidden pointer-events-none">
             <div className="absolute top-0 left-0 w-full h-full opacity-20">
               {[...Array(20)].map((_, i) => (
@@ -640,7 +273,6 @@ export function HumanVerification() {
 
           <DialogHeader className="relative z-10">
             <div className="flex flex-col items-center space-y-4 py-4">
-              {/* Botilito celebrando */}
               <div className="relative">
                 <img 
                   src={botilitoImage} 
@@ -663,7 +295,6 @@ export function HumanVerification() {
           </DialogHeader>
 
           <div className="space-y-4 py-4 relative z-10">
-            {/* Puntos ganados - diseño destacado */}
             <div className="bg-gradient-to-br from-primary/30 via-primary/20 to-primary/10 border-2 border-primary rounded-lg p-6 text-center">
               <div className="flex items-center justify-center space-x-2 mb-2">
                 <Sparkles className="h-6 w-6 text-primary animate-pulse" />
@@ -673,7 +304,6 @@ export function HumanVerification() {
               <p className="text-sm text-muted-foreground">puntos de experiencia</p>
             </div>
 
-            {/* Nivel actual - badge epidemiológico */}
             <div className="bg-gradient-to-r from-purple-100 via-purple-50 to-purple-100 border-2 border-purple-300 rounded-lg p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
@@ -686,7 +316,6 @@ export function HumanVerification() {
                 </div>
               </div>
               
-              {/* Barra de progreso al siguiente nivel */}
               {gamificationData.progressToNext < 100 && (
                 <div className="mt-3 space-y-1">
                   <div className="flex justify-between text-xs text-muted-foreground">
@@ -706,7 +335,6 @@ export function HumanVerification() {
               )}
             </div>
 
-            {/* Estadísticas clave */}
             <div className="grid grid-cols-3 gap-2">
               <div className="bg-secondary/30 rounded-lg p-3 text-center border border-secondary/40">
                 <div className="flex items-center justify-center mb-1">
@@ -733,7 +361,6 @@ export function HumanVerification() {
               </div>
             </div>
 
-            {/* Insignia desbloqueada */}
             {gamificationData.newBadge && (
               <div className="bg-gradient-to-r from-yellow-400 via-yellow-300 to-yellow-400 rounded-lg p-4 text-center border-2 border-yellow-500 shadow-lg animate-pulse-glow">
                 <div className="flex items-center justify-center space-x-2 mb-2">
@@ -748,14 +375,12 @@ export function HumanVerification() {
               </div>
             )}
 
-            {/* Mensaje motivacional con tono colombiano */}
             <div className="bg-muted/30 rounded-lg p-4 text-center border border-muted">
               <p className="text-sm italic">
                 "Cada diagnóstico que haces ayuda a proteger a miles de colombianos de la desinformación. ¡Sigue así, crack!" 💪🇨🇴
               </p>
             </div>
 
-            {/* Botón para continuar */}
             <Button
               onClick={handleCloseSuccessDialog}
               className="w-full bg-primary hover:bg-primary/90 text-primary-foreground text-lg py-6"
@@ -769,1054 +394,276 @@ export function HumanVerification() {
     </Dialog>
   );
 
-  // FLUJO NUEVO: Si no hay contenido seleccionado, mostrar solo la cola
-  if (!selectedContentData) {
+  if (loading && !selectedContentId) {
+    return <div className="flex justify-center items-center h-96"><Progress /></div>;
+  }
+
+  if (error && !cases.length) {
+    return <Alert variant="destructive">{error}</Alert>;
+  }
+
+  if (selectedContentId) {
+    const caseData = selectedCaseDetails;
+    const aiMarkers = caseData?.diagnostic_labels || [];
+    
+    const humanVotes = caseData?.human_votes?.entries || [];
+    const humanVotesByClassification = humanVotes.reduce((acc, vote) => {
+        const classification = vote.vote;
+        if (!acc[classification]) {
+            acc[classification] = [];
+        }
+        acc[classification].push(vote);
+        return acc;
+    }, {});
+
     return (
+    <TooltipProvider>
       <div className="space-y-6">
-        {/* Franja superior de Botilito */}
-        <div className="bg-[#ffe97a] border-2 border-[#ffda00] rounded-lg p-4 shadow-lg">
-          <div className="flex items-center space-x-4">
-            <img
-              src={botilitoImage}
-              alt="Botilito"
-              className="w-24 h-24 object-contain mt-[0px] mr-[16px] mb-[-18px] ml-[0px]"
-            />
-            <div className="flex-1">
-              <p className="text-xl">
-                ¡Ey parcero! Acá están los casos que necesitan ojo humano 🔍👀
-              </p>
-              <p className="text-sm mt-1 opacity-80">
-                Ya hice mi tarea con la IA, pero ahora necesito que vos y tus colegas hagan el diagnóstico fino. ¡Entre todos le paramos bolas a la desinformación! 💪
-              </p>
-            </div>
-          </div>
+        <div className="flex justify-start">
+          <Button variant="outline" onClick={handleBackToList}>
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Volver a la lista de casos
+          </Button>
         </div>
 
-        {/* Estadísticas del Sistema */}
-        {summaryData && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-blue-600 font-medium">Casos Totales</p>
-                    <p className="text-2xl font-bold text-blue-900">
-                      {summaryData.kpis.total_cases.toLocaleString()}
-                    </p>
-                  </div>
-                  <FileText className="h-8 w-8 text-blue-500 opacity-50" />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-purple-600 font-medium">Documentos</p>
-                    <p className="text-2xl font-bold text-purple-900">
-                      {summaryData.kpis.total_documents.toLocaleString()}
-                    </p>
-                  </div>
-                  <Layers className="h-8 w-8 text-purple-500 opacity-50" />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-green-600 font-medium">Pendientes de Verificación</p>
-                    <p className="text-2xl font-bold text-green-900">
-                      {pendingContents.filter(c => c.consensusState === 'ai_only').length}
-                    </p>
-                  </div>
-                  <Clock className="h-8 w-8 text-green-500 opacity-50" />
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
-        {/* Solo la cola de casos pendientes */}
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="flex items-center space-x-2 text-[24px]">
-                  <Layers className="h-5 w-5 text-primary" />
-                  <span>Listado de Casos</span>
-                </CardTitle>
-                <CardDescription>
-                  Casos bajo análisis epidemiológico que requieren diagnóstico especializado
-                </CardDescription>
-              </div>
-              <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">
-                <Hash className="h-3 w-3 mr-1" />
-                {pendingContents.length} casos activos
-              </Badge>
-            </div>
-
-            {/* Search and Filter Controls */}
-            <div className="flex space-x-2 mt-4">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar casos por título o contenido..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 border border-gray-300"
-                />
-              </div>
-              <div className="flex items-center space-x-2">
-                <Filter className="h-4 w-4 text-muted-foreground" />
-                <select 
-                  value={selectedFilter} 
-                  onChange={(e) => setSelectedFilter(e.target.value)}
-                  className="px-3 py-2 border rounded-md text-sm bg-background"
-                >
-                  <option value="all">Todos los casos</option>
-                  <option value="high">Alta prioridad</option>
-                  <option value="medium">Prioridad media</option>
-                  <option value="text">Solo texto</option>
-                  <option value="image">Solo imágenes</option>
-                  <option value="video">Solo videos</option>
-                </select>
-              </div>
-            </div>
+            <CardTitle className="flex items-center space-x-2">
+              <Microscope className="h-5 w-5 text-primary" />
+              <span>Análisis Especializado del Caso: {selectedContentId}</span>
+            </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Lista de casos con altura fija y scroll */}
-            <div className="space-y-4 max-h-[600px] min-h-[500px] overflow-y-auto custom-scrollbar">
-              {(() => {
-                // Calcular índices para la paginación
-                const indexOfLastCase = currentPage * casesPerPage;
-                const indexOfFirstCase = indexOfLastCase - casesPerPage;
-                const currentCases = pendingContents.slice(indexOfFirstCase, indexOfLastCase);
+          <CardContent className="space-y-6">
+            {isDetailLoading || !caseData ? (
+                <div className="flex justify-center items-center h-64"><Progress /></div>
+            ) : (
+            <>
+                {/* Content Details */}
+                <div className="p-4 bg-secondary/30 border rounded-lg space-y-4">
+                    <div className="relative rounded-lg overflow-hidden border-2">
+                        <ImageWithFallback
+                            src={caseData.metadata?.screenshotUrl}
+                            alt="Captura de contenido analizado"
+                            className="w-full h-auto object-cover"
+                        />
+                        {aiMarkers.length > 0 && (
+                            <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent">
+                                <Label className="text-white text-sm font-semibold">Marcadores Detectados por IA</Label>
+                                <div className="flex flex-wrap gap-2 mt-2">
+                                    {aiMarkers.map((marker, index) => {
+                                        const visuals = getMarkerVisuals(marker);
+                                        return (
+                                            <Tooltip key={index}>
+                                                <TooltipTrigger>
+                                                    <Badge className={`${visuals.color} text-white px-2 py-1 text-xs`}>
+                                                        {visuals.icon}
+                                                        <span className="ml-1.5">{marker}</span>
+                                                    </Badge>
+                                                </TooltipTrigger>
+                                            </Tooltip>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    <div>
+                        <Label>Titular:</Label>
+                        <p className="font-medium text-lg">{caseData.title}</p>
+                    </div>
+                    
+                    <div>
+                        <Label>Resumen:</Label>
+                        <p className="text-sm text-muted-foreground whitespace-pre-wrap">{caseData.summary}</p>
+                    </div>
+                </div>
                 
-                return currentCases.map((content) => {
-                  const TypeIcon = getTypeIcon(content.type);
-              
-              return (
-                <div
-                  key={content.id}
-                  className="p-4 border rounded-lg cursor-pointer transition-all duration-200 bg-gray-50/50 hover:bg-accent hover:shadow-md hover:border-primary/50"
-                  onClick={() => setSelectedContent(content.id)}
-                >
-                  <div className="flex items-start justify-between space-x-3">
-                    <div className="flex items-start space-x-3 flex-1">
-                      <div className="p-3 bg-muted rounded-lg">
-                        <TypeIcon className="h-6 w-6 text-muted-foreground" />
-                      </div>
-                      <div className="space-y-2 flex-1">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-2">
-                            <Badge variant="outline" className="text-xs bg-white border-primary/30 font-mono">
-                              {content.id}
-                            </Badge>
-                            {content.title && <h4 className="font-medium text-sm">{content.title}</h4>}
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            {getPriorityBadge(content.priority)}
-                          </div>
-                        </div>
-                        
-                        <div className="space-y-1">
-                          {/* Fecha y hora de reporte + Usuario */}
-                          <div className="flex items-center flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                            <div className="flex items-center space-x-1">
-                              <Calendar className="h-3 w-3" />
-                              <span>
-                                {new Date(content.submittedAt).toLocaleDateString('es-CO', { 
-                                  year: 'numeric', 
-                                  month: 'short', 
-                                  day: 'numeric',
-                                  hour: '2-digit',
-                                  minute: '2-digit'
-                                })}
-                                <span className="ml-1">
-                                  (hace {Math.floor((Date.now() - new Date(content.submittedAt).getTime()) / (1000 * 60 * 60))}h)
-                                </span>
-                              </span>
+                {caseData.case_judgement && (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center space-x-2 text-lg">
+                                <Gavel className="h-5 w-5 text-primary" />
+                                <span>Veredicto Final de IA</span>
+                            </CardTitle>
+                            <CardDescription>{caseData.case_judgement.final_verdict}</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div>
+                                <h4 className="font-semibold">Recomendación</h4>
+                                <p className="text-sm text-muted-foreground">{caseData.case_judgement.recommendation}</p>
                             </div>
-                            
-                            <Separator orientation="vertical" className="h-3" />
-                            
-                            <div className="flex items-center space-x-1">
-                              <User className="h-3 w-3" />
-                              <span>Reportado por: <span className="font-medium">{content.submittedBy}</span></span>
+                            <div>
+                                <h4 className="font-semibold">Razonamiento</h4>
+                                <p className="text-sm text-muted-foreground">{caseData.case_judgement.reasoning}</p>
                             </div>
-                          </div>
-                          
-                          {/* Cantidad de diagnósticos previos */}
-                          {content.votesCount > 0 && (
-                            <div className="flex items-center space-x-1 text-xs text-muted-foreground">
-                              <Users className="h-3 w-3" />
-                              <span>{content.votesCount} diagnósticos humanos</span>
-                            </div>
-                          )}
-                          
-                          {/* Consenso Humano + IA: Porcentaje de coincidencia */}
-                          <div className="flex items-center space-x-1 text-xs">
-                            <Gauge className="h-3 w-3 text-purple-600" />
-                            <span className="text-muted-foreground">Consenso Humano + IA:</span>
-                            {(() => {
-                              const humanMarkers = content.consensusMarkers || [];
-                              const aiMarkers = content.aiAnalysis?.detectedMarkers || [];
-                              
-                              // Si no hay consenso humano todavía
-                              if (humanMarkers.length === 0) {
+                        </CardContent>
+                    </Card>
+                )}
+                
+                <Separator />
+
+                {/* Human Votes Section */}
+                {Object.keys(humanVotesByClassification).length > 0 && (
+                    <div className="space-y-4">
+                        <Label className="text-lg font-semibold">Diagnósticos de la Comunidad</Label>
+                        <Accordion type="single" collapsible className="w-full">
+                            {Object.entries(humanVotesByClassification).map(([classification, votes]) => {
+                                const stats = caseData.human_votes?.statistics?.find(s => s.label === classification);
                                 return (
-                                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-gray-100 text-gray-600 border-gray-300">
-                                    Sin datos
-                                  </Badge>
-                                );
-                              }
-                              
-                              // Calcular coincidencia
-                              const commonMarkers = humanMarkers.filter(marker => aiMarkers.includes(marker));
-                              const totalUniqueMarkers = new Set([...humanMarkers, ...aiMarkers]).size;
-                              const coincidencePercentage = totalUniqueMarkers > 0 
-                                ? Math.round((commonMarkers.length / totalUniqueMarkers) * 100) 
-                                : 0;
-                              
-                              // Determinar color basado en el porcentaje
-                              const coincidenceColor = coincidencePercentage >= 70
-                                ? 'bg-green-100 text-green-700 border-green-300'
-                                : coincidencePercentage >= 40
-                                  ? 'bg-yellow-100 text-yellow-700 border-yellow-300'
-                                  : 'bg-red-100 text-red-700 border-red-300';
-                              
-                              return (
-                                <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${coincidenceColor}`}>
-                                  {coincidencePercentage}% coincidencia
-                                </Badge>
-                              );
-                            })()}
-                          </div>
-                        </div>
-                        
-                        <div className="space-y-2">
-                          {/* Diagnóstico desinfodémico unificado */}
-                          {(() => {
-                            // Priorizar diagnóstico consensuado si existe, sino mostrar el de Botilito
-                            const marcadores = content.consensusMarkers && content.consensusMarkers.length > 0 
-                              ? content.consensusMarkers 
-                              : content.aiAnalysis.detectedMarkers || [];
-                            const isConsensus = content.consensusMarkers && content.consensusMarkers.length > 0;
-                            const IconComponent = isConsensus ? Users : Bot;
-                            
-                            if (marcadores.length === 0) return null;
-                            
-                            return (
-                              <div className="space-y-1">
-                                <div className="flex items-center space-x-1 text-xs text-muted-foreground">
-                                  <IconComponent className="h-3 w-3" />
-                                  <span>Diagnóstico desinfodémico:</span>
-                                  {!isConsensus && (
-                                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 ml-1 bg-blue-50 text-blue-700 border-blue-200">
-                                      analizado solo por Botilito
-                                    </Badge>
-                                  )}
-                                </div>
-                                <div className="grid grid-cols-2 gap-1">
-                                  {marcadores.map((marcadorId, index) => {
-                                    const marcador = getMarcador(marcadorId);
-                                    if (!marcador) return null;
-                                    return (
-                                      <Badge 
-                                        key={index} 
-                                        variant="outline" 
-                                        className={`text-xs px-2 py-0.5 ${getMarcadorBadgeColor(marcadorId)}`}
-                                      >
-                                        {marcador.label}
-                                      </Badge>
-                                    );
-                                  })}
-                                </div>
+                                <AccordionItem value={classification} key={classification}>
+                                    <AccordionTrigger>
+                                        <div className="flex items-center justify-between w-full">
+                                            <div className="flex items-center space-x-2">
+                                                <span>{classification}</span>
+                                                <Badge variant="secondary">{(votes as any[]).length} votos</Badge>
+                                            </div>
+                                            {stats && (
+                                                <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                                                    <span>({stats.percentage.toFixed(1)}%)</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </AccordionTrigger>
+                                    <AccordionContent>
+                                        <div className="space-y-4 pl-4">
+                                            {(votes as any[]).map((vote, index) => (
+                                                <div key={index} className="border-l-2 pl-4 py-2">
+                                                    <div className="flex items-center space-x-2 text-sm">
+                                                        <User className="h-4 w-4 text-muted-foreground" />
+                                                        <span className="font-semibold">{vote.user.nombre_completo || 'Anónimo'}</span>
+                                                        <Badge variant="outline">Rep: {vote.user.reputation}</Badge>
+                                                        <span className="text-muted-foreground text-xs">{new Date(vote.date).toLocaleString('es-CO')}</span>
+                                                    </div>
+                                                    {vote.reason && <p className="text-sm italic mt-2">"{vote.reason}"</p>}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </AccordionContent>
+                                </AccordionItem>
+                            )})}
+                        </Accordion>
+                    </div>
+                )}
+                
+                <Separator />
+
+                {/* Human Diagnosis Form */}
+                <div>
+                  <Label className="mb-3 flex items-center space-x-2 text-lg font-semibold">
+                    <User className="h-5 w-5 text-primary" />
+                    <span>Tu Diagnóstico Humano</span>
+                  </Label>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Selecciona los marcadores que apliquen. Al seleccionar cada uno, puedes justificar tu elección y agregar enlaces de soporte.
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {ETIQUETAS_CATEGORIAS.map((marcador) => {
+                      const Icon = marcador.icon;
+                      const isSelected = marcadoresDiagnostico.includes(marcador.id);
+                      return (
+                        <div key={marcador.id} className={`border-2 rounded-lg transition-all ${isSelected ? `${marcador.border} ${marcador.bg} shadow-md col-span-1 lg:col-span-3` : 'border-gray-200 hover:border-primary/30'}`}>
+                          <div className="flex items-start space-x-3 p-4 cursor-pointer" onClick={() => toggleMarcadorDiagnostico(marcador.id)}>
+                            <Checkbox checked={isSelected} onCheckedChange={() => toggleMarcadorDiagnostico(marcador.id)} className="mt-1" />
+                            <div className="flex-1">
+                              <div className="flex items-center space-x-2 mb-1">
+                                <Icon className={`h-5 w-5 ${marcador.color}`} />
+                                <Label className="cursor-pointer font-medium">{marcador.label}</Label>
                               </div>
-                            );
-                          })()}
-                          
-                          {/* URL a la noticia original si existe */}
-                          {content.url && (
-                            <div className="flex items-center space-x-1 text-xs text-blue-600">
-                              <Link className="h-3 w-3 flex-shrink-0" />
-                              <span className="truncate">{content.url}</span>
+                              <p className="text-xs text-muted-foreground">{marcador.descripcion}</p>
+                            </div>
+                          </div>
+                          {isSelected && (
+                            <div className="px-4 pb-4 space-y-3 border-t pt-3 mt-2">
+                              <div>
+                                <Label className="text-xs text-muted-foreground mb-1 flex items-center space-x-1"><MessageSquare className="h-3 w-3" /><span>Justificación:</span></Label>
+                                <Textarea placeholder={`Explica por qué este contenido es "${marcador.label}"...`} value={marcadoresJustificaciones[marcador.id] || ''} onChange={(e) => updateMarcadorJustificacion(marcador.id, e.target.value)} className="text-sm" rows={3} />
+                              </div>
+                              <div>
+                                <Label className="text-xs text-muted-foreground mb-1 flex items-center space-x-1"><Link2 className="h-3 w-3" /><span>Enlace de soporte (opcional):</span></Label>
+                                <Input type="url" placeholder="https://ejemplo.com/fuente" value={marcadoresEnlaces[marcador.id] || ''} onChange={(e) => updateMarcadorEnlace(marcador.id, e.target.value)} className="text-sm" />
+                              </div>
                             </div>
                           )}
                         </div>
-                      </div>
-                    </div>
+                      );
+                    })}
                   </div>
                 </div>
-              );
-            });
-              })()}
-            </div>
-            
-            {/* Controles de paginación */}
-            {pendingContents.length > casesPerPage && (
-              <div className="pt-4 border-t">
-                <div className="flex items-center justify-between">
-                  <div className="text-sm text-muted-foreground">
-                    Mostrando {((currentPage - 1) * casesPerPage) + 1} - {Math.min(currentPage * casesPerPage, pendingContents.length)} de {pendingContents.length} casos
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                      disabled={currentPage === 1}
-                    >
-                      Anterior
-                    </Button>
-                    <div className="flex items-center space-x-1">
-                      {Array.from({ length: Math.ceil(pendingContents.length / casesPerPage) }, (_, i) => i + 1).map((page) => (
-                        <Button
-                          key={page}
-                          variant={currentPage === page ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => setCurrentPage(page)}
-                          className={currentPage === page ? "bg-primary text-primary-foreground" : ""}
-                        >
-                          {page}
-                        </Button>
-                      ))}
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setCurrentPage(prev => Math.min(Math.ceil(pendingContents.length / casesPerPage), prev + 1))}
-                      disabled={currentPage === Math.ceil(pendingContents.length / casesPerPage)}
-                    >
-                      Siguiente
-                    </Button>
-                  </div>
+
+                <div>
+                  <Label htmlFor="notes" className="mb-2 flex items-center space-x-2"><MessageSquare className="h-4 w-4 text-primary" /><span>Notas Adicionales</span></Label>
+                  <Textarea id="notes" placeholder="Observaciones generales sobre el caso..." value={verificationNotes} onChange={(e) => setVerificationNotes(e.target.value)} rows={4} />
                 </div>
-              </div>
+
+                <div className="flex justify-end pt-4">
+                  <Button onClick={handleVerificationSubmit} disabled={isSubmitting || marcadoresDiagnostico.length === 0} size="lg">
+                    {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    {isSubmitting ? 'Procesando...' : 'Enviar diagnóstico'}
+                  </Button>
+                </div>
+            </>
             )}
           </CardContent>
         </Card>
+        {renderSuccessDialog()}
       </div>
+    </TooltipProvider>
     );
   }
 
-  // FLUJO NUEVO: Si hay contenido seleccionado, mostrar el laboratorio completo
   return (
     <div className="space-y-6">
-      {/* Franja de Botilito para el detalle del caso */}
-      <div className="bg-[#ffe97a] border-2 border-[#ffda00] rounded-lg p-4 shadow-lg">
-        <div className="flex items-center space-x-4">
-          <img 
-            src={botilitoImage} 
-            alt="Botilito" 
-            className="w-24 h-24 object-contain mt-[0px] mr-[16px] mb-[-18px] ml-[0px]"
-          />
-          <div className="flex-1">
-            <p className="text-xl">
-              ¡Ey parcero! Acá tienes el detalle completo de este caso 🔬👀
-            </p>
-            <p className="text-sm mt-1 opacity-80">
-              Ya hice mi análisis, pero ahora vos y tu experiencia pueden afinar el diagnóstico. ¿Cómo lo ves? Dale duro al análisis! 💪
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Botón para volver a la lista */}
-      <div className="flex justify-start">
-        <Button
-          variant="outline"
-          onClick={() => setSelectedContent(null)}
-          className="border-2 border-gray-300 hover:border-primary hover:bg-primary/10"
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Volver a la lista de casos
-        </Button>
-      </div>
-
-      {/* Laboratorio de diagnóstico completo */}
-      <Card>
-        <CardHeader>
-          {/* Franja unificada con toda la info del caso */}
-          <div className="flex items-center justify-between gap-4 bg-gradient-to-r from-primary/10 via-secondary/10 to-primary/10 px-6 py-4 rounded-lg border-2 border-primary/30 mb-4">
-            {/* Código del caso */}
-            <div className="flex items-center space-x-2">
-              <div className="p-2 bg-primary/20 rounded-lg">
-                <Shield className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Código del Caso</p>
-                <p className="font-mono font-medium">{selectedContentData.id}</p>
-              </div>
+        {/* Header */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Casos Pendientes de Verificación</CardTitle>
+            <CardDescription>Casos que requieren diagnóstico humano especializado.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {/* Case List */}
+            <div className="space-y-2">
+              {cases.map((content) => (
+                <div key={content.id} className="p-4 border rounded-lg cursor-pointer hover:bg-accent" onClick={() => handleSelectCase(content.id)}>
+                  <div className="flex justify-between items-center">
+                    <div className="font-medium">{content.title || 'Contenido sin título'}</div>
+                    {getPriorityBadge(content.priority)}
+                  </div>
+                  <div className="text-sm text-muted-foreground truncate">{content.content}</div>
+                  <div className="flex items-center space-x-4 mt-2 text-xs text-muted-foreground">
+                    <span>ID: {content.id}</span>
+                    <span>Votos: {content.human_votes?.count || 0}</span>
+                    <span>Consenso: {content.consensus?.state || 'N/A'}</span>
+                  </div>
+                </div>
+              ))}
             </div>
-
-            <Separator orientation="vertical" className="h-12" />
-
-            {/* Prioridad */}
-            <div>
-              <p className="text-xs text-muted-foreground mb-1">Prioridad</p>
-              {getPriorityBadge(selectedContentData.priority)}
-            </div>
-
-            <Separator orientation="vertical" className="h-12" />
-
-            {/* Reportado por */}
-            <div className="flex items-center space-x-2">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <User className="h-4 w-4 text-blue-600" />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Reportado por</p>
-                <p className="text-sm font-medium">{selectedContentData.submittedBy}</p>
-              </div>
-            </div>
-
-            <Separator orientation="vertical" className="h-12" />
-
-            {/* Fecha de reporte */}
-            <div className="flex items-center space-x-2">
-              <div className="p-2 bg-emerald-100 rounded-lg">
-                <Calendar className="h-4 w-4 text-emerald-600" />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Fecha de reporte</p>
-                <p className="text-sm font-medium">
-                  {new Date(selectedContentData.submittedAt).toLocaleDateString('es-CO', {
-                    day: 'numeric',
-                    month: 'short',
-                    year: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                  })}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Título de la sección */}
-          <CardTitle className="flex items-center space-x-2">
-            <Microscope className="h-5 w-5 text-primary" />
-            <span>Análisis Especializado del Caso</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Content Details */}
-          <div>
-            <div className="p-4 bg-secondary/30 border-2 border-secondary/60 rounded-lg space-y-3">
-              {/* Captura de la noticia con etiquetas superpuestas */}
-              {selectedContentData.screenshot && (
-                <div>
-                  <Label>Captura de la noticia:</Label>
-                  <div className="mt-2 rounded-lg overflow-hidden border-2 border-secondary/40 relative max-h-48">
-                    <img 
-                      src={selectedContentData.screenshot} 
-                      alt="Captura de la noticia" 
-                      className="w-full h-48 object-cover object-top"
-                    />
-                  </div>
+            {/* Pagination Controls */}
+            <div className="pt-4 flex items-center justify-between">
+                <div className="text-sm text-muted-foreground">
+                    Página {summaryData?.pagination.page || 1}
                 </div>
-              )}
-              
-              {/* Fuente y tema */}
-              {(selectedContentData.source || selectedContentData.theme) && (
-                <div className="flex flex-wrap items-center gap-4 pb-2">
-                  {/* Fuente de la noticia */}
-                  {selectedContentData.source && (
-                    <div className="flex items-center space-x-2">
-                      <Newspaper className="h-4 w-4 text-primary" />
-                      <Label className="text-sm">Fuente:</Label>
-                      <a 
-                        href={selectedContentData.source.url} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-secondary/60 hover:bg-secondary text-secondary-foreground rounded-md transition-colors text-xs no-hover-effect"
-                      >
-                        <span>{selectedContentData.source.name}</span>
-                        <ExternalLink className="h-3 w-3" />
-                      </a>
-                    </div>
-                  )}
-                  
-                  {/* Tema del contenido */}
-                  {selectedContentData.theme && (
-                    <div className="flex items-center space-x-2">
-                      <Tag className="h-4 w-4 text-primary" />
-                      <Label className="text-sm">Tema:</Label>
-                      <Badge variant="outline" className="text-xs border-primary/40 bg-primary/10">
-                        {selectedContentData.theme}
-                      </Badge>
-                    </div>
-                  )}
-                </div>
-              )}
-              
-              {/* Titular de la noticia */}
-              {selectedContentData.headline && (
-                <div>
-                  <Label>Titular de la noticia:</Label>
-                  <div className="mt-1 p-3 bg-primary/20 border border-primary/40 rounded-lg">
-                    <p className="font-medium">{selectedContentData.headline}</p>
-                  </div>
-                </div>
-              )}
-              
-              {/* Contenido analizado */}
-              <div>
-                <Label>Contenido analizado:</Label>
-                <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
-                  {selectedContentData.type === 'text' ? 
-                    selectedContentData.content : 
-                    selectedContentData.description || selectedContentData.content
-                  }
-                </p>
-              </div>
-            </div>
-
-            {/* Evaluación epidemiológica */}
-            {selectedContentData.aiAnalysis.summary && (
-              <div className="mt-6">
-                <Label>Evaluación epidemiológica:</Label>
-                <p className="text-sm text-muted-foreground mt-1">{selectedContentData.aiAnalysis.summary}</p>
-              </div>
-            )}
-          </div>
-
-          <Separator />
-
-          {/* Comparativa de Diagnósticos: Botilito vs Verificadores Humanos */}
-          <div>
-            <Label className="mb-4 flex items-center space-x-2">
-              <Microscope className="h-5 w-5 text-primary" />
-              <span>Comparativa de Diagnósticos</span>
-            </Label>
-            
-            <div className="grid grid-cols-2 gap-6">
-              {/* Columna 1: Diagnóstico de Botilito (IA) */}
-              <div className="space-y-4 border border-gray-300 rounded-lg p-4">
-                <div className="flex items-center space-x-2 mb-3">
-                  <div className="p-2 bg-purple-100 rounded-lg">
-                    <Bot className="h-5 w-5 text-purple-600" />
-                  </div>
-                  <div>
-                    <h3 className="font-medium">Diagnóstico de Botilito</h3>
-                    <p className="text-xs text-muted-foreground">Análisis inicial de IA</p>
-                  </div>
-                </div>
-                
-                {/* Etiquetas de Botilito - SIN porcentajes */}
-                <div className="space-y-2">
-                  <Label className="text-xs text-muted-foreground">Marcadores detectados:</Label>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedContentData.aiAnalysis.detectedMarkers?.map((marcadorId) => {
-                      const marcador = getMarcador(marcadorId);
-                      if (!marcador) return null;
-                      const Icon = marcador.icon;
-                      
-                      return (
-                        <Badge 
-                          key={marcadorId}
-                          variant="outline"
-                          className="bg-white border-gray-300"
-                        >
-                          <Icon className={`h-4 w-4 mr-1.5 ${marcador.color}`} />
-                          {marcador.label}
-                        </Badge>
-                      );
-                    })}
-                  </div>
-                </div>
-                
-                {/* Comentario de Botilito */}
-                {selectedContentData.aiAnalysis.summary && (
-                  <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg">
-                    <Label className="text-xs text-muted-foreground mb-1 flex items-center space-x-1">
-                      <MessageSquare className="h-3 w-3" />
-                      <span>Análisis:</span>
-                    </Label>
-                    <p className="text-sm mt-1">{selectedContentData.aiAnalysis.summary}</p>
-                  </div>
-                )}
-              </div>
-
-              {/* Columna 2: Diagnóstico de Verificadores Humanos */}
-              <div className="space-y-4 border border-gray-300 rounded-lg p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center space-x-2">
-                    <div className="p-2 bg-emerald-100 rounded-lg">
-                      <Users className="h-5 w-5 text-emerald-600" />
-                    </div>
-                    <div>
-                      <h3 className="font-medium">Diagnóstico de Verificadores</h3>
-                      <p className="text-xs text-muted-foreground">Consenso humano</p>
-                    </div>
-                  </div>
-                  {/* Número de verificadores */}
-                  <Badge variant="outline" className="bg-emerald-50 border-emerald-300">
-                    <Users className="h-3 w-3 mr-1" />
-                    12 verificadores
-                  </Badge>
-                </div>
-                
-                {/* Etiquetas de Verificadores - CON porcentajes */}
-                <div className="space-y-2">
-                  <Label className="text-xs text-muted-foreground">Marcadores por consenso:</Label>
-                  <div className="space-y-2">
-                    {/* Simulamos datos de consenso basados en los marcadores de IA */}
-                    {selectedContentData.aiAnalysis.detectedMarkers?.map((marcadorId, index) => {
-                      const marcador = getMarcador(marcadorId);
-                      if (!marcador) return null;
-                      const Icon = marcador.icon;
-                      
-                      // Porcentajes simulados de consenso (en producción vendrían de la BD)
-                      const consensusPercentages = [92, 83, 75];
-                      const percentage = consensusPercentages[index] || 70;
-                      
-                      return (
-                        <div key={marcadorId} className="flex items-center justify-between py-2 border-b last:border-b-0">
-                          <div className="flex items-center space-x-2">
-                            <Icon className={`h-4 w-4 ${marcador.color}`} />
-                            <span className="text-sm">{marcador.label}</span>
-                          </div>
-                          <span className="text-sm font-medium text-muted-foreground">
-                            {percentage}%
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <Separator />
-
-          {/* Marcadores de Diagnóstico Desinfodémico */}
-          <div>
-            <Label className="mb-3 flex items-center space-x-2">
-              <Target className="h-4 w-4 text-primary" />
-              <span>Marcadores de Diagnóstico Desinfodémico</span>
-            </Label>
-            <p className="text-xs text-muted-foreground mb-4">
-              Selecciona los marcadores que apliquen. Al seleccionar cada uno, puedes justificar tu elección y agregar enlaces de soporte.
-            </p>
-            
-            <div className="grid grid-cols-3 gap-3">
-              {ETIQUETAS_CATEGORIAS.map((marcador) => {
-                const Icon = marcador.icon;
-                const isSelected = marcadoresDiagnostico.includes(marcador.id);
-                
-                return (
-                  <div 
-                    key={marcador.id}
-                    className={`border-2 rounded-lg transition-all ${
-                      isSelected 
-                        ? `${marcador.border} ${marcador.bg} shadow-sm col-span-3` 
-                        : 'border-gray-200 hover:border-primary/30 hover:bg-accent/30'
-                    }`}
-                  >
-                    {/* Header del marcador - siempre visible */}
-                    <div 
-                      className="flex items-start space-x-3 p-4 cursor-pointer"
-                      onClick={() => toggleMarcadorDiagnostico(marcador.id)}
+                <div className="flex items-center space-x-2">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPage(p => Math.max(1, p - 1))}
+                        disabled={page === 1}
                     >
-                      <Checkbox 
-                        checked={isSelected}
-                        onCheckedChange={() => toggleMarcadorDiagnostico(marcador.id)}
-                        className="mt-1"
-                      />
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-2 mb-1">
-                          <Icon className={`h-5 w-5 ${marcador.color}`} />
-                          <Label className="cursor-pointer font-medium">
-                            {marcador.label}
-                          </Label>
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          {marcador.descripcion}
-                        </p>
-                      </div>
-                    </div>
-                    
-                    {/* Área expandida con justificación y enlace - solo cuando está seleccionado */}
-                    {isSelected && (
-                      <div className="px-4 pb-4 space-y-3 border-t pt-3 mt-2">
-                        {/* Campo de justificación */}
-                        <div>
-                          <Label className="text-xs text-muted-foreground mb-1 flex items-center space-x-1">
-                            <MessageSquare className="h-3 w-3" />
-                            <span>Justificación:</span>
-                          </Label>
-                          <Textarea
-                            placeholder={`Explica por qué este contenido presenta características de "${marcador.label}"...`}
-                            value={marcadoresJustificaciones[marcador.id] || ''}
-                            onChange={(e) => updateMarcadorJustificacion(marcador.id, e.target.value)}
-                            className="text-sm resize-none"
-                            rows={3}
-                          />
-                        </div>
-                        
-                        {/* Campo de enlace de soporte */}
-                        <div>
-                          <Label className="text-xs text-muted-foreground mb-1 flex items-center space-x-1">
-                            <Link2 className="h-3 w-3" />
-                            <span>Enlace de soporte (opcional):</span>
-                          </Label>
-                          <Input
-                            type="url"
-                            placeholder="https://ejemplo.com/fuente-verificacion"
-                            value={marcadoresEnlaces[marcador.id] || ''}
-                            onChange={(e) => updateMarcadorEnlace(marcador.id, e.target.value)}
-                            className="text-sm"
-                          />
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Agrega un enlace a fuentes, artículos o evidencia que respalde tu diagnóstico
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+                        Anterior
+                    </Button>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPage(p => p + 1)}
+                        disabled={!summaryData?.pagination.hasMore}
+                    >
+                        Siguiente
+                    </Button>
+                </div>
             </div>
-          </div>
-
-          <Separator />
-
-          {/* Verification Notes */}
-          <div>
-            <Label htmlFor="notes" className="mb-2 flex items-center space-x-2">
-              <MessageSquare className="h-4 w-4 text-primary" />
-              <span>Notas de diagnóstico</span>
-            </Label>
-            <Textarea
-              id="notes"
-              placeholder="Agrega observaciones, fuentes consultadas, o cualquier información relevante sobre tu diagnóstico..."
-              value={verificationNotes}
-              onChange={(e) => setVerificationNotes(e.target.value)}
-              rows={4}
-              className="resize-none border border-gray-300"
-            />
-          </div>
-
-          <Separator />
-
-          {/* Submit Button */}
-          <div className="flex items-center justify-between pt-4">
-            <div className="text-sm text-muted-foreground">
-              {marcadoresDiagnostico.length > 0 && (
-                <p className="flex items-center space-x-1">
-                  <Target className="h-4 w-4" />
-                  <span>{marcadoresDiagnostico.length} marcador(es) seleccionado(s)</span>
-                </p>
-              )}
-            </div>
-            <Button 
-              onClick={handleVerificationSubmit}
-              disabled={marcadoresDiagnostico.length === 0}
-              size="lg"
-              className="bg-primary hover:bg-primary/90 text-primary-foreground"
-            >
-              <Send className="mr-2 h-4 w-4" />
-              Enviar diagnóstico humano
-            </Button>
-          </div>
-
-          {marcadoresDiagnostico.length === 0 && (
-            <Alert className="bg-[rgb(255,140,140)]">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription className="text-[rgb(0,0,0)]">
-                Debes seleccionar al menos un marcador de diagnóstico
-              </AlertDescription>
-            </Alert>
-          )}
-
-          <Separator />
-
-          {/* Sección de Verificaciones de Otros y Debate - Grid 2 columnas */}
-          <div className="grid grid-cols-2 gap-6">
-            {/* Columna 1: Verificaciones de Otros Verificadores */}
-            <div className="space-y-4 border border-gray-300 rounded-lg p-4">
-              <div className="flex items-center space-x-2 mb-4">
-                <Users className="h-5 w-5 text-primary" />
-                <h3 className="font-medium">Verificaciones de Otros Colegas</h3>
-              </div>
-
-              {/* Lista de verificaciones de otros verificadores */}
-              <div className="space-y-4">
-                {/* Verificador 1 */}
-                <div className="border border-gray-300 rounded-lg p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
-                        <User className="h-4 w-4 text-blue-600" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium">Carlos Ramírez</p>
-                        <p className="text-xs text-muted-foreground">Hace 2 horas</p>
-                      </div>
-                    </div>
-                    <Badge variant="outline" className="bg-emerald-50 border-emerald-300 text-xs">
-                      <CheckCircle className="h-3 w-3 mr-1" />
-                      Verificado
-                    </Badge>
-                  </div>
-
-                  {/* Marcadores seleccionados */}
-                  <div>
-                    <Label className="text-xs text-muted-foreground mb-2">Marcadores:</Label>
-                    <div className="flex flex-wrap gap-1.5">
-                      {['enganoso', 'sensacionalista'].map((marcadorId) => {
-                        const marcador = getMarcador(marcadorId);
-                        if (!marcador) return null;
-                        const Icon = marcador.icon;
-                        return (
-                          <Badge 
-                            key={marcadorId}
-                            variant="outline"
-                            className="bg-white border-gray-300 text-xs"
-                          >
-                            <Icon className={`h-3 w-3 mr-1 ${marcador.color}`} />
-                            {marcador.label}
-                          </Badge>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Notas del verificador */}
-                  <div>
-                    <Label className="text-xs text-muted-foreground mb-1">Notas de diagnóstico:</Label>
-                    <p className="text-sm p-2 bg-accent/20 rounded-md">
-                      El titular usa lenguaje sensacionalista sin evidencia científica respaldada. No encontré estudios de Harvard que confirmen esto.
-                    </p>
-                  </div>
-                </div>
-
-                {/* Verificador 2 */}
-                <div className="border border-gray-300 rounded-lg p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center">
-                        <User className="h-4 w-4 text-purple-600" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium">Ana Martínez</p>
-                        <p className="text-xs text-muted-foreground">Hace 4 horas</p>
-                      </div>
-                    </div>
-                    <Badge variant="outline" className="bg-emerald-50 border-emerald-300 text-xs">
-                      <CheckCircle className="h-3 w-3 mr-1" />
-                      Verificado
-                    </Badge>
-                  </div>
-
-                  {/* Marcadores seleccionados */}
-                  <div>
-                    <Label className="text-xs text-muted-foreground mb-2">Marcadores:</Label>
-                    <div className="flex flex-wrap gap-1.5">
-                      {['enganoso', 'no_verificable'].map((marcadorId) => {
-                        const marcador = getMarcador(marcadorId);
-                        if (!marcador) return null;
-                        const Icon = marcador.icon;
-                        return (
-                          <Badge 
-                            key={marcadorId}
-                            variant="outline"
-                            className="bg-white border-gray-300 text-xs"
-                          >
-                            <Icon className={`h-3 w-3 mr-1 ${marcador.color}`} />
-                            {marcador.label}
-                          </Badge>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Notas del verificador */}
-                  <div>
-                    <Label className="text-xs text-muted-foreground mb-1">Notas de diagnóstico:</Label>
-                    <p className="text-sm p-2 bg-accent/20 rounded-md">
-                      Coincido con Carlos. Además, la fuente "Noticias Falsas" no tiene credibilidad verificada. No hay manera de validar la información presentada.
-                    </p>
-                  </div>
-                </div>
-
-                {/* Verificador 3 */}
-                <div className="border border-gray-300 rounded-lg p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
-                        <User className="h-4 w-4 text-green-600" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium">Diego Torres</p>
-                        <p className="text-xs text-muted-foreground">Hace 6 horas</p>
-                      </div>
-                    </div>
-                    <Badge variant="outline" className="bg-emerald-50 border-emerald-300 text-xs">
-                      <CheckCircle className="h-3 w-3 mr-1" />
-                      Verificado
-                    </Badge>
-                  </div>
-
-                  {/* Marcadores seleccionados */}
-                  <div>
-                    <Label className="text-xs text-muted-foreground mb-2">Marcadores:</Label>
-                    <div className="flex flex-wrap gap-1.5">
-                      {['enganoso', 'sensacionalista', 'no_verificable'].map((marcadorId) => {
-                        const marcador = getMarcador(marcadorId);
-                        if (!marcador) return null;
-                        const Icon = marcador.icon;
-                        return (
-                          <Badge 
-                            key={marcadorId}
-                            variant="outline"
-                            className="bg-white border-gray-300 text-xs"
-                          >
-                            <Icon className={`h-3 w-3 mr-1 ${marcador.color}`} />
-                            {marcador.label}
-                          </Badge>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Notas del verificador */}
-                  <div>
-                    <Label className="text-xs text-muted-foreground mb-1">Notas de diagnóstico:</Label>
-                    <p className="text-sm p-2 bg-accent/20 rounded-md">
-                      Busqué en PubMed y Google Scholar. No hay estudios recientes de Harvard sobre limón y diabetes. Claramente engañoso y peligroso para personas diabéticas.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Columna 2: Comentarios y Debate Libre */}
-            <div className="space-y-4 border border-gray-300 rounded-lg p-4">
-              <div className="flex items-center space-x-2 mb-4">
-                <MessageSquare className="h-5 w-5 text-primary" />
-                <h3 className="font-medium">Comentarios y Debate</h3>
-              </div>
-
-              {/* Lista de comentarios */}
-              <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2">
-                {/* Comentario 1 */}
-                <div className="border-l-2 border-primary/30 pl-3 py-2">
-                  <div className="flex items-start space-x-2">
-                    <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-                      <User className="h-3.5 w-3.5 text-blue-600" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-2 mb-1">
-                        <p className="text-sm font-medium">Carlos Ramírez</p>
-                        <span className="text-xs text-muted-foreground">Hace 2 horas</span>
-                      </div>
-                      <p className="text-sm">
-                        Parceros, revisé la base de datos de Harvard Medical School y no hay nada publicado sobre esto. Es claramente fake news.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Comentario 2 */}
-                <div className="border-l-2 border-primary/30 pl-3 py-2">
-                  <div className="flex items-start space-x-2">
-                    <div className="w-7 h-7 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0">
-                      <User className="h-3.5 w-3.5 text-purple-600" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-2 mb-1">
-                        <p className="text-sm font-medium">Ana Martínez</p>
-                        <span className="text-xs text-muted-foreground">Hace 3 horas</span>
-                      </div>
-                      <p className="text-sm">
-                        Totalmente de acuerdo. Además, vi que esta misma noticia circuló el año pasado con otro titular. Están reciclando desinformación.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Comentario 3 */}
-                <div className="border-l-2 border-primary/30 pl-3 py-2">
-                  <div className="flex items-start space-x-2">
-                    <div className="w-7 h-7 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
-                      <User className="h-3.5 w-3.5 text-green-600" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-2 mb-1">
-                        <p className="text-sm font-medium">Diego Torres</p>
-                        <span className="text-xs text-muted-foreground">Hace 5 horas</span>
-                      </div>
-                      <p className="text-sm">
-                        ¿Alguien logró contactar al medio "Noticias Falsas"? Deberíamos verificar si existe realmente o es una web fantasma.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Comentario 4 */}
-                <div className="border-l-2 border-primary/30 pl-3 py-2">
-                  <div className="flex items-start space-x-2">
-                    <div className="w-7 h-7 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0">
-                      <User className="h-3.5 w-3.5 text-orange-600" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-2 mb-1">
-                        <p className="text-sm font-medium">Laura Gómez</p>
-                        <span className="text-xs text-muted-foreground">Hace 6 horas</span>
-                      </div>
-                      <p className="text-sm">
-                        Chequeé el dominio y fue registrado hace solo 2 meses. Definitivamente no es una fuente confiable. Marquemos esto como alta prioridad.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Comentario 5 */}
-                <div className="border-l-2 border-primary/30 pl-3 py-2">
-                  <div className="flex items-start space-x-2">
-                    <div className="w-7 h-7 rounded-full bg-pink-100 flex items-center justify-center flex-shrink-0">
-                      <User className="h-3.5 w-3.5 text-pink-600" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-2 mb-1">
-                        <p className="text-sm font-medium">Sofía Vargas</p>
-                        <span className="text-xs text-muted-foreground">Hace 8 horas</span>
-                      </div>
-                      <p className="text-sm">
-                        Este tipo de contenido es peligroso porque la gente diabética podría abandonar su tratamiento. Debemos ser contundentes con el marcador.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Campo para agregar nuevo comentario */}
-              <div className="border-t pt-4 mt-4">
-                <Label className="text-xs text-muted-foreground mb-2">Agregar comentario:</Label>
-                <div className="flex space-x-2">
-                  <Textarea
-                    placeholder="Comparte tus observaciones con los demás verificadores..."
-                    rows={2}
-                    className="resize-none text-sm"
-                  />
-                  <Button size="sm" className="bg-primary hover:bg-primary/90 self-end">
-                    <Send className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Diálogo de éxito gamificado */}
-      {renderSuccessDialog()}
+          </CardContent>
+        </Card>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   fetchVerificationSummary,
   transformCasesForUI,
@@ -30,7 +30,7 @@ export function useVerificationData() {
         setSummaryData(summary);
 
         // Transform cases for UI
-        const transformedCases = transformCasesForUI(summary.recent_cases);
+        const transformedCases = transformCasesForUI(summary.cases);
         setCases(transformedCases);
 
         // Get current user stats if logged in
@@ -54,9 +54,9 @@ export function useVerificationData() {
   }, [refreshKey]);
 
   // Function to refresh data
-  const refresh = () => {
+  const refresh = useCallback(() => {
     setRefreshKey(prev => prev + 1);
-  };
+  }, []);
 
   return {
     loading,

@@ -29,3 +29,5 @@ yarn-error.log*
 
 # MCP Config (may contain sensitive data)
 .mcp.json
+vite.config*
+
