@@ -1,14 +1,11 @@
 import { supabase } from '../supabase/client';
 import type { JobInitiatedResponse, JobStatusResponse, VerificationSummaryResult, CaseEnriched } from './types';
-
-// API base URLs
-const VECTOR_ASYNC_BASE_URL = 'https://mdkswlgcqsmgfmcuorxq.supabase.co/functions/v1/vector-async';
-const VOTE_API_URL = 'https://mdkswlgcqsmgfmcuorxq.supabase.co/functions/v1/vote-auth-async-verbose';
-
-const SUMMARY_ENDPOINT = `${VECTOR_ASYNC_BASE_URL}/summary`;
-const LOOKUP_ENDPOINT = `${VECTOR_ASYNC_BASE_URL}/lookup`;
-const STATUS_ENDPOINT = `${VECTOR_ASYNC_BASE_URL}/status`;
-const VOTE_SUBMIT_ENDPOINT = `${VOTE_API_URL}/submit`;
+import { 
+    SUMMARY_ENDPOINT, 
+    LOOKUP_ENDPOINT, 
+    STATUS_ENDPOINT, 
+    VOTE_SUBMIT_ENDPOINT 
+} from '../../lib/apiEndpoints';
 
 // Helper to get Supabase token
 async function getSupabaseToken() {

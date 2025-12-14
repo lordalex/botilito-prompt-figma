@@ -1,7 +1,5 @@
 import { supabase } from '../utils/supabase/client';
-
-const WEB_SNAPSHOT_URL = 'https://mdkswlgcqsmgfmcuorxq.supabase.co/functions/v1/web-snapshot';
-const ANALYSIS_FUNCTION_URL = 'https://mdkswlgcqsmgfmcuorxq.supabase.co/functions/v1/analysis_function';
+import { WEB_SNAPSHOT_URL, ANALYSIS_FUNCTION_URL } from './apiEndpoints';
 
 // Helper to get Supabase token
 async function getSupabaseToken() {
