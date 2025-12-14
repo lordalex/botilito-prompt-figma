@@ -1,0 +1,299 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "API de Análisis de Falsificación (Deno Edge)",
+    "description": "Esta API permite detectar manipulaciones en imágenes utilizando un sistema de **Edge Computing** con Supabase. \n\n**Características Principales:**\n1. **Procesamiento Asíncrono (CPU Keep-Alive):** Las imágenes pesadas se procesan en segundo plano.\n2. **Caché Inteligente:** Se calcula un hash SHA-256 de la imagen. Si la imagen ya fue analizada previamente, se devuelve el resultado instantáneamente (200 OK).\n3. **Privacidad:** La imagen en Base64 viaja en memoria y **nunca** se guarda en la base de datos; solo se almacenan los metadatos y resultados.",
+    "version": "1.0.0",
+    "contact": {
+      "name": "Soporte Técnico",
+      "email": "soporte@tudominio.com"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://mdkswlgcqsmgfmcuorxq.supabase.co/functions/v1/image-analysis",
+      "description": "Servidor de Producción (Supabase Edge Function)"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Token JWT de Supabase (anon key o service_role, y token de usuario autenticado)."
+      }
+    },
+    "schemas": {
+      "SubmitRequest": {
+        "type": "object",
+        "required": [
+          "image_base64"
+        ],
+        "properties": {
+          "image_base64": {
+            "type": "string",
+            "description": "La imagen a analizar en formato Base64 (incluyendo o no el prefijo 'data:image/...').",
+            "example": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD..."
+          }
+        }
+      },
+      "AsyncResponse": {
+        "type": "object",
+        "properties": {
+          "job_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Identificador único del trabajo creado."
+          },
+          "message": {
+            "type": "string",
+            "example": "Analysis started"
+          },
+          "status_url": {
+            "type": "string",
+            "description": "URL relativa para consultar el estado del trabajo.",
+            "example": "/forgery/status/123e4567-e89b-12d3-a456-426614174000"
+          }
+        }
+      },
+      "CachedResponse": {
+        "type": "object",
+        "properties": {
+          "job_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["completed"],
+            "example": "completed"
+          },
+          "result": {
+            "$ref": "#/components/schemas/AnalysisResult"
+          }
+        }
+      },
+      "JobStatusResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "processing",
+              "completed",
+              "failed"
+            ],
+            "description": "Estado actual del análisis."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "result": {
+            "$ref": "#/components/schemas/AnalysisResult"
+          },
+          "error": {
+            "type": "string",
+            "nullable": true,
+            "description": "Mensaje de error si el estado es 'failed'."
+          },
+          "trace_log": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "t": { "type": "string", "format": "date-time" },
+                "msg": { "type": "string" },
+                "meta": { "type": "object" }
+              }
+            },
+            "description": "Registro detallado paso a paso de la ejecución interna."
+          }
+        }
+      },
+      "AnalysisResult": {
+        "type": "object",
+        "properties": {
+          "meta": {
+            "type": "object",
+            "properties": {
+              "analyzed_at": { "type": "string", "format": "date-time" },
+              "duration_ms": { "type": "integer" },
+              "cached": { "type": "boolean" }
+            }
+          },
+          "summary": {
+            "type": "object",
+            "properties": {
+              "global_verdict": {
+                "type": "string",
+                "enum": ["TAMPERED", "CLEAN"],
+                "description": "Veredicto final. 'TAMPERED' si confidence_score > 0.75."
+              },
+              "confidence_score": {
+                "type": "number",
+                "format": "float",
+                "description": "Probabilidad de manipulación (0.0 a 1.0)."
+              }
+            }
+          },
+          "details": {
+            "type": "array",
+            "description": "Detalles técnicos retornados por el nodo de análisis Python (mapas de calor, ELA, etc).",
+            "items": {
+              "type": "object"
+            }
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "Descripción del error ocurrido."
+          }
+        }
+      }
+    }
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/submit": {
+      "post": {
+        "summary": "Enviar imagen para análisis",
+        "description": "Punto de entrada principal. Acepta una imagen en Base64. \n\n- **Si el hash existe en caché:** Devuelve `200 OK` con el resultado inmediato.\n- **Si es nueva:** Devuelve `202 Accepted` e inicia el proceso en segundo plano (EdgeRuntime.waitUntil).",
+        "operationId": "submitImage",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Caché Hit. El análisis ya existía y se devuelve inmediatamente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CachedResponse"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Aceptado. El análisis ha comenzado en segundo plano. El cliente debe sondear (poll) el endpoint de estado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AsyncResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Solicitud incorrecta (Falta image_base64).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No autorizado (Falta Bearer Token).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/status/{jobId}": {
+      "get": {
+        "summary": "Consultar estado del trabajo",
+        "description": "Devuelve el estado actual del trabajo (`pending`, `processing`, `completed`, `failed`). Si está completado, incluye el objeto `result`.",
+        "operationId": "getJobStatus",
+        "parameters": [
+          {
+            "name": "jobId",
+            "in": "path",
+            "required": true,
+            "description": "UUID del trabajo recibido en /submit",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Información del trabajo recuperada exitosamente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobStatusResponse"
+                },
+                "examples": {
+                  "processing": {
+                    "summary": "Ejemplo en proceso",
+                    "value": {
+                      "id": "123e4567-e89b-12d3-a456-426614174000",
+                      "status": "processing",
+                      "trace_log": [
+                         {"t": "2023-10-27T10:00:00Z", "msg": "Job queued"},
+                         {"t": "2023-10-27T10:00:01Z", "msg": "Sending payload to API"}
+                      ]
+                    }
+                  },
+                  "completed": {
+                    "summary": "Ejemplo completado",
+                    "value": {
+                      "id": "123e4567-e89b-12d3-a456-426614174000",
+                      "status": "completed",
+                      "created_at": "2023-10-27T10:00:00Z",
+                      "result": {
+                        "meta": { "cached": false, "duration_ms": 1200 },
+                        "summary": { "global_verdict": "TAMPERED", "confidence_score": 0.95 },
+                        "details": []
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Trabajo no encontrado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
