@@ -75,6 +75,10 @@ export function HumanVerification() {
 
 
     const handleSelectCase = async (caseId: string) => {
+        if (!caseId) {
+            setError('No se puede cargar un caso sin un ID válido.');
+            return;
+        }
         setIsLoading(true);
         try {
             const details = await fetchCaseDetails(caseId);
@@ -86,7 +90,7 @@ export function HumanVerification() {
         }
     };
 
-    const handleSubmitVerification = async (submission: any) => {
+    const handleSubmitVerification = async (submission: { caseId: string, labels: string[], notes?: string }) => {
         if (!selectedCase) return;
         setIsSubmitting(true);
         try {
@@ -174,19 +178,18 @@ export function HumanVerification() {
                 </CardHeader>
                 <CardContent>
                     <div className="space-y-4">
-                        {cases.map((c) => (
-                            <Card key={c.case_id} className="hover:shadow-md transition-shadow">
+                        {cases.map((c, index) => (
+                            <Card key={index} className="hover:shadow-md transition-shadow">
                                 <CardHeader>
-                                    <CardTitle className="text-lg">{c.case_id}</CardTitle>
+                                    <CardTitle className="text-lg">{c.id}</CardTitle>
                                     <div className="text-xs text-muted-foreground">
-                                        <span>{new Date(c.created_at).toLocaleDateString()}</span> | <span>Votos: {c.total_votes}</span>
+                                        <span>{new Date(c.created_at).toLocaleDateString()}</span> | <span>Votos: {c.human_votes?.count || 0}</span>
                                     </div>
                                 </CardHeader>
                                 <CardContent>
                                     <p className="text-sm mb-4 line-clamp-2">{c.summary || 'No hay resumen disponible.'}</p>
                                     <div className="flex justify-between items-center">
-                                        <Badge variant={c.priority === 'alta' ? 'destructive' : 'secondary'}>Prioridad: {c.priority}</Badge>
-                                        <Button onClick={() => handleSelectCase(c.case_id)}>Verificar Ahora</Button>
+                                        <Button onClick={() => handleSelectCase(c.id)} disabled={!c.id}>Verificar Ahora</Button>
                                     </div>
                                 </CardContent>
                             </Card>

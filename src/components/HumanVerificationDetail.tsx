@@ -13,7 +13,7 @@ import {
   Eye, Ban, Skull, Microscope, AlertCircle, HelpCircle, Megaphone, Shield,
   Heart, Smile, ArrowLeft, Newspaper, Tag, ExternalLink, User, Clock
 } from 'lucide-react';
-import { getPendingCases } from '../utils/apiService';
+import { CaseEnriched } from '../utils/humanVerification/types';
 
 // Reutilizamos la definición de las categorías
 const ETIQUETAS_CATEGORIAS = [
@@ -38,16 +38,14 @@ const ETIQUETAS_CATEGORIAS = [
   { id: 'en_revision', label: 'En revisión', icon: Clock, color: 'text-gray-500', bg: 'bg-gray-50', border: 'border-gray-200', virulencia: 40, descripcion: 'Contenido pendiente de verificación adicional' }
 ];
 
-type Case = Awaited<ReturnType<typeof getPendingCases>>[0];
-
 interface HumanVerificationDetailProps {
-  caseData: Case;
+  caseData: CaseEnriched;
   onBackToList: () => void;
   onSubmit: (diagnosis: any) => void;
 }
 
 export function HumanVerificationDetail({ caseData, onBackToList, onSubmit }: HumanVerificationDetailProps) {
-    const [marcadoresDiagnostico, setMarcadoresDiagnostico] = useState<string[]>(caseData.aiAnalysis.detectedMarkers);
+    const [marcadoresDiagnostico, setMarcadoresDiagnostico] = useState<string[]>(caseData.diagnostic_labels || []);
     const [marcadoresJustificaciones, setMarcadoresJustificaciones] = useState<{ [key: string]: string }>({});
     const [marcadoresEnlaces, setMarcadoresEnlaces] = useState<{ [key: string]: string }>({});
     const [verificationNotes, setVerificationNotes] = useState('');
@@ -71,10 +69,10 @@ export function HumanVerificationDetail({ caseData, onBackToList, onSubmit }: Hu
     const handleInternalSubmit = () => {
         const diagnosis = {
             caseId: caseData.id,
-            marcadores: marcadoresDiagnostico,
+            labels: marcadoresDiagnostico,
             justificaciones: marcadoresJustificaciones,
             enlaces: marcadoresEnlaces,
-            notas: verificationNotes,
+            notes: verificationNotes,
         };
         onSubmit(diagnosis);
     };

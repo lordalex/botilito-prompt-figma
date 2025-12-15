@@ -105,17 +105,16 @@ export async function fetchCaseDetails(caseId: string): Promise<CaseEnriched> {
 }
 
 
-export async function submitHumanVerification(
-  caseId: string,
-  labels: string[],
-  notes?: string
-): Promise<{ success: boolean; message: string, result?: any }> {
+export async function submitHumanVerification(submission: {
+  caseId: string;
+  labels: string[];
+  notes?: string;
+}): Promise<{ success: boolean; message: string, result?: any }> {
   try {
     const token = await getSupabaseToken();
+    const { caseId, labels, notes } = submission;
 
-    // For simplicity, we'll handle one label at a time. 
-    // The UI allows multiple, but we'll submit the first one.
-    // A more complex implementation could handle multiple job submissions.
+    // For simplicity, we'll handle one label at a time.
     const classification = labels[0];
 
     const payload = {
@@ -144,7 +143,7 @@ export async function submitHumanVerification(
     const maxAttempts = 15;
     const pollInterval = 1000;
     for (let i = 0; i < maxAttempts; i++) {
-        const statusResponse = await fetch(`${VOTE_API_URL}/status/${job_id}`);
+        const statusResponse = await fetch(`${VOTE_SUBMIT_ENDPOINT}/status/${job_id}`);
         const data: JobStatusResponse = await statusResponse.json();
 
         if (data.status === 'completed') {

@@ -1,3 +1,4 @@
+import { Session } from '@supabase/supabase-js';
 import { api } from '../lib/apiService';
 import type { JobStatusResponse, AnalysisResult } from './imageAnalysisTypes';
 
@@ -27,9 +28,9 @@ async function pollJobStatus(jobId: string): Promise<AnalysisResult> {
   throw new Error('Tiempo de espera agotado para el análisis de la imagen.');
 }
 
-export async function performImageAnalysis(imageBase64: string): Promise<AnalysisResult> {
+export async function performImageAnalysis(session: Session | null, imageBase64: string): Promise<AnalysisResult> {
   try {
-    const response = await api.imageAnalysis.submit(imageBase64);
+    const response = await api.imageAnalysis.submit(session, imageBase64);
 
     if (response.status === 200) { // Cache Hit
       const data = await response.json();

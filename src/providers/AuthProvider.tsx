@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { Session, User } from '@supabase/supabase-js';
 import { getSession, onAuthStateChange, signOut as supabaseSignOut, AuthUser } from '../utils/supabase/auth';
 import { supabase } from '../utils/supabase/client'; // Import the client
 import { api } from '../../lib/apiService'; // Import the API service
@@ -9,12 +10,13 @@ import { api } from '../../lib/apiService'; // Import the API service
 interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
-  user: AuthUser | null;
+  user: User | null;
   profileComplete: boolean;
   checkUserProfile: () => Promise<void>;
   signOut: () => Promise<void>;
   // We expose the raw Supabase client for other hooks/components that might need it.
   supabase: typeof supabase;
+  session: Session | null;
 }
 
 // Create the context with an undefined default value.

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useAuth } from '../providers/AuthProvider';
 import { performAnalysisWithPipeline } from '../services/contentAnalysisService';
 import { performImageAnalysis } from '../services/imageAnalysisService';
 import type { AnalysisResult as ImageAnalysisResult } from '../services/imageAnalysisTypes';
@@ -10,6 +11,7 @@ import { ImageAnalysisResultDisplay } from './ImageAnalysisResultDisplay';
 import { ErrorManager } from './ErrorManager';
 
 export function ContentUpload() {
+  const { session } = useAuth();
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [progress, setProgress] = useState<{ step: string; status: string }>({ step: '', status: '' });
   const [analysisComplete, setAnalysisComplete] = useState(false);
@@ -50,7 +52,7 @@ export function ContentUpload() {
         const imageFile = files[0];
         const imageBase64 = await fileToBase64(imageFile);
         setProgress({ step: 'image_analysis', status: 'Analizando imagen...' });
-        const result = await performImageAnalysis(imageBase64);
+        const result = await performImageAnalysis(session, imageBase64);
         setImageAnalysisResult(result);
         setImageAnalysisComplete(true);
       } else {
