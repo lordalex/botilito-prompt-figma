@@ -12,12 +12,8 @@ export interface AuthUser {
 }
 
 export interface SignUpData {
-  email: string
-  password: string
-  name: string
-  phone?: string
-  location?: string
-  birthDate?: string
+  email: string;
+  password: string;
 }
 
 export interface SignInData {
@@ -29,26 +25,19 @@ export interface SignInData {
  * Sign up a new user with email and password
  */
 export async function signUp(data: SignUpData) {
-  const { email, password, name, phone, location, birthDate } = data
-
-  const { data: authData, error } = await supabase.auth.signUp({
+  const { email, password } = data;
+  const { data: result, error } = await supabase.auth.signUp({
     email,
     password,
-    options: {
-      data: {
-        name,
-        phone,
-        location,
-        birth_date: birthDate,
-      },
-    },
-  })
+  });
 
   if (error) {
-    throw error
+    throw new Error(error.message);
   }
 
-  return authData
+  // The user is not available in the result upon sign-up with email confirmation.
+  // The session is available, however.
+  return { session: result.session, user: result.user };
 }
 
 /**

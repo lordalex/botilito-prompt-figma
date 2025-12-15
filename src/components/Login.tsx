@@ -7,14 +7,15 @@ import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import exampleImage from 'figma:asset/444e8e22665a8cbdab132760610010dba89f3e67.png';
 import botilitoImage from 'figma:asset/ce81bb4aba8c9f36807cd145a086a12ce7f876dc.png';
 import digitalIALogo from 'figma:asset/1c413bccac94a45a38e7dde790a3aa8c525d334b.png';
+import { useAuth } from '../providers/AuthProvider';
 import { signIn } from '../utils/supabase/auth';
 
 interface LoginProps {
-  onLogin: () => void;
   onGoToRegister: () => void;
 }
 
-export function Login({ onLogin, onGoToRegister }: LoginProps) {
+export function Login({ onGoToRegister }: LoginProps) {
+  const { checkUserProfile } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -33,7 +34,7 @@ export function Login({ onLogin, onGoToRegister }: LoginProps) {
         email: credentials.email,
         password: credentials.password
       });
-      onLogin();
+      await checkUserProfile();
     } catch (err: any) {
       console.error('Login error:', err);
       setError(err.message || 'Error al iniciar sesión. Por favor, verifica tus credenciales.');

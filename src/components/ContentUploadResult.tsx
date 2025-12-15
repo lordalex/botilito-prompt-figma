@@ -12,8 +12,8 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from './ui/tooltip';
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { ScreenshotImage } from './ScreenshotImage';
-import { getSession } from '../utils/supabase/auth';
 import { api } from '../../lib/apiService';
+import { useAuth } from '../providers/AuthProvider';
 
 interface ContentUploadResultProps {
   result: any;
@@ -21,6 +21,7 @@ interface ContentUploadResultProps {
 }
 
 export function ContentUploadResult({ result, onReset }: ContentUploadResultProps) {
+  const { session } = useAuth();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [selectedMarker, setSelectedMarker] = useState<any | null>(null);
@@ -44,26 +45,23 @@ export function ContentUploadResult({ result, onReset }: ContentUploadResultProp
   const newsSource = fullResult?.metadata?.source || fullResult?.source || null;
   const transmissionSources = vectores && vectores.length > 0 ? vectores : ['Web'];
 
-  useEffect(() => {
-    const fetchAuthor = async () => {
-        if (!fullResult?.user_id) {
-            setReportedBy('Desconocido');
-            return;
-        }
-        try {
-            const session = await getSession();
-            if (session) {
-                const profile = await api.profile.getById(session, fullResult.user_id);
-                setReportedBy(profile.nombre_completo || profile.email || 'Desconocido');
+    useEffect(() => {
+        const fetchAuthor = async () => {
+            if (!fullResult?.user_id) {
+                setReportedBy('Desconocido');
+                return;
             }
-        } catch (error) {
-            console.error("Error fetching author profile:", error);
-            setReportedBy('Desconocido');
-        }
-    };
+            try {
+                const profile = await api.profile.get(session, fullResult.user_id);
+                setReportedBy(profile.nombre_completo || profile.email || 'Desconocido');
+            } catch (error) {
+                console.error("Error fetching author profile:", error);
+                setReportedBy('Desconocido');
+            }
+        };
 
-    fetchAuthor();
-  }, [fullResult?.user_id]);
+        fetchAuthor();
+    }, [fullResult?.user_id, session]);
   
   useEffect(() => {
     // Pre-fill the screenshot if it already exists in the initial data

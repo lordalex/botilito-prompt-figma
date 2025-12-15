@@ -56,7 +56,7 @@ export default function App() {
       // as the AuthProvider handles state changes automatically.
       return <Register onRegister={() => setShowRegister(false)} onBackToLogin={goToLogin} />;
     }
-    return <Login onLogin={() => {}} onGoToRegister={goToRegister} />;
+    return <Login onGoToRegister={goToRegister} />;
   }
 
   // If authenticated but profile is not complete, force profile completion

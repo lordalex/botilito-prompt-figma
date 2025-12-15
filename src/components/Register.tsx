@@ -69,28 +69,12 @@ export function Register({ onRegister, onBackToLogin }: RegisterProps) {
       const { session, user } = await signUp({
         email: credentials.email,
         password: credentials.password,
-        name: credentials.fullName,
-        phone: credentials.phone,
-        location: `${credentials.city}, ${credentials.department}`,
-        birthDate: credentials.birthDate
       });
 
-      if (session && user) {
-        // Create user profile in the database
-        const profileData: UserProfileData = {
-          id: user.id,
-          email: credentials.email,
-          nombre_completo: credentials.fullName,
-          numero_telefono: credentials.phone,
-          departamento: credentials.department,
-          ciudad: credentials.city,
-          fecha_nacimiento: credentials.birthDate,
-        };
-        await api.profile.create(session, profileData);
-      } else {
-        // This case might happen if email confirmation is required and user is not immediately signed in
-        console.warn("User signed up but no session immediately available. Profile creation might be delayed or require re-authentication.");
+      if (!session || !user) {
+        console.warn("User signed up but no session immediately available. Profile creation will be handled on first login.");
       }
+
 
       onRegister();
     } catch (err: any) {

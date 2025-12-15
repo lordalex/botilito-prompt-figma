@@ -9,7 +9,7 @@ import {
   HelpCircle, Eye, User, ClipboardCheck, SearchCheck, Gavel, Clock, Globe
 } from 'lucide-react';
 import type { FullAnalysisResponse } from '../types/botilito';
-import { getSession } from '../utils/supabase/auth';
+import { useAuth } from '../providers/AuthProvider';
 import { api } from '../../lib/apiService';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 
@@ -38,18 +38,16 @@ const getMarkerVisuals = (type: string) => {
 export function AnalysisResultDisplay({ response }: AnalysisResultDisplayProps) {
     const { id, user_id, created_at, title, metadata, case_study } = response;
     const [authorName, setAuthorName] = useState('Cargando...');
+    const { session } = useAuth();
 
     useEffect(() => {
         const fetchAuthor = async () => {
-            if (!user_id) {
-                setAuthorName('Botilito IA');
-                return;
-            }
             try {
-                const session = await getSession();
-                if (session) {
-                    const profile = await api.profile.getById(session, user_id);
+                if (user_id) {
+                    const profile = await api.profile.get(session, user_id);
                     setAuthorName(profile.nombre_completo || profile.email || 'Desconocido');
+                } else {
+                    setAuthorName('Botilito IA');
                 }
             } catch (error) {
                 console.error("Error fetching author profile:", error);
@@ -58,7 +56,7 @@ export function AnalysisResultDisplay({ response }: AnalysisResultDisplayProps) 
         };
 
         fetchAuthor();
-    }, [user_id]);
+    }, [user_id, session]);
 
     const primaryDiagnosis = metadata?.comprehensive_judgement?.final_verdict || 'Indeterminado';
     

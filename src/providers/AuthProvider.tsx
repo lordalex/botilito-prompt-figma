@@ -35,106 +35,71 @@ const deleteAllCookies = () => {
  * The AuthProvider component manages the authentication state.
  */
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [profileComplete, setProfileComplete] = useState(false);
+    const [user, setUser] = useState<User | null>(null);
+    const [session, setSession] = useState<Session | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [profileComplete, setProfileComplete] = useState(false);
 
-  const checkUserProfile = async () => {
-    const session = (await supabase.auth.getSession()).data.session;
-    if (session?.user) {
-      try {
-        const profile = await api.profile.get(session);
-        if (profile && profile.nombre_completo) {
-          setProfileComplete(true);
-        } else {
-          setProfileComplete(false);
+    const checkUserProfile = async () => {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+            setProfileComplete(false);
+            return;
         }
-      } catch (error: any) {
-        // A 404 or similar error means the profile doesn't exist, so it's incomplete.
-        if (error.message.includes('404') || error.message.includes('Profile not found')) {
-          console.log('ℹ️ Profile not found - user needs to complete onboarding');
-          setProfileComplete(false);
-        } else {
-          console.error("An unexpected error occurred fetching profile:", error);
-          setProfileComplete(false); // Default to incomplete on other errors
+        try {
+            const profile = await api.profile.get(session);
+            if (profile && profile.nombre_completo) {
+                setProfileComplete(true);
+            } else {
+                setProfileComplete(false);
+            }
+        } catch (error: any) {
+            if (error.message.includes('404') || error.message.includes('Profile not found')) {
+                console.log('ℹ️ Profile not found - user needs to complete onboarding');
+                setProfileComplete(false);
+            } else {
+                console.error("An unexpected error occurred fetching profile:", error);
+                setProfileComplete(false); // Default to incomplete on other errors
+            }
         }
-      }
-    } else {
-      setProfileComplete(false);
-    }
-  };
-
-  useEffect(() => {
-    let isMounted = true;
-
-    const handleAuthChange = async (event: string, session: any) => {
-      if (!isMounted) return;
-
-      const currentUser = session?.user as AuthUser | null;
-      setUser(currentUser);
-      setIsAuthenticated(!!currentUser);
-
-      if (currentUser) {
-        await checkUserProfile();
-      } else {
-        setProfileComplete(false);
-      }
-      setIsLoading(false);
     };
 
-    // Check initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      handleAuthChange('INITIAL_SESSION', session);
-    });
+    useEffect(() => {
+        const getInitialSession = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            setSession(session);
+            setUser(session?.user ?? null);
+            if (session?.user) {
+                await checkUserProfile();
+            }
+            setIsLoading(false);
+        };
 
-    // Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      handleAuthChange(event, session);
-    });
+        getInitialSession();
 
-    return () => {
-      isMounted = false;
-      subscription?.unsubscribe();
+        const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+            setSession(session);
+            setUser(session?.user ?? null);
+            setIsLoading(false);
+        });
+
+        return () => {
+            authListener.subscription.unsubscribe();
+        };
+    }, []);
+
+    const value = {
+        user,
+        session,
+        isAuthenticated: !!user,
+        isLoading,
+        profileComplete,
+        checkUserProfile,
+        signOut: supabase.auth.signOut,
+        supabase,
     };
-  }, []);
 
-  const signOut = async () => {
-    try {
-      await supabaseSignOut();
-      // Clear local state immediately
-      setUser(null);
-      setIsAuthenticated(false);
-      setProfileComplete(false);
-
-      // Clear all client-side storage
-      localStorage.clear();
-      sessionStorage.clear();
-      deleteAllCookies();
-
-      // Reload the page to ensure a clean state
-      window.location.reload();
-    } catch (error) {
-      console.error('Error logging out:', error);
-      throw error;
-    }
-  };
-
-  const value: AuthContextType = {
-    isAuthenticated,
-    isLoading,
-    user,
-    profileComplete,
-    checkUserProfile,
-    signOut,
-    supabase,
-  };
-
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+    return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 /**
