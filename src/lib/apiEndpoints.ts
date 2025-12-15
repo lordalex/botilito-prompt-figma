@@ -8,7 +8,7 @@ export const STATUS_ENDPOINT = `${VECTOR_ASYNC_BASE_URL}/status`;
 
 // Vote API (v2.4.0)
 export const VOTE_API_URL = `${SUPABASE_URL}/functions/v1/vote-auth-async-verbose`;
-export const VOTE_SUBMIT_ENDPOINT = `${VOTE_API_URL}/submit`;
+export const VOTE_SUBMIT_ENDPOINT = VOTE_API_URL;
 
 // Legacy/Other APIs
 export const WEB_SNAPSHOT_URL = `${SUPABASE_URL}/functions/v1/web-snapshot`;

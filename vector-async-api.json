@@ -1,0 +1,519 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Text Search Backend & Enrichment Engine",
+    "description": "Deno Edge Function for asynchronous text search, document lookup, and dashboard summaries. Features granular tracing, PostgreSQL text search, and full data enrichment (votes, profiles, consensus).",
+    "version": "1.0.0",
+    "contact": {
+      "name": "API Support"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://mdkswlgcqsmgfmcuorxq.supabase.co/functions/v1/vector-async",
+      "description": "Production Edge Function"
+    }
+  ],
+  "security": [
+    {
+      "apikey": []
+    },
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/search": {
+      "post": {
+        "summary": "Submit Text Search Job",
+        "description": "Initiates an asynchronous text search job using PostgreSQL Full Text Search.",
+        "operationId": "submitSearch",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SearchRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Processing started",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobCreatedResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request (Missing Query)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/lookup": {
+      "post": {
+        "summary": "Submit Lookup Job",
+        "description": "Initiates an asynchronous job to find a specific case/document by UUID or URL and enrich it.",
+        "operationId": "submitLookup",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LookupRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Processing started",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobCreatedResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request (Missing Identifier)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/summary": {
+      "post": {
+        "summary": "Submit Summary Job",
+        "description": "Initiates an asynchronous job to retrieve the dashboard summary of recent cases.",
+        "operationId": "submitSummary",
+        "responses": {
+          "202": {
+            "description": "Processing started",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobCreatedResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/status/{jobId}": {
+      "get": {
+        "summary": "Get Job Status",
+        "description": "Retrieves the status, result, and trace logs of an asynchronous job.",
+        "operationId": "getJobStatus",
+        "parameters": [
+          {
+            "name": "jobId",
+            "in": "path",
+            "required": true,
+            "description": "The UUID of the job to check.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Job Status and Results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobStatusResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid Job ID Format",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Job Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/case-detail": {
+      "get": {
+        "summary": "Legacy Case Detail",
+        "description": "Deprecated endpoint.",
+        "deprecated": true,
+        "responses": {
+          "410": {
+            "description": "Gone. Use /lookup instead.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "apikey": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "apikey",
+        "description": "Supabase Anon/Service Key"
+      },
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "SearchRequest": {
+        "type": "object",
+        "required": [
+          "query"
+        ],
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "The text to search for."
+          },
+          "page": {
+            "type": "integer",
+            "default": 1,
+            "minimum": 1
+          },
+          "pageSize": {
+            "type": "integer",
+            "default": 10,
+            "minimum": 1
+          },
+          "match_count": {
+            "type": "integer",
+            "description": "Alternative parameter to set pageSize."
+          }
+        }
+      },
+      "LookupRequest": {
+        "type": "object",
+        "required": [
+          "identifier"
+        ],
+        "properties": {
+          "identifier": {
+            "type": "string",
+            "description": "UUID of the case/document OR the URL of the document."
+          }
+        }
+      },
+      "JobCreatedResponse": {
+        "type": "object",
+        "properties": {
+          "job_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "message": {
+            "type": "string",
+            "example": "Processing started"
+          }
+        }
+      },
+      "JobStatusResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "processing",
+              "completed",
+              "failed"
+            ]
+          },
+          "result": {
+            "type": "object",
+            "description": "The result payload. Structure depends on job type (Search/Summary or Lookup).",
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SearchResultPayload"
+              },
+              {
+                "$ref": "#/components/schemas/LookupResultPayload"
+              }
+            ]
+          },
+          "error": {
+            "type": "object",
+            "nullable": true,
+            "description": "Error details if status is failed."
+          },
+          "trace_log": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TraceLogEntry"
+            }
+          }
+        }
+      },
+      "SearchResultPayload": {
+        "type": "object",
+        "properties": {
+          "cases": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EnrichedCase"
+            }
+          },
+          "pagination": {
+            "type": "object",
+            "properties": {
+              "page": {
+                "type": "integer"
+              },
+              "pageSize": {
+                "type": "integer"
+              },
+              "returnedCount": {
+                "type": "integer"
+              },
+              "hasMore": {
+                "type": "boolean"
+              }
+            }
+          }
+        }
+      },
+      "LookupResultPayload": {
+        "type": "object",
+        "properties": {
+          "case": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/EnrichedCase"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "type": "string"
+          }
+        }
+      },
+      "EnrichedCase": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "title": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string",
+            "nullable": true
+          },
+          "submission_type": {
+            "type": "string",
+            "enum": [
+              "Text",
+              "URL"
+            ]
+          },
+          "status": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "metadata": {
+            "type": "object"
+          },
+          "diagnostic_labels": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "human_votes": {
+            "type": "object",
+            "properties": {
+              "count": {
+                "type": "integer"
+              },
+              "breakdown": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "integer"
+                }
+              },
+              "statistics": {
+                "type": "array",
+                "items": {
+                  "type": "object"
+                }
+              },
+              "entries": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "vote": {
+                      "type": "string"
+                    },
+                    "reason": {
+                      "type": "string"
+                    },
+                    "date": {
+                      "type": "string"
+                    },
+                    "user": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "nombre_completo": {
+                          "type": "string"
+                        },
+                        "reputation": {
+                          "type": "integer"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "consensus": {
+            "type": "object",
+            "properties": {
+              "state": {
+                "type": "string",
+                "enum": [
+                  "human_consensus",
+                  "ai_only"
+                ]
+              },
+              "final_labels": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "related_documents": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "content": {
+            "type": "string",
+            "description": "Included only if full details are requested (Lookup)."
+          }
+        }
+      },
+      "TraceLogEntry": {
+        "type": "object",
+        "properties": {
+          "t": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "msg": {
+            "type": "string"
+          },
+          "meta": {
+            "type": "object"
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "details": {
+            "type": "string"
+          },
+          "job_id": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

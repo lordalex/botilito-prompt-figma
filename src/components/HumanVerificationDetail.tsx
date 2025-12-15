@@ -11,9 +11,10 @@ import {
   Users, CheckCircle, XCircle, AlertTriangle, Bot, FileText, Image as ImageIcon,
   Video, Volume2, Link2, MessageSquare, Target, Flame, Vote, DollarSign, Zap,
   Eye, Ban, Skull, Microscope, AlertCircle, HelpCircle, Megaphone, Shield,
-  Heart, Smile, ArrowLeft, Newspaper, Tag, ExternalLink, User, Clock
+  Heart, Smile, ArrowLeft, Newspaper, Tag, ExternalLink, User, Clock, Send, ChevronDown
 } from 'lucide-react';
 import { CaseEnriched } from '../utils/humanVerification/types';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 // Reutilizamos la definición de las categorías
 const ETIQUETAS_CATEGORIAS = [
@@ -84,10 +85,81 @@ export function HumanVerificationDetail({ caseData, onBackToList, onSubmit }: Hu
             <Button variant="outline" onClick={onBackToList}><ArrowLeft className="mr-2 h-4 w-4" />Volver a la lista</Button>
             <Card>
                 <CardHeader>
-                    <CardTitle className="flex items-center space-x-2 text-2xl"><Microscope className="h-6 w-6 text-primary" /><span>Laboratorio de Diagnóstico Humano</span></CardTitle>
+                    <CardTitle className="flex items-center space-x-2 text-2xl"><Microscope className="h-6 w-6 text-primary" /><span>{caseData.title}</span></CardTitle>
                     <CardDescription>Caso: {caseData.id}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
+                    <Separator />
+                    <div>
+                        <Label className="mb-4 flex items-center space-x-2"><FileText className="h-4 w-4 text-primary" /><span>Detalles del Documento</span></Label>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                            <div className="flex items-center space-x-2">
+                                <Link2 className="h-4 w-4 text-muted-foreground" />
+                                <span className="font-semibold">URL:</span>
+                                <a href={caseData.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline truncate">{caseData.url}</a>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <Tag className="h-4 w-4 text-muted-foreground" />
+                                <span className="font-semibold">Tipo de Envío:</span>
+                                <span>{caseData.submission_type}</span>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <CheckCircle className="h-4 w-4 text-muted-foreground" />
+                                <span className="font-semibold">Estado:</span>
+                                <Badge variant="outline">{caseData.status}</Badge>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <Clock className="h-4 w-4 text-muted-foreground" />
+                                <span className="font-semibold">Fecha de Creación:</span>
+                                <span>{new Date(caseData.created_at).toLocaleString()}</span>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <Users className="h-4 w-4 text-muted-foreground" />
+                                <span className="font-semibold">Consenso:</span>
+                                <Badge variant={caseData.consensus?.state === 'human_consensus' ? 'default' : 'secondary'}>{caseData.consensus?.state}</Badge>
+                            </div>
+                        </div>
+                    </div>
+                    <Separator />
+                    <div>
+                        <Label className="mb-4 flex items-center space-x-2"><Bot className="h-4 w-4 text-primary" /><span>Análisis de Contenido (IA)</span></Label>
+                        <div className="space-y-4">
+                            <div className="space-y-1">
+                                <Label className="text-sm">Resumen del Contenido</Label>
+                                <p className="text-sm text-muted-foreground p-3 bg-gray-50 rounded-md border">{caseData.summary}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <Separator />
+                    <Collapsible>
+                        <CollapsibleTrigger className="w-full">
+                            <div className="flex items-center justify-between">
+                                <Label className="mb-4 flex items-center space-x-2"><Users className="h-4 w-4 text-primary" /><span>Votación de la Comunidad</span></Label>
+                                <ChevronDown className="h-4 w-4" />
+                            </div>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                            <div className="space-y-4">
+                                {caseData.human_votes && caseData.human_votes.entries.length > 0 ? (
+                                    caseData.human_votes.entries.map((entry, index) => (
+                                        <div key={index} className="flex items-start space-x-3">
+                                            <User className="h-5 w-5 text-muted-foreground mt-1" />
+                                            <div className="flex-1">
+                                                <div className="flex items-center justify-between">
+                                                    <p className="text-sm font-semibold">{entry.user.nombre_completo} <span className="text-xs text-muted-foreground font-normal">(@{entry.user.reputation} rep)</span></p>
+                                                    <Badge variant="secondary">{getMarcador(entry.vote)?.label || entry.vote}</Badge>
+                                                </div>
+                                                <p className="text-xs text-muted-foreground">{new Date(entry.date).toLocaleDateString()}</p>
+                                                {entry.reason && <p className="text-sm mt-1 p-2 bg-gray-50 rounded-md border">{entry.reason}</p>}
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <p className="text-sm text-muted-foreground">Aún no hay votos de la comunidad.</p>
+                                )}
+                            </div>
+                        </CollapsibleContent>
+                    </Collapsible>
                     <Separator />
                     <div>
                         <Label className="mb-4 flex items-center space-x-2"><Target className="h-4 w-4 text-primary" /><span>Marcadores de Diagnóstico Desinfodémico</span></Label>

@@ -4,7 +4,8 @@ import {
     SUMMARY_ENDPOINT, 
     LOOKUP_ENDPOINT, 
     STATUS_ENDPOINT, 
-    VOTE_SUBMIT_ENDPOINT 
+    VOTE_SUBMIT_ENDPOINT,
+    VOTE_API_URL
 } from '../../lib/apiEndpoints';
 
 // Helper to get Supabase token
@@ -143,7 +144,7 @@ export async function submitHumanVerification(submission: {
     const maxAttempts = 15;
     const pollInterval = 1000;
     for (let i = 0; i < maxAttempts; i++) {
-        const statusResponse = await fetch(`${VOTE_SUBMIT_ENDPOINT}/status/${job_id}`);
+        const statusResponse = await fetch(`${VOTE_API_URL}/status/${job_id}`);
         const data: JobStatusResponse = await statusResponse.json();
 
         if (data.status === 'completed') {

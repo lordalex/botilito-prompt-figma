@@ -2,6 +2,15 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react-swc';
 import path from 'path';
 import fs from 'fs';
+import type { UserConfig as VitestUserConfigInterface } from 'vitest/config';
+
+const vitestConfig: VitestUserConfigInterface = {
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: './src/setupTests.ts',
+  },
+};
 
 export default defineConfig({
   plugins: [react()],
@@ -79,5 +88,6 @@ export default defineConfig({
       'Cache-Control': 'no-store',
     }
   },
+  ...vitestConfig,
 });
 

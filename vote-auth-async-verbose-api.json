@@ -1,0 +1,286 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Vote Processor & Gamification Engine",
+    "description": "Deno Edge Function for processing user votes asynchronously. Features include ID auto-resolution (Document ID to Case ID), granular trace logging, and gamification/reputation triggers.",
+    "version": "1.0.0",
+    "contact": {
+      "name": "API Support"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://mdkswlgcqsmgfmcuorxq.supabase.co/functions/v1/vote-auth-async-verbose",
+      "description": "Production Edge Function"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Supabase User JWT"
+      }
+    },
+    "schemas": {
+      "VoteSubmission": {
+        "type": "object",
+        "required": [
+          "case_id",
+          "classification"
+        ],
+        "properties": {
+          "case_id": {
+            "type": "string",
+            "description": "The identifier for the item being voted on. The system automatically resolves this: if a Document ID is provided, it finds the associated Case ID.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          },
+          "classification": {
+            "type": "string",
+            "description": "The label or vote category applied by the user.",
+            "example": "Approved"
+          },
+          "reason": {
+            "type": "string",
+            "description": "Optional explanation for the vote.",
+            "example": "Evidence supports the claim."
+          },
+          "evidence_url": {
+            "type": "string",
+            "format": "uri",
+            "description": "Optional link to external evidence."
+          }
+        }
+      },
+      "JobCreatedResponse": {
+        "type": "object",
+        "properties": {
+          "job_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The unique identifier of the background processing job."
+          }
+        }
+      },
+      "JobStatusResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "processing",
+              "completed",
+              "failed"
+            ]
+          },
+          "status_details": {
+            "type": "object",
+            "description": "Intermediate progress details (e.g. phases).",
+            "properties": {
+              "phase": {
+                "type": "string"
+              },
+              "progress": {
+                "type": "integer"
+              },
+              "resolved_id": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          "result": {
+            "type": "object",
+            "properties": {
+              "resolved_case_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "new_consensus": {
+                "type": "object",
+                "properties": {
+                  "state": {
+                    "type": "string",
+                    "enum": ["human_consensus", "ai_only", "conflicted"]
+                  },
+                  "final_labels": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "error": {
+            "type": "string",
+            "nullable": true
+          },
+          "trace_log": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TraceLogEntry"
+            }
+          }
+        }
+      },
+      "TraceLogEntry": {
+        "type": "object",
+        "properties": {
+          "t": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "msg": {
+            "type": "string"
+          },
+          "meta": {
+            "type": "object"
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/": {
+      "post": {
+        "summary": "Submit Vote",
+        "description": "Submits a vote for a case or document. The process is asynchronous; the response includes a Job ID to track progress.",
+        "operationId": "submitVote",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VoteSubmission"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Vote Accepted (Processing Started)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobCreatedResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request (Missing fields)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized (Missing or Invalid Token)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/status/{jobId}": {
+      "get": {
+        "summary": "Get Job Status",
+        "description": "Retrieves the status, resolved IDs, consensus results, and detailed trace logs of a vote processing job.",
+        "operationId": "getVoteJobStatus",
+        "parameters": [
+          {
+            "name": "jobId",
+            "in": "path",
+            "required": true,
+            "description": "The UUID of the job to check.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Job details retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobStatusResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing Job ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Job not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

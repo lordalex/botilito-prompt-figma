@@ -17,6 +17,8 @@ import { Textarea } from './ui/textarea';
 import { Input } from './ui/input';
 import { Profile } from '../types/profile';
 
+import { LoadingView } from './LoadingView';
+
 const levels = [
     { level: 1, title: 'VIGILANTE CENTINELA', subtitle: 'Primera Línea de Defensa', minXP: 0, maxXP: 500, badge: '👁️' },
     { level: 2, title: 'EPIDEMIÓLOGO DIGITAL VOLUNTARIO', subtitle: 'Analista de Contagio', minXP: 500, maxXP: 2000, badge: '🔬' },
@@ -34,6 +36,7 @@ export function HumanVerification() {
     const [gamificationData, setGamificationData] = useState<{ currentXP: number, nextLevelXP: number, levelTitle: string, progress: number } | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showSuccessDialog, setShowSuccessDialog] = useState(false);
+    const [successDialogData, setSuccessDialogData] = useState<any>(null);
 
     useEffect(() => {
         const loadInitialData = async () => {
@@ -91,11 +94,13 @@ export function HumanVerification() {
     };
 
     const handleSubmitVerification = async (submission: { caseId: string, labels: string[], notes?: string }) => {
-        if (!selectedCase) return;
+        if (!selectedCase || !profile) return;
         setIsSubmitting(true);
+        const initialXP = profile.xp;
+        const initialBadges = profile.badges || [];
         try {
             await submitHumanVerification(submission);
-            setShowSuccessDialog(true);
+            
             // Refresh data
             if(user) {
                 const [profileData, summary, stats] = await Promise.all([
@@ -106,6 +111,20 @@ export function HumanVerification() {
                 setProfile(profileData);
                 setCases(summary.cases);
                 setUserStats(stats);
+
+                const finalXP = profileData.xp;
+                const pointsEarned = finalXP - initialXP;
+                
+                const finalBadges = profileData.badges || [];
+                const newBadge = finalBadges.find(b => !initialBadges.includes(b));
+
+                setSuccessDialogData({
+                    pointsEarned: pointsEarned,
+                    newBadge: newBadge,
+                    newBadgeIcon: '🏆',
+                    newBadgeDescription: '',
+                });
+                setShowSuccessDialog(true);
             }
         } catch (e: any) {
             setError(e.message || 'Error al enviar la verificación.');
@@ -124,7 +143,7 @@ export function HumanVerification() {
     };
 
     if (isLoading && !selectedCase) {
-        return <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+        return <LoadingView message="Cargando casos para verificación..." />;
     }
 
     if (error) {
@@ -148,7 +167,7 @@ export function HumanVerification() {
             <VerificationSuccessDialog
                 isOpen={showSuccessDialog}
                 onClose={handleCloseSuccessDialog}
-                gamificationData={gamificationData}
+                gamificationData={successDialogData}
             />
             <Card className="mb-6">
                 <CardHeader>
