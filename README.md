@@ -36,6 +36,7 @@ Botilito es un ex-agente digital de una granja de bots que escapó para unirse a
 - [Compatibilidad de Navegadores](#-compatibilidad-de-navegadores)
 - [Contribuir](#-contribuir)
 - [Documentación Adicional](#-documentación-adicional)
+- [Créditos y Contribuidores](#-créditos-y-contribuidores)
 - [Licencia](#-licencia)
 
 ---
@@ -1210,6 +1211,25 @@ MIT License - Copyright (c) 2025 Botilito - digitalia.gov.co
 
 ---
 
+## 👥 Créditos y Contribuidores
+
+### Equipo de Desarrollo
+
+| Desarrollador | Rol | Contribuciones |
+|---------------|-----|----------------|
+| **[LordAlex Leon (LA)](mailto:lordalex@gmail.com)** | Desarrollador Principal / Arquitecto | Arquitectura del sistema, autenticación, integración AI, diseño UI/UX |
+| **[Gerardo Rojas](https://lordalexand.co)** | Co-Desarrollador | Desarrollo de características, integración de servicios, documentación |
+
+### Contribuciones con IA
+
+Partes de este proyecto fueron desarrolladas con asistencia de **Claude** (Anthropic) para documentación, revisión de código y desarrollo de características.
+
+### Atribuciones de Librerías
+
+Para una lista completa de todas las dependencias y sus licencias, consulta el archivo **[Attributions.md](./src/Attributions.md)**.
+
+---
+
 ## 🙏 Agradecimientos
 
 ### Diseño e Iniciativa
@@ -1222,7 +1242,9 @@ MIT License - Copyright (c) 2025 Botilito - digitalia.gov.co
 - **[Radix UI](https://www.radix-ui.com)**: Primitivos accesibles
 - **[Tailwind CSS](https://tailwindcss.com)**: Framework CSS
 - **[Vite](https://vitejs.dev)**: Build tool
+- **[Hono](https://hono.dev)**: Web framework para Edge Functions
 - **[Lucide](https://lucide.dev)**: Iconos
+- **[cmdk](https://cmdk.paco.me/)**: Command menu component
 
 ### Comunidad
 - **Verificadores de hechos colombianos**: Por su trabajo incansable
