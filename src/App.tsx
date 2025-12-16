@@ -25,6 +25,12 @@ export default function App() {
     }
   }, [isAuthenticated]);
 
+  useEffect(() => {
+    if (!profileComplete) {
+      setActiveTab('profile');
+    }
+  }, [profileComplete]);
+
   const handleLogout = async () => {
     try {
       await signOut();
@@ -58,22 +64,6 @@ export default function App() {
     }
     return <Login onGoToRegister={goToRegister} />;
   }
-
-  // If authenticated but profile is not complete, force profile completion
-  if (!profileComplete) {
-    return (
-      <div className="min-h-screen bg-background p-4 md:p-8">
-        <div className="max-w-4xl mx-auto">
-          <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 rounded-md mb-6" role="alert">
-            <p className="font-bold">¡Casi listo!</p>
-            <p>Por favor, completa tu perfil para continuar.</p>
-          </div>
-          <UserProfile />
-        </div>
-      </div>
-    );
-  }
-
 
   const renderContent = () => {
     switch (activeTab) {
@@ -111,6 +101,13 @@ export default function App() {
         {/* Div separador superior */}
         <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary to-transparent"></div>
         
+        {!profileComplete && (
+          <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 rounded-md mb-6" role="alert">
+            <p className="font-bold">¡Casi listo!</p>
+            <p>Por favor, completa tu perfil para continuar.</p>
+          </div>
+        )}
+
         <div className="transition-all duration-500 ease-in-out mx-auto p-[0px]">
           {renderContent()}
         </div>

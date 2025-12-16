@@ -1,7 +1,5 @@
-import { useState, useEffect, FormEvent } from 'react';
-import { useAuth } from '../providers/AuthProvider';
-import { api } from '../lib/apiService';
-import { Profile, ChallengeProgress } from '../types/profile';
+import { useState } from 'react';
+import { useUserProfile } from '../hooks/useUserProfile';
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
@@ -27,82 +25,21 @@ const levels = [
 ];
 
 export function UserProfile() {
-    const { user, session, checkUserProfile } = useAuth();
-    const [profile, setProfile] = useState<Profile | null>(null);
-    const [challenges, setChallenges] = useState<ChallengeProgress[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    const [isEditing, setIsEditing] = useState(false);
+    const {
+        profile,
+        challenges,
+        isLoading,
+        error,
+        isEditing,
+        setIsEditing,
+        handleInputChange,
+        handleFileChange,
+        handleUploadClick,
+        handleSaveProfile,
+        fileInputRef
+    } = useUserProfile();
     const [showLevelUp, setShowLevelUp] = useState(false);
     const [showAvatarModal, setShowAvatarModal] = useState(false);
-
-    useEffect(() => {
-        const fetchProfile = async () => {
-            if (!user) return;
-
-            setIsLoading(true);
-            setError(null);
-
-            try {
-                const response = await api.profile.get(session);
-                setProfile(response.data);
-                setChallenges(response.challenges_progress);
-                
-                if (!response.data.nombre_completo) {
-                    setIsEditing(true);
-                }
-            } catch (err: any) {
-                 if (err.message.includes('404') || err.message.includes('Profile not found')) {
-                    setIsEditing(true); 
-                    setProfile({
-                        id: user.id,
-                        email: user.email!,
-                        nombre_completo: '',
-                        numero_telefono: '',
-                        departamento: '',
-                        ciudad: '',
-                        fecha_nacimiento: '',
-                        reputation: 0,
-                        xp: 0,
-                        badges: [],
-                        role: 'user'
-                    });
-                } else {
-                    setError(err.message || "Failed to fetch profile.");
-                }
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        fetchProfile();
-    }, [user, session]);
-
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const { name, value } = e.target;
-        if (profile) {
-            setProfile({ ...profile, [name]: value });
-        }
-    };
-
-    const handleSaveProfile = async (e: FormEvent) => {
-        e.preventDefault();
-        if (!profile || !profile.nombre_completo) {
-            setError("El nombre completo es obligatorio.");
-            return;
-        }
-        setError(null);
-
-        try {
-            const { xp, reputation, badges, email, id, role, ...updateData } = profile;
-            const updated = await api.profile.update(session, updateData);
-            setProfile(updated.data);
-            setIsEditing(false);
-            await checkUserProfile();
-        } catch (err: any) {
-            setError(err.message || "Failed to save profile.");
-        }
-    };
 
     if (isLoading) {
         return <div>Loading profile...</div>;
@@ -121,11 +58,13 @@ export function UserProfile() {
     const nextLevel = levels.find(l => l.level === currentLevel.level + 1);
     const progressToNext = nextLevel ? ((currentXP - currentLevel.minXP) / (nextLevel.minXP - currentLevel.minXP)) * 100 : 100;
 
-    const getChallengeProgress = (challenge: ChallengeProgress) => {
+    const getChallengeProgress = (challenge: any) => {
         const requirement = challenge.requirements.xp || challenge.requirements.reputation || 1;
         const current = challenge.current.xp || challenge.current.reputation || 0;
         return (current / requirement) * 100;
     };
+
+    const avatarSrc = profile.photo || profile.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.email || profile.id}&backgroundColor=ffda00`;
 
     return (
         <motion.div 
@@ -186,7 +125,7 @@ export function UserProfile() {
                                     className="relative"
                                 >
                                     <Avatar className="h-32 w-32 border-4 border-primary/20 shadow-lg">
-                                        <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.email}&backgroundColor=ffda00`} alt={profile.nombre_completo || ''} />
+                                        <AvatarImage src={avatarSrc} alt={profile.nombre_completo || ''} />
                                         <AvatarFallback className="text-2xl bg-primary text-primary-foreground">
                                             {(profile.nombre_completo || 'A').split(' ').map(n => n[0]).join('')}
                                         </AvatarFallback>
@@ -366,7 +305,7 @@ export function UserProfile() {
                                     {/* Avatar Actual */}
                                     <div className="flex flex-col items-center space-y-3">
                                         <Avatar className="h-32 w-32 border-4 border-primary/20 shadow-lg">
-                                            <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.email}&backgroundColor=ffda00`} alt={profile.nombre_completo || ''} />
+                                            <AvatarImage src={avatarSrc} alt={profile.nombre_completo || ''} />
                                             <AvatarFallback className="text-2xl bg-primary text-primary-foreground">
                                                 {(profile.nombre_completo || 'A').split(' ').map(n => n[0]).join('')}
                                             </AvatarFallback>
@@ -383,10 +322,7 @@ export function UserProfile() {
                                         <Button 
                                             className="w-full" 
                                             variant="outline"
-                                            onClick={() => {
-                                                // Simular clic en input file
-                                                alert('¡Próximamente! Podrás subir tu propia foto 📸');
-                                            }}
+                                            onClick={handleUploadClick}
                                         >
                                             <Upload className="h-4 w-4 mr-2" />
                                             Subir nueva foto
@@ -407,8 +343,8 @@ export function UserProfile() {
                                                 <button
                                                     key={idx}
                                                     onClick={() => {
-                                                        alert(`Avatar ${idx + 1} seleccionado. En la versión final, esto cambiará tu foto de perfil.`);
-                                                        setShowAvatarModal(false);
+                                                        // This is a mock implementation, it should be replaced with a call to the backend
+                                                        // to get a real avatar and update the profile state.
                                                     }}
                                                     className="relative group"
                                                 >
@@ -435,10 +371,7 @@ export function UserProfile() {
                                         </Button>
                                         <Button 
                                             className="flex-1 bg-primary hover:bg-primary/90"
-                                            onClick={() => {
-                                                setShowAvatarModal(false);
-                                                alert('¡Avatar actualizado con éxito! 🎉');
-                                            }}
+                                            onClick={handleSaveProfile}
                                         >
                                             <CheckCircle className="h-4 w-4 mr-2" />
                                             Guardar
@@ -450,6 +383,13 @@ export function UserProfile() {
                     </motion.div>
                 )}
             </AnimatePresence>
+            <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                style={{ display: 'none' }}
+                accept="image/png, image/jpeg, image/webp"
+            />
         </motion.div>
     );
 }

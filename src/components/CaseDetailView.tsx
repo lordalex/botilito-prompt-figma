@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/providers/AuthProvider';
-import { api } from '../utils/apiService';
+import { api } from '@/services/api';
 import { jobManager } from '@/lib/JobManager';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';

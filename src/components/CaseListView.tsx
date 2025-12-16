@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/providers/AuthProvider';
-import { api } from '../utils/apiService';
+import { api } from '@/services/api';
 import { AnalysisResultDisplay } from './AnalysisResultDisplay';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';

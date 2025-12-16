@@ -12,7 +12,7 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from './ui/tooltip';
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { ScreenshotImage } from './ScreenshotImage';
-import { api } from '../../lib/apiService';
+import { api } from '@/services/api';
 import { useAuth } from '../providers/AuthProvider';
 
 interface ContentUploadResultProps {

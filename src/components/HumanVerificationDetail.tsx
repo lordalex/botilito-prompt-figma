@@ -119,6 +119,12 @@ export function HumanVerificationDetail({ caseData, onBackToList, onSubmit }: Hu
                                 <Badge variant={caseData.consensus?.state === 'human_consensus' ? 'default' : 'secondary'}>{caseData.consensus?.state}</Badge>
                             </div>
                         </div>
+                        <Collapsible>
+                            <CollapsibleTrigger className="text-sm text-primary hover:underline">Mostrar contenido completo</CollapsibleTrigger>
+                            <CollapsibleContent className="mt-2">
+                                <p className="text-sm text-muted-foreground p-3 bg-gray-50 rounded-md border">{caseData.content}</p>
+                            </CollapsibleContent>
+                        </Collapsible>
                     </div>
                     <Separator />
                     <div>
@@ -128,6 +134,33 @@ export function HumanVerificationDetail({ caseData, onBackToList, onSubmit }: Hu
                                 <Label className="text-sm">Resumen del Contenido</Label>
                                 <p className="text-sm text-muted-foreground p-3 bg-gray-50 rounded-md border">{caseData.summary}</p>
                             </div>
+                            <Collapsible>
+                                <CollapsibleTrigger className="text-sm text-primary hover:underline">Mostrar análisis completo de la IA</CollapsibleTrigger>
+                                <CollapsibleContent className="mt-2 space-y-3">
+                                    {caseData.case_judgement && (
+                                        <div className="space-y-1">
+                                            <Label className="text-sm">Veredicto Final (IA)</Label>
+                                            <p className="text-sm text-muted-foreground p-3 bg-gray-50 rounded-md border">{caseData.case_judgement.final_verdict}</p>
+                                        </div>
+                                    )}
+                                    {caseData.case_judgement && (
+                                        <div className="space-y-1">
+                                            <Label className="text-sm">Razonamiento (IA)</Label>
+                                            <p className="text-sm text-muted-foreground p-3 bg-gray-50 rounded-md border">{caseData.case_judgement.reasoning}</p>
+                                        </div>
+                                    )}
+                                    {caseData.diagnostic_labels && caseData.diagnostic_labels.length > 0 && (
+                                        <div className="space-y-1">
+                                            <Label className="text-sm">Marcadores Detectados (IA)</Label>
+                                            <div className="flex flex-wrap gap-2">
+                                                {caseData.diagnostic_labels.map(label => (
+                                                    <Badge key={label} variant="secondary">{getMarcador(label)?.label || label}</Badge>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </CollapsibleContent>
+                            </Collapsible>
                         </div>
                     </div>
                     <Separator />

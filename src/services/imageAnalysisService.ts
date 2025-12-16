@@ -1,5 +1,5 @@
 import { Session } from '@supabase/supabase-js';
-import { api } from '../lib/apiService';
+import { api } from '@/services/api';
 import type { JobStatusResponse, AnalysisResult } from './imageAnalysisTypes';
 
 async function pollJobStatus(jobId: string): Promise<AnalysisResult> {

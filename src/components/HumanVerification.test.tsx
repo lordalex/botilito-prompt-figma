@@ -2,7 +2,8 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { HumanVerification } from './HumanVerification';
 import { AuthProvider, useAuth } from '../providers/AuthProvider';
 import { vi } from 'vitest';
-import { api as profileApi } from '../lib/apiService';
+import { api as profileApi } from '@/services/api';
+vi.mock('@/services/api');
 import { fetchVerificationSummary, getUserVerificationStats } from '../utils/humanVerification/api';
 
 vi.mock('../providers/AuthProvider');

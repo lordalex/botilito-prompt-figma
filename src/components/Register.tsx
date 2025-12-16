@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import registerImage from 'figma:asset/60be6d6fe2b2bb2089603fb76c90d0926c3104a3.png';
 import botilitoImage from 'figma:asset/ce81bb4aba8c9f36807cd145a086a12ce7f876dc.png';
 import { signUp } from '../utils/supabase/auth';
-import { api } from '../../lib/apiService';
+import { api } from '@/services/api';
 import { UserProfileData } from '../types'; // Import UserProfileData
 
 interface RegisterProps {

@@ -1,22 +1,14 @@
-import { useState, useEffect, useMemo } from 'react';
-import { useAuth } from '../providers/AuthProvider';
-import { api as profileApi } from '../lib/apiService';
-import { fetchVerificationSummary, fetchCaseDetails, submitHumanVerification, getUserVerificationStats } from '../utils/humanVerification/api';
-import { CaseEnriched, VerificationSummaryResult, DiagnosticLabel, DiagnosticLabelGroup } from '../utils/humanVerification/types';
+import { useState, useEffect } from 'react';
+import { useHumanVerification } from '../hooks/useHumanVerification';
 import { HumanVerificationDetail } from './HumanVerificationDetail';
 import { VerificationSuccessDialog } from './VerificationSuccessDialog';
+import { VoteSubmittedDialog } from './VoteSubmittedDialog';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
-import { ArrowLeft, Check, ChevronsUpDown, ExternalLink, HelpCircle, Loader2, ThumbsDown, ThumbsUp, UserCheck, X } from 'lucide-react';
-import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from './ui/command';
-import { Textarea } from './ui/textarea';
-import { Input } from './ui/input';
-import { Profile } from '../types/profile';
-
+import { Loader2 } from 'lucide-react';
 import { LoadingView } from './LoadingView';
 
 const levels = [
@@ -26,39 +18,35 @@ const levels = [
 ];
 
 export function HumanVerification() {
-    const { user, session } = useAuth();
-    const [profile, setProfile] = useState<Profile | null>(null);
-    const [cases, setCases] = useState<CaseEnriched[]>([]);
-    const [selectedCase, setSelectedCase] = useState<CaseEnriched | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    const [userStats, setUserStats] = useState<{ total_verifications: number, points: number } | null>(null);
-    const [gamificationData, setGamificationData] = useState<{ currentXP: number, nextLevelXP: number, levelTitle: string, progress: number } | null>(null);
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [showSuccessDialog, setShowSuccessDialog] = useState(false);
-    const [successDialogData, setSuccessDialogData] = useState<any>(null);
+    const {
+        profile,
+        initialProfile,
+        cases,
+        selectedCase,
+        isLoading,
+        error,
+        userStats,
+        isSubmitting,
+        voteJob,
+        showSuccessDialog,
+        successDialogData,
+        setShowSuccessDialog,
+        handleSelectCase,
+        handleSubmitVerification,
+        handleBackToList,
+    } = useHumanVerification();
+
+    const [showVoteSubmittedDialog, setShowVoteSubmittedDialog] = useState(false);
+    const [gamificationData, setGamificationData] = useState<any>(null);
 
     useEffect(() => {
-        const loadInitialData = async () => {
-            if (!user) return;
-            setIsLoading(true);
-            try {
-                const [profileData, summary, stats] = await Promise.all([
-                    profileApi.profile.get(session),
-                    fetchVerificationSummary(1, 10),
-                    getUserVerificationStats(user.id)
-                ]);
-                setProfile(profileData);
-                setCases(summary.cases);
-                setUserStats(stats);
-            } catch (e: any) {
-                setError(e.message || 'Error al cargar los datos.');
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        loadInitialData();
-    }, [user]);
+        if (voteJob?.status === 'processing') {
+            setShowVoteSubmittedDialog(true);
+        }
+        if (voteJob?.status === 'completed') {
+            setShowVoteSubmittedDialog(false);
+        }
+    }, [voteJob]);
 
     useEffect(() => {
         if (profile) {
@@ -76,70 +64,14 @@ export function HumanVerification() {
         }
     }, [profile]);
 
-
-    const handleSelectCase = async (caseId: string) => {
-        if (!caseId) {
-            setError('No se puede cargar un caso sin un ID válido.');
-            return;
-        }
-        setIsLoading(true);
-        try {
-            const details = await fetchCaseDetails(caseId);
-            setSelectedCase(details);
-        } catch (e: any) {
-            setError(e.message || 'Error al cargar el detalle del caso.');
-        } finally {
-            setIsLoading(false);
-        }
+    const handleCloseVoteSubmittedDialog = () => {
+        setShowVoteSubmittedDialog(false);
+        handleBackToList();
     };
 
-    const handleSubmitVerification = async (submission: { caseId: string, labels: string[], notes?: string }) => {
-        if (!selectedCase || !profile) return;
-        setIsSubmitting(true);
-        const initialXP = profile.xp;
-        const initialBadges = profile.badges || [];
-        try {
-            await submitHumanVerification(submission);
-            
-            // Refresh data
-            if(user) {
-                const [profileData, summary, stats] = await Promise.all([
-                    profileApi.profile.get(session),
-                    fetchVerificationSummary(1, 10),
-                    getUserVerificationStats(user.id)
-                ]);
-                setProfile(profileData);
-                setCases(summary.cases);
-                setUserStats(stats);
-
-                const finalXP = profileData.xp;
-                const pointsEarned = finalXP - initialXP;
-                
-                const finalBadges = profileData.badges || [];
-                const newBadge = finalBadges.find(b => !initialBadges.includes(b));
-
-                setSuccessDialogData({
-                    pointsEarned: pointsEarned,
-                    newBadge: newBadge,
-                    newBadgeIcon: '🏆',
-                    newBadgeDescription: '',
-                });
-                setShowSuccessDialog(true);
-            }
-        } catch (e: any) {
-            setError(e.message || 'Error al enviar la verificación.');
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
-
-    const handleBackToList = () => {
-        setSelectedCase(null);
-    };
-    
     const handleCloseSuccessDialog = () => {
         setShowSuccessDialog(false);
-        setSelectedCase(null); // Go back to list after success
+        handleBackToList();
     };
 
     if (isLoading && !selectedCase) {
@@ -164,6 +96,10 @@ export function HumanVerification() {
 
     return (
         <div className="container mx-auto p-4">
+            <VoteSubmittedDialog
+                isOpen={showVoteSubmittedDialog}
+                onClose={handleCloseVoteSubmittedDialog}
+            />
             <VerificationSuccessDialog
                 isOpen={showSuccessDialog}
                 onClose={handleCloseSuccessDialog}
@@ -219,4 +155,3 @@ export function HumanVerification() {
         </div>
     );
 }
-

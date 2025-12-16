@@ -1,36 +1,15 @@
 import { supabase } from '../supabase/client';
-import type { JobInitiatedResponse, JobStatusResponse, VerificationSummaryResult, CaseEnriched } from './types';
-import { 
-    SUMMARY_ENDPOINT, 
-    LOOKUP_ENDPOINT, 
-    STATUS_ENDPOINT, 
-    VOTE_SUBMIT_ENDPOINT,
-    VOTE_API_URL
-} from '../../lib/apiEndpoints';
-
-// Helper to get Supabase token
-async function getSupabaseToken() {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session?.access_token) {
-    throw new Error('No active session. Please log in.');
-  }
-  return session.access_token;
-}
+import { api } from '../../services/api';
+import type { JobStatusResponse, VerificationSummaryResult, CaseEnriched } from './types';
 
 async function pollJobStatus(jobId: string): Promise<any> {
+  const { data: { session } } = await supabase.auth.getSession();
   const maxAttempts = 30;
   const pollInterval = 2000;
   let attempts = 0;
 
   while (attempts < maxAttempts) {
-    const response = await fetch(`${STATUS_ENDPOINT}/${jobId}`);
-    if (!response.ok) {
-      await new Promise(resolve => setTimeout(resolve, pollInterval));
-      attempts++;
-      continue;
-    }
-
-    const data: JobStatusResponse = await response.json();
+    const data: JobStatusResponse = await api.ingestion.getStatus(session!, jobId);
 
     if (data.status === 'completed' && data.result) {
       return data.result;
@@ -50,18 +29,8 @@ async function pollJobStatus(jobId: string): Promise<any> {
 
 export async function fetchVerificationSummary(page: number, pageSize: number): Promise<VerificationSummaryResult> {
   try {
-    const createResponse = await fetch(SUMMARY_ENDPOINT, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ page, pageSize }),
-    });
-
-    if (!createResponse.ok) {
-      const error = await createResponse.json().catch(() => ({ error: 'Error desconocido' }));
-      throw new Error(error.error || `Error ${createResponse.status}: ${createResponse.statusText}`);
-    }
-
-    const { job_id }: JobInitiatedResponse = await createResponse.json();
+    const { data: { session } } = await supabase.auth.getSession();
+    const { job_id } = await api.humanVerification.getSummary(session, page, pageSize);
 
     if (!job_id) {
       throw new Error('No se recibió un ID de trabajo válido');
@@ -81,17 +50,8 @@ export async function fetchVerificationSummary(page: number, pageSize: number): 
 
 export async function fetchCaseDetails(caseId: string): Promise<CaseEnriched> {
   try {
-    const createResponse = await fetch(LOOKUP_ENDPOINT, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ identifier: caseId }),
-    });
-
-    if (!createResponse.ok) {
-      throw new Error('Failed to start lookup job');
-    }
-
-    const { job_id } = await createResponse.json();
+    const { data: { session } } = await supabase.auth.getSession();
+    const { job_id } = await api.humanVerification.getCaseDetails(session, caseId);
 
     const result = await pollJobStatus(job_id);
     if ('case' in result) {
@@ -106,46 +66,30 @@ export async function fetchCaseDetails(caseId: string): Promise<CaseEnriched> {
 }
 
 
+export async function submitHumanVerificationJob(submission: {
+  caseId: string;
+  labels: string[];
+  notes?: string;
+}): Promise<{ job_id: string }> {
+  const { data: { session } } = await supabase.auth.getSession();
+  return api.humanVerification.submitJob(session, submission);
+}
+
+
 export async function submitHumanVerification(submission: {
   caseId: string;
   labels: string[];
   notes?: string;
 }): Promise<{ success: boolean; message: string, result?: any }> {
   try {
-    const token = await getSupabaseToken();
-    const { caseId, labels, notes } = submission;
-
-    // For simplicity, we'll handle one label at a time.
-    const classification = labels[0];
-
-    const payload = {
-        case_id: caseId,
-        classification: classification,
-        reason: notes
-    };
-
-    const createResponse = await fetch(VOTE_SUBMIT_ENDPOINT, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload)
-    });
-
-    if (!createResponse.ok) {
-        const errorData = await createResponse.json().catch(() => ({ error: 'Error desconocido al enviar el voto' }));
-        throw new Error(errorData.error || `Fallo al enviar el voto con estado: ${createResponse.status}`);
-    }
-
-    const { job_id }: JobInitiatedResponse = await createResponse.json();
+    const { job_id } = await submitHumanVerificationJob(submission);
+    const { data: { session } } = await supabase.auth.getSession();
 
     // Poll for the result
     const maxAttempts = 15;
     const pollInterval = 1000;
     for (let i = 0; i < maxAttempts; i++) {
-        const statusResponse = await fetch(`${VOTE_API_URL}/status/${job_id}`);
-        const data: JobStatusResponse = await statusResponse.json();
+        const data: JobStatusResponse = await api.voting.getStatus(session, job_id);
 
         if (data.status === 'completed') {
             return {
@@ -173,53 +117,28 @@ export async function submitHumanVerification(submission: {
 
 
 export async function getUserVerificationStats(userId: string) {
-
-
   try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      // Return a default structure if there's no session, to avoid crashes.
+      return { total_verifications: 0, points: 0 };
+    }
+    
+    // The profile endpoint returns the full user profile, including gamification stats.
+    const profile = await api.profile.get(session, userId);
 
-
-    // TODO: The table 'user_verification_stats' was not found, and 'observations' lacks a 'user_id' column.
-
-
-    // This function is temporarily returning mock data to prevent app crashes.
-
-
+    // Map the API response to the structure expected by the UI.
+    // 'reputation' is used as the count of verifications.
+    // 'xp' is used as the points.
     return {
-
-
-      total_verifications: 0,
-
-
-      accurate_verifications: 0,
-
-
-      accuracy_rate: 0,
-
-
-      points: 0,
-
-
-      level: 1,
-
-
-      streak: 0
-
-
+      total_verifications: profile.reputation || 0,
+      points: profile.xp || 0,
     };
-
-
   } catch (error) {
-
-
     console.error('Error fetching user verification stats:', error);
-
-
-    return null;
-
-
+    // In case of an error, return a default object to prevent UI crashes.
+    return { total_verifications: 0, points: 0 };
   }
-
-
 }
 
 

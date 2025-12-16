@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import type { FullAnalysisResponse } from '../types/botilito';
 import { useAuth } from '../providers/AuthProvider';
-import { api } from '../../lib/apiService';
+import { api } from '@/services/api';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 
 interface AnalysisResultDisplayProps {

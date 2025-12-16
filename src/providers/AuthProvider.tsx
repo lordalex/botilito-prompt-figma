@@ -2,7 +2,8 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { Session, User } from '@supabase/supabase-js';
 import { getSession, onAuthStateChange, signOut as supabaseSignOut, AuthUser } from '../utils/supabase/auth';
 import { supabase } from '../utils/supabase/client'; // Import the client
-import { api } from '../../lib/apiService'; // Import the API service
+import { api } from '@/services/api'; // Import the API service
+import { jobManager } from '../lib/JobManager';
 
 /**
  * Defines the shape of the authentication context provided to the app.
@@ -41,6 +42,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const [session, setSession] = useState<Session | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [profileComplete, setProfileComplete] = useState(false);
+
+    useEffect(() => {
+        jobManager.setSession(session);
+    }, [session]);
 
     const checkUserProfile = async () => {
         const { data: { session } } = await supabase.auth.getSession();
