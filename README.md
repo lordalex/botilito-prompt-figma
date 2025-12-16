@@ -9,6 +9,7 @@ Botilito es un ex-agente digital de una granja de bots que escapó para unirse a
 [![Vite](https://img.shields.io/badge/Vite-6.3.5-purple.svg)](https://vitejs.dev/)
 [![Supabase](https://img.shields.io/badge/Supabase-Auth%20%2B%20Functions-green.svg)](https://supabase.com/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind%20CSS-v4.1.3-38B2AC.svg)](https://tailwindcss.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ---
 
@@ -20,10 +21,13 @@ Botilito es un ex-agente digital de una granja de bots que escapó para unirse a
 - [Instalación](#-instalación)
 - [Configuración](#-configuración)
 - [Uso](#-uso)
+- [Despliegue](#-despliegue)
 - [Estructura del Proyecto](#-estructura-del-proyecto)
 - [Flujo de Trabajo Git](#-flujo-de-trabajo-git)
 - [API Integration](#-api-integration)
+- [Seguridad](#-seguridad)
 - [Contribuir](#-contribuir)
+- [Documentación Adicional](#-documentación-adicional)
 - [Licencia](#-licencia)
 
 ---
@@ -210,6 +214,70 @@ npm run preview
 
 ---
 
+## 🚀 Despliegue
+
+### Opciones de Despliegue
+
+#### Vercel (Recomendado)
+
+1. **Conectar repositorio**
+   - Ve a [vercel.com](https://vercel.com)
+   - Importa el repositorio de GitHub
+   - Selecciona "Vite" como framework preset
+
+2. **Configurar variables de entorno**
+   ```
+   VITE_SUPABASE_URL=tu_url
+   VITE_SUPABASE_ANON_KEY=tu_key
+   ```
+
+3. **Desplegar**
+   - Vercel detectará automáticamente la configuración de Vite
+   - El build se ejecutará con `npm run build`
+   - La salida será del directorio `build/`
+
+#### Netlify
+
+1. **Configuración de build**
+   - Build command: `npm run build`
+   - Publish directory: `build`
+
+2. **Variables de entorno**
+   - Configura las mismas variables que en desarrollo
+
+#### Docker
+
+```dockerfile
+# Dockerfile
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+
+FROM nginx:alpine
+COPY --from=builder /app/build /usr/share/nginx/html
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
+```
+
+```bash
+# Construir imagen
+docker build -t botilito .
+
+# Ejecutar contenedor
+docker run -p 80:80 botilito
+```
+
+### Requisitos de Producción
+
+- **Supabase Edge Functions**: Deben estar desplegadas en tu proyecto Supabase
+- **HTTPS**: Obligatorio para autenticación segura
+- **CORS**: Configurar correctamente en Supabase Dashboard
+
+---
+
 ## 📁 Estructura del Proyecto
 
 ```
@@ -379,9 +447,30 @@ import {
 
 ---
 
+## 🔒 Seguridad
+
+### Buenas Prácticas
+
+- **Variables de Entorno**: Nunca expongas claves secretas en el frontend
+- **VITE_ Prefix**: Solo variables con prefijo `VITE_` son accesibles en el cliente
+- **Autenticación**: Usa siempre HTTPS y tokens JWT con expiración
+- **Validación**: Valida datos en frontend Y backend
+
+### Reportar Vulnerabilidades
+
+Si descubres una vulnerabilidad de seguridad:
+
+1. **NO** abras un issue público
+2. Reporta de forma privada a través de GitHub Security Advisories
+3. Lee nuestra [Política de Seguridad](./SECURITY.md) para más detalles
+
+---
+
 ## 🤝 Contribuir
 
-¡Las contribuciones son bienvenidas! Por favor sigue estos pasos:
+¡Las contribuciones son bienvenidas! Por favor lee nuestra [Guía de Contribución](./CONTRIBUTING.md) para más detalles.
+
+### Pasos Rápidos
 
 1. Fork el proyecto
 2. Crea una rama de feature (`git checkout -b feature/AmazingFeature`)
@@ -400,9 +489,23 @@ import {
 
 ---
 
+## 📚 Documentación Adicional
+
+| Documento | Descripción |
+|-----------|-------------|
+| [CONTRIBUTING.md](./CONTRIBUTING.md) | Guía completa de contribución |
+| [SECURITY.md](./SECURITY.md) | Política de seguridad y reporte de vulnerabilidades |
+| [claude.md](./claude.md) | Contexto técnico detallado del proyecto |
+| [src/guidelines/Guidelines.md](./src/guidelines/Guidelines.md) | Sistema de diseño y guías de estilo |
+| [src/Attributions.md](./src/Attributions.md) | Atribuciones y licencias de dependencias |
+| [SUPABASE_AUTH_PROGRESS.md](./SUPABASE_AUTH_PROGRESS.md) | Documentación de implementación de autenticación |
+| [MAPA_DATA_COMPARISON.md](./MAPA_DATA_COMPARISON.md) | Comparación de datos API vs Mock |
+
+---
+
 ## 📄 Licencia
 
-Este proyecto está bajo la licencia MIT. Ver archivo `LICENSE` para más detalles.
+Este proyecto está bajo la licencia MIT. Ver archivo [LICENSE](./LICENSE) para más detalles.
 
 ---
 
