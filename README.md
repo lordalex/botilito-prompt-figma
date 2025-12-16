@@ -16,16 +16,24 @@ Botilito es un ex-agente digital de una granja de bots que escapó para unirse a
 ## 📋 Tabla de Contenidos
 
 - [Características](#-características)
+- [Demo y Capturas](#-demo-y-capturas)
 - [Stack Tecnológico](#-stack-tecnológico)
+- [Arquitectura](#-arquitectura)
 - [Requisitos Previos](#-requisitos-previos)
 - [Instalación](#-instalación)
 - [Configuración](#-configuración)
 - [Uso](#-uso)
 - [Despliegue](#-despliegue)
 - [Estructura del Proyecto](#-estructura-del-proyecto)
+- [Providers y Estado Global](#-providers-y-estado-global)
+- [Custom Hooks](#-custom-hooks)
+- [Sistema de Manejo de Errores](#-sistema-de-manejo-de-errores)
+- [Tipos TypeScript](#-tipos-typescript)
 - [Flujo de Trabajo Git](#-flujo-de-trabajo-git)
 - [API Integration](#-api-integration)
 - [Seguridad](#-seguridad)
+- [Solución de Problemas](#-solución-de-problemas)
+- [Compatibilidad de Navegadores](#-compatibilidad-de-navegadores)
 - [Contribuir](#-contribuir)
 - [Documentación Adicional](#-documentación-adicional)
 - [Licencia](#-licencia)
@@ -60,12 +68,48 @@ Botilito es un ex-agente digital de una granja de bots que escapó para unirse a
 - Mensajes de progreso en tiempo real durante el análisis
 - Diseño responsive con Tailwind CSS v4
 
-### 🌐 Características Adicionales (En Desarrollo)
-- Sistema de revisión de contenido
-- Flujo de trabajo de verificación humana
-- Estudio de inmunización contra desinformación
-- Mapa de desinformación (Mapa Desinfodémico)
-- Integración con extensión de navegador
+### 🌐 Módulos de la Aplicación
+
+La aplicación cuenta con 9 módulos principales accesibles desde la navegación:
+
+| Módulo | Descripción | Estado |
+|--------|-------------|--------|
+| **Upload** | Carga y envío de contenido para análisis | ✅ Completo |
+| **Review** | Cola de revisión de contenido analizado | ✅ Completo |
+| **Analysis** | Visualización detallada de análisis AI | ✅ Completo |
+| **Verification** | Flujo de verificación humana comunitaria | ✅ Completo |
+| **Immunization** | Estudio de inmunización contra desinformación | 🔄 En desarrollo |
+| **Mapa** | Mapa Desinfodémico - visualización geográfica | 🔄 En desarrollo |
+| **Docs** | Documentación de indicadores epidemiológicos | ✅ Completo |
+| **Profile** | Gestión de perfil de usuario | ✅ Completo |
+| **Extension** | Integración con extensión de navegador | 🔄 En desarrollo |
+
+### 🧩 Extensión de Navegador
+
+Componentes preparados para integración con extensión:
+- `ExtensionPopup.tsx` - Popup principal de la extensión
+- `ExtensionSettings.tsx` - Configuración de la extensión
+- `QuickAnalysisBadge.tsx` - Badge de análisis rápido
+- `InPageOverlay.tsx` - Overlay para análisis en página
+
+---
+
+## 🎬 Demo y Capturas
+
+### Flujo de Análisis de Contenido
+
+```
+Usuario → Ingresa URL/Texto → Submit → Backend procesa →
+Polling cada 3s → Muestra progreso → Resultado con consenso
+```
+
+### Estados de Consenso
+
+| Estado | Color | Significado |
+|--------|-------|-------------|
+| 🔵 **AI Only** | Azul | Solo análisis de IA, sin verificación humana |
+| 🟢 **Human Consensus** | Verde | Verificado y acordado por la comunidad |
+| 🟠 **Conflicted** | Naranja | Opiniones mixtas, requiere más revisión |
 
 ---
 
@@ -91,6 +135,80 @@ Botilito es un ex-agente digital de una granja de bots que escapó para unirse a
 
 ### Visualización de Datos
 - **Recharts** - Librería de gráficos
+
+### Otras Dependencias Clave
+- **Hono** - Web framework (para funciones edge)
+- **cmdk** - Command menu
+- **embla-carousel-react** - Carruseles
+- **vaul** - Drawer/Sheet components
+- **react-resizable-panels** - Paneles redimensionables
+- **input-otp** - Input para códigos OTP
+
+---
+
+## 🏗️ Arquitectura
+
+### Diagrama de Alto Nivel
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        FRONTEND (React + Vite)                   │
+├─────────────────────────────────────────────────────────────────┤
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐             │
+│  │   Providers │  │  Components │  │    Hooks    │             │
+│  │  (Context)  │  │    (UI)     │  │  (Custom)   │             │
+│  └─────────────┘  └─────────────┘  └─────────────┘             │
+│         │                │                │                     │
+│         └────────────────┼────────────────┘                     │
+│                          ▼                                      │
+│  ┌─────────────────────────────────────────────────────────────┤
+│  │                    Services Layer                            │
+│  │  (aiAnalysis.ts, apiService.ts, contentAnalysisService.ts)  │
+│  └─────────────────────────────────────────────────────────────┤
+│                          │                                      │
+└──────────────────────────┼──────────────────────────────────────┘
+                           │
+                           ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    SUPABASE BACKEND                              │
+├─────────────────────────────────────────────────────────────────┤
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐             │
+│  │    Auth     │  │  Database   │  │   Edge      │             │
+│  │  (JWT)      │  │ (PostgreSQL)│  │  Functions  │             │
+│  └─────────────┘  └─────────────┘  └─────────────┘             │
+│                                           │                     │
+└───────────────────────────────────────────┼─────────────────────┘
+                                            │
+                                            ▼
+                            ┌───────────────────────────┐
+                            │    AI Services            │
+                            │ (OpenRouter, Gemini, etc) │
+                            └───────────────────────────┘
+```
+
+### Flujo de Autenticación
+
+```
+1. App monta → AuthProvider verifica sesión existente
+2. Sin sesión → Muestra Login/Register
+3. Usuario se registra → Crea cuenta Supabase → Auto-login
+4. Usuario inicia sesión → Autentica → Establece sesión
+5. Sesión existe → Muestra app principal
+6. Cambio de estado → UI se actualiza automáticamente
+7. Usuario cierra sesión → Limpia sesión → Vuelve a login
+```
+
+### Flujo de Análisis AI
+
+```
+1. Usuario envía contenido (URL o texto)
+2. Frontend llama a /submit endpoint
+3. Backend acepta job → retorna job_id (202) o resultado cacheado (200)
+4. Frontend hace polling cada 3s a /status/:jobId
+5. Estados: pending → processing → completed/failed
+6. Resultado incluye: análisis AI, documentos relacionados, consenso
+7. Frontend muestra resultado con badges de clasificación
+```
 
 ---
 
@@ -282,45 +400,385 @@ docker run -p 80:80 botilito
 
 ```
 botilito/
+├── public/                     # Archivos públicos estáticos
+│   ├── form.json              # Configuración de formularios
+│   ├── messages.json          # Mensajes de la aplicación
+│   └── builder.json           # Configuración del builder
+│
 ├── src/
-│   ├── components/
-│   │   ├── ui/              # 50+ componentes shadcn/ui
+│   ├── components/            # Componentes React
+│   │   ├── ui/                # 70+ componentes shadcn/ui
 │   │   │   ├── button.tsx
 │   │   │   ├── card.tsx
-│   │   │   ├── input.tsx
-│   │   │   ├── badge.tsx
+│   │   │   ├── dialog.tsx
 │   │   │   ├── tooltip.tsx
-│   │   │   └── ... (45+ más)
-│   │   ├── extension/       # Componentes de extensión de navegador
-│   │   ├── figma/           # Componentes generados por Figma
-│   │   ├── Login.tsx        # ✅ Auth con Supabase
-│   │   ├── Register.tsx     # ✅ Auth con Supabase
-│   │   ├── UserProfile.tsx
-│   │   ├── Navigation.tsx
-│   │   ├── ContentUpload.tsx        # ✅ Análisis AI integrado
-│   │   ├── ContentReview.tsx
+│   │   │   └── ... (65+ más)
+│   │   ├── extension/         # Componentes para extensión de navegador
+│   │   │   ├── ExtensionPopup.tsx
+│   │   │   ├── ExtensionSettings.tsx
+│   │   │   ├── QuickAnalysisBadge.tsx
+│   │   │   └── InPageOverlay.tsx
+│   │   ├── figma/             # Componentes generados desde Figma
+│   │   │   └── ImageWithFallback.tsx
+│   │   ├── Login.tsx          # ✅ Autenticación Supabase
+│   │   ├── Register.tsx       # ✅ Registro con metadata
+│   │   ├── UserProfile.tsx    # Gestión de perfil
+│   │   ├── Navigation.tsx     # Navegación principal
+│   │   ├── ContentUpload.tsx  # ✅ Smart textarea + análisis AI
+│   │   ├── ContentReview.tsx  # Cola de revisión
 │   │   ├── ContentAnalysisView.tsx
 │   │   ├── HumanVerification.tsx
+│   │   ├── HumanVerificationDetail.tsx
 │   │   ├── ImmunizationStudio.tsx
-│   │   └── MapaDesinfodemico.tsx
-│   ├── utils/
+│   │   ├── MapaDesinfodemico.tsx
+│   │   ├── Historial.tsx      # Historial de análisis
+│   │   ├── ErrorManager.tsx   # UI de manejo de errores
+│   │   ├── AnalysisResultDisplay.tsx
+│   │   ├── ContentUploadProgress.tsx
+│   │   ├── DashboardSummaryView.tsx
+│   │   ├── CompleteDashboard.tsx
+│   │   └── DocumentacionIndicadores.tsx
+│   │
+│   ├── providers/             # Context Providers (Estado Global)
+│   │   ├── Providers.tsx      # Wrapper de todos los providers
+│   │   ├── AuthProvider.tsx   # ✅ Autenticación y sesión
+│   │   ├── JobTrackerProvider.tsx   # Tracking de jobs
+│   │   ├── VoteTrackerProvider.tsx  # Tracking de votos
+│   │   ├── ConfigProvider.tsx       # Configuración global
+│   │   ├── MessageProvider.tsx      # Sistema de mensajes
+│   │   └── SchemaProvider.tsx       # Validación de esquemas
+│   │
+│   ├── hooks/                 # Custom Hooks
+│   │   ├── useJobPoller.ts    # Polling de estado de jobs
+│   │   ├── useJobTracker.ts   # Tracking de jobs activos
+│   │   └── use-toast.ts       # Sistema de notificaciones
+│   │
+│   ├── services/              # Capa de servicios
+│   │   └── contentAnalysisService.ts
+│   │
+│   ├── lib/                   # Utilidades compartidas
+│   │   ├── utils.ts           # cn() y otras utilidades
+│   │   ├── JobManager.ts      # Gestión de jobs
+│   │   └── apiService.ts      # Cliente API base
+│   │
+│   ├── utils/                 # Utilidades específicas
 │   │   ├── supabase/
-│   │   │   ├── client.ts    # ✅ Cliente Supabase singleton
-│   │   │   ├── auth.ts      # ✅ Utilidades de autenticación
-│   │   │   └── info.tsx     # Config autogenerada de Supabase
-│   │   ├── aiAnalysis.ts    # ✅ Capa de servicio de análisis AI
+│   │   │   ├── client.ts      # ✅ Cliente Supabase singleton
+│   │   │   └── auth.ts        # ✅ Utilidades de autenticación
+│   │   ├── errorManager/      # 🛡️ Sistema de manejo de errores
+│   │   │   ├── index.ts       # Exportaciones principales
+│   │   │   ├── ErrorManager.ts
+│   │   │   ├── ErrorCodes.ts
+│   │   │   ├── ErrorMessages.ts  # Mensajes en español
+│   │   │   ├── CircuitBreaker.ts
+│   │   │   ├── RetryStrategy.ts
+│   │   │   ├── types.ts
+│   │   │   └── README.md
+│   │   ├── mapaDesinfodemico/ # Utilidades del mapa
+│   │   │   ├── api.ts
+│   │   │   ├── transformer.ts
+│   │   │   └── types.ts
+│   │   ├── humanVerification/ # Utilidades de verificación
+│   │   │   ├── api.ts
+│   │   │   ├── types.ts
+│   │   │   └── useVerificationData.ts
+│   │   ├── historial/         # Utilidades de historial
+│   │   │   ├── api.ts
+│   │   │   ├── types.ts
+│   │   │   └── useHistorialData.ts
+│   │   ├── voting/            # Sistema de votación
+│   │   │   └── api.ts
+│   │   ├── aiAnalysis.ts      # ✅ Servicio de análisis AI
+│   │   ├── apiService.ts      # Cliente API
+│   │   ├── api.ts             # Endpoints base
+│   │   ├── formatters.ts      # Formateadores
 │   │   └── caseCodeGenerator.ts
-│   ├── assets/              # Imágenes y media
-│   ├── styles/              # Definiciones de estilos
-│   ├── App.tsx             # ✅ App principal con gestión de sesión
-│   ├── main.tsx            # Punto de entrada de React
-│   └── index.css           # Tailwind CSS
-├── .env                     # ✅ Variables de entorno (VITE_ prefix)
-├── .gitignore              # ✅ Excluye .env, node_modules, etc.
-├── vite.config.ts          # Configuración de Vite
-├── package.json            # Dependencias y scripts
-├── CLAUDE.md               # ✅ Documentación detallada del proyecto
-└── README.md               # Este archivo
+│   │
+│   ├── types/                 # Definiciones TypeScript
+│   │   ├── index.ts           # Exportaciones de tipos
+│   │   └── botilito.ts        # ✅ Tipos centralizados
+│   │
+│   ├── guidelines/            # Guías de diseño y documentación
+│   │   ├── Guidelines.md      # Sistema de diseño
+│   │   ├── IndicadoresEpidemiologicos.md
+│   │   └── SistemaCodificacionCasos.md
+│   │
+│   ├── assets/                # Imágenes y recursos
+│   ├── App.tsx                # ✅ Componente principal
+│   ├── main.tsx               # Punto de entrada React
+│   └── index.css              # Tailwind CSS + estilos globales
+│
+├── supabase/                  # Supabase Edge Functions
+│   └── functions/
+│       └── profile/
+│           └── index.ts       # ✅ CRUD de perfiles
+│
+├── lib/                       # Utilidades de nivel raíz
+│   ├── utils.ts
+│   └── apiService.ts
+│
+├── .env                       # Variables de entorno (NO COMMITEAR)
+├── .env.example               # Ejemplo de variables (SI COMMITEAR)
+├── .gitignore
+├── .npmrc                     # Configuración npm (JSR registry)
+├── vite.config.ts             # Configuración de Vite
+├── package.json               # Dependencias y scripts
+├── index.html                 # HTML principal
+│
+├── README.md                  # Este archivo
+├── CONTRIBUTING.md            # Guía de contribución
+├── SECURITY.md                # Política de seguridad
+├── LICENSE                    # Licencia MIT
+├── claude.md                  # Contexto técnico para Claude
+├── SUPABASE_AUTH_PROGRESS.md  # Documentación de auth
+└── MAPA_DATA_COMPARISON.md    # Comparación de datos del mapa
+```
+
+---
+
+## 🔄 Providers y Estado Global
+
+El proyecto usa React Context para manejar estado global a través de providers encadenados:
+
+### Jerarquía de Providers
+
+```tsx
+// src/providers/Providers.tsx
+<ConfigProvider>
+  <AuthProvider>
+    <MessageProvider>
+      <SchemaProvider>
+        <JobTrackerProvider>
+          <VoteTrackerProvider>
+            {children}
+          </VoteTrackerProvider>
+        </JobTrackerProvider>
+      </SchemaProvider>
+    </MessageProvider>
+  </AuthProvider>
+</ConfigProvider>
+```
+
+### Providers Disponibles
+
+| Provider | Hook | Propósito |
+|----------|------|-----------|
+| **AuthProvider** | `useAuth()` | Manejo de autenticación, sesión y usuario |
+| **JobTrackerProvider** | `useJobTracker()` | Tracking de jobs de análisis activos |
+| **VoteTrackerProvider** | `useVoteTracker()` | Tracking de votos de verificación |
+| **ConfigProvider** | `useConfig()` | Configuración global de la app |
+| **MessageProvider** | `useMessage()` | Sistema de mensajes y notificaciones |
+| **SchemaProvider** | `useSchema()` | Validación de esquemas de datos |
+
+### Uso de AuthProvider
+
+```typescript
+import { useAuth } from '@/providers/AuthProvider';
+
+function MyComponent() {
+  const { isAuthenticated, isLoading, user, signOut, supabase } = useAuth();
+
+  if (isLoading) return <Loading />;
+  if (!isAuthenticated) return <LoginPrompt />;
+
+  return <div>Hola, {user?.email}</div>;
+}
+```
+
+---
+
+## 🪝 Custom Hooks
+
+### useJobPoller
+
+Maneja el polling de estado de jobs de análisis:
+
+```typescript
+import { useJobPoller } from '@/hooks/useJobPoller';
+
+const { status, result, error, progress } = useJobPoller(jobId, {
+  interval: 3000,      // Polling cada 3s
+  maxRetries: 60,      // Máximo 60 intentos (3 min)
+  onProgress: (p) => console.log(`Progreso: ${p}%`),
+  onComplete: (result) => console.log('Completado:', result),
+  onError: (error) => console.error('Error:', error)
+});
+```
+
+### useJobTracker
+
+Tracking de múltiples jobs activos:
+
+```typescript
+import { useJobTracker } from '@/hooks/useJobTracker';
+
+const {
+  activeJobs,
+  addJob,
+  removeJob,
+  updateJobStatus
+} = useJobTracker();
+```
+
+### use-toast (Sonner)
+
+Sistema de notificaciones toast:
+
+```typescript
+import { useToast } from '@/hooks/use-toast';
+
+const { toast } = useToast();
+
+// Notificación de éxito
+toast({
+  title: '¡Análisis completado!',
+  description: 'El contenido ha sido analizado exitosamente.',
+  variant: 'success'
+});
+
+// Notificación de error
+toast({
+  title: 'Error',
+  description: 'No se pudo completar el análisis.',
+  variant: 'destructive'
+});
+```
+
+---
+
+## 🛡️ Sistema de Manejo de Errores
+
+Botilito incluye un robusto sistema de manejo de errores con retry logic, circuit breakers, y mensajes en español.
+
+### Características
+
+- **Códigos de Error Categorizados**: API, Database, Validation, Auth, etc.
+- **Retry Automático**: Exponential backoff con jitter
+- **Circuit Breakers**: Prevención de cascadas de fallos
+- **Mensajes en Español**: Para usuarios colombianos
+- **Métricas**: Tracking de errores para monitoreo
+
+### Uso Básico
+
+```typescript
+import { ErrorManager, ERROR_CODES } from '@/utils/errorManager';
+
+// Crear un error
+const error = ErrorManager.createError({
+  code: 'ERR_API_OPENROUTER_TIMEOUT',
+  context: { jobId: '123' }
+});
+
+// Ejecutar con retry
+const result = await ErrorManager.withRetry(
+  async () => await callApi(),
+  { maxRetries: 3, baseDelay: 1000 }
+);
+
+// Ejecutar con circuit breaker
+const result = await ErrorManager.withCircuitBreaker(
+  'OpenRouter',
+  async () => await callOpenRouter()
+);
+```
+
+### Categorías de Error
+
+| Categoría | Descripción |
+|-----------|-------------|
+| `CONFIGURATION` | Variables de entorno faltantes |
+| `API` | Fallos de APIs externas |
+| `DATABASE` | Operaciones de Supabase |
+| `TIMEOUT` | Operaciones que exceden tiempo límite |
+| `VALIDATION` | Datos de entrada inválidos |
+| `AUTHENTICATION` | Problemas de autenticación |
+| `RATE_LIMIT` | Límites de API excedidos |
+
+### Circuit Breakers Configurados
+
+| Servicio | Umbral de Fallos | Cooldown |
+|----------|------------------|----------|
+| OpenRouter | 5/min | 30s |
+| Gemini | 5/min | 30s |
+| Browserless | 3/min | 20s |
+| Supabase | 10/min | 10s |
+
+Para más detalles, ver [src/utils/errorManager/README.md](./src/utils/errorManager/README.md).
+
+---
+
+## 📝 Tipos TypeScript
+
+### Tipos Centralizados
+
+Todos los tipos principales están en `src/types/botilito.ts`:
+
+```typescript
+import type {
+  IngestPayload,
+  AnalysisJob,
+  JobAcceptedResponse,
+  JobStatusResponse,
+  FullAnalysisResponse,
+  Consensus,
+  ConsensusBreakdown,
+  RelatedDocument,
+  WebSearchResult,
+  DocumentMetadata,
+  CaseStudy,
+  CaseStudyMetadata
+} from '@/types/botilito';
+```
+
+### Tipos Principales
+
+```typescript
+// Payload para análisis
+type IngestPayload = {
+  url: string;
+  content_hash?: string;
+  perform_case_inference?: boolean;
+} | {
+  text: string;
+  vector_de_transmision?: string;
+  perform_case_inference?: boolean;
+};
+
+// Estados de consenso
+type ConsensusState = 'ai_only' | 'human_consensus' | 'conflicted';
+
+// Estados de job
+type JobStatus = 'pending' | 'processing' | 'completed' | 'failed';
+
+// Vector de transmisión
+type TransmissionVector =
+  | 'WhatsApp'
+  | 'Telegram'
+  | 'Facebook'
+  | 'Twitter'
+  | 'Email'
+  | 'Otro';
+```
+
+### Respuesta de Análisis Completa
+
+```typescript
+interface FullAnalysisResponse {
+  id: string;
+  user_id: string;
+  author_profile?: UserProfileData | null;
+  url?: string;
+  title: string;
+  summary: string;
+  created_at: string;
+  metadata?: DocumentMetadata;
+  case_study?: CaseStudy;
+  consensus?: Consensus;
+  risk_analysis?: {
+    final_risk_score: number;
+    risk_level: string;
+  };
+}
 ```
 
 ---
@@ -466,6 +924,123 @@ Si descubres una vulnerabilidad de seguridad:
 
 ---
 
+## 🔧 Solución de Problemas
+
+### Problemas Comunes
+
+#### Error: "No hay sesión activa"
+
+```
+Error: No hay sesión activa. Por favor, inicia sesión.
+```
+
+**Causa**: Token de autenticación expirado o no válido.
+
+**Solución**:
+1. Cierra sesión y vuelve a iniciar sesión
+2. Verifica que las variables `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` estén configuradas
+3. Limpia el localStorage del navegador
+
+#### Error: "Module not found: @jsr/supabase__supabase-js"
+
+**Causa**: El paquete JSR no está configurado correctamente.
+
+**Solución**:
+1. Verifica que `.npmrc` contenga: `@jsr:registry=https://npm.jsr.io`
+2. Ejecuta `npm install` de nuevo
+3. Limpia la caché: `npm cache clean --force`
+
+#### El servidor de desarrollo no inicia en puerto 3000
+
+**Causa**: Puerto ocupado por otro proceso.
+
+**Solución**:
+- Vite automáticamente usará 3001, 3002, etc.
+- Para matar el proceso en el puerto: `npx kill-port 3000`
+
+#### Polling de análisis nunca termina
+
+**Causa**: El job puede haber fallado silenciosamente.
+
+**Solución**:
+1. Verifica el estado del job en la consola del navegador
+2. El timeout máximo es 3 minutos (60 intentos × 3s)
+3. Revisa los logs de Supabase Edge Functions
+
+#### Variables de entorno no se cargan
+
+**Causa**: Prefijo incorrecto o archivo `.env` mal ubicado.
+
+**Solución**:
+1. Asegúrate de usar prefijo `VITE_` para variables del frontend
+2. El archivo `.env` debe estar en la raíz del proyecto
+3. Reinicia el servidor de desarrollo después de cambiar variables
+
+### Comandos de Depuración
+
+```bash
+# Ver variables de entorno cargadas (solo VITE_)
+console.log(import.meta.env)
+
+# Verificar estado de autenticación
+const { data } = await supabase.auth.getSession()
+console.log('Session:', data.session)
+
+# Ver estado de circuit breakers
+ErrorManager.getCircuitBreakerStatus()
+
+# Ver métricas de errores
+ErrorManager.getMetrics()
+```
+
+### Logs Útiles
+
+| Ubicación | Qué muestra |
+|-----------|-------------|
+| Consola del navegador | Errores de frontend, polling |
+| Red del navegador (F12) | Llamadas API, respuestas |
+| Supabase Dashboard > Edge Functions | Logs de funciones serverless |
+| Supabase Dashboard > Auth | Usuarios y sesiones |
+
+---
+
+## 🌐 Compatibilidad de Navegadores
+
+### Navegadores Soportados
+
+| Navegador | Versión Mínima | Estado |
+|-----------|----------------|--------|
+| Chrome | 90+ | ✅ Completamente soportado |
+| Firefox | 88+ | ✅ Completamente soportado |
+| Safari | 14+ | ✅ Completamente soportado |
+| Edge | 90+ | ✅ Completamente soportado |
+| Opera | 76+ | ✅ Completamente soportado |
+
+### Características Requeridas
+
+El proyecto requiere soporte para:
+- ES2020+ (async/await, optional chaining, nullish coalescing)
+- CSS Grid y Flexbox
+- CSS Custom Properties (Variables CSS)
+- Fetch API
+- LocalStorage/SessionStorage
+- Web Crypto API (para hashing)
+
+### Notas de Compatibilidad
+
+- **Internet Explorer**: No soportado
+- **Safari < 14**: Pueden haber problemas con algunas animaciones CSS
+- **Modo privado/incógnito**: La persistencia de sesión puede ser limitada
+
+### Responsive Design
+
+La aplicación es responsive y funciona en:
+- **Desktop**: 1280px+ (experiencia completa)
+- **Tablet**: 768px - 1279px (layout adaptado)
+- **Mobile**: < 768px (layout vertical, navegación colapsada)
+
+---
+
 ## 🤝 Contribuir
 
 ¡Las contribuciones son bienvenidas! Por favor lee nuestra [Guía de Contribución](./CONTRIBUTING.md) para más detalles.
@@ -487,19 +1062,141 @@ Si descubres una vulnerabilidad de seguridad:
 - Escribe comentarios en español para contexto colombiano
 - Mensajes de commit descriptivos en español
 
+### Scripts npm Disponibles
+
+```bash
+npm run dev      # Inicia servidor de desarrollo (puerto 3000)
+npm run build    # Construye para producción (output: build/)
+```
+
+> **Nota**: Este proyecto usa Vite, no Create React App. No hay scripts `lint`, `test`, o `eject` configurados por defecto.
+
 ---
 
 ## 📚 Documentación Adicional
+
+### Documentación Principal
 
 | Documento | Descripción |
 |-----------|-------------|
 | [CONTRIBUTING.md](./CONTRIBUTING.md) | Guía completa de contribución |
 | [SECURITY.md](./SECURITY.md) | Política de seguridad y reporte de vulnerabilidades |
-| [claude.md](./claude.md) | Contexto técnico detallado del proyecto |
-| [src/guidelines/Guidelines.md](./src/guidelines/Guidelines.md) | Sistema de diseño y guías de estilo |
-| [src/Attributions.md](./src/Attributions.md) | Atribuciones y licencias de dependencias |
-| [SUPABASE_AUTH_PROGRESS.md](./SUPABASE_AUTH_PROGRESS.md) | Documentación de implementación de autenticación |
-| [MAPA_DATA_COMPARISON.md](./MAPA_DATA_COMPARISON.md) | Comparación de datos API vs Mock |
+| [claude.md](./claude.md) | Contexto técnico detallado del proyecto para Claude |
+| [LICENSE](./LICENSE) | Licencia MIT del proyecto |
+
+### Documentación Técnica
+
+| Documento | Descripción |
+|-----------|-------------|
+| [src/guidelines/Guidelines.md](./src/guidelines/Guidelines.md) | Sistema de diseño completo |
+| [src/guidelines/IndicadoresEpidemiologicos.md](./src/guidelines/IndicadoresEpidemiologicos.md) | Indicadores epidemiológicos de desinformación |
+| [src/guidelines/SistemaCodificacionCasos.md](./src/guidelines/SistemaCodificacionCasos.md) | Sistema de codificación de casos |
+| [src/utils/errorManager/README.md](./src/utils/errorManager/README.md) | Documentación del sistema de manejo de errores |
+
+### Documentación de Desarrollo
+
+| Documento | Descripción |
+|-----------|-------------|
+| [SUPABASE_AUTH_PROGRESS.md](./SUPABASE_AUTH_PROGRESS.md) | Progreso de implementación de autenticación |
+| [MAPA_DATA_COMPARISON.md](./MAPA_DATA_COMPARISON.md) | Comparación de datos API vs Mock del mapa |
+| [src/Attributions.md](./src/Attributions.md) | Atribuciones y licencias de todas las dependencias |
+
+---
+
+## 🇨🇴 Contexto Colombiano
+
+### Idioma y Localización
+
+- **Idioma principal**: Español colombiano
+- **Tono**: Amigable, juvenil, coloquial
+- **Expresiones**: "Kiubo", "Pa' dentro", "Parce"
+
+### Departamentos de Colombia
+
+El formulario de registro incluye los 32 departamentos de Colombia:
+
+<details>
+<summary>Ver lista completa de departamentos</summary>
+
+Amazonas, Antioquia, Arauca, Atlántico, Bolívar, Boyacá, Caldas, Caquetá, Casanare, Cauca, Cesar, Chocó, Córdoba, Cundinamarca, Guainía, Guaviare, Huila, La Guajira, Magdalena, Meta, Nariño, Norte de Santander, Putumayo, Quindío, Risaralda, San Andrés y Providencia, Santander, Sucre, Tolima, Valle del Cauca, Vaupés, Vichada
+
+</details>
+
+### Mensajes de Error Localizados
+
+Todos los mensajes de error están en español colombiano para mejor UX:
+
+```typescript
+// Ejemplo de mensajes
+"El análisis está tardando más de lo esperado. Por favor intenta de nuevo."
+"No hay sesión activa. Por favor, inicia sesión."
+"Parce, hubo un error. Revisa tu conexión."
+```
+
+---
+
+## ⚡ Supabase Edge Functions
+
+### Función: Profile (`/functions/v1/profile`)
+
+Maneja operaciones CRUD para perfiles de usuario.
+
+#### Endpoints
+
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| `GET` | `/profile` | Obtiene perfil del usuario autenticado |
+| `GET` | `/profile?id=<uuid>` | Obtiene perfil de un usuario específico |
+| `PUT` | `/profile` | Actualiza perfil del usuario autenticado |
+| `OPTIONS` | `/profile` | Preflight CORS |
+
+#### Campos Actualizables
+
+```typescript
+{
+  nombre_completo: string;
+  numero_telefono: string;
+  departamento: string;
+  ciudad: string;
+  fecha_nacimiento: string; // ISO date
+}
+```
+
+#### Ejemplo de Uso
+
+```typescript
+// GET - Obtener perfil
+const response = await fetch('https://[PROJECT].supabase.co/functions/v1/profile', {
+  headers: {
+    'Authorization': `Bearer ${accessToken}`
+  }
+});
+
+// PUT - Actualizar perfil
+const response = await fetch('https://[PROJECT].supabase.co/functions/v1/profile', {
+  method: 'PUT',
+  headers: {
+    'Authorization': `Bearer ${accessToken}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    nombre_completo: 'Juan Pérez',
+    departamento: 'Cundinamarca',
+    ciudad: 'Bogotá'
+  })
+});
+```
+
+### Función: Ingest Async Auth Enriched
+
+Maneja el análisis de contenido de forma asíncrona.
+
+| Endpoint | Descripción |
+|----------|-------------|
+| `POST /submit` | Envía contenido para análisis |
+| `GET /status/:jobId` | Obtiene estado de un job |
+
+Para más detalles, ver la sección [API Integration](#-api-integration).
 
 ---
 
@@ -507,26 +1204,113 @@ Si descubres una vulnerabilidad de seguridad:
 
 Este proyecto está bajo la licencia MIT. Ver archivo [LICENSE](./LICENSE) para más detalles.
 
+```
+MIT License - Copyright (c) 2025 Botilito - digitalia.gov.co
+```
+
 ---
 
 ## 🙏 Agradecimientos
 
-- **Figma Design**: [https://www.figma.com/design/dGFLK80lLXxhBIMCbLONd1/Botilito](https://www.figma.com/design/dGFLK80lLXxhBIMCbLONd1/Botilito)
-- **digitalia.gov.co**: Iniciativa contra la desinformación
-- **Supabase**: Plataforma backend
-- **shadcn/ui**: Sistema de componentes
-- **Radix UI**: Componentes primitivos accesibles
+### Diseño e Iniciativa
+- **[digitalia.gov.co](https://digitalia.gov.co)**: Iniciativa colombiana contra la desinformación
+- **Figma Design**: [Botilito en Figma](https://www.figma.com/design/dGFLK80lLXxhBIMCbLONd1/Botilito)
+
+### Tecnología
+- **[Supabase](https://supabase.com)**: Plataforma backend (Auth, Database, Edge Functions)
+- **[shadcn/ui](https://ui.shadcn.com)**: Sistema de componentes UI
+- **[Radix UI](https://www.radix-ui.com)**: Primitivos accesibles
+- **[Tailwind CSS](https://tailwindcss.com)**: Framework CSS
+- **[Vite](https://vitejs.dev)**: Build tool
+- **[Lucide](https://lucide.dev)**: Iconos
+
+### Comunidad
+- **Verificadores de hechos colombianos**: Por su trabajo incansable
+- **Comunidad Open Source**: Por todas las herramientas que hacen esto posible
 
 ---
 
 ## 📞 Soporte
 
-Para preguntas o problemas:
-- Abre un [Issue](https://github.com/lordalex/botilito-prompt-figma/issues) en GitHub
-- Consulta la documentación en `CLAUDE.md`
+### Canales de Soporte
+
+| Canal | Uso |
+|-------|-----|
+| [Issues de GitHub](https://github.com/lordalex/botilito-prompt-figma/issues) | Bugs, feature requests |
+| [Documentación](./claude.md) | Contexto técnico |
+| [CONTRIBUTING.md](./CONTRIBUTING.md) | Guía de contribución |
+
+### Antes de Crear un Issue
+
+1. Busca si ya existe un issue similar
+2. Incluye versión de Node.js y navegador
+3. Proporciona pasos para reproducir el problema
+4. Adjunta logs relevantes de la consola
+
+---
+
+## 📊 Quick Reference
+
+### Comandos Frecuentes
+
+```bash
+# Desarrollo
+npm run dev              # Iniciar servidor (puerto 3000)
+npm run build            # Build de producción
+
+# Git
+git checkout -b feature/mi-feature  # Nueva rama
+git commit -m "feat: descripción"   # Commit convencional
+
+# Debugging
+npx kill-port 3000       # Liberar puerto
+npm cache clean --force  # Limpiar caché npm
+```
+
+### URLs Importantes
+
+| Recurso | URL |
+|---------|-----|
+| Repositorio | `github.com/lordalex/botilito-prompt-figma` |
+| Supabase Project | `mdkswlgcqsmgfmcuorxq.supabase.co` |
+| Edge Functions | `/functions/v1/ingest-async-auth-enriched` |
+| Profile API | `/functions/v1/profile` |
+
+### Variables de Entorno Requeridas
+
+```env
+VITE_SUPABASE_URL=https://[PROJECT].supabase.co
+VITE_SUPABASE_ANON_KEY=[tu_anon_key]
+```
+
+---
+
+## 📈 Roadmap
+
+### Completado
+- [x] Sistema de autenticación completo
+- [x] Análisis AI con polling asíncrono
+- [x] Sistema de consenso (AI/Human/Conflicted)
+- [x] 70+ componentes UI
+- [x] Sistema de manejo de errores
+
+### En Desarrollo
+- [ ] Mapa Desinfodémico con datos reales
+- [ ] Estudio de Inmunización completo
+- [ ] Extensión de navegador funcional
+
+### Planificado
+- [ ] Testing suite (Vitest + Testing Library)
+- [ ] PWA support
+- [ ] Notificaciones push
+- [ ] API pública documentada
 
 ---
 
 **Hecho con ❤️ para combatir la desinformación en Colombia**
 
 ¡Botilito al rescate! 🤖✨
+
+---
+
+<sub>**Última actualización**: 2025-12-16 | **Versión**: 0.1.0</sub>
