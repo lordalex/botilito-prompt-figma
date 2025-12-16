@@ -66,7 +66,7 @@ export function Historial() {
                 </div>
                 <div>
                   <p className="text-sm text-gray-600">Total de Casos</p>
-                  <p className="text-2xl font-bold text-gray-800">{summaryData.kpis.total_cases}</p>
+                  <p className="text-2xl font-bold text-gray-800">{summaryData.cases?.length ?? totalCases}</p>
                 </div>
               </div>
             </div>
@@ -78,7 +78,7 @@ export function Historial() {
                 </div>
                 <div>
                   <p className="text-sm text-gray-600">Documentos</p>
-                  <p className="text-2xl font-bold text-gray-800">{summaryData.kpis.total_documents}</p>
+                  <p className="text-2xl font-bold text-gray-800">{summaryData.pagination?.returnedCount ?? totalCases}</p>
                 </div>
               </div>
             </div>

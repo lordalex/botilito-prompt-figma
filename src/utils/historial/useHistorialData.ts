@@ -45,7 +45,8 @@ export function useHistorialData() {
         const data = await fetchHistorialData();
         setSummaryData(data);
 
-        const cases = transformCasesToUI(data.recent_cases);
+        // API returns data.cases, not data.recent_cases
+        const cases = transformCasesToUI(data.cases);
         setAllCases(cases);
         setFilteredCases(cases);
       } catch (err) {
@@ -101,7 +102,7 @@ export function useHistorialData() {
   const getCaseDetail = useCallback((caseId: string): HistorialCaseDetail | null => {
     if (!summaryData) return null;
 
-    const caseData = summaryData.recent_cases.find(c => c.id === caseId);
+    const caseData = summaryData.cases.find(c => c.id === caseId);
     if (!caseData) return null;
 
     return transformCaseToDetail(caseData);
@@ -151,7 +152,7 @@ export function useCaseDetail(caseId: string | null) {
 
         // Fetch full data and extract the specific case
         const data = await fetchHistorialData();
-        const caseData = data.recent_cases.find(c => c.id === caseId);
+        const caseData = data.cases.find(c => c.id === caseId);
 
         if (!caseData) {
           throw new Error('Caso no encontrado');

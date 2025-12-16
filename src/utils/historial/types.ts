@@ -3,10 +3,28 @@
 
 import type {
   VerificationSummaryResult,
-  RecentCase,
-  RelatedDocument,
-  WebSearchResult
+  CaseEnriched
 } from '../humanVerification/types';
+
+// Alias for backwards compatibility
+export type RecentCase = CaseEnriched;
+
+// Define missing types that the historial code expects but aren't in CaseEnriched
+export interface RelatedDocument {
+  id: string;
+  title: string;
+  url: string;
+  summary: string;
+  similarity: number;
+  theme?: string;
+}
+
+export interface WebSearchResult {
+  title: string;
+  url: string;
+  snippet: string;
+  source: string;
+}
 
 /**
  * Historial uses the same data structure as Human Verification

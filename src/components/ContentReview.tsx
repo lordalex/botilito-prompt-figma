@@ -226,9 +226,10 @@ export function ContentReview() {
 
   // Filtrado
   const filteredCasos = historialCasos.filter((caso) => {
-    const matchesSearch = 
+    const matchesSearch =
       caso.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       caso.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      caso.displayId.toLowerCase().includes(searchTerm.toLowerCase()) ||
       caso.id.toLowerCase().includes(searchTerm.toLowerCase());
 
     if (selectedFilter === 'all') return matchesSearch;
@@ -1196,7 +1197,7 @@ export function ContentReview() {
                         <div className="flex items-center justify-between">
                           <div className="flex items-center space-x-2">
                             <Badge variant="outline" className="text-xs bg-white border-primary/30 font-mono">
-                              Caso: {caso.id}
+                              Caso: {caso.displayId}
                             </Badge>
                             <h4 className="font-medium text-sm">{caso.title}</h4>
                           </div>
