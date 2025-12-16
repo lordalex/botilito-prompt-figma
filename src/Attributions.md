@@ -25,28 +25,34 @@ Este documento lista todas las atribuciones y licencias de los recursos y depend
 
 ### Dependencias Radix UI
 
-- `@radix-ui/react-accordion` - MIT
-- `@radix-ui/react-alert-dialog` - MIT
-- `@radix-ui/react-checkbox` - MIT
-- `@radix-ui/react-dialog` - MIT
-- `@radix-ui/react-dropdown-menu` - MIT
-- `@radix-ui/react-hover-card` - MIT
-- `@radix-ui/react-label` - MIT
-- `@radix-ui/react-menubar` - MIT
-- `@radix-ui/react-popover` - MIT
-- `@radix-ui/react-progress` - MIT
-- `@radix-ui/react-radio-group` - MIT
-- `@radix-ui/react-scroll-area` - MIT
-- `@radix-ui/react-select` - MIT
-- `@radix-ui/react-separator` - MIT
-- `@radix-ui/react-slider` - MIT
-- `@radix-ui/react-slot` - MIT
-- `@radix-ui/react-switch` - MIT
-- `@radix-ui/react-tabs` - MIT
-- `@radix-ui/react-toast` - MIT
-- `@radix-ui/react-toggle` - MIT
-- `@radix-ui/react-toggle-group` - MIT
-- `@radix-ui/react-tooltip` - MIT
+Todos los paquetes de Radix UI están licenciados bajo MIT:
+
+- `@radix-ui/react-accordion`
+- `@radix-ui/react-alert-dialog`
+- `@radix-ui/react-aspect-ratio`
+- `@radix-ui/react-avatar`
+- `@radix-ui/react-checkbox`
+- `@radix-ui/react-collapsible`
+- `@radix-ui/react-context-menu`
+- `@radix-ui/react-dialog`
+- `@radix-ui/react-dropdown-menu`
+- `@radix-ui/react-hover-card`
+- `@radix-ui/react-label`
+- `@radix-ui/react-menubar`
+- `@radix-ui/react-navigation-menu`
+- `@radix-ui/react-popover`
+- `@radix-ui/react-progress`
+- `@radix-ui/react-radio-group`
+- `@radix-ui/react-scroll-area`
+- `@radix-ui/react-select`
+- `@radix-ui/react-separator`
+- `@radix-ui/react-slider`
+- `@radix-ui/react-slot`
+- `@radix-ui/react-switch`
+- `@radix-ui/react-tabs`
+- `@radix-ui/react-toggle`
+- `@radix-ui/react-toggle-group`
+- `@radix-ui/react-tooltip`
 
 ### Backend y Autenticación
 
@@ -79,6 +85,13 @@ Este documento lista todas las atribuciones y licencias de los recursos y depend
 | [Vaul](https://vaul.emilkowal.ski/) | MIT | Drawer/Sheet |
 | [React Resizable Panels](https://react-resizable-panels.vercel.app/) | MIT | Paneles redimensionables |
 | [next-themes](https://github.com/pacocoursey/next-themes) | MIT | Gestión de temas |
+| [cmdk](https://cmdk.paco.me/) | MIT | Command menu |
+
+### Server Framework
+
+| Librería | Licencia | Uso |
+|----------|----------|-----|
+| [Hono](https://hono.dev/) | MIT | Web framework para Edge Functions |
 
 ### Utilidades CSS
 
@@ -155,6 +168,28 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
+
+---
+
+## Desarrolladores y Contribuidores
+
+### Equipo Principal
+
+| Desarrollador | Rol | Contacto |
+|---------------|-----|----------|
+| **LordAlex Leon (LA)** | Desarrollador Principal / Arquitecto | [lordalex@gmail.com](mailto:lordalex@gmail.com) |
+| **Gerardo Rojas** | Co-Desarrollador | [lordalexand.co](https://lordalexand.co) |
+
+### Contribuidores
+
+Este proyecto ha sido posible gracias a todos los contribuidores que han dedicado su tiempo y esfuerzo:
+
+- **LordAlex Leon** - Arquitectura del sistema, implementación de autenticación, integración AI, diseño UI/UX
+- **Gerardo Rojas** - Desarrollo de características, integración de servicios, documentación
+
+### Contribuciones con IA
+
+Algunas partes de este proyecto fueron desarrolladas con asistencia de **Claude** (Anthropic) para documentación, revisión de código y desarrollo de características.
 
 ---
 
