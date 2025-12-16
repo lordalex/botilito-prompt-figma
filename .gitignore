@@ -32,3 +32,12 @@ yarn-error.log*
 
 # QA Testing (contains sensitive credentials)
 QA_TESTING.md
+
+# Development artifacts (may contain sensitive data)
+output.txt
+outbasefigma.txt
+o.txt
+d.sh
+patch.sh
+*.orig
+*.rej
