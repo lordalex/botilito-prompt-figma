@@ -15,7 +15,7 @@ import { ImmunizationStudio } from './components/ImmunizationStudio';
 import { useAuth } from './providers/AuthProvider'; // Import the hook
 
 export default function App() {
-  const { isAuthenticated, isLoading, signOut, profileComplete, checkUserProfile } = useAuth(); // Use the hook
+  const { isAuthenticated, isLoading, signOut, profileComplete, profileChecked, checkUserProfile } = useAuth();
   const [showRegister, setShowRegister] = useState(false);
   const [activeTab, setActiveTab] = useState('upload');
 
@@ -26,10 +26,11 @@ export default function App() {
   }, [isAuthenticated]);
 
   useEffect(() => {
-    if (!profileComplete) {
+    // Only redirect to profile if we've checked and confirmed the profile is incomplete
+    if (profileChecked && !profileComplete) {
       setActiveTab('profile');
     }
-  }, [profileComplete]);
+  }, [profileChecked, profileComplete]);
 
   const handleLogout = async () => {
     try {

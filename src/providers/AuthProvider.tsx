@@ -13,6 +13,7 @@ interface AuthContextType {
   isLoading: boolean;
   user: User | null;
   profileComplete: boolean;
+  profileChecked: boolean;
   checkUserProfile: () => Promise<void>;
   signOut: () => Promise<void>;
   // We expose the raw Supabase client for other hooks/components that might need it.
@@ -42,6 +43,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const [session, setSession] = useState<Session | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [profileComplete, setProfileComplete] = useState(false);
+    const [profileChecked, setProfileChecked] = useState(false);
 
     useEffect(() => {
         jobManager.setSession(session);
@@ -51,6 +53,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) {
             setProfileComplete(false);
+            setProfileChecked(true);
             return;
         }
         try {
@@ -66,9 +69,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 setProfileComplete(false);
             } else {
                 console.error("An unexpected error occurred fetching profile:", error);
-                setProfileComplete(false); // Default to incomplete on other errors
+                setProfileComplete(false);
             }
         }
+        setProfileChecked(true);
     };
 
     useEffect(() => {
@@ -101,6 +105,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         isAuthenticated: !!user,
         isLoading,
         profileComplete,
+        profileChecked,
         checkUserProfile,
         signOut: supabase.auth.signOut,
         supabase,
