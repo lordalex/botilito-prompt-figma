@@ -55,7 +55,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
         try {
             const profile = await api.profile.get(session);
-            if (profile && profile.nombre_completo) {
+            if (profile && profile.data.full_name) {
                 setProfileComplete(true);
             } else {
                 setProfileComplete(false);

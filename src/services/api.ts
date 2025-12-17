@@ -68,15 +68,70 @@ export const api = {
             fetchClient(session, `${apiEndpoints.VECTOR_ASYNC_BASE_URL}/status/${jobId}`),
     },
     profile: {
-        get: (session: Session): Promise<ProfileResponse> =>
-            fetchClient(session, apiEndpoints.PROFILE_API_URL),
-        getById: (session: Session, userId: string): Promise<ProfileResponse> =>
-            fetchClient(session, `${apiEndpoints.PROFILE_API_URL}?id=${userId}`),
-        update: (session: Session, profileData: Partial<UserProfileData>): Promise<{ message: string; data: Profile }> =>
-            fetchClient(session, apiEndpoints.PROFILE_API_URL, {
+        get: async (session: Session): Promise<ProfileResponse> => {
+            const response = await fetchClient(session, apiEndpoints.PROFILE_API_URL);
+
+            // Adapter to map Spanish field names from the backend to English field names used in the frontend.
+            if (response.data) {
+                const mappedData = {
+                    ...response.data,
+                    full_name: response.data.nombre_completo,
+                    phone_number: response.data.numero_telefono,
+                    city: response.data.ciudad,
+                    state_province: response.data.departamento,
+                    birth_date: response.data.fecha_nacimiento,
+                };
+                // It's good practice to delete the old keys to avoid confusion.
+                delete mappedData.nombre_completo;
+                delete mappedData.numero_telefono;
+                delete mappedData.ciudad;
+                delete mappedData.departamento;
+                delete mappedData.fecha_nacimiento;
+                response.data = mappedData;
+            }
+            
+            return response;
+        },
+        getById: async (session: Session, userId: string): Promise<ProfileResponse> => {
+            const response = await fetchClient(session, `${apiEndpoints.PROFILE_API_URL}?id=${userId}`);
+            // Adapter to map Spanish field names from the backend to English field names used in the frontend.
+            if (response.data) {
+                const mappedData = {
+                    ...response.data,
+                    full_name: response.data.nombre_completo,
+                    phone_number: response.data.numero_telefono,
+                    city: response.data.ciudad,
+                    state_province: response.data.departamento,
+                    birth_date: response.data.fecha_nacimiento,
+                };
+                // It's good practice to delete the old keys to avoid confusion.
+                delete mappedData.nombre_completo;
+                delete mappedData.numero_telefono;
+                delete mappedData.ciudad;
+                delete mappedData.departamento;
+                delete mappedData.fecha_nacimiento;
+                response.data = mappedData;
+            }
+            return response;
+        },
+
+        update: (session: Session, profileData: Partial<UserProfileData>): Promise<{ message: string; data: Profile }> => {
+            // Adapter to map English field names from the frontend to Spanish field names for the backend.
+            const mappedData: any = {};
+            if (profileData.full_name) mappedData.nombre_completo = profileData.full_name;
+            if (profileData.phone_number) mappedData.numero_telefono = profileData.phone_number;
+            if (profileData.city) mappedData.ciudad = profileData.city;
+            if (profileData.state_province) mappedData.departamento = profileData.state_province;
+            if (profileData.birth_date) mappedData.fecha_nacimiento = profileData.birth_date;
+            if (profileData.photo) mappedData.photo = profileData.photo;
+            if (profileData.avatar) mappedData.avatar = profileData.avatar;
+
+
+            return fetchClient(session, apiEndpoints.PROFILE_API_URL, {
                 method: 'PUT',
-                body: JSON.stringify(profileData),
-            }),
+                body: JSON.stringify(mappedData),
+            });
+        },
         create: (session: Session, profileData: UserProfileData): Promise<{ message: string; data: Profile }> =>
             fetchClient(session, apiEndpoints.PROFILE_API_URL, {
                 method: 'PUT', // Using PUT for upsert
@@ -93,11 +148,14 @@ export const api = {
             fetchClient(session, `${apiEndpoints.VOTE_API_URL}/status/${jobId}`),
     },
     humanVerification: {
-        getSummary: (session: Session, page: number, pageSize: number): Promise<any> =>
-            fetchClient(session, apiEndpoints.SUMMARY_ENDPOINT, {
+        getSummary: (session: Session, page: number, pageSize: number): Promise<any> => {
+            const url = new URL(apiEndpoints.SUMMARY_ENDPOINT);
+            url.searchParams.set('page', String(page));
+            url.searchParams.set('pageSize', String(pageSize));
+            return fetchClient(session, url.toString(), {
                 method: 'POST',
-                body: JSON.stringify({ page, pageSize }),
-            }),
+            });
+        },
         getCaseDetails: (session: Session, caseId: string): Promise<any> =>
             fetchClient(session, apiEndpoints.LOOKUP_ENDPOINT, {
                 method: 'POST',
@@ -118,5 +176,24 @@ export const api = {
     webSnapshot: {
         get: (session: Session, url: string): Promise<any> =>
             fetchClient(session, `${apiEndpoints.WEB_SNAPSHOT_URL}?url=${encodeURIComponent(url)}`),
+    },
+    imageAnalysis: {
+        submit: (session: Session | null, imageBase64: string): Promise<Response> => {
+            if (!session?.access_token) {
+                throw new Error("Authentication error: No access token provided.");
+            }
+            return fetch(`${apiEndpoints.IMAGE_ANALYSIS_BASE_URL}/submit`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${session.access_token}`,
+                },
+                body: JSON.stringify({ image_base64: imageBase64 }),
+            });
+        },
+        getStatus: (jobId: string): Promise<Response> => {
+            // This endpoint does not require authentication as per documentation (jobId is secret)
+            return fetch(`${apiEndpoints.IMAGE_ANALYSIS_BASE_URL}/status/${jobId}`);
+        },
     },
 };

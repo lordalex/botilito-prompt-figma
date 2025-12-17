@@ -51,7 +51,7 @@ export interface CaseEnriched {
       date: string;
       user: {
         id: string;
-        nombre_completo: string;
+        full_name: string;
         reputation: number;
         role: string;
       }

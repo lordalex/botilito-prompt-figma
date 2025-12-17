@@ -53,7 +53,7 @@ export function ContentUploadResult({ result, onReset }: ContentUploadResultProp
             }
             try {
                 const profile = await api.profile.get(session, fullResult.user_id);
-                setReportedBy(profile.nombre_completo || profile.email || 'Desconocido');
+                setReportedBy(profile.full_name || profile.email || 'Desconocido');
             } catch (error) {
                 console.error("Error fetching author profile:", error);
                 setReportedBy('Desconocido');

@@ -3,13 +3,13 @@
 export interface Profile {
   id: string;
   email: string;
-  nombre_completo: string | null;
+  full_name: string | null;
   photo: string | null;
   avatar: string | null;
-  numero_telefono: string | null;
-  departamento: string | null;
-  ciudad: string | null;
-  fecha_nacimiento: string | null;
+  phone_number: string | null;
+  state_province: string | null;
+  city: string | null;
+  birth_date: string | null;
   reputation: number;
   xp: number;
   badges: string[];
@@ -37,13 +37,13 @@ export interface ProfileResponse {
 }
 
 export interface ProfileUpdateInput {
-  nombre_completo?: string;
+  full_name?: string;
   photo?: string;
   avatar?: string;
-  numero_telefono?: string;
-  departamento?: string;
-  ciudad?: string;
-  fecha_nacimiento?: string;
+  phone_number?: string;
+  state_province?: string;
+  city?: string;
+  birth_date?: string;
 }
 
 export interface ConversionRequest {

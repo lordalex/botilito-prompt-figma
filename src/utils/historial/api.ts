@@ -1,15 +1,15 @@
 import { fetchVerificationSummary } from '../humanVerification/api';
 import { supabase } from '../supabase/client';
-import type { HistorialSummaryResult, HistorialCaseUI, HistorialCaseDetail, RecentCase, RelatedDocument, WebSearchResult } from './types';
-import type { CaseEnriched } from '../humanVerification/types';
+import type { HistorialSummaryResult, HistorialCaseUI, HistorialCaseDetail } from './types';
+import type { RecentCase } from '../humanVerification/types';
 import { DIAGNOSTIC_LABELS } from '../humanVerification/types';
 
 /**
  * Fetch historial data (reuses the same endpoint as Human Verification)
  * Uses the async job pattern implementation
  */
-export async function fetchHistorialData(): Promise<HistorialSummaryResult> {
-  return await fetchVerificationSummary();
+export async function fetchHistorialData(page: number, pageSize: number): Promise<HistorialSummaryResult> {
+  return await fetchVerificationSummary(page, pageSize);
 }
 
 /**
@@ -69,29 +69,22 @@ export async function fetchCaseDetails(caseId: string) {
 }
 
 /**
- * Generate display ID for a case - v2.0
+ * Generate display ID for a case (v2.0)
  * Format: VECTOR-TIPO-REGION-TEMA-HASH
- * Example: WE-TX-LA-PO-22D
- *
- * Components:
- * - VECTOR (2 chars): Platform of origin (WE=Web, WH=WhatsApp, FA=Facebook, etc.)
- * - TIPO (2 chars): Content type (TX=Text/URL, IM=Image, VI=Video, AU=Audio)
- * - REGION (2 chars): Geographic area (LA=LatAm, CO=Colombia, VE=Venezuela, etc.)
- * - TEMA (2 chars): Theme category (PO=Politics, IN=International, EC=Economy, etc.)
- * - HASH (3 chars): First 3 characters of UUID (uppercase)
+ * Example: WE-TX-LA-GE-4E8
  */
 export function generateDisplayId(caseData: RecentCase): string {
   // VECTOR: Detect from URL
-  const vector = detectVector(caseData.url);
+  const vector = detectVector(caseData.url || '');
 
   // TIPO: From submission_type
   const tipo = getTipoCode(caseData.submission_type);
 
-  // REGION: From API field (when available) or fallback
-  const region = getRegionCode(extractRegionFromCase(caseData));
+  // REGION: Default to LA (LatAm) - can be enhanced later
+  const region = 'LA';
 
-  // TEMA: From API field (when available) or fallback to related_documents
-  const tema = getTemaCode(extractThemeFromCase(caseData));
+  // TEMA: From diagnostic labels
+  const tema = getTemaFromLabels(caseData.diagnostic_labels);
 
   // HASH: First 3 characters of UUID, uppercase
   const hash = caseData.id.replace(/-/g, '').substring(0, 3).toUpperCase();
@@ -101,14 +94,14 @@ export function generateDisplayId(caseData: RecentCase): string {
 
 /**
  * Detect platform/vector from URL
- * Returns 2-letter uppercase code for known platforms
  */
 function detectVector(url: string): string {
+  if (!url) return 'OT'; // Other
+
   try {
     const urlObj = new URL(url);
     const hostname = urlObj.hostname.toLowerCase().replace('www.', '');
 
-    // Known social media platforms
     const vectorMap: Record<string, string> = {
       'whatsapp.com': 'WH',
       'web.whatsapp.com': 'WH',
@@ -127,132 +120,62 @@ function detectVector(url: string): string {
       'linkedin.com': 'LI',
     };
 
-    // Check exact matches
     if (vectorMap[hostname]) {
       return vectorMap[hostname];
     }
 
-    // Check if hostname contains known platform names
     for (const [domain, code] of Object.entries(vectorMap)) {
       if (hostname.includes(domain.split('.')[0])) {
         return code;
       }
     }
 
-    // Default: Web
-    return 'WE';
+    return 'WE'; // Web (default)
   } catch {
-    // Invalid URL, default to Web
-    return 'WE';
+    return 'OT'; // Other
   }
 }
 
 /**
- * Get content type code from submission_type
+ * Get content type code
  */
-function getTipoCode(submissionType: string): string {
+function getTipoCode(submissionType: string | undefined): string {
   const tipoMap: Record<string, string> = {
-    'URL': 'TX',
     'TEXT': 'TX',
-    'Text': 'TX',
+    'URL': 'TX',
     'IMAGE': 'IM',
-    'Image': 'IM',
     'VIDEO': 'VI',
-    'Video': 'VI',
     'AUDIO': 'AU',
-    'Audio': 'AU',
   };
-  return tipoMap[submissionType] || 'TX';
+  return tipoMap[(submissionType || 'TEXT').toUpperCase()] || 'TX';
 }
 
 /**
- * Get region code from region string
+ * Get theme code from diagnostic labels
  */
-function getRegionCode(region: string): string {
-  const regionMap: Record<string, string> = {
-    'America Latina': 'LA',
-    'Latinoamerica': 'LA',
-    'Latin America': 'LA',
-    'Colombia': 'CO',
-    'Venezuela': 'VE',
-    'America del Norte': 'NA',
-    'Norteamerica': 'NA',
-    'North America': 'NA',
-    'Estados Unidos': 'NA',
-    'United States': 'NA',
-    'Europa': 'EU',
-    'Europe': 'EU',
-    'Global': 'GL',
-    'Mundial': 'GL',
-    'Asia': 'AS',
-    'Africa': 'AF',
-    'Oceania': 'OC',
-    'N/A': 'XX',
-  };
-  return regionMap[region] || 'XX';
-}
+function getTemaFromLabels(labels: string[] | undefined): string {
+  if (!labels || labels.length === 0) return 'GE'; // General
 
-/**
- * Get theme code from theme string
- */
-function getTemaCode(theme: string): string {
   const temaMap: Record<string, string> = {
-    'Politica': 'PO',
-    'Politics': 'PO',
-    'Internacional': 'IN',
-    'International': 'IN',
-    'Economia': 'EC',
-    'Economy': 'EC',
-    'Salud': 'SA',
-    'Health': 'SA',
-    'Sucesos': 'SU',
-    'Events': 'SU',
-    'Deportes': 'DE',
-    'Sports': 'DE',
-    'Tecnologia': 'TE',
-    'Technology': 'TE',
-    'Ambiente': 'AM',
-    'Environment': 'AM',
-    'Social': 'SO',
-    'Otro': 'OT',
-    'Other': 'OT',
+    'teoria_conspirativa': 'CO', // Conspiración
+    'discurso_odio': 'OD', // Odio
+    'discurso_odio_racismo': 'OD',
+    'discurso_odio_sexismo': 'OD',
+    'incitacion_violencia': 'VI', // Violencia
+    'bot_coordinado': 'BO', // Bot
+    'sensacionalista': 'SE', // Sensacionalismo
+    'falso': 'FA', // Falso
+    'enganoso': 'EN', // Engañoso
+    'verdadero': 'VE', // Verdadero
   };
-  return temaMap[theme] || 'OT';
-}
 
-/**
- * Extract theme from case data
- * Priority: caseData.theme > related_documents[0].theme > default
- */
-function extractThemeFromCase(caseData: RecentCase): string {
-  // Check if theme is directly available (future API support)
-  if ((caseData as any).theme) {
-    return (caseData as any).theme;
-  }
-
-  // Fallback: Extract from first related document
-  if (caseData.related_documents?.length > 0) {
-    const firstDoc = caseData.related_documents[0] as any;
-    if (firstDoc.theme) {
-      return firstDoc.theme;
+  for (const label of labels) {
+    if (temaMap[label]) {
+      return temaMap[label];
     }
   }
 
-  return 'Otro';
-}
-
-/**
- * Extract region from case data
- * Priority: caseData.region > default
- */
-function extractRegionFromCase(caseData: RecentCase): string {
-  // Check if region is directly available (future API support)
-  if ((caseData as any).region) {
-    return (caseData as any).region;
-  }
-
-  // Default: Not determined
-  return 'N/A';
+  return 'GE'; // General
 }
 
 /**
@@ -330,11 +253,10 @@ export function getFinalVerdict(finalLabels: string[]): string {
 
 /**
  * Transform case to UI format for list view
- * Handles CaseEnriched from API with proper field mapping
  */
 export function transformCaseToUI(caseData: RecentCase): HistorialCaseUI {
   // Calculate diagnostic label percentages
-  const diagnosticLabels = (caseData.diagnostic_labels || []).map((label, index, arr) => {
+  const diagnosticLabels = caseData.diagnostic_labels.map((label, index, arr) => {
     const labelInfo = DIAGNOSTIC_LABELS[label] || {
       label: label,
       color: 'text-gray-600',
@@ -351,89 +273,43 @@ export function transformCaseToUI(caseData: RecentCase): HistorialCaseUI {
     };
   });
 
-  // Map CaseEnriched fields to HistorialCaseUI
-  // CaseEnriched has: human_votes?.count, not human_votes_count
-  const humanVotesCount = caseData.human_votes?.count ?? 0;
-
-  // Get consensus with defaults
-  const consensusState = caseData.consensus?.state ?? 'ai_only';
-  const consensusFinalLabels = caseData.consensus?.final_labels ?? [];
-
-  // Map consensus state to UI state (API uses 'human_consensus', UI expects 'consensus')
-  const mappedConsensusState = consensusState === 'human_consensus' ? 'consensus' : consensusState;
-
-  // CaseEnriched doesn't have related_documents, web_search_results, or priority
-  // These would come from the case-detail endpoint, not the summary
-  const relatedDocs = (caseData as any).related_documents ?? [];
-  const webResults = (caseData as any).web_search_results ?? [];
-  const priority = (caseData as any).priority ?? 'medium';
-
   return {
     id: caseData.id,
     displayId: generateDisplayId(caseData),
     title: caseData.title,
-    url: caseData.url || '',
-    submissionType: mapSubmissionType(caseData.submission_type),
+    url: caseData.url,
+    submissionType: caseData.submission_type,
     submissionTypeIcon: getSubmissionTypeIcon(caseData.submission_type),
     createdAt: caseData.created_at,
     createdAtFormatted: formatDate(caseData.created_at),
-    humanVotesCount,
+    humanVotesCount: caseData.human_votes_count,
     diagnosticLabels,
-    finalVerdict: getFinalVerdict(consensusFinalLabels),
-    verificationMethod: getVerificationMethodLabel(mappedConsensusState),
-    consensusState: mappedConsensusState as 'ai_only' | 'human_only' | 'consensus' | 'disagreement',
-    priority: priority as 'low' | 'medium' | 'high' | 'critical',
-    relatedDocumentsCount: relatedDocs.length,
-    webSearchResultsCount: webResults.length
+    finalVerdict: getFinalVerdict(caseData.consensus.final_labels),
+    verificationMethod: getVerificationMethodLabel(caseData.consensus.state),
+    consensusState: caseData.consensus.state,
+    priority: caseData.priority,
+    relatedDocumentsCount: caseData.related_documents.length,
+    webSearchResultsCount: caseData.web_search_results.length
   };
-}
-
-/**
- * Map submission_type from API format to UI format
- */
-function mapSubmissionType(type: string): 'URL' | 'TEXT' | 'IMAGE' | 'VIDEO' {
-  const typeMap: Record<string, 'URL' | 'TEXT' | 'IMAGE' | 'VIDEO'> = {
-    'Text': 'TEXT',
-    'URL': 'URL',
-    'Image': 'IMAGE',
-    'Video': 'VIDEO',
-    'TEXT': 'TEXT',
-    'IMAGE': 'IMAGE',
-    'VIDEO': 'VIDEO'
-  };
-  return typeMap[type] || 'TEXT';
 }
 
 /**
  * Transform case to detail view format
- * Handles CaseEnriched from API with proper field mapping
  */
 export function transformCaseToDetail(caseData: RecentCase): HistorialCaseDetail {
   const baseCase = transformCaseToUI(caseData);
 
-  // CaseEnriched doesn't have related_documents or web_search_results
-  // These would come from a separate case-detail API call
-  const relatedDocs = (caseData as any).related_documents ?? [];
-  const webResults = (caseData as any).web_search_results ?? [];
-
-  // Generate summary from CaseEnriched.summary or related documents
-  let summary = caseData.summary || 'Sin resumen disponible';
-  if (!summary && relatedDocs.length > 0) {
-    summary = relatedDocs[0].summary;
+  // Generate summary from related documents
+  let summary = 'Sin resumen disponible';
+  if (caseData.related_documents.length > 0) {
+    summary = caseData.related_documents[0].summary;
   }
-
-  // Get consensus with defaults
-  const consensusState = caseData.consensus?.state ?? 'ai_only';
-  const mappedState = consensusState === 'human_consensus' ? 'consensus' : consensusState;
 
   return {
     ...baseCase,
-    relatedDocuments: relatedDocs as RelatedDocument[],
-    webSearchResults: webResults as WebSearchResult[],
-    consensus: {
-      state: mappedState as 'ai_only' | 'human_only' | 'consensus' | 'disagreement',
-      final_labels: caseData.consensus?.final_labels ?? []
-    },
+    relatedDocuments: caseData.related_documents,
+    webSearchResults: caseData.web_search_results,
+    consensus: caseData.consensus,
     summary
   };
 }
@@ -442,9 +318,6 @@ export function transformCaseToDetail(caseData: RecentCase): HistorialCaseDetail
  * Transform all cases to UI format
  */
 export function transformCasesToUI(cases: RecentCase[]): HistorialCaseUI[] {
-  if (!cases || !Array.isArray(cases)) {
-    return [];
-  }
   return cases.map(transformCaseToUI);
 }
 

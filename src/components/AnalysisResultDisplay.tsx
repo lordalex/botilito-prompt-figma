@@ -45,7 +45,7 @@ export function AnalysisResultDisplay({ response }: AnalysisResultDisplayProps) 
             try {
                 if (user_id) {
                     const profile = await api.profile.get(session, user_id);
-                    setAuthorName(profile.nombre_completo || profile.email || 'Desconocido');
+                    setAuthorName(profile.full_name || profile.email || 'Desconocido');
                 } else {
                     setAuthorName('Botilito IA');
                 }

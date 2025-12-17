@@ -3,8 +3,7 @@ import {
   fetchHistorialData,
   transformCasesToUI,
   transformCaseToDetail,
-  filterCases,
-  sortCases
+  fetchCaseDetails,
 } from './api';
 import type {
   HistorialSummaryResult,
@@ -14,26 +13,19 @@ import type {
 } from './types';
 
 /**
- * Custom hook to manage historial data with filtering and sorting
+ * Custom hook to manage historial data with pagination
  */
 export function useHistorialData() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [summaryData, setSummaryData] = useState<HistorialSummaryResult | null>(null);
-  const [allCases, setAllCases] = useState<HistorialCaseUI[]>([]);
-  const [filteredCases, setFilteredCases] = useState<HistorialCaseUI[]>([]);
+  const [cases, setCases] = useState<HistorialCaseUI[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
 
-  // Filter state
-  const [filters, setFilters] = useState({
-    submissionType: 'ALL',
-    consensusState: 'ALL',
-    priority: 'ALL',
-    searchQuery: ''
-  });
-
-  // Sort state
-  const [sortBy, setSortBy] = useState<HistorialSortBy>('date_desc');
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const itemsPerPage = 10;
 
   // Fetch data
   useEffect(() => {
@@ -42,61 +34,29 @@ export function useHistorialData() {
         setLoading(true);
         setError(null);
 
-        const data = await fetchHistorialData();
+        const data = await fetchHistorialData(currentPage, itemsPerPage);
         setSummaryData(data);
 
-        // API returns data.cases, not data.recent_cases
-        const cases = transformCasesToUI(data.cases);
-        setAllCases(cases);
-        setFilteredCases(cases);
+        const uiCases = transformCasesToUI(data.cases);
+        setCases(uiCases);
+
+        if (data.pagination.hasMore) {
+          setTotalPages(currentPage + 1);
+        } else {
+          setTotalPages(currentPage);
+        }
+
       } catch (err) {
         console.error('Error loading historial data:', err);
         setError(err instanceof Error ? err.message : 'Error al cargar el historial');
-        setAllCases([]);
-        setFilteredCases([]);
+        setCases([]);
       } finally {
         setLoading(false);
       }
     }
 
     loadData();
-  }, [refreshKey]);
-
-  // Apply filters and sorting when they change
-  useEffect(() => {
-    let result = allCases;
-
-    // Apply filters
-    result = filterCases(result, filters);
-
-    // Apply sorting
-    result = sortCases(result, sortBy);
-
-    setFilteredCases(result);
-  }, [allCases, filters, sortBy]);
-
-  // Update filter
-  const updateFilter = useCallback((filterName: string, value: string) => {
-    setFilters(prev => ({
-      ...prev,
-      [filterName]: value
-    }));
-  }, []);
-
-  // Update sort
-  const updateSort = useCallback((newSortBy: HistorialSortBy) => {
-    setSortBy(newSortBy);
-  }, []);
-
-  // Clear all filters
-  const clearFilters = useCallback(() => {
-    setFilters({
-      submissionType: 'ALL',
-      consensusState: 'ALL',
-      priority: 'ALL',
-      searchQuery: ''
-    });
-  }, []);
+  }, [refreshKey, currentPage]);
 
   // Get case detail
   const getCaseDetail = useCallback((caseId: string): HistorialCaseDetail | null => {
@@ -117,16 +77,14 @@ export function useHistorialData() {
     loading,
     error,
     summaryData,
-    cases: filteredCases,
-    totalCases: allCases.length,
-    filteredCount: filteredCases.length,
-    filters,
-    sortBy,
-    updateFilter,
-    updateSort,
-    clearFilters,
+    cases,
+    totalCases: summaryData?.pagination.totalItems ?? 0,
+    filteredCount: cases.length,
     getCaseDetail,
-    refresh
+    refresh,
+    currentPage,
+    setCurrentPage,
+    totalPages,
   };
 }
 
@@ -149,16 +107,7 @@ export function useCaseDetail(caseId: string | null) {
       try {
         setLoading(true);
         setError(null);
-
-        // Fetch full data and extract the specific case
-        const data = await fetchHistorialData();
-        const caseData = data.cases.find(c => c.id === caseId);
-
-        if (!caseData) {
-          throw new Error('Caso no encontrado');
-        }
-
-        const detail = transformCaseToDetail(caseData);
+        const detail = await fetchCaseDetails(caseId as string);
         setCaseDetail(detail);
       } catch (err) {
         console.error('Error loading case detail:', err);

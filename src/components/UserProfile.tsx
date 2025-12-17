@@ -125,9 +125,9 @@ export function UserProfile() {
                                     className="relative"
                                 >
                                     <Avatar className="h-32 w-32 border-4 border-primary/20 shadow-lg">
-                                        <AvatarImage src={avatarSrc} alt={profile.nombre_completo || ''} />
+                                        <AvatarImage src={avatarSrc} alt={profile.full_name || ''} />
                                         <AvatarFallback className="text-2xl bg-primary text-primary-foreground">
-                                            {(profile.nombre_completo || 'A').split(' ').map(n => n[0]).join('')}
+                                            {(profile.full_name || 'A').split(' ').map(n => n[0]).join('')}
                                         </AvatarFallback>
                                     </Avatar>
                                     <div className="absolute -bottom-2 -right-2 bg-white rounded-full p-1 shadow-md">
@@ -156,13 +156,13 @@ export function UserProfile() {
                             
                             <div className="space-y-3">
                                 <div>
-                                    <h1 className="text-3xl">{profile.nombre_completo}</h1>
+                                    <h1 className="text-3xl">{profile.full_name}</h1>
                                     <p className="text-sm text-muted-foreground">{profile.email}</p>
                                     <div className="flex items-center space-x-2 mt-3">
                                         <Badge className={`${currentLevel.color} text-white`}>
                                             {currentLevel.title}
                                         </Badge>
-                                        {profile.ciudad && <Badge variant="outline" className="text-xs">{profile.ciudad}</Badge>}
+                                        {profile.city && <Badge variant="outline" className="text-xs">{profile.city}</Badge>}
                                     </div>
                                     <p className="text-xs text-muted-foreground mt-2 italic">"{currentLevel.subtitle}"</p>
                                 </div>
@@ -217,18 +217,23 @@ export function UserProfile() {
                         </CardContent>
                     </Card>
                     <Card>
-                        <CardHeader>
+                        <CardHeader className="flex flex-row items-center justify-between">
                             <CardTitle>Información Personal</CardTitle>
+                            {!isEditing && (
+                                <Button variant="outline" size="icon" onClick={() => setIsEditing(true)}>
+                                    <Edit className="h-4 w-4" />
+                                </Button>
+                            )}
                         </CardHeader>
                         <CardContent>
                         {isEditing ? (
                             <form onSubmit={handleSaveProfile} className="space-y-6">
                                 {error && <p className="text-red-500">{error}</p>}
-                                <Input id="nombre_completo" name="nombre_completo" placeholder="Nombre Completo" value={profile.nombre_completo || ''} onChange={handleInputChange} />
-                                <Input id="numero_telefono" name="numero_telefono" placeholder="Número de Teléfono" value={profile.numero_telefono || ''} onChange={handleInputChange} />
-                                <Input id="departamento" name="departamento" placeholder="Departamento" value={profile.departamento || ''} onChange={handleInputChange} />
-                                <Input id="ciudad" name="ciudad" placeholder="Ciudad" value={profile.ciudad || ''} onChange={handleInputChange} />
-                                <Input id="fecha_nacimiento" name="fecha_nacimiento" type="date" value={profile.fecha_nacimiento || ''} onChange={handleInputChange} />
+                                <Input id="full_name" name="full_name" placeholder="Nombre Completo" value={profile.full_name || ''} onChange={handleInputChange} />
+                                <Input id="phone_number" name="phone_number" placeholder="Número de Teléfono" value={profile.phone_number || ''} onChange={handleInputChange} />
+                                <Input id="state_province" name="state_province" placeholder="Departamento" value={profile.state_province || ''} onChange={handleInputChange} />
+                                <Input id="city" name="city" placeholder="Ciudad" value={profile.city || ''} onChange={handleInputChange} />
+                                <Input id="birth_date" name="birth_date" type="date" value={profile.birth_date || ''} onChange={handleInputChange} />
                                 <Input id="email" name="email" value={profile.email || ''} disabled />
                                 <div className="flex gap-2">
                                     <Button type="submit">Guardar Cambios</Button>
@@ -237,15 +242,15 @@ export function UserProfile() {
                             </form>
                         ) : (
                             <div className="space-y-4 text-sm">
-                                <div className="flex justify-between items-center"><strong>Nombre:</strong> <span>{profile.nombre_completo || 'No especificado'}</span></div>
+                                <div className="flex justify-between items-center"><strong>Nombre:</strong> <span>{profile.full_name || 'No especificado'}</span></div>
                                 <Separator />
                                 <div className="flex justify-between items-center"><strong>Email:</strong> <span>{profile.email}</span></div>
                                 <Separator />
-                                <div className="flex justify-between items-center"><strong>Teléfono:</strong> <span>{profile.numero_telefono || 'No especificado'}</span></div>
+                                <div className="flex justify-between items-center"><strong>Teléfono:</strong> <span>{profile.phone_number || 'No especificado'}</span></div>
                                 <Separator />
-                                <div className="flex justify-between items-center"><strong>Ubicación:</strong> <span>{`${profile.ciudad || ''}, ${profile.departamento || 'No especificado'}`}</span></div>
+                                <div className="flex justify-between items-center"><strong>Ubicación:</strong> <span>{`${profile.city || ''}, ${profile.state_province || 'No especificado'}`}</span></div>
                                 <Separator />
-                                <div className="flex justify-between items-center"><strong>Fecha de Nacimiento:</strong> <span>{profile.fecha_nacimiento || 'No especificado'}</span></div>
+                                <div className="flex justify-between items-center"><strong>Fecha de Nacimiento:</strong> <span>{profile.birth_date || 'No especificado'}</span></div>
                             </div>
                         )}
                         </CardContent>
@@ -305,13 +310,13 @@ export function UserProfile() {
                                     {/* Avatar Actual */}
                                     <div className="flex flex-col items-center space-y-3">
                                         <Avatar className="h-32 w-32 border-4 border-primary/20 shadow-lg">
-                                            <AvatarImage src={avatarSrc} alt={profile.nombre_completo || ''} />
+                                            <AvatarImage src={avatarSrc} alt={profile.full_name || ''} />
                                             <AvatarFallback className="text-2xl bg-primary text-primary-foreground">
-                                                {(profile.nombre_completo || 'A').split(' ').map(n => n[0]).join('')}
+                                                {(profile.full_name || 'A').split(' ').map(n => n[0]).join('')}
                                             </AvatarFallback>
                                         </Avatar>
                                         <p className="text-sm text-muted-foreground text-center">
-                                            {profile.nombre_completo}
+                                            {profile.full_name}
                                         </p>
                                     </div>
 
