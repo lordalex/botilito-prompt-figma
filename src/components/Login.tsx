@@ -8,7 +8,7 @@ import exampleImage from 'figma:asset/444e8e22665a8cbdab132760610010dba89f3e67.p
 import botilitoImage from 'figma:asset/ce81bb4aba8c9f36807cd145a086a12ce7f876dc.png';
 import digitalIALogo from 'figma:asset/1c413bccac94a45a38e7dde790a3aa8c525d334b.png';
 import { useAuth } from '../providers/AuthProvider';
-import { signIn } from '../utils/supabase/auth';
+import { signIn, resetPassword } from '../utils/supabase/auth';
 
 interface LoginProps {
   onGoToRegister: () => void;
@@ -18,6 +18,8 @@ export function Login({ onGoToRegister }: LoginProps) {
   const { checkUserProfile } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
+  const [resetEmailSent, setResetEmailSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [credentials, setCredentials] = useState({
     email: '',
@@ -40,6 +42,27 @@ export function Login({ onGoToRegister }: LoginProps) {
       setError(err.message || 'Error al iniciar sesión. Por favor, verifica tus credenciales.');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!credentials.email) {
+      setError('Por favor, ingresa tu correo electrónico primero.');
+      return;
+    }
+
+    setIsResettingPassword(true);
+    setError(null);
+    setResetEmailSent(false);
+
+    try {
+      await resetPassword(credentials.email);
+      setResetEmailSent(true);
+    } catch (err: any) {
+      console.error('Password reset error:', err);
+      setError(err.message || 'Error al enviar el correo de recuperación. Por favor, intenta de nuevo.');
+    } finally {
+      setIsResettingPassword(false);
     }
   };
 
@@ -197,11 +220,27 @@ export function Login({ onGoToRegister }: LoginProps) {
                   <div className="text-right">
                     <button
                       type="button"
-                      className="text-sm md:text-base text-gray-600 hover:text-gray-800 transition-colors"
+                      onClick={handleForgotPassword}
+                      disabled={isResettingPassword}
+                      className="text-sm md:text-base text-gray-600 hover:text-gray-800 transition-colors disabled:opacity-50"
                     >
-                      Olvidé mi contraseña
+                      {isResettingPassword ? (
+                        <>
+                          <Loader2 className="mr-1 h-3 w-3 animate-spin inline" />
+                          Enviando...
+                        </>
+                      ) : (
+                        'Olvidé mi contraseña'
+                      )}
                     </button>
                   </div>
+
+                  {/* Success message for password reset */}
+                  {resetEmailSent && (
+                    <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg text-sm">
+                      ¡Listo! Te enviamos un correo con las instrucciones para restablecer tu contraseña. Revisa tu bandeja de entrada.
+                    </div>
+                  )}
 
                   {/* Botón de ingresar */}
                   <Button
