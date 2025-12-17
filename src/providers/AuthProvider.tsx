@@ -107,7 +107,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         profileComplete,
         profileChecked,
         checkUserProfile,
-        signOut: supabase.auth.signOut,
+        signOut: () => supabase.auth.signOut(),
         supabase,
     };
 
