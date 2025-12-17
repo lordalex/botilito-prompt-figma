@@ -1,10 +1,10 @@
 // src/components/historial/CaseDetailDialog.tsx
 import React from 'react';
-import { 
-  Bot, 
-  FileText, 
-  Activity, 
-  Users, 
+import {
+  Bot,
+  FileText,
+  Activity,
+  Users,
   Database,
   ExternalLink,
   AlertTriangle,
@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
 import { useCaseDetail } from '@/hooks/useCaseDetail';
+import { generateDisplayId } from '@/utils/humanVerification/api';
 
 interface CaseDetailDialogProps {
   caseId: string | null;
@@ -37,7 +38,9 @@ export function CaseDetailDialog({ caseId, onClose }: CaseDetailDialogProps) {
         <DialogHeader className="p-6 border-b border-gray-100 bg-gray-50/80 backdrop-blur-sm z-10 shrink-0">
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-2 text-xs text-muted-foreground font-mono">
-              <span className="bg-gray-100 px-2 py-1 rounded">ID: {caseId || "..."}</span>
+              <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded font-semibold">
+                {caseDetail ? (caseDetail.displayId || generateDisplayId(caseDetail)) : "..."}
+              </span>
               <span>•</span>
               <span>{caseDetail ? new Date(caseDetail.created_at).toLocaleString() : 'Cargando...'}</span>
             </div>

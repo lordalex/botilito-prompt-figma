@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { 
-  Briefcase, CheckCircle2, Bot, XCircle, Search, Filter, 
+import {
+  Briefcase, CheckCircle2, Bot, XCircle, Search, Filter,
   ChevronLeft, ChevronRight, Eye, Smartphone, RefreshCcw
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useCaseHistory } from '@/hooks/useCaseHistory';
 import { CaseDetailDialog } from '@/components/CaseDetailDialog';
+import { generateDisplayId } from '@/utils/humanVerification/api';
 
 export function ContentReview() {
   const { 
@@ -119,6 +120,7 @@ export function ContentReview() {
                   <div className="flex justify-between items-start gap-4">
                     <div className="space-y-1">
                       <div className="flex items-center gap-2 text-xs text-gray-500">
+                        <span className="font-mono bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded font-semibold">{item.displayId || generateDisplayId(item)}</span>
                         <span className="font-mono bg-gray-100 px-1 rounded">{new Date(item.created_at).toLocaleDateString()}</span>
                         <span>•</span>
                         <Badge variant="secondary" className="text-[10px] h-5">{item.submission_type}</Badge>
