@@ -69,44 +69,113 @@ export async function fetchCaseDetails(caseId: string) {
 }
 
 /**
- * Generate display ID for a case
- * Format: TYPE-SOURCE-YYYYMMDD-NNN
- * Example: T-WB-20241015-156
+ * Generate display ID for a case (v2.0)
+ * Format: VECTOR-TIPO-REGION-TEMA-HASH
+ * Example: WE-TX-LA-GE-4E8
  */
 export function generateDisplayId(caseData: RecentCase): string {
-  // Type prefix
-  const typeMap: Record<string, string> = {
-    'URL': 'U',
-    'TEXT': 'T',
-    'IMAGE': 'I',
-    'VIDEO': 'V'
-  };
-  const typePrefix = typeMap[caseData.submission_type] || 'X';
+  // VECTOR: Detect from URL
+  const vector = detectVector(caseData.url || '');
 
-  // Source from URL
-  let sourcePrefix = 'XX';
+  // TIPO: From submission_type
+  const tipo = getTipoCode(caseData.submission_type);
+
+  // REGION: Default to LA (LatAm) - can be enhanced later
+  const region = 'LA';
+
+  // TEMA: From diagnostic labels
+  const tema = getTemaFromLabels(caseData.diagnostic_labels);
+
+  // HASH: First 3 characters of UUID, uppercase
+  const hash = caseData.id.replace(/-/g, '').substring(0, 3).toUpperCase();
+
+  return `${vector}-${tipo}-${region}-${tema}-${hash}`;
+}
+
+/**
+ * Detect platform/vector from URL
+ */
+function detectVector(url: string): string {
+  if (!url) return 'OT'; // Other
+
   try {
-    const url = new URL(caseData.url);
-    const hostname = url.hostname.replace('www.', '');
-    const parts = hostname.split('.');
-    if (parts.length >= 2) {
-      sourcePrefix = parts[parts.length - 2].substring(0, 2).toUpperCase();
+    const urlObj = new URL(url);
+    const hostname = urlObj.hostname.toLowerCase().replace('www.', '');
+
+    const vectorMap: Record<string, string> = {
+      'whatsapp.com': 'WH',
+      'web.whatsapp.com': 'WH',
+      'facebook.com': 'FA',
+      'fb.com': 'FA',
+      'fb.watch': 'FA',
+      'twitter.com': 'XX',
+      'x.com': 'XX',
+      'instagram.com': 'IG',
+      'tiktok.com': 'TK',
+      'youtube.com': 'YT',
+      'youtu.be': 'YT',
+      'telegram.org': 'TL',
+      't.me': 'TL',
+      'reddit.com': 'RD',
+      'linkedin.com': 'LI',
+    };
+
+    if (vectorMap[hostname]) {
+      return vectorMap[hostname];
     }
-  } catch (e) {
-    // Invalid URL, use default
+
+    for (const [domain, code] of Object.entries(vectorMap)) {
+      if (hostname.includes(domain.split('.')[0])) {
+        return code;
+      }
+    }
+
+    return 'WE'; // Web (default)
+  } catch {
+    return 'OT'; // Other
+  }
+}
+
+/**
+ * Get content type code
+ */
+function getTipoCode(submissionType: string | undefined): string {
+  const tipoMap: Record<string, string> = {
+    'TEXT': 'TX',
+    'URL': 'TX',
+    'IMAGE': 'IM',
+    'VIDEO': 'VI',
+    'AUDIO': 'AU',
+  };
+  return tipoMap[(submissionType || 'TEXT').toUpperCase()] || 'TX';
+}
+
+/**
+ * Get theme code from diagnostic labels
+ */
+function getTemaFromLabels(labels: string[] | undefined): string {
+  if (!labels || labels.length === 0) return 'GE'; // General
+
+  const temaMap: Record<string, string> = {
+    'teoria_conspirativa': 'CO', // Conspiración
+    'discurso_odio': 'OD', // Odio
+    'discurso_odio_racismo': 'OD',
+    'discurso_odio_sexismo': 'OD',
+    'incitacion_violencia': 'VI', // Violencia
+    'bot_coordinado': 'BO', // Bot
+    'sensacionalista': 'SE', // Sensacionalismo
+    'falso': 'FA', // Falso
+    'enganoso': 'EN', // Engañoso
+    'verdadero': 'VE', // Verdadero
+  };
+
+  for (const label of labels) {
+    if (temaMap[label]) {
+      return temaMap[label];
+    }
   }
 
-  // Date
-  const date = new Date(caseData.created_at);
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  const dateStr = `${year}${month}${day}`;
-
-  // Sequential number (use last 3 chars of UUID)
-  const seqNum = caseData.id.substring(0, 3).toUpperCase();
-
-  return `${typePrefix}-${sourcePrefix}-${dateStr}-${seqNum}`;
+  return 'GE'; // General
 }
 
 /**
