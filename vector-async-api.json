@@ -377,7 +377,7 @@
             "type": "object",
             "properties": {
               "id": { "type": "string", "format": "uuid" },
-              "nombre_completo": { "type": "string" },
+              "full_name": { "type": "string" },
               "reputation": { "type": "number", "description": "Puntaje de reputación del usuario al momento de la consulta." }
             }
           }

@@ -21,7 +21,7 @@ export const useUserProfile = () => {
 
             try {
                     const response = await api.profile.get(session);
-                    if (response.data && response.data.nombre_completo) {
+                    if (response.data && response.data.full_name) {
                         setProfile(response.data);
                         setChallenges(response.challenges_progress || []);
                     } else {
@@ -29,17 +29,17 @@ export const useUserProfile = () => {
                         setProfile(response.data || {
                             id: user.id,
                             email: user.email,
-                            nombre_completo: '',
-                            departamento: '',
-                            ciudad: '',
-                            fecha_nacimiento: '',
+                            full_name: '',
+                            state_province: '',
+                            city: '',
+                            birth_date: '',
                             reputation: 0,
                             xp: 0,
                             badges: [],
                             role: 'user',
                             photo: null,
                             avatar: null,
-                            numero_telefono: null
+                            phone_number: null
                         });
                         setChallenges(response.challenges_progress || []);
                     }
@@ -49,13 +49,13 @@ export const useUserProfile = () => {
                     setProfile({
                         id: user.id,
                         email: user.email!,
-                        nombre_completo: '',
+                        full_name: '',
                         photo: null,
                         avatar: null,
-                        numero_telefono: '',
-                        departamento: '',
-                        ciudad: '',
-                        fecha_nacimiento: '',
+                        phone_number: '',
+                        state_province: '',
+                        city: '',
+                        birth_date: '',
                         reputation: 0,
                         xp: 0,
                         badges: [],
@@ -98,15 +98,14 @@ export const useUserProfile = () => {
 
     const handleSaveProfile = async (e: FormEvent) => {
         e.preventDefault();
-        if (!profile || !profile.nombre_completo) {
+        if (!profile || !profile.full_name) {
             setError("El nombre completo es obligatorio.");
             return;
         }
         setError(null);
 
         try {
-            const { xp, reputation, badges, email, id, role, ...updateData } = profile;
-            const updated = await api.profile.update(session, updateData);
+            const updated = await api.profile.update(session, profile);
             setProfile(updated.data);
             setIsEditing(false);
             await checkUserProfile();

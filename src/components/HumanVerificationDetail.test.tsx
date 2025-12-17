@@ -22,7 +22,7 @@ describe('HumanVerificationDetail', () => {
             date: new Date().toISOString(),
             user: {
               id: 'user1',
-              nombre_completo: 'Test User',
+              full_name: 'Test User',
               reputation: 10,
             },
           },

@@ -70,11 +70,11 @@ export interface AnalysisJob {
  */
 export interface UserProfileData {
   id: string; // Corresponds to the user's auth ID
-  nombre_completo?: string;
-  numero_telefono?: string;
-  departamento?: string;
-  ciudad?: string;
-  fecha_nacimiento?: string; // Stored as a string for simplicity, e.g., 'YYYY-MM-DD'
+  full_name?: string;
+  phone_number?: string;
+  state_province?: string;
+  city?: string;
+  birth_date?: string; // Stored as a string for simplicity, e.g., 'YYYY-MM-DD'
   email?: string;
   // Note: 'password', 'role', etc., are intentionally omitted for security.
 }

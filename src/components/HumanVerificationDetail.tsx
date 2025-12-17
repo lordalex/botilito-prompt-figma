@@ -179,7 +179,7 @@ export function HumanVerificationDetail({ caseData, onBackToList, onSubmit }: Hu
                                             <User className="h-5 w-5 text-muted-foreground mt-1" />
                                             <div className="flex-1">
                                                 <div className="flex items-center justify-between">
-                                                    <p className="text-sm font-semibold">{entry.user.nombre_completo} <span className="text-xs text-muted-foreground font-normal">(@{entry.user.reputation} rep)</span></p>
+                                                    <p className="text-sm font-semibold">{entry.user.full_name} <span className="text-xs text-muted-foreground font-normal">(@{entry.user.reputation} rep)</span></p>
                                                     <Badge variant="secondary">{getMarcador(entry.vote)?.label || entry.vote}</Badge>
                                                 </div>
                                                 <p className="text-xs text-muted-foreground">{new Date(entry.date).toLocaleDateString()}</p>

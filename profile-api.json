@@ -27,6 +27,11 @@
       "Profile": {
         "type": "object",
         "description": "The complete user profile object including readonly gamification stats.",
+        "required": [
+          "id",
+          "email",
+          "full_name"
+        ],
         "properties": {
           "id": {
             "type": "string",
@@ -40,11 +45,10 @@
             "description": "User's registered email address.",
             "example": "jane.doe@example.com"
           },
-          "nombre_completo": {
+          "full_name": {
             "type": "string",
             "description": "Full display name.",
-            "example": "Jane Doe",
-            "nullable": true
+            "example": "Jane Doe"
           },
           "photo": {
             "type": "string",
@@ -58,25 +62,25 @@
             "example": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0i...",
             "nullable": true
           },
-          "numero_telefono": {
+          "phone_number": {
             "type": "string",
             "description": "Contact phone number.",
             "example": "+1 555 0199",
             "nullable": true
           },
-          "ciudad": {
+          "city": {
             "type": "string",
             "description": "City of residence.",
             "example": "New York",
             "nullable": true
           },
-          "departamento": {
+          "state_province": {
             "type": "string",
             "description": "State, Province, or Department.",
             "example": "NY",
             "nullable": true
           },
-          "fecha_nacimiento": {
+          "birth_date": {
             "type": "string",
             "format": "date",
             "description": "Date of birth in YYYY-MM-DD format.",
@@ -116,7 +120,7 @@
         "type": "object",
         "description": "Payload for updating user profile details. All fields are optional.",
         "properties": {
-          "nombre_completo": {
+          "full_name": {
             "type": "string",
             "description": "Update full name.",
             "example": "Jane M. Doe"
@@ -131,19 +135,19 @@
             "description": "Set avatar. Base64 string. Max 2MB.",
             "example": "data:image/svg+xml;base64,PHN2ZyB..."
           },
-          "numero_telefono": {
+          "phone_number": {
             "type": "string",
             "example": "+1 555 0000"
           },
-          "ciudad": {
+          "city": {
             "type": "string",
             "example": "Chicago"
           },
-          "departamento": {
+          "state_province": {
             "type": "string",
             "example": "IL"
           },
-          "fecha_nacimiento": {
+          "birth_date": {
             "type": "string",
             "format": "date",
             "example": "1990-05-15"

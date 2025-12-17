@@ -68,15 +68,70 @@ export const api = {
             fetchClient(session, `${apiEndpoints.VECTOR_ASYNC_BASE_URL}/status/${jobId}`),
     },
     profile: {
-        get: (session: Session): Promise<ProfileResponse> =>
-            fetchClient(session, apiEndpoints.PROFILE_API_URL),
-        getById: (session: Session, userId: string): Promise<ProfileResponse> =>
-            fetchClient(session, `${apiEndpoints.PROFILE_API_URL}?id=${userId}`),
-        update: (session: Session, profileData: Partial<UserProfileData>): Promise<{ message: string; data: Profile }> =>
-            fetchClient(session, apiEndpoints.PROFILE_API_URL, {
+        get: async (session: Session): Promise<ProfileResponse> => {
+            const response = await fetchClient(session, apiEndpoints.PROFILE_API_URL);
+
+            // Adapter to map Spanish field names from the backend to English field names used in the frontend.
+            if (response.data) {
+                const mappedData = {
+                    ...response.data,
+                    full_name: response.data.nombre_completo,
+                    phone_number: response.data.numero_telefono,
+                    city: response.data.ciudad,
+                    state_province: response.data.departamento,
+                    birth_date: response.data.fecha_nacimiento,
+                };
+                // It's good practice to delete the old keys to avoid confusion.
+                delete mappedData.nombre_completo;
+                delete mappedData.numero_telefono;
+                delete mappedData.ciudad;
+                delete mappedData.departamento;
+                delete mappedData.fecha_nacimiento;
+                response.data = mappedData;
+            }
+            
+            return response;
+        },
+        getById: async (session: Session, userId: string): Promise<ProfileResponse> => {
+            const response = await fetchClient(session, `${apiEndpoints.PROFILE_API_URL}?id=${userId}`);
+            // Adapter to map Spanish field names from the backend to English field names used in the frontend.
+            if (response.data) {
+                const mappedData = {
+                    ...response.data,
+                    full_name: response.data.nombre_completo,
+                    phone_number: response.data.numero_telefono,
+                    city: response.data.ciudad,
+                    state_province: response.data.departamento,
+                    birth_date: response.data.fecha_nacimiento,
+                };
+                // It's good practice to delete the old keys to avoid confusion.
+                delete mappedData.nombre_completo;
+                delete mappedData.numero_telefono;
+                delete mappedData.ciudad;
+                delete mappedData.departamento;
+                delete mappedData.fecha_nacimiento;
+                response.data = mappedData;
+            }
+            return response;
+        },
+
+        update: (session: Session, profileData: Partial<UserProfileData>): Promise<{ message: string; data: Profile }> => {
+            // Adapter to map English field names from the frontend to Spanish field names for the backend.
+            const mappedData: any = {};
+            if (profileData.full_name) mappedData.nombre_completo = profileData.full_name;
+            if (profileData.phone_number) mappedData.numero_telefono = profileData.phone_number;
+            if (profileData.city) mappedData.ciudad = profileData.city;
+            if (profileData.state_province) mappedData.departamento = profileData.state_province;
+            if (profileData.birth_date) mappedData.fecha_nacimiento = profileData.birth_date;
+            if (profileData.photo) mappedData.photo = profileData.photo;
+            if (profileData.avatar) mappedData.avatar = profileData.avatar;
+
+
+            return fetchClient(session, apiEndpoints.PROFILE_API_URL, {
                 method: 'PUT',
-                body: JSON.stringify(profileData),
-            }),
+                body: JSON.stringify(mappedData),
+            });
+        },
         create: (session: Session, profileData: UserProfileData): Promise<{ message: string; data: Profile }> =>
             fetchClient(session, apiEndpoints.PROFILE_API_URL, {
                 method: 'PUT', // Using PUT for upsert

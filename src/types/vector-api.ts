@@ -36,7 +36,7 @@ export interface EnrichedCase {
       date: string;
       user: {
         id: string;
-        nombre_completo: string;
+        full_name: string;
         reputation: number;
       };
     }>;
