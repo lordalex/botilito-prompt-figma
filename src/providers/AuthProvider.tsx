@@ -87,6 +87,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
 
     useEffect(() => {
+        // Check URL hash for recovery token on initial load
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        const isRecoveryFromUrl = hashParams.get('type') === 'recovery';
+        if (isRecoveryFromUrl) {
+            setIsPasswordRecovery(true);
+        }
+
         const getInitialSession = async () => {
             const { data: { session } } = await supabase.auth.getSession();
             setSession(session);
