@@ -2,6 +2,117 @@ import { supabase } from '../supabase/client';
 import { api } from '../../services/api';
 import type { JobStatusResponse, VerificationSummaryResult, CaseEnriched } from './types';
 
+/**
+ * Generate a display ID for a case
+ * Format: VECTOR-TIPO-REGION-TEMA-HASH
+ * Example: WE-TX-LA-PO-22D
+ */
+export function generateDisplayId(caseData: CaseEnriched): string {
+  // VECTOR: Detect from URL
+  const vector = detectVector(caseData.url || '');
+
+  // TIPO: From submission_type
+  const tipo = getTipoCode(caseData.submission_type);
+
+  // REGION: Default to LA (LatAm) - can be enhanced later
+  const region = 'LA';
+
+  // TEMA: Default to GE (General) - can be enhanced from diagnostic_labels
+  const tema = getTemaFromLabels(caseData.diagnostic_labels);
+
+  // HASH: First 3 characters of UUID, uppercase
+  const hash = caseData.id.replace(/-/g, '').substring(0, 3).toUpperCase();
+
+  return `${vector}-${tipo}-${region}-${tema}-${hash}`;
+}
+
+/**
+ * Detect platform/vector from URL
+ */
+function detectVector(url: string): string {
+  if (!url) return 'OT'; // Other
+
+  try {
+    const urlObj = new URL(url);
+    const hostname = urlObj.hostname.toLowerCase().replace('www.', '');
+
+    const vectorMap: Record<string, string> = {
+      'whatsapp.com': 'WH',
+      'web.whatsapp.com': 'WH',
+      'facebook.com': 'FA',
+      'fb.com': 'FA',
+      'fb.watch': 'FA',
+      'twitter.com': 'XX',
+      'x.com': 'XX',
+      'instagram.com': 'IG',
+      'tiktok.com': 'TK',
+      'youtube.com': 'YT',
+      'youtu.be': 'YT',
+      'telegram.org': 'TL',
+      't.me': 'TL',
+      'reddit.com': 'RD',
+      'linkedin.com': 'LI',
+    };
+
+    if (vectorMap[hostname]) {
+      return vectorMap[hostname];
+    }
+
+    for (const [domain, code] of Object.entries(vectorMap)) {
+      if (hostname.includes(domain.split('.')[0])) {
+        return code;
+      }
+    }
+
+    return 'WE'; // Web (default)
+  } catch {
+    return 'OT'; // Other
+  }
+}
+
+/**
+ * Get content type code
+ */
+function getTipoCode(submissionType: string | undefined): string {
+  const tipoMap: Record<string, string> = {
+    'text': 'TX',
+    'url': 'TX',
+    'image': 'IM',
+    'video': 'VI',
+    'audio': 'AU',
+  };
+  return tipoMap[(submissionType || 'text').toLowerCase()] || 'TX';
+}
+
+/**
+ * Get theme code from diagnostic labels
+ */
+function getTemaFromLabels(labels: string[] | undefined): string {
+  if (!labels || labels.length === 0) return 'GE'; // General
+
+  // Map diagnostic labels to theme codes
+  const temaMap: Record<string, string> = {
+    'teoria_conspirativa': 'CO', // Conspiración
+    'discurso_odio': 'OD', // Odio
+    'discurso_odio_racismo': 'OD',
+    'discurso_odio_sexismo': 'OD',
+    'incitacion_violencia': 'VI', // Violencia
+    'bot_coordinado': 'BO', // Bot
+    'sensacionalista': 'SE', // Sensacionalismo
+    'falso': 'FA', // Falso
+    'enganoso': 'EN', // Engañoso
+    'verdadero': 'VE', // Verdadero
+  };
+
+  for (const label of labels) {
+    if (temaMap[label]) {
+      return temaMap[label];
+    }
+  }
+
+  return 'GE'; // General
+}
+
 async function pollJobStatus(jobId: string): Promise<any> {
   const { data: { session } } = await supabase.auth.getSession();
   const maxAttempts = 30;

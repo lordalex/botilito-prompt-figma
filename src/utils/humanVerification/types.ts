@@ -30,6 +30,7 @@ export type VerificationSummaryResult = SearchResultList;
 
 export interface CaseEnriched {
   id: string;
+  displayId?: string; // Generated code like "WE-TX-LA-PO-22D"
   title: string;
   status: string;
   summary: string;
