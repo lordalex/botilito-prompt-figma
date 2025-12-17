@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Login } from './components/Login';
 import { Register } from './components/Register';
+import { ResetPassword } from './components/ResetPassword';
 import { CompleteDashboard } from './components/CompleteDashboard';
 import { ContentUpload } from './components/ContentUpload';
 import { ContentReview } from './components/ContentReview';
@@ -15,7 +16,7 @@ import { ImmunizationStudio } from './components/ImmunizationStudio';
 import { useAuth } from './providers/AuthProvider'; // Import the hook
 
 export default function App() {
-  const { isAuthenticated, isLoading, signOut, profileComplete, profileChecked, checkUserProfile } = useAuth();
+  const { isAuthenticated, isLoading, signOut, profileComplete, profileChecked, checkUserProfile, isPasswordRecovery, clearPasswordRecovery } = useAuth();
   const [showRegister, setShowRegister] = useState(false);
   const [activeTab, setActiveTab] = useState('upload');
 
@@ -53,6 +54,22 @@ export default function App() {
           <p className="text-black text-lg font-medium">Cargando...</p>
         </div>
       </div>
+    );
+  }
+
+  // Show password reset page when user clicks reset link from email
+  if (isPasswordRecovery) {
+    return (
+      <ResetPassword
+        onSuccess={() => {
+          clearPasswordRecovery();
+          // User will be signed out after password change, redirect to login
+        }}
+        onBackToLogin={() => {
+          clearPasswordRecovery();
+          signOut();
+        }}
+      />
     );
   }
 

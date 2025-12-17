@@ -14,6 +14,8 @@ interface AuthContextType {
   user: User | null;
   profileComplete: boolean;
   profileChecked: boolean;
+  isPasswordRecovery: boolean;
+  clearPasswordRecovery: () => void;
   checkUserProfile: () => Promise<void>;
   signOut: () => Promise<void>;
   // We expose the raw Supabase client for other hooks/components that might need it.
@@ -44,6 +46,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const [isLoading, setIsLoading] = useState(true);
     const [profileComplete, setProfileComplete] = useState(false);
     const [profileChecked, setProfileChecked] = useState(false);
+    const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
+
+    const clearPasswordRecovery = () => {
+        setIsPasswordRecovery(false);
+        // Clear the URL hash after handling recovery
+        if (window.location.hash) {
+            window.history.replaceState(null, '', window.location.pathname);
+        }
+    };
 
     useEffect(() => {
         jobManager.setSession(session);
@@ -88,10 +99,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
         getInitialSession();
 
-        const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+        const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
             setSession(session);
             setUser(session?.user ?? null);
             setIsLoading(false);
+
+            // Detect password recovery event
+            if (event === 'PASSWORD_RECOVERY') {
+                setIsPasswordRecovery(true);
+            }
         });
 
         return () => {
@@ -106,6 +122,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         isLoading,
         profileComplete,
         profileChecked,
+        isPasswordRecovery,
+        clearPasswordRecovery,
         checkUserProfile,
         signOut: () => supabase.auth.signOut(),
         supabase,
