@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
+import botilitoImage from 'figma:asset/e27a276e6ff0e187a67cf54678c265c1c38adbf7.png';
 import {
   Briefcase, CheckCircle2, Bot, XCircle, Search, Filter,
-  ChevronLeft, ChevronRight, Eye, Smartphone, RefreshCcw
+  ChevronLeft, ChevronRight, Eye, RefreshCcw
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -28,27 +29,23 @@ export function ContentReview() {
   return (
     <div className="w-full space-y-8 p-6 bg-gray-50 min-h-screen font-sans">
       
-      {/* Banner */}
-      <div className="relative w-full bg-[#FFE55C] rounded-2xl p-6 shadow-sm overflow-hidden border border-yellow-400/20">
-        <div className="flex items-center gap-6 relative z-10">
-          <div className="w-24 h-24 bg-gray-800 rounded-2xl flex items-center justify-center shrink-0 shadow-lg transform rotate-[-5deg]">
-             <Smartphone className="h-12 w-12 text-white" />
-             <div className="absolute -bottom-2 -right-2 bg-yellow-400 p-1 rounded-full border-2 border-gray-800">
-               <span className="font-bold text-xs text-gray-900">B</span>
-             </div>
-          </div>
-          <div className="space-y-2">
-            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-              ¡Ey parcero! Acá está el historial
-              <span className="text-2xl">📊🔍</span>
-            </h1>
-            <p className="text-gray-800/80 max-w-3xl leading-relaxed font-medium">
+      {/* Franja de Botilito */}
+      <div className="bg-[#ffe97a] border-2 border-[#ffda00] rounded-lg p-4 shadow-lg">
+        <div className="flex items-center space-x-4">
+          <img
+            src={botilitoImage}
+            alt="Botilito"
+            className="w-24 h-24 object-contain mt-[0px] mr-[16px] mb-[-18px] ml-[0px]"
+          />
+          <div className="flex-1">
+            <p className="text-xl">
+              ¡Ey parcero! Acá está el historial 📊🔍
+            </p>
+            <p className="text-sm mt-1 opacity-80">
               Puedes filtrar por estado, tipo de contenido y buscar lo que necesites.
             </p>
           </div>
         </div>
-        {/* Decorative Circles */}
-        <div className="absolute top-0 right-0 w-64 h-64 bg-yellow-300 rounded-full mix-blend-multiply filter blur-3xl opacity-50 translate-x-1/2 -translate-y-1/2"></div>
       </div>
 
       <div className="flex justify-between items-center">
