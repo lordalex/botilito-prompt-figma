@@ -4795,6 +4795,10 @@
     .lg\:hidden {
       display: none;
     }
+
+    .lg\:flex {
+      display: flex;
+    }
   }
 
   @media (width >= 64rem) {

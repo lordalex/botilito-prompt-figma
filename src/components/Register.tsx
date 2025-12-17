@@ -6,8 +6,7 @@ import { Label } from './ui/label';
 import { Checkbox } from './ui/checkbox';
 import { Eye, EyeOff, Phone, MapPin, Calendar, Loader2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import registerImage from 'figma:asset/60be6d6fe2b2bb2089603fb76c90d0926c3104a3.png';
-import botilitoImage from 'figma:asset/ce81bb4aba8c9f36807cd145a086a12ce7f876dc.png';
+import botilitoImage from 'figma:asset/e27a276e6ff0e187a67cf54678c265c1c38adbf7.png';
 import { signUp } from '../utils/supabase/auth';
 import { api } from '@/services/api';
 import { UserProfileData } from '../types'; // Import UserProfileData
@@ -88,18 +87,9 @@ export function Register({ onRegister, onBackToLogin }: RegisterProps) {
   return (
     <div className="min-h-screen bg-primary">
       <div className="w-full h-screen">
-        {/* Contenedor principal con la imagen de referencia como fondo */}
+        {/* Contenedor principal */}
         <div className="relative bg-white h-full overflow-hidden">
-          {/* Imagen de fondo de referencia */}
-          <div className="absolute inset-0 opacity-10">
-            <img 
-              src={registerImage} 
-              alt="Botilito Register Reference" 
-              className="w-full h-full object-cover"
-            />
-          </div>
-          
-          <div className="relative z-10 grid lg:grid-cols-2 gap-0 h-full">
+          <div className="grid lg:grid-cols-2 gap-0 h-full">
             {/* Lado izquierdo - Presentación de Botilito (oculto en móvil) */}
             <div className="hidden lg:flex bg-gradient-to-br from-primary to-secondary lg:p-12 flex-col justify-center items-center text-center h-screen overflow-y-auto">
               <div className="flex flex-col items-center">
@@ -129,26 +119,30 @@ export function Register({ onRegister, onBackToLogin }: RegisterProps) {
             </div>
 
             {/* Lado derecho - Formulario de registro */}
-            <div className="bg-white px-4 py-8 sm:px-6 md:px-8 lg:p-12 flex flex-col justify-center overflow-y-auto">
+            <div className="bg-gray-50 px-4 py-6 sm:px-6 md:px-8 lg:p-8 flex flex-col justify-start overflow-y-auto">
               <div className="max-w-md mx-auto w-full">
-                {/* Mobile greeting - solo visible en móvil */}
-                <div className="lg:hidden flex flex-col items-center mb-4">
-                  <img
-                    src={botilitoImage}
-                    alt="Botilito"
-                    className="h-auto mb-3 max-h-[500px] max-w-[300px] md:max-w-[400px]"
-                  />
-                  <h2 className="text-xl font-bold text-black text-center">
-                    ¡Únete a la lucha!
-                  </h2>
-                  <p className="text-sm text-gray-600 text-center mt-2 max-w-xs">
-                    Combate la desinformación
-                  </p>
+                {/* Franja de Botilito - Visible en móvil */}
+                <div className="lg:hidden bg-[#ffe97a] border-2 border-[#ffda00] rounded-lg p-4 shadow-lg mb-6">
+                  <div className="flex items-center space-x-4">
+                    <img
+                      src={botilitoImage}
+                      alt="Botilito"
+                      className="w-20 h-20 object-contain"
+                    />
+                    <div className="flex-1">
+                      <p className="text-lg font-bold">
+                        ¡Únete a la lucha! 💪
+                      </p>
+                      <p className="text-sm mt-1 opacity-80">
+                        Ayúdame a combatir la desinformación
+                      </p>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Header del formulario */}
-                <div className="text-center mb-6 lg:mb-8">
-                  <div className="inline-block bg-primary text-black px-4 py-2 rounded-2xl text-base font-bold mb-4 sm:px-6 sm:py-3 sm:text-xl lg:mb-6">
+                <div className="text-center mb-4 lg:mb-6">
+                  <div className="inline-block bg-[#ffe97a] border-2 border-[#ffda00] text-black px-4 py-2 rounded-2xl text-base font-bold sm:px-6 sm:py-3 sm:text-xl shadow-md">
                     ¡A camellar contra las noticias falsas!
                   </div>
                 </div>
