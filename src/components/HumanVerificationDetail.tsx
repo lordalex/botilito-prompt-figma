@@ -7,13 +7,14 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Checkbox } from './ui/checkbox';
 import { Separator } from './ui/separator';
-import { 
+import {
   Users, CheckCircle, XCircle, AlertTriangle, Bot, FileText, Image as ImageIcon,
   Video, Volume2, Link2, MessageSquare, Target, Flame, Vote, DollarSign, Zap,
   Eye, Ban, Skull, Microscope, AlertCircle, HelpCircle, Megaphone, Shield,
   Heart, Smile, ArrowLeft, Newspaper, Tag, ExternalLink, User, Clock, Send, ChevronDown
 } from 'lucide-react';
 import { CaseEnriched } from '../utils/humanVerification/types';
+import { generateDisplayId } from '../utils/humanVerification/api';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 // Reutilizamos la definición de las categorías
@@ -85,8 +86,13 @@ export function HumanVerificationDetail({ caseData, onBackToList, onSubmit }: Hu
             <Button variant="outline" onClick={onBackToList}><ArrowLeft className="mr-2 h-4 w-4" />Volver a la lista</Button>
             <Card>
                 <CardHeader>
+                    <div className="flex items-center gap-2 mb-2">
+                        <Badge variant="outline" className="font-mono text-sm bg-gray-50 px-3 py-1">
+                            {caseData.displayId || generateDisplayId(caseData)}
+                        </Badge>
+                    </div>
                     <CardTitle className="flex items-center space-x-2 text-2xl"><Microscope className="h-6 w-6 text-primary" /><span>{caseData.title}</span></CardTitle>
-                    <CardDescription>Caso: {caseData.id}</CardDescription>
+                    <CardDescription className="text-xs text-muted-foreground">ID: {caseData.id}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                     <Separator />

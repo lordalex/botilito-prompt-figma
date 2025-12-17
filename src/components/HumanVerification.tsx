@@ -10,6 +10,7 @@ import { Progress } from './ui/progress';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { Loader2 } from 'lucide-react';
 import { LoadingView } from './LoadingView';
+import { generateDisplayId } from '../utils/humanVerification/api';
 
 const levels = [
     { level: 1, title: 'VIGILANTE CENTINELA', subtitle: 'Primera Línea de Defensa', minXP: 0, maxXP: 500, badge: '👁️' },
@@ -136,7 +137,12 @@ export function HumanVerification() {
                         {cases.map((c, index) => (
                             <Card key={index} className="hover:shadow-md transition-shadow">
                                 <CardHeader>
-                                    <CardTitle className="text-lg">{c.id}</CardTitle>
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <Badge variant="outline" className="font-mono text-xs bg-gray-50">
+                                            {c.displayId || generateDisplayId(c)}
+                                        </Badge>
+                                    </div>
+                                    <CardTitle className="text-lg">{c.title || 'Sin título'}</CardTitle>
                                     <div className="text-xs text-muted-foreground">
                                         <span>{new Date(c.created_at).toLocaleDateString()}</span> | <span>Votos: {c.human_votes?.count || 0}</span>
                                     </div>
