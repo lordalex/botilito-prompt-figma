@@ -1,46 +1,84 @@
 {
   "openapi": "3.0.0",
   "info": {
-    "title": "Text Search Backend & Enrichment Engine",
-    "description": "Deno Edge Function for asynchronous text search, document lookup, and dashboard summaries. Features granular tracing, PostgreSQL text search, and full data enrichment (votes, profiles, consensus).",
-    "version": "1.0.0",
+    "title": "Motor de Búsqueda y Enriquecimiento Vectorial (Deno Edge)",
+    "description": "API asíncrona para búsqueda semántica, recuperación de documentos legales y generación de resúmenes de dashboard. \n\n**Características Principales:**\n1. **Procesamiento Asíncrono:** Las solicitudes inician trabajos (Jobs) en segundo plano (`EdgeRuntime.waitUntil`).\n2. **Trazabilidad:** Sistema de logs granular persistente en base de datos.\n3. **Enriquecimiento de Datos:** Combina búsqueda vectorial con metadatos relacionales (votos, reputación de usuarios, consenso).\n\n**Flujo de Uso:**\n1. Enviar una petición `POST` a `/search`, `/lookup` o `/summary`.\n2. Recibir un `job_id` (HTTP 202).\n3. Hacer polling (consultas periódicas) al endpoint `GET /status/{jobId}` hasta que el estado sea `completed`.",
+    "version": "2.1.0",
     "contact": {
-      "name": "API Support"
+      "name": "Soporte de Backend",
+      "email": "dev@ejemplo.com"
     }
   },
   "servers": [
     {
-      "url": "https://mdkswlgcqsmgfmcuorxq.supabase.co/functions/v1/vector-async",
-      "description": "Production Edge Function"
+      "url": "https://{project_ref}.supabase.co/functions/v1/vector-async",
+      "description": "Función Edge en Supabase (Producción)",
+      "variables": {
+        "project_ref": {
+          "default": "tu-proyecto",
+          "description": "Referencia del proyecto Supabase"
+        }
+      }
+    },
+    {
+      "url": "http://localhost:54321/functions/v1/vector-async",
+      "description": "Entorno de Desarrollo Local (Supabase CLI)"
     }
   ],
   "security": [
     {
-      "apikey": []
+      "bearerAuth": []
     },
     {
-      "bearerAuth": []
+      "apiKeyHeader": []
     }
   ],
   "paths": {
     "/search": {
       "post": {
-        "summary": "Submit Text Search Job",
-        "description": "Initiates an asynchronous text search job using PostgreSQL Full Text Search.",
-        "operationId": "submitSearch",
+        "summary": "Iniciar Búsqueda de Texto/Vectorial",
+        "description": "Crea un trabajo asíncrono para buscar documentos utilizando coincidencia de texto completo (PostgreSQL) y similitud vectorial. Los resultados se enriquecen con votos humanos y perfiles.",
+        "operationId": "createSearchJob",
         "requestBody": {
+          "description": "Parámetros de búsqueda y paginación.",
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/SearchRequest"
+                "type": "object",
+                "required": ["query"],
+                "properties": {
+                  "query": {
+                    "type": "string",
+                    "description": "El término o frase a buscar en los documentos.",
+                    "example": "negligencia médica en cardiología"
+                  },
+                  "page": {
+                    "type": "integer",
+                    "description": "Número de página para los resultados.",
+                    "default": 1,
+                    "minimum": 1
+                  },
+                  "pageSize": {
+                    "type": "integer",
+                    "description": "Cantidad de resultados por página.",
+                    "default": 10,
+                    "minimum": 1,
+                    "maximum": 100
+                  },
+                  "match_count": {
+                    "type": "integer",
+                    "deprecated": true,
+                    "description": "Alias legacy para pageSize."
+                  }
+                }
               }
             }
           }
         },
         "responses": {
           "202": {
-            "description": "Processing started",
+            "description": "Búsqueda aceptada y procesamiento iniciado.",
             "content": {
               "application/json": {
                 "schema": {
@@ -50,17 +88,7 @@
             }
           },
           "400": {
-            "description": "Bad Request (Missing Query)",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Server Error",
+            "description": "Solicitud incorrecta (Falta el parámetro query).",
             "content": {
               "application/json": {
                 "schema": {
@@ -74,22 +102,31 @@
     },
     "/lookup": {
       "post": {
-        "summary": "Submit Lookup Job",
-        "description": "Initiates an asynchronous job to find a specific case/document by UUID or URL and enrich it.",
-        "operationId": "submitLookup",
+        "summary": "Iniciar Búsqueda de Entidad Única",
+        "description": "Busca un caso o documento específico por su ID (UUID) o su URL original. Devuelve el detalle enriquecido completo, incluyendo contenido del documento.",
+        "operationId": "createLookupJob",
         "requestBody": {
+          "description": "Identificador único del recurso.",
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/LookupRequest"
+                "type": "object",
+                "required": ["identifier"],
+                "properties": {
+                  "identifier": {
+                    "type": "string",
+                    "description": "Puede ser un UUID v4 (Case ID o Document ID) o una URL completa.",
+                    "example": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11"
+                  }
+                }
               }
             }
           }
         },
         "responses": {
           "202": {
-            "description": "Processing started",
+            "description": "Lookup aceptado y procesamiento iniciado.",
             "content": {
               "application/json": {
                 "schema": {
@@ -99,7 +136,7 @@
             }
           },
           "400": {
-            "description": "Bad Request (Missing Identifier)",
+            "description": "Falta el identificador.",
             "content": {
               "application/json": {
                 "schema": {
@@ -113,26 +150,36 @@
     },
     "/summary": {
       "post": {
-        "summary": "Submit Summary Job",
-        "description": "Initiates an asynchronous job to retrieve the dashboard summary of recent cases.",
-        "operationId": "submitSummary",
+        "summary": "Generar Resumen de Dashboard",
+        "description": "Inicia un trabajo para obtener los casos más recientes, enriquecidos con estadísticas de consenso. Aunque es un método POST, utiliza parámetros de URL para la paginación.",
+        "operationId": "createSummaryJob",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "description": "Número de página a recuperar.",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "description": "Cantidad de casos por página.",
+            "schema": {
+              "type": "integer",
+              "default": 10
+            }
+          }
+        ],
         "responses": {
           "202": {
-            "description": "Processing started",
+            "description": "Generación de resumen iniciada.",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/JobCreatedResponse"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Server Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -142,15 +189,15 @@
     },
     "/status/{jobId}": {
       "get": {
-        "summary": "Get Job Status",
-        "description": "Retrieves the status, result, and trace logs of an asynchronous job.",
+        "summary": "Consultar Estado y Resultados del Trabajo",
+        "description": "Recupera el estado actual, logs de trazabilidad y (si finalizó) los resultados JSON de un trabajo específico.",
         "operationId": "getJobStatus",
         "parameters": [
           {
             "name": "jobId",
             "in": "path",
             "required": true,
-            "description": "The UUID of the job to check.",
+            "description": "El UUID del trabajo devuelto por los endpoints POST.",
             "schema": {
               "type": "string",
               "format": "uuid"
@@ -159,7 +206,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Job Status and Results",
+            "description": "Estado del trabajo recuperado exitosamente.",
             "content": {
               "application/json": {
                 "schema": {
@@ -169,7 +216,7 @@
             }
           },
           "400": {
-            "description": "Invalid Job ID Format",
+            "description": "Formato de Job ID inválido.",
             "content": {
               "application/json": {
                 "schema": {
@@ -179,26 +226,7 @@
             }
           },
           "404": {
-            "description": "Job Not Found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/case-detail": {
-      "get": {
-        "summary": "Legacy Case Detail",
-        "description": "Deprecated endpoint.",
-        "deprecated": true,
-        "responses": {
-          "410": {
-            "description": "Gone. Use /lookup instead.",
+            "description": "Trabajo no encontrado en la base de datos.",
             "content": {
               "application/json": {
                 "schema": {
@@ -212,64 +240,15 @@
     }
   },
   "components": {
-    "securitySchemes": {
-      "apikey": {
-        "type": "apiKey",
-        "in": "header",
-        "name": "apikey",
-        "description": "Supabase Anon/Service Key"
-      },
-      "bearerAuth": {
-        "type": "http",
-        "scheme": "bearer",
-        "bearerFormat": "JWT"
-      }
-    },
     "schemas": {
-      "SearchRequest": {
-        "type": "object",
-        "required": [
-          "query"
-        ],
-        "properties": {
-          "query": {
-            "type": "string",
-            "description": "The text to search for."
-          },
-          "page": {
-            "type": "integer",
-            "default": 1,
-            "minimum": 1
-          },
-          "pageSize": {
-            "type": "integer",
-            "default": 10,
-            "minimum": 1
-          },
-          "match_count": {
-            "type": "integer",
-            "description": "Alternative parameter to set pageSize."
-          }
-        }
-      },
-      "LookupRequest": {
-        "type": "object",
-        "required": [
-          "identifier"
-        ],
-        "properties": {
-          "identifier": {
-            "type": "string",
-            "description": "UUID of the case/document OR the URL of the document."
-          }
-        }
-      },
       "JobCreatedResponse": {
         "type": "object",
         "properties": {
           "job_id": {
             "type": "string",
-            "format": "uuid"
+            "format": "uuid",
+            "description": "ID único para hacer seguimiento del proceso.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           },
           "message": {
             "type": "string",
@@ -286,233 +265,144 @@
           },
           "status": {
             "type": "string",
-            "enum": [
-              "pending",
-              "processing",
-              "completed",
-              "failed"
-            ]
-          },
-          "result": {
-            "type": "object",
-            "description": "The result payload. Structure depends on job type (Search/Summary or Lookup).",
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/SearchResultPayload"
-              },
-              {
-                "$ref": "#/components/schemas/LookupResultPayload"
-              }
-            ]
+            "enum": ["pending", "processing", "completed", "failed"],
+            "description": "Estado actual del ciclo de vida del trabajo."
           },
           "error": {
             "type": "object",
             "nullable": true,
-            "description": "Error details if status is failed."
+            "description": "Detalles del error si el status es 'failed'."
           },
           "trace_log": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/TraceLogEntry"
-            }
+              "type": "object",
+              "properties": {
+                "t": { "type": "string", "format": "date-time" },
+                "msg": { "type": "string" },
+                "meta": { "type": "object" }
+              }
+            },
+            "description": "Logs detallados paso a paso del proceso de enriquecimiento."
+          },
+          "result": {
+            "type": "object",
+            "nullable": true,
+            "description": "Payload final. La estructura depende del tipo de trabajo (Search/Summary vs Lookup).",
+            "oneOf": [
+              { "$ref": "#/components/schemas/ResultList" },
+              { "$ref": "#/components/schemas/ResultSingle" }
+            ]
           }
         }
       },
-      "SearchResultPayload": {
+      "ResultList": {
         "type": "object",
+        "description": "Estructura para resultados de Búsqueda y Resumen.",
         "properties": {
           "cases": {
             "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/EnrichedCase"
-            }
+            "items": { "$ref": "#/components/schemas/EnrichedCase" }
           },
           "pagination": {
             "type": "object",
             "properties": {
-              "page": {
-                "type": "integer"
-              },
-              "pageSize": {
-                "type": "integer"
-              },
-              "returnedCount": {
-                "type": "integer"
-              },
-              "hasMore": {
-                "type": "boolean"
-              }
+              "page": { "type": "integer" },
+              "pageSize": { "type": "integer" },
+              "returnedCount": { "type": "integer" },
+              "hasMore": { "type": "boolean" }
             }
           }
         }
       },
-      "LookupResultPayload": {
+      "ResultSingle": {
         "type": "object",
+        "description": "Estructura para resultado de Lookup (Entidad única).",
         "properties": {
-          "case": {
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/EnrichedCase"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "error": {
-            "type": "string"
-          }
+          "case": { "$ref": "#/components/schemas/EnrichedCase" },
+          "error": { "type": "string", "nullable": true }
         }
       },
       "EnrichedCase": {
         "type": "object",
+        "description": "Objeto de caso completamente enriquecido con vectores y datos relacionales.",
         "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "created_at": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "title": {
-            "type": "string"
-          },
-          "url": {
-            "type": "string",
-            "nullable": true
-          },
-          "submission_type": {
-            "type": "string",
-            "enum": [
-              "Text",
-              "URL"
-            ]
-          },
-          "status": {
-            "type": "string"
-          },
-          "summary": {
-            "type": "string"
-          },
-          "metadata": {
-            "type": "object"
-          },
+          "id": { "type": "string", "format": "uuid" },
+          "title": { "type": "string" },
+          "summary": { "type": "string" },
+          "submission_type": { "type": "string", "enum": ["Text", "URL"] },
+          "status": { "type": "string" },
+          "created_at": { "type": "string", "format": "date-time" },
           "diagnostic_labels": {
             "type": "array",
-            "items": {
-              "type": "string"
-            }
+            "items": { "type": "string" },
+            "description": "Etiquetas generadas por IA."
           },
           "human_votes": {
             "type": "object",
             "properties": {
-              "count": {
-                "type": "integer"
-              },
+              "count": { "type": "integer" },
               "breakdown": {
                 "type": "object",
-                "additionalProperties": {
-                  "type": "integer"
-                }
-              },
-              "statistics": {
-                "type": "array",
-                "items": {
-                  "type": "object"
-                }
+                "additionalProperties": { "type": "integer" },
+                "description": "Mapa de Etiqueta -> Cantidad de votos"
               },
               "entries": {
                 "type": "array",
-                "items": {
-                  "type": "object",
-                  "properties": {
-                    "vote": {
-                      "type": "string"
-                    },
-                    "reason": {
-                      "type": "string"
-                    },
-                    "date": {
-                      "type": "string"
-                    },
-                    "user": {
-                      "type": "object",
-                      "properties": {
-                        "id": {
-                          "type": "string"
-                        },
-                        "nombre_completo": {
-                          "type": "string"
-                        },
-                        "reputation": {
-                          "type": "integer"
-                        }
-                      }
-                    }
-                  }
-                }
+                "items": { "$ref": "#/components/schemas/VoteEntry" }
               }
             }
           },
           "consensus": {
             "type": "object",
             "properties": {
-              "state": {
-                "type": "string",
-                "enum": [
-                  "human_consensus",
-                  "ai_only"
-                ]
-              },
-              "final_labels": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                }
-              }
+              "state": { "type": "string", "enum": ["human_consensus", "ai_only"] },
+              "final_labels": { "type": "array", "items": { "type": "string" } }
             }
           },
           "related_documents": {
             "type": "array",
-            "items": {
-              "type": "object"
-            }
-          },
-          "content": {
-            "type": "string",
-            "description": "Included only if full details are requested (Lookup)."
+            "items": { "type": "object" },
+            "description": "Documentos similares encontrados por vector search."
           }
         }
       },
-      "TraceLogEntry": {
+      "VoteEntry": {
         "type": "object",
         "properties": {
-          "t": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "msg": {
-            "type": "string"
-          },
-          "meta": {
-            "type": "object"
+          "vote": { "type": "string", "description": "La etiqueta votada" },
+          "reason": { "type": "string", "description": "Justificación del usuario" },
+          "date": { "type": "string", "format": "date-time" },
+          "user": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string", "format": "uuid" },
+              "nombre_completo": { "type": "string" },
+              "reputation": { "type": "number", "description": "Puntaje de reputación del usuario al momento de la consulta." }
+            }
           }
         }
       },
       "ErrorResponse": {
         "type": "object",
         "properties": {
-          "error": {
-            "type": "string"
-          },
-          "details": {
-            "type": "string"
-          },
-          "job_id": {
-            "type": "string"
-          }
+          "error": { "type": "string" },
+          "details": { "type": "string", "nullable": true }
         }
+      }
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Token JWT de Supabase (anon o service_role)."
+      },
+      "apiKeyHeader": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "apikey",
+        "description": "API Key pública (anon) o privada (service_role) de Supabase."
       }
     }
   }

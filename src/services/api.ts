@@ -93,11 +93,14 @@ export const api = {
             fetchClient(session, `${apiEndpoints.VOTE_API_URL}/status/${jobId}`),
     },
     humanVerification: {
-        getSummary: (session: Session, page: number, pageSize: number): Promise<any> =>
-            fetchClient(session, apiEndpoints.SUMMARY_ENDPOINT, {
+        getSummary: (session: Session, page: number, pageSize: number): Promise<any> => {
+            const url = new URL(apiEndpoints.SUMMARY_ENDPOINT);
+            url.searchParams.set('page', String(page));
+            url.searchParams.set('pageSize', String(pageSize));
+            return fetchClient(session, url.toString(), {
                 method: 'POST',
-                body: JSON.stringify({ page, pageSize }),
-            }),
+            });
+        },
         getCaseDetails: (session: Session, caseId: string): Promise<any> =>
             fetchClient(session, apiEndpoints.LOOKUP_ENDPOINT, {
                 method: 'POST',
@@ -118,5 +121,24 @@ export const api = {
     webSnapshot: {
         get: (session: Session, url: string): Promise<any> =>
             fetchClient(session, `${apiEndpoints.WEB_SNAPSHOT_URL}?url=${encodeURIComponent(url)}`),
+    },
+    imageAnalysis: {
+        submit: (session: Session | null, imageBase64: string): Promise<Response> => {
+            if (!session?.access_token) {
+                throw new Error("Authentication error: No access token provided.");
+            }
+            return fetch(`${apiEndpoints.IMAGE_ANALYSIS_BASE_URL}/submit`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${session.access_token}`,
+                },
+                body: JSON.stringify({ image_base64: imageBase64 }),
+            });
+        },
+        getStatus: (jobId: string): Promise<Response> => {
+            // This endpoint does not require authentication as per documentation (jobId is secret)
+            return fetch(`${apiEndpoints.IMAGE_ANALYSIS_BASE_URL}/status/${jobId}`);
+        },
     },
 };

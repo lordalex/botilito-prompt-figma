@@ -8,8 +8,8 @@ import { DIAGNOSTIC_LABELS } from '../humanVerification/types';
  * Fetch historial data (reuses the same endpoint as Human Verification)
  * Uses the async job pattern implementation
  */
-export async function fetchHistorialData(): Promise<HistorialSummaryResult> {
-  return await fetchVerificationSummary();
+export async function fetchHistorialData(page: number, pageSize: number): Promise<HistorialSummaryResult> {
+  return await fetchVerificationSummary(page, pageSize);
 }
 
 /**

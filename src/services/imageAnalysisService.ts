@@ -1,55 +1,72 @@
-import { Session } from '@supabase/supabase-js';
-import { api } from '@/services/api';
-import type { JobStatusResponse, AnalysisResult } from './imageAnalysisTypes';
+import { supabase } from '@/utils/supabase/client';
 
-async function pollJobStatus(jobId: string): Promise<AnalysisResult> {
-  const maxAttempts = 30;
-  const pollInterval = 2000;
-  let attempts = 0;
+const FUNCTION_NAME = 'image-analysis';
 
-  while (attempts < maxAttempts) {
-    const response = await api.imageAnalysis.getStatus(jobId);
-    
-    if (response.ok) {
-      const data: JobStatusResponse = await response.json();
-      if (data.status === 'completed' && data.result) {
-        return data.result;
-      }
-      if (data.status === 'failed') {
-        const errorMessage = typeof data.error === 'string' ? data.error : 'El trabajo de análisis de imagen falló';
-        throw new Error(errorMessage);
-      }
-    }
-    
-    await new Promise(resolve => setTimeout(resolve, pollInterval));
-    attempts++;
-  }
-
-  throw new Error('Tiempo de espera agotado para el análisis de la imagen.');
+export interface AnalysisResponse {
+  job_id: string;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  message?: string;
+  result?: any;
+  error?: string;
 }
 
-export async function performImageAnalysis(session: Session | null, imageBase64: string): Promise<AnalysisResult> {
-  try {
-    const response = await api.imageAnalysis.submit(session, imageBase64);
+// Helper: Convertir File a Base64
+export const convertFileToBase64 = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = (error) => reject(error);
+  });
+};
 
-    if (response.status === 200) { // Cache Hit
-      const data = await response.json();
-      return data.result;
-    }
+// 1. Enviar Imagen (Submit) - POST /submit
+export async function submitImageAnalysis(imageBase64: string): Promise<AnalysisResponse> {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw new Error('No hay sesión activa.');
 
-    if (response.status === 202) { // Async Job
-      const { job_id } = await response.json();
-      if (!job_id) {
-        throw new Error('No se recibió un ID de trabajo válido');
-      }
-      return await pollJobStatus(job_id);
-    }
+  const projectUrl = import.meta.env.VITE_SUPABASE_URL;
+  // Construimos la URL manualmente para evitar errores de librerías
+  const url = `${projectUrl}/functions/v1/${FUNCTION_NAME}/submit`;
 
-    const error = await response.json().catch(() => ({ error: 'Error desconocido' }));
-    throw new Error(error.error || `Error ${response.status}`);
+  console.log('Enviando imagen a:', url);
 
-  } catch (error) {
-    console.error('Error performing image analysis:', error);
-    throw error;
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${session.access_token}`,
+    },
+    body: JSON.stringify({ image_base64: imageBase64 }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `Error del servidor: ${response.status}`);
   }
+
+  return await response.json();
 }
+
+// 2. Consultar Estado (Poll) - GET /status/:jobId
+export async function getJobStatus(jobId: string): Promise<AnalysisResponse> {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw new Error('No hay sesión activa.');
+
+  const projectUrl = import.meta.env.VITE_SUPABASE_URL;
+  const url = `${projectUrl}/functions/v1/${FUNCTION_NAME}/status/${jobId}`;
+
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${session.access_token}`,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Error al consultar estado: ${response.status}`);
+  }
+
+  return await response.json();
+}
+

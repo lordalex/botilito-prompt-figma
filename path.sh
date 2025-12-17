@@ -1,3 +1,177 @@
+#!/bin/bash
+
+# 1. Update Service to handle empty query requirement
+echo "Updating src/services/vectorAsyncService.ts..."
+cat << 'EOF' > src/services/vectorAsyncService.ts
+import { supabase } from '@/utils/supabase/client';
+import { 
+  VectorJobResponse, 
+  JobStatusResponse, 
+  EnrichedCase,
+  SearchResultPayload,
+  LookupResultPayload
+} from '@/types/vector-api';
+
+const FUNCTION_NAME = 'vector-async';
+
+// Helper for polling
+async function pollJobStatus<T>(jobId: string, interval = 2000, timeout = 60000): Promise<T> {
+  const start = Date.now();
+  while (Date.now() - start < timeout) {
+    const { data, error } = await supabase.functions.invoke(`${FUNCTION_NAME}/status/${jobId}`, { method: 'GET' });
+    
+    if (error) throw error;
+    
+    const response = data as JobStatusResponse;
+    
+    if (response.status === 'completed') {
+      return response.result as T;
+    }
+    
+    if (response.status === 'failed') {
+      throw new Error(response.error?.toString() || 'Job failed');
+    }
+    
+    await new Promise(resolve => setTimeout(resolve, interval));
+  }
+  throw new Error('Polling timed out');
+}
+
+/**
+ * Uses /search endpoint.
+ * FIX: Defaults query to "*" if empty to satisfy API requirement "Query required".
+ */
+export async function searchCases(
+  query: string = "", 
+  page: number = 1, 
+  pageSize: number = 10
+): Promise<SearchResultPayload> {
+  // Fix: The API requires a non-empty query. 
+  // We use "*" to represent "fetch all" (depending on backend implementation) or a generic term.
+  const effectiveQuery = query.trim() === "" ? "*" : query;
+
+  const { data: submitData, error: submitError } = await supabase.functions.invoke(`${FUNCTION_NAME}/search`, {
+    method: 'POST',
+    body: { 
+      query: effectiveQuery, 
+      page, 
+      pageSize 
+    },
+  });
+
+  if (submitError) throw submitError;
+  const job = submitData as VectorJobResponse;
+
+  return await pollJobStatus<SearchResultPayload>(job.job_id);
+}
+
+/**
+ * Uses /lookup endpoint for single document details.
+ */
+export async function lookupCase(identifier: string): Promise<EnrichedCase | null> {
+  const { data: submitData, error: submitError } = await supabase.functions.invoke(`${FUNCTION_NAME}/lookup`, {
+    method: 'POST',
+    body: { identifier },
+  });
+
+  if (submitError) throw submitError;
+  const job = submitData as VectorJobResponse;
+
+  const result = await pollJobStatus<LookupResultPayload>(job.job_id);
+  return result.case || null;
+}
+EOF
+
+# 2. Update Hook to handle specific API Pagination (hasMore instead of total)
+echo "Updating src/hooks/useCaseHistory.ts..."
+cat << 'EOF' > src/hooks/useCaseHistory.ts
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { searchCases } from '@/services/vectorAsyncService';
+import type { EnrichedCase } from '@/types/vector-api';
+
+export function useCaseHistory() {
+  // Data State
+  const [cases, setCases] = useState<EnrichedCase[]>([]);
+  const [hasMore, setHasMore] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Filter & Pagination State
+  const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(10);
+  const [statusFilter, setStatusFilter] = useState('all');
+
+  const fetchCases = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const result = await searchCases(searchTerm, currentPage, pageSize);
+      
+      setCases(result.cases || []);
+      // The API returns 'hasMore', not 'totalCount', so we can't calculate total pages perfectly
+      setHasMore(result.pagination.hasMore);
+      
+    } catch (err: any) {
+      console.error('Error fetching history:', err);
+      setError(err.message || "Error desconocido al cargar historial");
+      setCases([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [searchTerm, currentPage, pageSize]);
+
+  // Trigger fetch on filter changes
+  useEffect(() => {
+    fetchCases();
+  }, [fetchCases]);
+
+  // Client-side filtering for status (if API doesn't support status filter yet)
+  // Note: ideally status filtering happens on backend, but for now we filter the current page
+  const filteredCases = useMemo(() => {
+    if (statusFilter === 'all') return cases;
+    return cases.filter(c => {
+      if (statusFilter === 'verified') return c.consensus?.state === 'human_consensus';
+      if (statusFilter === 'ai_only') return c.consensus?.state === 'ai_only';
+      if (statusFilter === 'misinfo') return c.metadata?.global_verdict === 'TAMPERED';
+      return true;
+    });
+  }, [cases, statusFilter]);
+
+  // Stats derived from current view (approximate since we don't have global aggregation endpoint)
+  const stats = {
+    total: cases.length,
+    verified: cases.filter(c => c.consensus?.state === 'human_consensus').length,
+    aiOnly: cases.filter(c => c.consensus?.state === 'ai_only').length,
+    misinformation: cases.filter(c => c.metadata?.global_verdict === 'TAMPERED').length
+  };
+
+  return {
+    cases: filteredCases,
+    loading,
+    error,
+    stats,
+    pagination: {
+      currentPage,
+      setCurrentPage,
+      pageSize,
+      hasMore,
+    },
+    filters: {
+      searchTerm,
+      setSearchTerm,
+      statusFilter,
+      setStatusFilter
+    },
+    refresh: fetchCases
+  };
+}
+EOF
+
+# 3. Update Component to use correct pagination logic
+echo "Updating src/components/ContentReview.tsx..."
+cat << 'EOF' > src/components/ContentReview.tsx
 import React, { useState } from 'react';
 import { 
   Briefcase, CheckCircle2, Bot, XCircle, Search, Filter, 
@@ -9,7 +183,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useCaseHistory } from '@/hooks/useCaseHistory';
-import { CaseDetailDialog } from '@/components/CaseDetailDialog';
+import { CaseDetailDialog } from '@/components/historial/CaseDetailDialog';
 
 export function ContentReview() {
   const { 
@@ -23,6 +197,13 @@ export function ContentReview() {
   } = useCaseHistory();
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  // Helper for Search Input delay to avoid spamming API while typing
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    filters.setSearchTerm(e.target.value);
+    // Reset to page 1 on search
+    if (pagination.currentPage !== 1) pagination.setCurrentPage(1);
+  };
 
   return (
     <div className="w-full space-y-8 p-6 bg-gray-50 min-h-screen font-sans">
@@ -80,7 +261,16 @@ export function ContentReview() {
 
         {/* Filters */}
         <div className="p-4 bg-gray-50/50 border-b border-gray-100 grid grid-cols-1 md:grid-cols-12 gap-4">
-          <div className="md:col-span-12">
+          <div className="md:col-span-8 relative">
+            <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+            <Input 
+              placeholder="Buscar por texto..." 
+              className="pl-10 bg-white"
+              value={filters.searchTerm}
+              onChange={handleSearchChange}
+            />
+          </div>
+          <div className="md:col-span-4">
             <Select value={filters.statusFilter} onValueChange={filters.setStatusFilter}>
               <SelectTrigger className="bg-white"><SelectValue placeholder="Estado" /></SelectTrigger>
               <SelectContent>
@@ -190,3 +380,5 @@ function StatsCard({ icon, bg, value, label }: any) {
     </Card>
   );
 }
+EOF
+
