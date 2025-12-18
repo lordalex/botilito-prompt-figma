@@ -9,6 +9,7 @@ import botilitoImage from 'figma:asset/ce81bb4aba8c9f36807cd145a086a12ce7f876dc.
 import digitalIALogo from 'figma:asset/1c413bccac94a45a38e7dde790a3aa8c525d334b.png';
 import { useAuth } from '../providers/AuthProvider';
 import { signIn, resetPassword } from '../utils/supabase/auth';
+import { useErrorTranslation } from '@/hooks/useErrorTranslation';
 
 interface LoginProps {
   onGoToRegister: () => void;
@@ -16,6 +17,7 @@ interface LoginProps {
 
 export function Login({ onGoToRegister }: LoginProps) {
   const { checkUserProfile } = useAuth();
+  const translateError = useErrorTranslation();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isResettingPassword, setIsResettingPassword] = useState(false);
@@ -39,7 +41,7 @@ export function Login({ onGoToRegister }: LoginProps) {
       await checkUserProfile();
     } catch (err: any) {
       console.error('Login error:', err);
-      setError(err.message || 'Error al iniciar sesión. Por favor, verifica tus credenciales.');
+      setError(translateError(err, 'auth'));
     } finally {
       setIsLoading(false);
     }
@@ -60,7 +62,7 @@ export function Login({ onGoToRegister }: LoginProps) {
       setResetEmailSent(true);
     } catch (err: any) {
       console.error('Password reset error:', err);
-      setError(err.message || 'Error al enviar el correo de recuperación. Por favor, intenta de nuevo.');
+      setError(translateError(err, 'auth'));
     } finally {
       setIsResettingPassword(false);
     }
