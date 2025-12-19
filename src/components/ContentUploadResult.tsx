@@ -20,7 +20,13 @@ interface ContentUploadResultProps {
   onReset: () => void;
 }
 
+import { ImageAnalysisResultView } from './image-analysis/ImageAnalysisResultView';
+
 export function ContentUploadResult({ result, onReset }: ContentUploadResultProps) {
+  // If result has 'file_info', assume it's an Image Analysis Result
+  if (result && result.file_info && result.summary?.global_verdict) {
+    return <ImageAnalysisResultView data={result} onReset={onReset} />;
+  }
   const { session } = useAuth();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [imageLoaded, setImageLoaded] = useState(false);
@@ -45,24 +51,24 @@ export function ContentUploadResult({ result, onReset }: ContentUploadResultProp
   const newsSource = fullResult?.metadata?.source || fullResult?.source || null;
   const transmissionSources = vectores && vectores.length > 0 ? vectores : ['Web'];
 
-    useEffect(() => {
-        const fetchAuthor = async () => {
-            if (!fullResult?.user_id) {
-                setReportedBy('Desconocido');
-                return;
-            }
-            try {
-                const profile = await api.profile.get(session, fullResult.user_id);
-                setReportedBy(profile.full_name || profile.email || 'Desconocido');
-            } catch (error) {
-                console.error("Error fetching author profile:", error);
-                setReportedBy('Desconocido');
-            }
-        };
+  useEffect(() => {
+    const fetchAuthor = async () => {
+      if (!fullResult?.user_id) {
+        setReportedBy('Desconocido');
+        return;
+      }
+      try {
+        const profile = await api.profile.getById(session, fullResult.user_id);
+        setReportedBy(profile.full_name || profile.email || 'Desconocido');
+      } catch (error) {
+        console.error("Error fetching author profile:", error);
+        setReportedBy('Desconocido');
+      }
+    };
 
-        fetchAuthor();
-    }, [fullResult?.user_id, session]);
-  
+    fetchAuthor();
+  }, [fullResult?.user_id, session]);
+
   useEffect(() => {
     // Pre-fill the screenshot if it already exists in the initial data
     const existingScreenshot = result?.fullResult?.metadata?.screenshot || result?.fullResult?.screenshot;
@@ -444,13 +450,12 @@ export function ContentUploadResult({ result, onReset }: ContentUploadResultProp
                 {consensusState && (
                   <Badge
                     variant="outline"
-                    className={`text-sm ${
-                      consensusState === 'human_consensus'
-                        ? 'bg-emerald-100 border-emerald-500 text-emerald-700'
-                        : consensusState === 'conflicted'
+                    className={`text-sm ${consensusState === 'human_consensus'
+                      ? 'bg-emerald-100 border-emerald-500 text-emerald-700'
+                      : consensusState === 'conflicted'
                         ? 'bg-orange-100 border-orange-500 text-orange-700'
                         : 'bg-blue-100 border-blue-500 text-blue-700'
-                    }`}
+                      }`}
                   >
                     {consensusState === 'human_consensus' && '✓ Verificado por Humanos'}
                     {consensusState === 'conflicted' && '⚠ Opiniones Divididas'}

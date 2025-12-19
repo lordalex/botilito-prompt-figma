@@ -5,7 +5,7 @@
 
 import type { Session } from '@supabase/supabase-js';
 import * as apiEndpoints from '../lib/apiEndpoints';
-import type { IngestPayload, JobAcceptedResponse, JobStatusResponse, FullAnalysisResponse, UserProfileData } from '../types';
+import type { IngestPayload, JobAcceptedResponse, JobStatusResponse, FullAnalysisResponse, UserProfileData, DispatchResponse, AdminJobResult } from '../types';
 
 /**
  * A generic and robust fetch client for making authenticated requests to Supabase functions.
@@ -41,7 +41,7 @@ async function fetchClient(session: Session | null, url: string, options: Reques
             const errorMessage = errorData.error || errorData.data?.error || 'An unknown API error occurred.';
             throw new Error(errorMessage);
         }
-        
+
         const contentType = response.headers.get("content-type");
         if (contentType && contentType.includes("application/json")) {
             return response.json();
@@ -64,7 +64,12 @@ export const api = {
                 method: 'POST',
                 body: JSON.stringify(payload),
             }),
-        getStatus: (session: Session, jobId: string): Promise<JobStatusResponse> =>
+        search: (session: Session, query: string, page: number = 1, pageSize: number = 10): Promise<JobAcceptedResponse> =>
+            fetchClient(session, apiEndpoints.SEARCH_ENDPOINT, {
+                method: 'POST',
+                body: JSON.stringify({ query, page, pageSize }),
+            }),
+        getStatus: (session: Session, jobId: string): Promise<any> =>
             fetchClient(session, `${apiEndpoints.VECTOR_ASYNC_BASE_URL}/status/${jobId}`),
     },
     profile: {
@@ -89,7 +94,7 @@ export const api = {
                 delete mappedData.fecha_nacimiento;
                 response.data = mappedData;
             }
-            
+
             return response;
         },
         getById: async (session: Session, userId: string): Promise<ProfileResponse> => {
@@ -144,7 +149,7 @@ export const api = {
                 method: 'POST',
                 body: JSON.stringify(payload),
             }),
-        getStatus: (session: Session, jobId: string): Promise<{ status: 'processing' | 'completed' | 'failed' }> =>
+        getStatus: (session: Session, jobId: string): Promise<any> =>
             fetchClient(session, `${apiEndpoints.VOTE_API_URL}/status/${jobId}`),
     },
     humanVerification: {
@@ -195,5 +200,23 @@ export const api = {
             // This endpoint does not require authentication as per documentation (jobId is secret)
             return fetch(`${apiEndpoints.IMAGE_ANALYSIS_BASE_URL}/status/${jobId}`);
         },
+    },
+    immunization: {
+        submit: (session: Session, payload: { case_id: string; name: string; description: string; resources?: any[] }): Promise<{ job_id: string }> =>
+            fetchClient(session, `${apiEndpoints.IMMUNIZATION_API_URL}/submit`, {
+                method: 'POST',
+                body: JSON.stringify(payload),
+            }),
+        getStatus: (session: Session, jobId: string): Promise<JobStatusResponse> =>
+            fetchClient(session, `${apiEndpoints.IMMUNIZATION_API_URL}/status/${jobId}`),
+    },
+    admin: {
+        dispatch: (session: Session, payload: { type: string; payload?: any }): Promise<DispatchResponse> =>
+            fetchClient(session, `${apiEndpoints.ADMIN_DASHBOARD_URL}/dispatch`, {
+                method: 'POST',
+                body: JSON.stringify(payload),
+            }),
+        getStatus: (session: Session, jobId: string): Promise<AdminJobResult> =>
+            fetchClient(session, `${apiEndpoints.ADMIN_DASHBOARD_URL}/status/${jobId}`),
     },
 };

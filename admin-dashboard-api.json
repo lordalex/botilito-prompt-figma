@@ -1,0 +1,456 @@
+{
+    "openapi": "3.0.3",
+    "info": {
+        "title": "Admin Dashboard Dispatcher API",
+        "description": "A centralized, asynchronous administrative API for the Supabase backend. This API uses a **Job Queue** pattern. All administrative actions (heavy aggregations, writes, updates) are dispatched via `POST /dispatch`, returning a Job ID. Clients must then poll `GET /status/{jobId}` to retrieve the results.",
+        "version": "1.0.0",
+        "contact": {
+            "name": "Backend Admin Team"
+        }
+    },
+    "servers": [
+        {
+            "url": "https://mdkswlgcqsmgfmcuorxq.supabase.co/functions/v1/admin-dashboard",
+            "description": "Production Edge Function"
+        }
+    ],
+    "security": [
+        {
+            "bearerAuth": []
+        }
+    ],
+    "components": {
+        "securitySchemes": {
+            "bearerAuth": {
+                "type": "http",
+                "scheme": "bearer",
+                "bearerFormat": "JWT",
+                "description": "Supabase Service Role Key or Admin User JWT"
+            }
+        },
+        "schemas": {
+            "JobId": {
+                "type": "string",
+                "format": "uuid",
+                "example": "a1b2c3d4-e5f6-7890-a1b2-c3d4e5f67890"
+            },
+            "JobStatus": {
+                "type": "string",
+                "enum": [
+                    "pending",
+                    "processing",
+                    "completed",
+                    "failed"
+                ],
+                "description": "The current state of the background job."
+            },
+            "DispatchResponse": {
+                "type": "object",
+                "properties": {
+                    "message": {
+                        "type": "string",
+                        "example": "Job Queued Successfully"
+                    },
+                    "job_id": {
+                        "$ref": "#/components/schemas/JobId"
+                    },
+                    "check_status": {
+                        "type": "string",
+                        "example": "/admin-dashboard/status/a1b2c3d4-e5f6-7890-a1b2-c3d4e5f67890"
+                    }
+                }
+            },
+            "ErrorResponse": {
+                "type": "object",
+                "properties": {
+                    "error": {
+                        "type": "string",
+                        "example": "Invalid Token or Unauthorized"
+                    }
+                }
+            },
+            "DashboardOverviewResult": {
+                "type": "object",
+                "description": "Result payload when action is GET_DASHBOARD_SUMMARY",
+                "properties": {
+                    "overview": {
+                        "type": "object",
+                        "properties": {
+                            "total_cases": {
+                                "type": "integer"
+                            },
+                            "total_users": {
+                                "type": "integer"
+                            },
+                            "total_documents": {
+                                "type": "integer"
+                            },
+                            "total_votes": {
+                                "type": "integer"
+                            }
+                        }
+                    },
+                    "correlations": {
+                        "type": "object",
+                        "properties": {
+                            "description": {
+                                "type": "string"
+                            },
+                            "top_users": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "user_id": {
+                                            "type": "string",
+                                            "format": "uuid"
+                                        },
+                                        "total_actions": {
+                                            "type": "integer"
+                                        },
+                                        "breakdown": {
+                                            "type": "object",
+                                            "properties": {
+                                                "votes": {
+                                                    "type": "integer"
+                                                },
+                                                "reports": {
+                                                    "type": "integer"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "DashboardMacrosResult": {
+                "type": "object",
+                "description": "Result payload when action is GET_DASHBOARD_MACROS",
+                "properties": {
+                    "period": {
+                        "type": "string",
+                        "example": "Last 30 Days"
+                    },
+                    "charts": {
+                        "type": "object",
+                        "properties": {
+                            "activity_trend": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "date": {
+                                            "type": "string",
+                                            "format": "date"
+                                        },
+                                        "votes": {
+                                            "type": "integer"
+                                        },
+                                        "cases": {
+                                            "type": "integer"
+                                        }
+                                    }
+                                }
+                            },
+                            "user_segments": {
+                                "type": "object",
+                                "properties": {
+                                    "newbie": {
+                                        "type": "integer"
+                                    },
+                                    "expert": {
+                                        "type": "integer"
+                                    },
+                                    "master": {
+                                        "type": "integer"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "paths": {
+        "/dispatch": {
+            "post": {
+                "summary": "Dispatch Admin Job",
+                "description": "Enqueues an administrative task. This endpoint returns immediately with a `202 Accepted` and a `job_id`. You must use the `job_id` to poll the `/status` endpoint for results.",
+                "operationId": "dispatchJob",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": [
+                                    "type"
+                                ],
+                                "properties": {
+                                    "type": {
+                                        "type": "string",
+                                        "description": "The type of administrative action to perform.",
+                                        "enum": [
+                                            "GET_DASHBOARD_SUMMARY",
+                                            "GET_DASHBOARD_MACROS",
+                                            "RUN_MAINTENANCE_MACRO",
+                                            "CREATE_CHALLENGE",
+                                            "UPDATE_USER_ACCESS",
+                                            "UPDATE_PERMISSION_MATRIX"
+                                        ]
+                                    },
+                                    "payload": {
+                                        "type": "object",
+                                        "description": "Context-specific data required for the chosen action type. Can be empty for read-only summaries."
+                                    }
+                                }
+                            },
+                            "examples": {
+                                "1_Get_Summary": {
+                                    "summary": "1. Get Overview & Correlations",
+                                    "description": "Calculates correlation of user activity across multiple tables (Votes, Reports, etc).",
+                                    "value": {
+                                        "type": "GET_DASHBOARD_SUMMARY"
+                                    }
+                                },
+                                "2_Get_Macros": {
+                                    "summary": "2. Get Charts & Analytics",
+                                    "description": "Generates time-series data for UI charts (Votes per day) and user segmentation.",
+                                    "value": {
+                                        "type": "GET_DASHBOARD_MACROS",
+                                        "payload": {
+                                            "range": "30d"
+                                        }
+                                    }
+                                },
+                                "3_Create_Challenge": {
+                                    "summary": "3. Create Challenge / Mission",
+                                    "description": "Adds a new gamification challenge to the system.",
+                                    "value": {
+                                        "type": "CREATE_CHALLENGE",
+                                        "payload": {
+                                            "title": "Super Fact Checker",
+                                            "description": "Verify 50 AI-generated claims.",
+                                            "badge_name": "checker_master_v1",
+                                            "required_xp": 500,
+                                            "required_reputation": 100,
+                                            "created_by": "00000000-0000-0000-0000-000000000000"
+                                        }
+                                    }
+                                },
+                                "4_Update_User": {
+                                    "summary": "4. Update User Access",
+                                    "description": "Updates a user's role, reputation, or XP manually.",
+                                    "value": {
+                                        "type": "UPDATE_USER_ACCESS",
+                                        "payload": {
+                                            "target_user_id": "00000000-0000-0000-0000-000000000000",
+                                            "role": "moderator",
+                                            "reputation": 1500,
+                                            "xp": 5000
+                                        }
+                                    }
+                                },
+                                "5_Update_Permissions": {
+                                    "summary": "5. Update Permission Matrix",
+                                    "description": "Defines what specific actions a Role can perform.",
+                                    "value": {
+                                        "type": "UPDATE_PERMISSION_MATRIX",
+                                        "payload": {
+                                            "rol": "moderator",
+                                            "permissions": {
+                                                "can_ban_users": true,
+                                                "can_delete_content": false,
+                                                "can_view_analytics": true
+                                            }
+                                        }
+                                    }
+                                },
+                                "6_Maintenance": {
+                                    "summary": "6. Run System Maintenance",
+                                    "description": "Cleans up stuck jobs and refreshes caches.",
+                                    "value": {
+                                        "type": "RUN_MAINTENANCE_MACRO"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "202": {
+                        "description": "Job Accepted. The task is now running in the background.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/DispatchResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request. Missing type or invalid payload.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized. Missing or invalid Bearer Token.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/status/{jobId}": {
+            "get": {
+                "summary": "Poll Job Status",
+                "description": "Retrieves the current status and result of a specific job. If `status` is 'completed', the `result` field will contain the data requested.",
+                "operationId": "getJobStatus",
+                "parameters": [
+                    {
+                        "name": "jobId",
+                        "in": "path",
+                        "description": "The UUID of the job returned by the /dispatch endpoint.",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/JobId"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Job details retrieved successfully.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "id": {
+                                            "$ref": "#/components/schemas/JobId"
+                                        },
+                                        "status": {
+                                            "$ref": "#/components/schemas/JobStatus"
+                                        },
+                                        "current_step": {
+                                            "type": "string",
+                                            "description": "Internal step description (e.g., 'calculating_trends')",
+                                            "example": "done"
+                                        },
+                                        "created_at": {
+                                            "type": "string",
+                                            "format": "date-time"
+                                        },
+                                        "completed_at": {
+                                            "type": "string",
+                                            "format": "date-time"
+                                        },
+                                        "error": {
+                                            "type": "string",
+                                            "nullable": true,
+                                            "description": "Error message if status is 'failed'."
+                                        },
+                                        "result": {
+                                            "type": "object",
+                                            "nullable": true,
+                                            "description": "The dynamic result payload. Structure depends on the initial `type` dispatched.",
+                                            "oneOf": [
+                                                {
+                                                    "$ref": "#/components/schemas/DashboardOverviewResult"
+                                                },
+                                                {
+                                                    "$ref": "#/components/schemas/DashboardMacrosResult"
+                                                },
+                                                {
+                                                    "type": "object",
+                                                    "description": "Generic Success Message for Write Operations",
+                                                    "properties": {
+                                                        "message": {
+                                                            "type": "string"
+                                                        },
+                                                        "user": {
+                                                            "type": "object"
+                                                        },
+                                                        "challenge": {
+                                                            "type": "object"
+                                                        }
+                                                    }
+                                                }
+                                            ]
+                                        }
+                                    }
+                                },
+                                "examples": {
+                                    "Completed_Overview": {
+                                        "summary": "Completed: Dashboard Summary",
+                                        "value": {
+                                            "id": "a1b2c3d4-...",
+                                            "status": "completed",
+                                            "current_step": "done",
+                                            "result": {
+                                                "overview": {
+                                                    "total_users": 1500,
+                                                    "total_cases": 300
+                                                },
+                                                "correlations": {
+                                                    "top_users": []
+                                                }
+                                            }
+                                        }
+                                    },
+                                    "Processing": {
+                                        "summary": "Status: Processing",
+                                        "value": {
+                                            "id": "a1b2c3d4-...",
+                                            "status": "processing",
+                                            "current_step": "calculating_trends",
+                                            "result": null
+                                        }
+                                    },
+                                    "Failed": {
+                                        "summary": "Status: Failed",
+                                        "value": {
+                                            "id": "a1b2c3d4-...",
+                                            "status": "failed",
+                                            "error": "Timeout or DB connection lost",
+                                            "result": null
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Job ID not found.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "type": "string",
+                                            "example": "Job not found"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

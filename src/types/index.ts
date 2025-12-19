@@ -78,3 +78,6 @@ export interface UserProfileData {
   email?: string;
   // Note: 'password', 'role', etc., are intentionally omitted for security.
 }
+
+export * from './admin';
+export * from './imageAnalysis';

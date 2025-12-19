@@ -1,226 +1,106 @@
 {
-  "openapi": "3.0.0",
+  "openapi": "3.0.3",
   "info": {
-    "title": "API de Análisis de Falsificación (Deno Edge)",
-    "description": "Esta API permite detectar manipulaciones en imágenes utilizando un sistema de **Edge Computing** con Supabase. \n\n**Características Principales:**\n1. **Procesamiento Asíncrono (CPU Keep-Alive):** Las imágenes pesadas se procesan en segundo plano.\n2. **Caché Inteligente:** Se calcula un hash SHA-256 de la imagen. Si la imagen ya fue analizada previamente, se devuelve el resultado instantáneamente (200 OK).\n3. **Privacidad:** La imagen en Base64 viaja en memoria y **nunca** se guarda en la base de datos; solo se almacenan los metadatos y resultados.",
-    "version": "1.0.0",
+    "title": "Image Forgery Detection API",
+    "description": "This API provides advanced forensic analysis to detect digital manipulations in images and videos. It uses a combination of Error Level Analysis (ELA), Noise Analysis, and SLIC segmentation.\n\n### \ud83d\ude80 Asynchronous Architecture\nDue to the CPU-intensive nature of forensic algorithms, this API operates asynchronously:\n1. **Submit** a file via `POST /submit`. You will receive a `job_id` immediately.\n2. **Poll** the status via `GET /status/{job_id}` until the status is `completed`.\n\n### \ud83d\udcca Features\n* **Multi-Algorithm detection:** Combines multiple forensic techniques for higher accuracy.\n* **Video Support:** Automatically extracts and analyzes keyframes from video files.\n* **Metadata Extraction:** Returns detailed technical metadata (EXIF, Codecs, Bitrate) alongside forensic results.",
+    "version": "2.3.0",
     "contact": {
-      "name": "Soporte Técnico",
-      "email": "soporte@tudominio.com"
+      "name": "API Support Team",
+      "email": "support@example.com",
+      "url": "https://botilito.lordalexand.dev"
+    },
+    "license": {
+      "name": "Proprietary",
+      "url": "https://example.com/license"
     }
   },
   "servers": [
     {
-      "url": "https://mdkswlgcqsmgfmcuorxq.supabase.co/functions/v1/image-analysis",
-      "description": "Servidor de Producción (Supabase Edge Function)"
+      "url": "https://botilito.lordalexand.dev/imageanalysis",
+      "description": "Production Server (GPU Accelerated)"
+    },
+    {
+      "url": "http://localhost:8000",
+      "description": "Local Development Server"
     }
   ],
-  "components": {
-    "securitySchemes": {
-      "bearerAuth": {
-        "type": "http",
-        "scheme": "bearer",
-        "bearerFormat": "JWT",
-        "description": "Token JWT de Supabase (anon key o service_role, y token de usuario autenticado)."
-      }
-    },
-    "schemas": {
-      "SubmitRequest": {
-        "type": "object",
-        "required": [
-          "image_base64"
-        ],
-        "properties": {
-          "image_base64": {
-            "type": "string",
-            "description": "La imagen a analizar en formato Base64 (incluyendo o no el prefijo 'data:image/...').",
-            "example": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD..."
-          }
-        }
-      },
-      "AsyncResponse": {
-        "type": "object",
-        "properties": {
-          "job_id": {
-            "type": "string",
-            "format": "uuid",
-            "description": "Identificador único del trabajo creado."
-          },
-          "message": {
-            "type": "string",
-            "example": "Analysis started"
-          },
-          "status_url": {
-            "type": "string",
-            "description": "URL relativa para consultar el estado del trabajo.",
-            "example": "/forgery/status/123e4567-e89b-12d3-a456-426614174000"
-          }
-        }
-      },
-      "CachedResponse": {
-        "type": "object",
-        "properties": {
-          "job_id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "status": {
-            "type": "string",
-            "enum": ["completed"],
-            "example": "completed"
-          },
-          "result": {
-            "$ref": "#/components/schemas/AnalysisResult"
-          }
-        }
-      },
-      "JobStatusResponse": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "status": {
-            "type": "string",
-            "enum": [
-              "pending",
-              "processing",
-              "completed",
-              "failed"
-            ],
-            "description": "Estado actual del análisis."
-          },
-          "created_at": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "result": {
-            "$ref": "#/components/schemas/AnalysisResult"
-          },
-          "error": {
-            "type": "string",
-            "nullable": true,
-            "description": "Mensaje de error si el estado es 'failed'."
-          },
-          "trace_log": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "t": { "type": "string", "format": "date-time" },
-                "msg": { "type": "string" },
-                "meta": { "type": "object" }
-              }
-            },
-            "description": "Registro detallado paso a paso de la ejecución interna."
-          }
-        }
-      },
-      "AnalysisResult": {
-        "type": "object",
-        "properties": {
-          "meta": {
-            "type": "object",
-            "properties": {
-              "analyzed_at": { "type": "string", "format": "date-time" },
-              "duration_ms": { "type": "integer" },
-              "cached": { "type": "boolean" }
-            }
-          },
-          "summary": {
-            "type": "object",
-            "properties": {
-              "global_verdict": {
-                "type": "string",
-                "enum": ["TAMPERED", "CLEAN"],
-                "description": "Veredicto final. 'TAMPERED' si confidence_score > 0.75."
-              },
-              "confidence_score": {
-                "type": "number",
-                "format": "float",
-                "description": "Probabilidad de manipulación (0.0 a 1.0)."
-              }
-            }
-          },
-          "details": {
-            "type": "array",
-            "description": "Detalles técnicos retornados por el nodo de análisis Python (mapas de calor, ELA, etc).",
-            "items": {
-              "type": "object"
-            }
-          }
-        }
-      },
-      "ErrorResponse": {
-        "type": "object",
-        "properties": {
-          "error": {
-            "type": "string",
-            "description": "Descripción del error ocurrido."
-          }
-        }
-      }
-    }
-  },
-  "security": [
+  "tags": [
     {
-      "bearerAuth": []
+      "name": "Jobs",
+      "description": "Operations related to submitting and tracking analysis jobs."
     }
   ],
   "paths": {
     "/submit": {
       "post": {
-        "summary": "Enviar imagen para análisis",
-        "description": "Punto de entrada principal. Acepta una imagen en Base64. \n\n- **Si el hash existe en caché:** Devuelve `200 OK` con el resultado inmediato.\n- **Si es nueva:** Devuelve `202 Accepted` e inicia el proceso en segundo plano (EdgeRuntime.waitUntil).",
-        "operationId": "submitImage",
+        "tags": [
+          "Jobs"
+        ],
+        "summary": "Submit a file for forensic analysis",
+        "description": "Initiates a new background job to analyze an image or video file. \n\n**How it works:**\nThis endpoint accepts a file upload, generates a unique UUID (`job_id`), places the analysis task into an in-memory queue, and returns immediately. This prevents HTTP timeouts during long processing times.",
+        "operationId": "submitJob",
         "requestBody": {
+          "description": "The binary file to be analyzed. Supports common image formats (JPG, PNG) and video formats (MP4, AVI, MKV).",
           "required": true,
           "content": {
-            "application/json": {
+            "multipart/form-data": {
               "schema": {
-                "$ref": "#/components/schemas/SubmitRequest"
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "The image or video file. \n* **Max Size:** 10MB (recommended)\n* **Supported Images:** JPEG, PNG, WEBP\n* **Supported Videos:** MP4, AVI, MOV, MKV"
+                  }
+                },
+                "required": [
+                  "file"
+                ]
               }
             }
           }
         },
         "responses": {
           "200": {
-            "description": "Caché Hit. El análisis ya existía y se devuelve inmediatamente.",
+            "description": "Job successfully queued.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CachedResponse"
-                }
-              }
-            }
-          },
-          "202": {
-            "description": "Aceptado. El análisis ha comenzado en segundo plano. El cliente debe sondear (poll) el endpoint de estado.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AsyncResponse"
+                  "$ref": "#/components/schemas/SubmitResponse"
+                },
+                "example": {
+                  "job_id": "550e8400-e29b-41d4-a716-446655440000",
+                  "status": "queued",
+                  "message": "Job submitted successfully"
                 }
               }
             }
           },
           "400": {
-            "description": "Solicitud incorrecta (Falta image_base64).",
+            "description": "Bad Request. usually caused by a missing file or empty payload.",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
+                "example": {
+                  "detail": "No file sent"
                 }
               }
             }
           },
-          "401": {
-            "description": "No autorizado (Falta Bearer Token).",
+          "422": {
+            "description": "Validation Error. The server could not process the upload instructions (e.g., file too large for server config).",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
+                "example": {
+                  "detail": [
+                    {
+                      "loc": [
+                        "body",
+                        "file"
+                      ],
+                      "msg": "field required",
+                      "type": "value_error.missing"
+                    }
+                  ]
                 }
               }
             }
@@ -228,54 +108,93 @@
         }
       }
     },
-    "/status/{jobId}": {
+    "/status/{job_id}": {
       "get": {
-        "summary": "Consultar estado del trabajo",
-        "description": "Devuelve el estado actual del trabajo (`pending`, `processing`, `completed`, `failed`). Si está completado, incluye el objeto `result`.",
+        "tags": [
+          "Jobs"
+        ],
+        "summary": "Retrieve job status and results",
+        "description": "Checks the current state of a specific analysis job. Clients should poll this endpoint periodically (e.g., every 2 seconds) until the status changes to `completed` or `failed`.\n\n**Return Value:**\n* If `status` is **completed**, the response includes a `result` object containing verdicts, scores, and base64 heatmaps.\n* If `status` is **failed**, the response includes an `error` message explaining what went wrong.",
         "operationId": "getJobStatus",
         "parameters": [
           {
-            "name": "jobId",
+            "name": "job_id",
             "in": "path",
+            "description": "The UUID returned by the `/submit` endpoint.",
             "required": true,
-            "description": "UUID del trabajo recibido en /submit",
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "format": "uuid",
+              "example": "550e8400-e29b-41d4-a716-446655440000"
             }
           }
         ],
         "responses": {
           "200": {
-            "description": "Información del trabajo recuperada exitosamente.",
+            "description": "Current status of the job. The structure of the response depends on the `status` field.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobStatusResponse"
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/JobStatusQueued"
+                    },
+                    {
+                      "$ref": "#/components/schemas/JobStatusCompleted"
+                    },
+                    {
+                      "$ref": "#/components/schemas/JobStatusFailed"
+                    }
+                  ]
                 },
                 "examples": {
-                  "processing": {
-                    "summary": "Ejemplo en proceso",
+                  "Processing": {
+                    "summary": "Job is still running",
                     "value": {
-                      "id": "123e4567-e89b-12d3-a456-426614174000",
-                      "status": "processing",
-                      "trace_log": [
-                         {"t": "2023-10-27T10:00:00Z", "msg": "Job queued"},
-                         {"t": "2023-10-27T10:00:01Z", "msg": "Sending payload to API"}
+                      "job_id": "550e8400-e29b-41d4-a716-446655440000",
+                      "status": "processing"
+                    }
+                  },
+                  "Completed (Image)": {
+                    "summary": "Successful Image Analysis",
+                    "value": {
+                      "job_id": "550e8400-e29b-41d4-a716-446655440000",
+                      "status": "completed",
+                      "result": [
+                        {
+                          "metadata": {
+                            "filename": "proof.jpg",
+                            "size_bytes": 102400,
+                            "width": 1920,
+                            "height": 1080,
+                            "exif": {
+                              "Model": "iPhone 14 Pro",
+                              "Software": "16.0.2"
+                            }
+                          },
+                          "summary": {
+                            "verdict": "TAMPERED",
+                            "score": 0.89,
+                            "heatmap": "data:image/jpeg;base64,/9j/4AAQSk...",
+                            "tampered_region": "data:image/jpeg;base64,/9j/4AAQSk..."
+                          },
+                          "algorithms": [
+                            {
+                              "name": "ela",
+                              "score": 0.92,
+                              "heatmap": "data:image/jpeg;base64/..."
+                            }
+                          ]
+                        }
                       ]
                     }
                   },
-                  "completed": {
-                    "summary": "Ejemplo completado",
+                  "Failed": {
+                    "summary": "Job Failed",
                     "value": {
-                      "id": "123e4567-e89b-12d3-a456-426614174000",
-                      "status": "completed",
-                      "created_at": "2023-10-27T10:00:00Z",
-                      "result": {
-                        "meta": { "cached": false, "duration_ms": 1200 },
-                        "summary": { "global_verdict": "TAMPERED", "confidence_score": 0.95 },
-                        "details": []
-                      }
+                      "job_id": "550e8400-e29b-41d4-a716-446655440000",
+                      "status": "failed",
+                      "error": "Corrupt file header: unable to decode image."
                     }
                   }
                 }
@@ -283,14 +202,233 @@
             }
           },
           "404": {
-            "description": "Trabajo no encontrado.",
+            "description": "Job Not Found. The ID is invalid or the job has been purged from memory.",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
+                "example": {
+                  "detail": "Job not found"
                 }
               }
             }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "SubmitResponse": {
+        "type": "object",
+        "properties": {
+          "job_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Unique identifier for tracking the analysis.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          },
+          "status": {
+            "type": "string",
+            "description": "Initial status of the job.",
+            "example": "queued"
+          },
+          "message": {
+            "type": "string",
+            "description": "Human-readable confirmation.",
+            "example": "Job submitted successfully"
+          }
+        },
+        "required": [
+          "job_id",
+          "status"
+        ]
+      },
+      "JobStatusQueued": {
+        "title": "Status: Queued/Processing",
+        "type": "object",
+        "properties": {
+          "job_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "processing"
+            ],
+            "description": "Current state. 'queued' means waiting for a worker; 'processing' means algorithms are running."
+          }
+        },
+        "required": [
+          "job_id",
+          "status"
+        ]
+      },
+      "JobStatusFailed": {
+        "title": "Status: Failed",
+        "type": "object",
+        "properties": {
+          "job_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "failed"
+            ]
+          },
+          "error": {
+            "type": "string",
+            "description": "Detailed error message explaining the failure.",
+            "example": "Input file is not a valid image or video."
+          }
+        },
+        "required": [
+          "job_id",
+          "status",
+          "error"
+        ]
+      },
+      "JobStatusCompleted": {
+        "title": "Status: Completed",
+        "type": "object",
+        "properties": {
+          "job_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "completed"
+            ]
+          },
+          "result": {
+            "type": "object",
+            "properties": {
+              "meta": {
+                "type": "object",
+                "properties": {
+                  "analyzed_at": {
+                    "type": "string"
+                  },
+                  "file_info": {
+                    "$ref": "#/components/schemas/FileMetadata"
+                  }
+                }
+              },
+              "summary": {
+                "$ref": "#/components/schemas/AnalysisSummary"
+              },
+              "details": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/AnalysisResultItem"
+                }
+              }
+            }
+          }
+        },
+        "required": [
+          "job_id",
+          "status",
+          "result"
+        ]
+      },
+      "AnalysisResultItem": {
+        "type": "object",
+        "properties": {
+          "metadata": {
+            "$ref": "#/components/schemas/FileMetadata"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/AnalysisSummary"
+          },
+          "algorithms": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "score": {
+                  "type": "number"
+                },
+                "heatmap": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "AnalysisSummary": {
+        "type": "object",
+        "properties": {
+          "verdict": {
+            "type": "string"
+          },
+          "score": {
+            "type": "number"
+          },
+          "global_verdict": {
+            "type": "string"
+          }
+        }
+      },
+      "FileMetadata": {
+        "type": "object",
+        "description": "Technical details extracted from the file headers.",
+        "properties": {
+          "filename": {
+            "type": "string",
+            "example": "evidence.jpg"
+          },
+          "size_bytes": {
+            "type": "integer",
+            "example": 2048500
+          },
+          "width": {
+            "type": "integer",
+            "example": 1920
+          },
+          "height": {
+            "type": "integer",
+            "example": 1080
+          },
+          "format": {
+            "type": "string",
+            "description": "File format (JPEG, PNG, etc.)",
+            "example": "JPEG"
+          },
+          "exif": {
+            "type": "object",
+            "description": "Key-value pairs of EXIF data (Camera Model, GPS, Software, Date).",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "example": {
+              "Make": "Apple",
+              "Model": "iPhone 13",
+              "DateTime": "2023:10:05 14:30:00"
+            }
+          },
+          "codec": {
+            "type": "string",
+            "description": "Video codec (Video only).",
+            "example": "h264"
+          },
+          "duration_sec": {
+            "type": "number",
+            "description": "Length of video in seconds (Video only).",
+            "example": 12.5
+          },
+          "fps": {
+            "type": "string",
+            "description": "Frames per second (Video only).",
+            "example": "30/1"
           }
         }
       }

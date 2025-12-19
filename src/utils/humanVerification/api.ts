@@ -149,12 +149,36 @@ export async function fetchVerificationSummary(page: number, pageSize: number): 
 
     const result = await pollJobStatus(job_id);
     if ('cases' in result) {
-        return result;
+      return result;
     }
     throw new Error("API response did not contain 'cases'");
 
   } catch (error) {
     console.error('Error fetching verification summary:', error);
+    throw error;
+  }
+}
+
+export async function fetchVerifiedCasesForImmunization(page: number, pageSize: number): Promise<VerificationSummaryResult> {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+
+    // We search for cases that contain the consensus object in their metadata/content
+    const query = '"consensus": {';
+    const { job_id } = await api.ingestion.search(session!, query, page, pageSize);
+
+    if (!job_id) {
+      throw new Error('No se recibió un ID de trabajo válido');
+    }
+
+    const result = await pollJobStatus(job_id);
+    if ('cases' in result) {
+      return result;
+    }
+    throw new Error("API response did not contain 'cases'");
+
+  } catch (error) {
+    console.error('Error fetching verified cases for immunization:', error);
     throw error;
   }
 }
@@ -166,7 +190,7 @@ export async function fetchCaseDetails(caseId: string): Promise<CaseEnriched> {
 
     const result = await pollJobStatus(job_id);
     if ('case' in result) {
-        return result.case;
+      return result.case;
     }
     throw new Error("API response did not contain a 'case' object");
 
@@ -200,19 +224,19 @@ export async function submitHumanVerification(submission: {
     const maxAttempts = 15;
     const pollInterval = 1000;
     for (let i = 0; i < maxAttempts; i++) {
-        const data: JobStatusResponse = await api.voting.getStatus(session, job_id);
+      const data: JobStatusResponse = await api.voting.getStatus(session, job_id);
 
-        if (data.status === 'completed') {
-            return {
-              success: true,
-              message: 'Diagnóstico procesado exitosamente.',
-              result: data.result
-            };
-        }
-        if (data.status === 'failed') {
-            throw new Error('El procesamiento del voto falló.');
-        }
-        await new Promise(resolve => setTimeout(resolve, pollInterval));
+      if (data.status === 'completed') {
+        return {
+          success: true,
+          message: 'Diagnóstico procesado exitosamente.',
+          result: data.result
+        };
+      }
+      if (data.status === 'failed') {
+        throw new Error('El procesamiento del voto falló.');
+      }
+      await new Promise(resolve => setTimeout(resolve, pollInterval));
     }
 
     throw new Error('Tiempo de espera agotado para el procesamiento del voto.');
@@ -234,9 +258,9 @@ export async function getUserVerificationStats(userId: string) {
       // Return a default structure if there's no session, to avoid crashes.
       return { total_verifications: 0, points: 0 };
     }
-    
+
     // The profile endpoint returns the full user profile, including gamification stats.
-    const profile = await api.profile.get(session, userId);
+    const profile = await api.profile.getById(session, userId);
 
     // Map the API response to the structure expected by the UI.
     // 'reputation' is used as the count of verifications.

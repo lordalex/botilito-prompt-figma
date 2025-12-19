@@ -1,0 +1,294 @@
+{
+    "openapi": "3.0.3",
+    "info": {
+        "title": "Immunization Strategy API",
+        "description": "An asynchronous API for submitting and tracking 'Immunization' strategies (counter-narratives, educational resources, or debunking content) linked to specific Disinformation Cases. \n\n### Workflow\n1. **Submit**: Send a POST request to `/submit` with the vaccine details. You will receive a `job_id`.\n2. **Process**: The server processes this in the background (database insertion, vector embedding, etc.).\n3. **Track**: Poll `GET /status/{job_id}` until the status is `completed`.",
+        "version": "1.0.0",
+        "contact": {
+            "name": "API Support",
+            "email": "support@example.com"
+        }
+    },
+    "servers": [
+        {
+            "url": "https://mdkswlgcqsmgfmcuorxq.supabase.co/functions/v1/inmunizacion",
+            "description": "Supabase Edge Function Base URL"
+        }
+    ],
+    "components": {
+        "securitySchemes": {
+            "bearerAuth": {
+                "type": "http",
+                "scheme": "bearer",
+                "bearerFormat": "JWT",
+                "description": "Supabase Auth User JWT. Required to identify the user submitting the data."
+            },
+            "apiKey": {
+                "type": "apiKey",
+                "in": "header",
+                "name": "apikey",
+                "description": "Supabase Public Anon Key or Service Role Key."
+            }
+        },
+        "schemas": {
+            "ImmunizationRequest": {
+                "type": "object",
+                "required": [
+                    "case_id",
+                    "name",
+                    "description"
+                ],
+                "properties": {
+                    "case_id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "The unique UUID of the Case Study (Noticia) this vaccine applies to.",
+                        "example": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11"
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "A short, catchy title for the immunization strategy.",
+                        "example": "Alfabetización mediática sobre diabetes"
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "Detailed explanation of how this strategy immunizes the population against the disinformation.",
+                        "example": "Campaña educativa explicando la fisiología de la insulina y por qué el limón no tiene efecto en ella, citando estudios reales."
+                    },
+                    "resources": {
+                        "type": "array",
+                        "description": "Optional list of supporting evidences, URLs, or references.",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "type": {
+                                    "type": "string",
+                                    "enum": [
+                                        "link",
+                                        "pdf",
+                                        "video"
+                                    ],
+                                    "example": "link"
+                                },
+                                "url": {
+                                    "type": "string",
+                                    "format": "uri",
+                                    "example": "https://www.who.int/diabetes-facts"
+                                },
+                                "title": {
+                                    "type": "string",
+                                    "example": "WHO Diabetes Factsheet"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "JobSubmissionResponse": {
+                "type": "object",
+                "properties": {
+                    "message": {
+                        "type": "string",
+                        "description": "Confirmation message.",
+                        "example": "Immunization creation queued."
+                    },
+                    "job_id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "The unique ID used to track the progress of this operation.",
+                        "example": "550e8400-e29b-41d4-a716-446655440000"
+                    }
+                }
+            },
+            "JobStatusResponse": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "The Job ID."
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "pending",
+                            "processing",
+                            "completed",
+                            "failed"
+                        ],
+                        "description": "Current state of the background worker.",
+                        "example": "completed"
+                    },
+                    "result": {
+                        "type": "object",
+                        "description": "The final output. Null if status is not 'completed'.",
+                        "properties": {
+                            "immunization_id": {
+                                "type": "string",
+                                "format": "uuid",
+                                "description": "The UUID of the successfully created vaccine record in the DB."
+                            },
+                            "message": {
+                                "type": "string",
+                                "example": "Vaccine created successfully"
+                            }
+                        }
+                    },
+                    "error": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Error message if the job failed.",
+                        "example": null
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "ISO timestamp when the job was submitted."
+                    },
+                    "completed_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true,
+                        "description": "ISO timestamp when the job finished."
+                    }
+                }
+            },
+            "ErrorResponse": {
+                "type": "object",
+                "properties": {
+                    "error": {
+                        "type": "string",
+                        "description": "A human-readable error description.",
+                        "example": "Missing required fields: case_id"
+                    }
+                }
+            }
+        }
+    },
+    "security": [
+        {
+            "bearerAuth": [],
+            "apiKey": []
+        }
+    ],
+    "paths": {
+        "/submit": {
+            "post": {
+                "summary": "Submit New Immunization Strategy",
+                "description": "Queues a request to add a new vaccination strategy to a specific case. This endpoint is asynchronous; it returns a Job ID immediately.",
+                "operationId": "submitImmunization",
+                "requestBody": {
+                    "description": "Payload containing the case ID and the vaccine details.",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ImmunizationRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "202": {
+                        "description": "Accepted. The job has been queued.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/JobSubmissionResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request. Validation failed.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized. Invalid JWT or missing API key.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                },
+                                "example": {
+                                    "error": "Invalid JWT"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server Error.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/status/{jobId}": {
+            "get": {
+                "summary": "Get Job Status",
+                "description": "Retrieves the current status and result of a previously submitted immunization job.",
+                "operationId": "getJobStatus",
+                "parameters": [
+                    {
+                        "name": "jobId",
+                        "in": "path",
+                        "required": true,
+                        "description": "The UUID of the job returned by the /submit endpoint.",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "example": "550e8400-e29b-41d4-a716-446655440000"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK. Returns the job details.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/JobStatusResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request. Missing Job ID.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Job Not Found. The ID does not exist.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                },
+                                "example": {
+                                    "error": "Job not found"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

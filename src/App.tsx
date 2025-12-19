@@ -13,6 +13,7 @@ import { ExtensionApp } from './components/extension/ExtensionApp';
 import { MapaDesinfodemico } from './components/MapaDesinfodemico';
 import { DocumentacionIndicadores } from './components/DocumentacionIndicadores';
 import { ImmunizationStudio } from './components/ImmunizationStudio';
+import AdminDashboard from './components/AdminDashboard'; // Import default export
 import { useAuth } from './providers/AuthProvider'; // Import the hook
 
 export default function App() {
@@ -103,6 +104,8 @@ export default function App() {
         return <UserProfile />;
       case 'extension':
         return <ExtensionApp />;
+      case 'admin':
+        return <AdminDashboard />;
       default:
         return <ContentUpload />;
     }
@@ -110,15 +113,15 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Navigation 
-        activeTab={activeTab} 
+      <Navigation
+        activeTab={activeTab}
         onTabChange={setActiveTab}
         onLogout={handleLogout}
       />
       <main className="max-w-[1600px] mx-auto px-4 py-6 relative min-h-[calc(100vh-80px)] bg-gradient-to-br from-background via-background to-muted/20">
         {/* Div separador superior */}
         <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary to-transparent"></div>
-        
+
         {!profileComplete && (
           <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 rounded-md mb-6" role="alert">
             <p className="font-bold">¡Casi listo!</p>

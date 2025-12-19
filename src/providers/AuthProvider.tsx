@@ -9,18 +9,19 @@ import { jobManager } from '../lib/JobManager';
  * Defines the shape of the authentication context provided to the app.
  */
 interface AuthContextType {
-  isAuthenticated: boolean;
-  isLoading: boolean;
-  user: User | null;
-  profileComplete: boolean;
-  profileChecked: boolean;
-  isPasswordRecovery: boolean;
-  clearPasswordRecovery: () => void;
-  checkUserProfile: () => Promise<void>;
-  signOut: () => Promise<void>;
-  // We expose the raw Supabase client for other hooks/components that might need it.
-  supabase: typeof supabase;
-  session: Session | null;
+    isAuthenticated: boolean;
+    isLoading: boolean;
+    user: User | null;
+    profile: any | null;
+    profileComplete: boolean;
+    profileChecked: boolean;
+    isPasswordRecovery: boolean;
+    clearPasswordRecovery: () => void;
+    checkUserProfile: () => Promise<void>;
+    signOut: () => Promise<void>;
+    // We expose the raw Supabase client for other hooks/components that might need it.
+    supabase: typeof supabase;
+    session: Session | null;
 }
 
 // Create the context with an undefined default value.
@@ -28,13 +29,13 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // Helper function to delete all cookies
 const deleteAllCookies = () => {
-  const cookies = document.cookie.split("; ");
-  for (let i = 0; i < cookies.length; i++) {
-    const cookie = cookies[i];
-    const eqPos = cookie.indexOf("=");
-    const name = eqPos > -1 ? cookie.substr(0, eqPos) : cookie;
-    document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
-  }
+    const cookies = document.cookie.split("; ");
+    for (let i = 0; i < cookies.length; i++) {
+        const cookie = cookies[i];
+        const eqPos = cookie.indexOf("=");
+        const name = eqPos > -1 ? cookie.substr(0, eqPos) : cookie;
+        document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
+    }
 };
 
 /**
@@ -43,6 +44,7 @@ const deleteAllCookies = () => {
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const [user, setUser] = useState<User | null>(null);
     const [session, setSession] = useState<Session | null>(null);
+    const [profile, setProfile] = useState<any | null>(null); // Use existing Profile type if available
     const [isLoading, setIsLoading] = useState(true);
     const [profileComplete, setProfileComplete] = useState(false);
     const [profileChecked, setProfileChecked] = useState(false);
@@ -65,22 +67,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (!session) {
             setProfileComplete(false);
             setProfileChecked(true);
+            setProfile(null);
             return;
         }
         try {
-            const profile = await api.profile.get(session);
-            if (profile && profile.data.full_name) {
+            const response = await api.profile.get(session);
+            if (response && response.data && response.data.full_name) {
                 setProfileComplete(true);
+                setProfile(response.data);
             } else {
                 setProfileComplete(false);
+                setProfile(response?.data || null);
             }
         } catch (error: any) {
             if (error.message.includes('404') || error.message.includes('Profile not found')) {
                 console.log('ℹ️ Profile not found - user needs to complete onboarding');
                 setProfileComplete(false);
+                setProfile(null);
             } else {
                 console.error("An unexpected error occurred fetching profile:", error);
                 setProfileComplete(false);
+                setProfile(null);
             }
         }
         setProfileChecked(true);
@@ -115,6 +122,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             if (event === 'PASSWORD_RECOVERY') {
                 setIsPasswordRecovery(true);
             }
+            // Refresh profile on sign in
+            if (event === 'SIGNED_IN' && session?.user) {
+                checkUserProfile();
+            }
         });
 
         return () => {
@@ -125,6 +136,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const value = {
         user,
         session,
+        profile,
         isAuthenticated: !!user,
         isLoading,
         profileComplete,
@@ -143,9 +155,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
  * Custom hook to easily access the authentication context.
  */
 export const useAuth = (): AuthContextType => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
+    const context = useContext(AuthContext);
+    if (context === undefined) {
+        throw new Error('useAuth must be used within an AuthProvider');
+    }
+    return context;
 };
