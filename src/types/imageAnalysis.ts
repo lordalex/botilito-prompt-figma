@@ -68,4 +68,13 @@ export interface AnalysisResult {
     details: AnalysisDetail[]; // Changed from TestResult[] nested inside
     markers?: Marker[];
     recommendations?: string[];
+    chain_of_custody?: ChainOfCustodyEvent[];
+}
+
+export interface ChainOfCustodyEvent {
+    timestamp: string;
+    action: string;
+    actor: string;
+    details: string;
+    hash?: string;
 }

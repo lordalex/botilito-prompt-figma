@@ -51,6 +51,9 @@ export function ImageAnalysisResultView({ data, onReset }: ImageAnalysisResultVi
                             <TabsTrigger value="visualizations" className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:shadow-none rounded-none px-2 py-3">
                                 Visualizaciones
                             </TabsTrigger>
+                            <TabsTrigger value="custody" className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:shadow-none rounded-none px-2 py-3">
+                                Cadena de Custodia
+                            </TabsTrigger>
                         </TabsList>
 
                         <TabsContent value="tests" className="mt-6">
@@ -83,6 +86,43 @@ export function ImageAnalysisResultView({ data, onReset }: ImageAnalysisResultVi
 
                         <TabsContent value="visualizations" className="mt-6">
                             <VisualizationsTab data={data} />
+                        </TabsContent>
+
+                        <TabsContent value="custody" className="mt-6">
+                            <div className="space-y-4">
+                                <h3 className="text-lg font-semibold">Cadena de Custodia Digital</h3>
+                                <div className="border rounded-lg bg-white p-6 shadow-sm">
+                                    <div className="space-y-6">
+                                        {data.chain_of_custody?.map((event, idx) => (
+                                            <div key={idx} className="flex gap-4 relative">
+                                                {/* Timeline Line */}
+                                                {idx !== (data.chain_of_custody?.length || 0) - 1 && (
+                                                    <div className="absolute left-[19px] top-8 bottom-[-24px] w-0.5 bg-gray-200" />
+                                                )}
+
+                                                <div className="mt-1 h-10 w-10 flex-none rounded-full bg-yellow-100 flex items-center justify-center border-2 border-yellow-400 z-10">
+                                                    <div className="h-2.5 w-2.5 rounded-full bg-yellow-500" />
+                                                </div>
+                                                <div className="flex-1">
+                                                    <div className="flex justify-between items-start">
+                                                        <h4 className="font-semibold text-gray-900">{event.action}</h4>
+                                                        <span className="text-xs text-muted-foreground">{new Date(event.timestamp).toLocaleString()}</span>
+                                                    </div>
+                                                    <p className="text-sm text-gray-600 mt-1">{event.details}</p>
+                                                    {event.hash && (
+                                                        <div className="mt-2 text-xs font-mono text-muted-foreground bg-gray-50 p-2 rounded">
+                                                            Hash: {event.hash}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))}
+                                        {(!data.chain_of_custody || data.chain_of_custody.length === 0) && (
+                                            <p className="text-muted-foreground italic">No hay información de custodia disponible.</p>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
                         </TabsContent>
                     </Tabs>
                 </div>
