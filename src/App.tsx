@@ -16,10 +16,12 @@ import { ImmunizationStudio } from './components/ImmunizationStudio';
 import AdminDashboard from './components/AdminDashboard'; // Import default export
 import { useAuth } from './providers/AuthProvider'; // Import the hook
 
+
 export default function App() {
   const { isAuthenticated, isLoading, signOut, profileComplete, profileChecked, checkUserProfile, isPasswordRecovery, clearPasswordRecovery } = useAuth();
   const [showRegister, setShowRegister] = useState(false);
   const [activeTab, setActiveTab] = useState('upload');
+  const [currentJobId, setCurrentJobId] = useState<string | undefined>();
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -87,11 +89,18 @@ export default function App() {
   const renderContent = () => {
     switch (activeTab) {
       case 'upload':
-        return <ContentUpload />;
+        return <ContentUpload jobId={currentJobId} onReset={() => setCurrentJobId(undefined)} />;
       case 'review':
         return <ContentReview />;
       case 'analysis':
-        return <ContentAnalysisView contentToAnalyze="https://www.semana.com/nacion/articulo/atencion-campeon-mundial-de-patinaje-luz-mery-tristan-fue-asesinada-en-cali/202320/" />;
+        return <ContentAnalysisView
+          contentToAnalyze="https://www.semana.com/nacion/articulo/atencion-campeon-mundial-de-patinaje-luz-mery-tristan-fue-asesinada-en-cali/202320/"
+          onAnalyzeAnother={() => {
+            setCurrentJobId(undefined);
+            setActiveTab('upload'); // Or stay in analysis but clear
+          }}
+          jobId={currentJobId}
+        />;
       case 'verification':
         return <HumanVerification />;
       case 'immunization':
@@ -111,12 +120,26 @@ export default function App() {
     }
   };
 
+  const handleViewTask = (jobId: string, type: string) => {
+    setCurrentJobId(jobId);
+    if (type === 'text_analysis') {
+      setActiveTab('analysis');
+    } else if (type === 'image_analysis') {
+      // Assuming ContentUpload or ImageResult handles jobId lookup (TODO)
+      setActiveTab('upload');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Navigation
         activeTab={activeTab}
-        onTabChange={setActiveTab}
+        onTabChange={(tab) => {
+          setActiveTab(tab);
+          setCurrentJobId(undefined); // Clear job context when manually switching
+        }}
         onLogout={handleLogout}
+        onViewTask={handleViewTask}
       />
       <main className="max-w-[1600px] mx-auto px-4 py-6 relative min-h-[calc(100vh-80px)] bg-gradient-to-br from-background via-background to-muted/20">
         {/* Div separador superior */}

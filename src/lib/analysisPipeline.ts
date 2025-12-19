@@ -53,8 +53,8 @@ async function submitSnapshot(url: string): Promise<string> {
   const data: SnapshotJobResponse = await response.json();
   const jobId = data.job_id || data.job?.id;
   if (!jobId) {
-      console.error("Failed to extract job ID from snapshot response", data);
-      throw new Error("Could not find job ID in snapshot submission response.");
+    console.error("Failed to extract job ID from snapshot response", data);
+    throw new Error("Could not find job ID in snapshot submission response.");
   }
   return jobId;
 }
@@ -105,17 +105,18 @@ interface AnalysisJobResponse {
 }
 
 export interface AnalysisResult {
-    id: string;
-    user_id: string;
-    status: string;
-    current_step?: string;
-    result?: any; 
-    error?: {
-        message: string;
-    };
+  id: string;
+  job_id?: string; // Add optional job_id for consistency
+  user_id: string;
+  status: string;
+  current_step?: string;
+  result?: any;
+  error?: {
+    message: string;
+  };
 }
 
-async function submitAnalysis(text: string, url?: string): Promise<string | AnalysisResult> {
+export async function submitAnalysisJob(text: string, url?: string): Promise<string | AnalysisResult> {
   const token = await getSupabaseToken();
   const response = await fetch(`${ANALYSIS_FUNCTION_URL}/submit`, {
     method: 'POST',
@@ -134,53 +135,55 @@ async function submitAnalysis(text: string, url?: string): Promise<string | Anal
   const data: AnalysisJobResponse = await response.json();
 
   if (data.cached && data.data) {
-    // It's a cached response, return the final result directly
     return {
-        id: data.data.id, // This is the result ID, but we are skipping polling
-        status: 'completed',
-        result: data.data,
-        user_id: data.data.user_id,
+      id: data.data.id,
+      user_id: data.data.user_id,
+      status: 'completed',
+      result: data.data,
     };
   }
 
   const jobId = data.job_id;
   if (!jobId) {
-      console.error("Failed to extract job ID from analysis response", data);
-      throw new Error("Could not find job ID in analysis submission response.");
+    throw new Error("Could not find job ID in analysis submission response.");
   }
   return jobId;
 }
 
+export async function checkAnalysisStatusOnce(jobId: string): Promise<AnalysisResult> {
+  const token = await getSupabaseToken();
+  const response = await fetch(`${ANALYSIS_FUNCTION_URL}/status/${jobId}`, {
+    headers: { 'Authorization': `Bearer ${token}` },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Analysis status check failed: ${response.status}`);
+  }
+
+  return await response.json();
+}
+
+// Legacy polling for backward compatibility if needed, using checkAnalysisStatusOnce
 async function pollAnalysis(jobId: string, onProgress: (status: string) => void): Promise<AnalysisResult> {
-    const maxRetries = 60; // 60 * 3s = 180s
-    const pollInterval = 3000; // 3 seconds
-    const token = await getSupabaseToken();
+  const maxRetries = 60;
+  const pollInterval = 3000;
 
-    for (let i = 0; i < maxRetries; i++) {
-        const response = await fetch(`${ANALYSIS_FUNCTION_URL}/status/${jobId}`, {
-            headers: { 'Authorization': `Bearer ${token}` },
-        });
+  for (let i = 0; i < maxRetries; i++) {
+    const result = await checkAnalysisStatusOnce(jobId);
+    onProgress(result.current_step || result.status);
 
-        if (!response.ok) {
-            await new Promise(resolve => setTimeout(resolve, pollInterval));
-            continue;
-        }
-
-        const result: AnalysisResult = await response.json();
-        onProgress(result.current_step || result.status);
-
-        if (result.status === 'completed' && result.result) {
-            return result;
-        }
-
-        if (result.status === 'failed') {
-            throw new Error(result.error?.message || 'Analysis job failed');
-        }
-
-        await new Promise(resolve => setTimeout(resolve, pollInterval));
+    if (result.status === 'completed' && result.result) {
+      return result;
     }
 
-    throw new Error('Analysis job timed out.');
+    if (result.status === 'failed') {
+      throw new Error(result.error?.message || 'Analysis job failed');
+    }
+
+    await new Promise(resolve => setTimeout(resolve, pollInterval));
+  }
+
+  throw new Error('Analysis job timed out.');
 }
 
 
@@ -197,7 +200,8 @@ function isUrl(text: string): boolean {
 
 export async function analysisPipeline(
   textOrUrl: string,
-  onProgress: (progress: { step: string; status: string }) => void
+  onProgress: (progress: { step: string; status: string }) => void,
+  onJobCreated?: (jobId: string) => void
 ): Promise<{ result: any, user_id: string }> {
   let cleanedText = textOrUrl;
   let submissionUrl: string | undefined = undefined;
@@ -212,18 +216,21 @@ export async function analysisPipeline(
   }
 
   onProgress({ step: 'analysis', status: 'Starting analysis...' });
-  const submissionResponse = await submitAnalysis(cleanedText, submissionUrl);
+  const submissionResponse = await submitAnalysisJob(cleanedText, submissionUrl);
 
   let analysisResult: AnalysisResult;
   if (typeof submissionResponse === 'string') {
-      // We got a job ID, so we need to poll
-      analysisResult = await pollAnalysis(submissionResponse, (status) => {
-        onProgress({ step: 'analysis', status });
-      });
+    // We got a job ID
+    if (onJobCreated) onJobCreated(submissionResponse);
+
+    // We got a job ID, so we need to poll
+    analysisResult = await pollAnalysis(submissionResponse, (status) => {
+      onProgress({ step: 'analysis', status });
+    });
   } else {
-      // We got the final result directly from a cached response
-      analysisResult = submissionResponse;
-      onProgress({ step: 'analysis', status: 'completed' });
+    // Cached result
+    analysisResult = submissionResponse;
+    onProgress({ step: 'analysis', status: 'completed' });
   }
 
   return { result: analysisResult.result, user_id: analysisResult.user_id };

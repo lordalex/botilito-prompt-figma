@@ -3,7 +3,7 @@ import { Badge } from './ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { Bot, Upload, Users, FileSearch, LogOut, User, Settings, Trophy, Activity, Puzzle, Map, BookOpen, Syringe, LayoutDashboard } from 'lucide-react';
-import { GlobalNotifications } from './GlobalNotifications';
+import { NotificationCenter } from './notifications/NotificationCenter';
 import botilitoLogo from 'figma:asset/8604399dafdf4284ef499af970e8af43ff13e21b.png';
 import { useState } from 'react';
 import { api } from '../services/api';
@@ -16,9 +16,10 @@ interface NavigationProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
   onLogout?: () => void;
+  onViewTask: (jobId: string, type: string) => void;
 }
 
-export function Navigation({ activeTab, onTabChange, onLogout }: NavigationProps) {
+export function Navigation({ activeTab, onTabChange, onLogout, onViewTask }: NavigationProps) {
   const { user, profile, session } = useAuth(); // Get user, profile, and session from AuthProvider
   const [isAdmin, setIsAdmin] = useState<boolean>(() => {
     // Check cached admin status on mount
@@ -132,7 +133,7 @@ export function Navigation({ activeTab, onTabChange, onLogout }: NavigationProps
             {onLogout && (
               <div className="ml-4 pl-4 border-l border-border flex items-center space-x-2">
                 {/* Botón de Notificaciones Globales */}
-                <GlobalNotifications />
+                <NotificationCenter onViewTask={onViewTask} />
 
                 {/* Avatar y Menú de Usuario */}
                 <DropdownMenu onOpenChange={(open) => { if (open) checkAdminAccess(); }}>

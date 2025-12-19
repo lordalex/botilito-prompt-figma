@@ -23,8 +23,9 @@ interface ContentUploadResultProps {
 import { ImageAnalysisResultView } from './image-analysis/ImageAnalysisResultView';
 
 export function ContentUploadResult({ result, onReset }: ContentUploadResultProps) {
-  // If result has 'file_info', assume it's an Image Analysis Result
-  if (result && result.file_info && result.summary?.global_verdict) {
+  // If result has 'file_info' or 'details' with algorithms, assume it's an Image Analysis Result
+  const isImageAnalysis = result && (result.file_info || (result.details && Array.isArray(result.details))) && result.summary?.global_verdict;
+  if (isImageAnalysis) {
     return <ImageAnalysisResultView data={result} onReset={onReset} />;
   }
   const { session } = useAuth();

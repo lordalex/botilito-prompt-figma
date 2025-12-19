@@ -1,6 +1,6 @@
 import { supabase } from '@/utils/supabase/client';
 import { IMAGE_ANALYSIS_BASE_URL } from '@/lib/apiEndpoints';
-import { AnalysisResult, TestResult, Marker, GlobalVerdict } from '@/types/imageAnalysis';
+import { AnalysisResult, AlgorithmResult, Marker, GlobalVerdict } from '@/types/imageAnalysis';
 
 // Helper: Convertir File a Base64
 export const convertFileToBase64 = (file: File): Promise<string> => {
@@ -13,7 +13,6 @@ export const convertFileToBase64 = (file: File): Promise<string> => {
 };
 
 // --- Raw Types from API ---
-// --- Raw Types from API matching new 2.3.0 Spec ---
 interface RawFileMetadata {
   filename?: string;
   size_bytes?: number;
@@ -60,13 +59,7 @@ interface RawAnalysisResultWrapper {
   summary?: RawSummary;
 }
 
-interface AsyncStartResponse {
-  job_id: string;
-  status: string;
-  message: string;
-}
-
-interface JobStatusResponse {
+export interface JobStatusResponse {
   id?: string;
   job_id?: string;
   status: 'queued' | 'processing' | 'completed' | 'failed';
@@ -103,7 +96,7 @@ function mapToAnalysisResult(raw: RawAnalysisResultWrapper | RawAnalysisResultIt
   let innerItem: RawAnalysisResultItem | undefined;
 
   if ('details' in raw && Array.isArray(raw.details) && raw.details.length > 0) {
-    innerItem = raw.details[0]; // Take first frame/image result
+    innerItem = raw.details[0] as RawAnalysisResultItem; // Take first frame/image result
   } else if ('algorithms' in raw) {
     innerItem = raw as RawAnalysisResultItem;
   }
@@ -112,8 +105,7 @@ function mapToAnalysisResult(raw: RawAnalysisResultWrapper | RawAnalysisResultIt
   const algorithms = innerItem?.algorithms || (raw as any).details?.[0]?.algorithms || [];
 
   // Map Tests
-  const testResults: TestResult[] = algorithms.map(algo => ({
-    id: algo.name,
+  const testResults: AlgorithmResult[] = algorithms.map(algo => ({
     name: formatAlgorithmName(algo.name),
     description: getAlgorithmDescription(algo.name),
     verdict: algo.score > 0.6 ? 'TAMPERED' : 'AUTHENTIC',
@@ -184,7 +176,7 @@ function mapToAnalysisResult(raw: RawAnalysisResultWrapper | RawAnalysisResultIt
       markers_found: markers.length,
       processing_time_ms: 0
     },
-    details: testResults,
+    details: [{ summary: summarySource, algorithms: testResults }], // Correctly mapped to AnalysisDetail[]
     markers: markers,
     recommendations: [
       "Verify source credibility",
@@ -229,47 +221,108 @@ async function pollJobStatus(jobId: string, token: string, file: File): Promise<
   throw new Error('Analysis timed out');
 }
 
+export async function fetchAnalysisResult(jobId: string, token: string): Promise<AnalysisResult> {
+  const response = await fetch(`${IMAGE_ANALYSIS_BASE_URL}/status/${jobId}`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+  if (!response.ok) throw new Error(`Fetch failed: ${response.status}`);
+
+  const data: JobStatusResponse = await response.json();
+  if (data.status !== 'completed' || !data.result) {
+    throw new Error('Job not completed or result missing');
+  }
+
+  // We need a dummy file object since mapping requires it for fallback names/sizes
+  // We try to reconstruct from metadata if possible
+  const dummyFile = new File([], "analyzed_image");
+
+  if (!Array.isArray(data.result)) {
+    return mapToAnalysisResult(data.result as RawAnalysisResultWrapper, dummyFile);
+  }
+  return mapToAnalysisResult(data.result[0], dummyFile);
+}
+
+export async function checkJobStatusOnce(jobId: string, token: string): Promise<JobStatusResponse> {
+  const response = await fetch(`${IMAGE_ANALYSIS_BASE_URL}/status/${jobId}`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+
+  if (!response.ok) {
+    throw new Error(`Status check failed: ${response.status}`);
+  }
+
+  return await response.json();
+}
+
+/**
+ * Returns job ID if async, or result if cached.
+ */
+export async function submitImageJob(file: File): Promise<{ jobId?: string; result?: AnalysisResult }> {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw new Error('No active session');
+
+  const base64 = await convertFileToBase64(file);
+
+  const response = await fetch(`${IMAGE_ANALYSIS_BASE_URL}/submit`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${session.access_token}`,
+    },
+    body: JSON.stringify({ image_base64: base64 }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || errorData.message || errorData.error || `Submission failed: ${response.status}`);
+  }
+
+  const data = await response.json();
+
+  // If queued/processing, return ID
+  if (data.status === 'queued' || data.status === 'processing' || response.status === 202) {
+    return { jobId: data.job_id || data.id };
+  }
+
+  // If result is immediate (cached or fast)
+  if (data.result) {
+    let result: AnalysisResult;
+    if (!Array.isArray(data.result)) {
+      result = mapToAnalysisResult(data.result as RawAnalysisResultWrapper, file);
+    } else {
+      result = mapToAnalysisResult(data.result[0], file);
+    }
+    return { result, jobId: data.job_id || data.id }; // Still return ID if present
+  }
+
+  throw new Error('Unexpected server response: ' + JSON.stringify(data));
+}
+
+
 export const imageAnalysisService = {
+  // Legacy wrapping for backward compat, but internally waits
   submitImage: async (file: File): Promise<AnalysisResult> => {
+    const { jobId, result } = await submitImageJob(file);
+
+    if (result) return result;
+    if (jobId) {
+      const { data: { session } } = await supabase.auth.getSession();
+      return await pollJobStatus(jobId, session?.access_token || '', file);
+    }
+    throw new Error("No Job ID or Result returned from submission");
+  },
+
+  submitJob: submitImageJob, // Expose specifically
+
+  getJobStatus: async (jobId: string): Promise<JobStatusResponse> => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) throw new Error('No active session');
+    return checkJobStatusOnce(jobId, session.access_token);
+  },
 
-    const base64 = await convertFileToBase64(file);
-
-    // 1. Submit
-    const response = await fetch(`${IMAGE_ANALYSIS_BASE_URL}/submit`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({ image_base64: base64 }),
-    });
-
-    if (!response.ok) {
-      // Check for specific error message structure
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.detail || errorData.message || errorData.error || `Submission failed: ${response.status}`);
-    }
-
-    const data = await response.json();
-
-    // Check for "queued" status (200 OK according to new spec, or check status field)
-    if (data.status === 'queued' || response.status === 202) {
-      const jobId = data.job_id;
-      if (!jobId) throw new Error('No job_id returned from submission');
-      return await pollJobStatus(jobId, session.access_token, file);
-    }
-
-    // Fallback/Legacy Direct Result
-    if (data.result) {
-      if (!Array.isArray(data.result)) {
-        return mapToAnalysisResult(data.result as RawAnalysisResultWrapper, file);
-      }
-      const resultItem = data.result[0];
-      return mapToAnalysisResult(resultItem, file);
-    }
-
-    throw new Error('Unexpected server response: ' + JSON.stringify(data));
+  getAnalysisResult: async (jobId: string): Promise<AnalysisResult> => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('No active session');
+    return fetchAnalysisResult(jobId, session.access_token);
   }
 };

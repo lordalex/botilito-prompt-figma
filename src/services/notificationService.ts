@@ -1,0 +1,46 @@
+import { supabase } from '@/utils/supabase/client';
+
+const NOTIFICATION_API_URL = 'https://mdkswlgcqsmgfmcuorxq.supabase.co/functions/v1/notifications';
+
+import { InboxResponse } from '@/types/notification';
+
+export const notificationService = {
+    getInbox: async (limit = 20, unreadOnly = false): Promise<InboxResponse> => {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) throw new Error('No active session');
+
+        const params = new URLSearchParams({
+            limit: limit.toString(),
+            unread: unreadOnly ? 'true' : 'false'
+        });
+
+        const response = await fetch(`${NOTIFICATION_API_URL}/inbox?${params}`, {
+            headers: {
+                'Authorization': `Bearer ${session.access_token}`
+            }
+        });
+
+        if (!response.ok) throw new Error('Failed to fetch inbox');
+        return await response.json();
+    },
+
+    markAsRead: async (notificationId?: string, markAll = false) => {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) throw new Error('No active session');
+
+        const response = await fetch(`${NOTIFICATION_API_URL}/read`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${session.access_token}`
+            },
+            body: JSON.stringify({
+                notification_id: notificationId,
+                mark_all: markAll
+            })
+        });
+
+        if (!response.ok) throw new Error('Failed to mark as read');
+        return await response.json();
+    }
+};

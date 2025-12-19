@@ -7,9 +7,10 @@ import { Bot } from 'lucide-react';
 interface ContentUploadProgressProps {
   step: string;
   status: string;
+  progress: number;
 }
 
-export function ContentUploadProgress({ step, status }: ContentUploadProgressProps) {
+export function ContentUploadProgress({ step, status, progress }: ContentUploadProgressProps) {
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-8">
       <div className="flex justify-center">
@@ -31,7 +32,7 @@ export function ContentUploadProgress({ step, status }: ContentUploadProgressPro
             </p>
           </div>
           <div className="space-y-4">
-            <Progress value={50} className="w-full h-3 animate-pulse" />
+            <Progress value={progress} className="w-full h-3 animate-pulse" />
             <p className="text-sm text-muted-foreground text-center font-medium">
               {step}: {status}
             </p>

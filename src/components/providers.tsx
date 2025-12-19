@@ -5,6 +5,7 @@ import { ConfigProvider } from '../providers/ConfigProvider';
 import { MessageProvider } from '../providers/MessageProvider';
 import { SchemaProvider } from '../providers/SchemaProvider';
 import { VoteTrackerProvider } from '../providers/VoteTrackerProvider';
+import { NotificationProvider } from '../providers/NotificationProvider';
 import { Toaster } from './ui/toaster'; // Asegurar que Toaster se importa aquí
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -13,10 +14,12 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <MessageProvider>
         <SchemaProvider>
           <AuthProvider>
-            <VoteTrackerProvider>
-              {children}
-              <Toaster />
-            </VoteTrackerProvider>
+            <NotificationProvider>
+              <VoteTrackerProvider>
+                {children}
+                <Toaster />
+              </VoteTrackerProvider>
+            </NotificationProvider>
           </AuthProvider>
         </SchemaProvider>
       </MessageProvider>

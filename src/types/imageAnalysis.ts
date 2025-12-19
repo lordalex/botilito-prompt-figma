@@ -11,7 +11,10 @@ export interface AnalysisSummary {
     global_verdict: GlobalVerdict;
     confidence_score: number;
     risk_score: number; // 0-100
-    diagnosis: string; // Renamed from diagnosis_text to match service
+    diagnosis: string;
+    heatmap?: string; // base64
+    tampered_region?: string; // base64 (mask/composite)
+    original_image?: string; // base64 or url if returned
 }
 
 export interface FileInfo {
@@ -29,14 +32,14 @@ export interface AnalysisStats {
     processing_time_ms: number; // Added processing_time_ms
 }
 
-export interface TestResult {
-    id: string;
+export interface AlgorithmResult {
     name: string;
-    description: string;
-    verdict: TestVerdict;
-    confidence: number;
-    executionTimeMs: number; // Renamed from execution_time_seconds to match service usage
-    // Removed "type" if not used or make optional
+    description?: string; // made optional as payload might not have it
+    verdict?: TestVerdict; // made optional
+    confidence?: number; // made optional
+    score?: number; // added score from payload
+    executionTimeMs?: number;
+    heatmap?: string; // base64
 }
 
 export interface Marker {
@@ -52,12 +55,17 @@ export interface Marker {
     evidence: string; // Added to match UI usage
 }
 
+export interface AnalysisDetail {
+    summary: AnalysisSummary;
+    algorithms: AlgorithmResult[];
+}
+
 export interface AnalysisResult {
     meta: AnalysisMeta;
     summary: AnalysisSummary;
-    file_info: FileInfo;
-    stats: AnalysisStats;
-    details: TestResult[];
-    markers: Marker[];
-    recommendations: string[];
+    file_info?: FileInfo; // file_info is sometimes inside details or meta, making optional here
+    stats?: AnalysisStats; // stats might not be in the new payload structure directly
+    details: AnalysisDetail[]; // Changed from TestResult[] nested inside
+    markers?: Marker[];
+    recommendations?: string[];
 }

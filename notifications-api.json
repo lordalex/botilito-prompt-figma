@@ -1,0 +1,396 @@
+{
+    "openapi": "3.0.3",
+    "info": {
+        "title": "API de Sistema de Notificaciones (Supabase Edge Functions)",
+        "description": "Esta API gestiona el ciclo de vida completo de las notificaciones del sistema.\n\n### Arquitectura Híbrida\n1. **Envío Asíncrono (`POST /send`)**: Utiliza un patrón de *Fire-and-Forget*. Las solicitudes de envío se ponen en cola en la tabla `analysis_jobs` para evitar tiempos de espera HTTP (Timeouts) durante envíos masivos (Broadcasts).\n2. **Lectura Síncrona (`GET /inbox`, `PATCH /read`)**: Acceso directo a la tabla `notifications` para una experiencia de usuario (UI) fluida y en tiempo real.\n\n### Seguridad\nRequiere autenticación mediante **JWT de Supabase** (Bearer Token).",
+        "version": "1.0.0",
+        "contact": {
+            "name": "Equipo de Backend",
+            "email": "soporte@midominio.com"
+        }
+    },
+    "servers": [
+        {
+            "url": "https://mdkswlgcqsmgfmcuorxq.supabase.co/functions/v1/notifications",
+            "description": "Servidor de Producción (Supabase Edge Function)"
+        }
+    ],
+    "security": [
+        {
+            "bearerAuth": []
+        }
+    ],
+    "paths": {
+        "/send": {
+            "post": {
+                "summary": "Despachar Notificaciones (Cola Asíncrona)",
+                "description": "Encola una tarea de envío de notificaciones. Este endpoint **no envía la notificación inmediatamente**; en su lugar, crea un registro en la cola de trabajos (`analysis_jobs`) y devuelve un ID de trabajo. Un proceso en segundo plano se encarga de la entrega masiva o individual.",
+                "operationId": "sendNotification",
+                "requestBody": {
+                    "description": "Carga útil que define a quién enviar (target) y qué enviar (content).",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/DispatchPayload"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "202": {
+                        "description": "Aceptado. La tarea ha sido puesta en cola correctamente.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/JobQueuedResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Solicitud Incorrecta. Faltan campos obligatorios (`target` o `content.title`).",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No Autorizado. Token JWT faltante o inválido.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/inbox": {
+            "get": {
+                "summary": "Obtener Bandeja de Entrada",
+                "description": "Recupera las notificaciones pertenecientes al usuario autenticado (basado en el JWT). Incluye un conteo de mensajes no leídos en la cabecera.",
+                "operationId": "getInbox",
+                "parameters": [
+                    {
+                        "name": "unread",
+                        "in": "query",
+                        "description": "Si es `true`, filtra y devuelve solo las notificaciones que no han sido leídas (`is_read = false`).",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean",
+                            "default": false
+                        }
+                    },
+                    {
+                        "name": "type",
+                        "in": "query",
+                        "description": "Filtra por categoría de notificación.",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "info",
+                                "success",
+                                "warning",
+                                "error",
+                                "system"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "description": "Número máximo de notificaciones a recuperar (Paginación). Por defecto es 20.",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 20
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Lista de notificaciones recuperada con éxito.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/InboxResponse"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No Autorizado.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/read": {
+            "patch": {
+                "summary": "Marcar como Leído",
+                "description": "Actualiza el estado `is_read` a `true` para una notificación específica o para todas las notificaciones del usuario.",
+                "operationId": "markAsRead",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "notification_id": {
+                                        "type": "string",
+                                        "format": "uuid",
+                                        "description": "ID único de la notificación a marcar. Requerido si `mark_all` no está presente."
+                                    },
+                                    "mark_all": {
+                                        "type": "boolean",
+                                        "description": "Si es `true`, marca TODAS las notificaciones del usuario como leídas. Ignora `notification_id`."
+                                    }
+                                },
+                                "example": {
+                                    "notification_id": "550e8400-e29b-41d4-a716-446655440000"
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Estado actualizado correctamente.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Notification marked as read"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Faltan parámetros (notification_id o mark_all).",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "securitySchemes": {
+            "bearerAuth": {
+                "type": "http",
+                "scheme": "bearer",
+                "bearerFormat": "JWT",
+                "description": "Token de acceso de Supabase (Auth Users)"
+            }
+        },
+        "schemas": {
+            "DispatchPayload": {
+                "type": "object",
+                "required": [
+                    "target",
+                    "content"
+                ],
+                "properties": {
+                    "target": {
+                        "type": "object",
+                        "description": "Define los destinatarios de la notificación.",
+                        "required": [
+                            "type",
+                            "value"
+                        ],
+                        "properties": {
+                            "type": {
+                                "type": "string",
+                                "description": "Estrategia de envío:\n* `single`: Un solo usuario (UUID).\n* `multiple`: Lista de usuarios (Array de UUIDs).\n* `broadcast_role`: Todos los usuarios que tengan un rol específico en `perfiles_usuario`.",
+                                "enum": [
+                                    "single",
+                                    "multiple",
+                                    "broadcast_role"
+                                ]
+                            },
+                            "value": {
+                                "description": "El valor correspondiente al tipo. Un UUID, un array de UUIDs, o un string de rol (ej: 'admin').",
+                                "oneOf": [
+                                    {
+                                        "type": "string",
+                                        "format": "uuid"
+                                    },
+                                    {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string",
+                                            "format": "uuid"
+                                        }
+                                    },
+                                    {
+                                        "type": "string"
+                                    }
+                                ]
+                            }
+                        },
+                        "example": {
+                            "type": "broadcast_role",
+                            "value": "admin"
+                        }
+                    },
+                    "content": {
+                        "type": "object",
+                        "description": "El contenido visual y metadatos de la notificación.",
+                        "required": [
+                            "title"
+                        ],
+                        "properties": {
+                            "title": {
+                                "type": "string",
+                                "example": "Mantenimiento Programado"
+                            },
+                            "message": {
+                                "type": "string",
+                                "example": "El sistema se reiniciará en 5 minutos."
+                            },
+                            "priority": {
+                                "type": "string",
+                                "enum": [
+                                    "low",
+                                    "normal",
+                                    "high",
+                                    "urgent"
+                                ],
+                                "default": "normal"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": [
+                                    "info",
+                                    "success",
+                                    "warning",
+                                    "error",
+                                    "system"
+                                ],
+                                "default": "info"
+                            },
+                            "metadata": {
+                                "type": "object",
+                                "description": "Objeto JSON libre para acciones de UI (e.g., redirecciones).",
+                                "example": {
+                                    "link": "/settings/billing",
+                                    "action_id": "123"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "JobQueuedResponse": {
+                "type": "object",
+                "properties": {
+                    "message": {
+                        "type": "string",
+                        "example": "Notifications queued for delivery"
+                    },
+                    "job_id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "ID del trabajo en la tabla `analysis_jobs` para seguimiento."
+                    }
+                }
+            },
+            "InboxResponse": {
+                "type": "object",
+                "properties": {
+                    "unread_count": {
+                        "type": "integer",
+                        "description": "Número total de notificaciones no leídas para este usuario."
+                    },
+                    "notifications": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/NotificationItem"
+                        }
+                    }
+                }
+            },
+            "NotificationItem": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "user_id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "title": {
+                        "type": "string"
+                    },
+                    "message": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "info",
+                            "success",
+                            "warning",
+                            "error",
+                            "system"
+                        ]
+                    },
+                    "priority": {
+                        "type": "string",
+                        "enum": [
+                            "low",
+                            "normal",
+                            "high",
+                            "urgent"
+                        ]
+                    },
+                    "is_read": {
+                        "type": "boolean"
+                    },
+                    "metadata": {
+                        "type": "object"
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                }
+            },
+            "ErrorResponse": {
+                "type": "object",
+                "properties": {
+                    "error": {
+                        "type": "string",
+                        "example": "Missing required fields (target, content.title)"
+                    }
+                }
+            }
+        }
+    }
+}
