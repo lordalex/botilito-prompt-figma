@@ -110,7 +110,8 @@ function mapToAnalysisResult(raw: RawAnalysisResultWrapper | RawAnalysisResultIt
     description: getAlgorithmDescription(algo.name),
     verdict: algo.score > 0.6 ? 'TAMPERED' : 'AUTHENTIC',
     confidence: algo.score,
-    executionTimeMs: 0
+    executionTimeMs: 0,
+    heatmap: algo.heatmap
   }));
 
   // Synthesize Markers
@@ -161,7 +162,10 @@ function mapToAnalysisResult(raw: RawAnalysisResultWrapper | RawAnalysisResultIt
       global_verdict: rawVerdict as GlobalVerdict,
       confidence_score: score,
       risk_score: Math.round(score * 100),
-      diagnosis: `Analysis completed. Global verdict: ${rawVerdict}`
+      diagnosis: `Analysis completed. Global verdict: ${rawVerdict}`,
+      heatmap: summarySource.heatmap,
+      tampered_region: summarySource.tampered_region,
+      original_image: undefined // Will be populated by hooks if available locally, or we could try to map it if API returns it in future
     },
     file_info: {
       name: metaSource.filename || file.name,

@@ -95,33 +95,29 @@ export function VisualizationsTab({ data }: VisualizationsTabProps) {
                                 )}
                             </div>
                         </CardHeader>
-                        <CardContent className="p-0 relative bg-slate-900 flex items-center justify-center min-h-[400px]">
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                className="absolute left-4 z-10 text-white hover:bg-white/20 rounded-full h-10 w-10"
+                        <CardContent className="p-0 relative bg-black flex items-center justify-center min-h-[400px]">
+                            <button
+                                className="absolute left-4 z-10 text-white bg-black/50 hover:bg-black/70 rounded-full h-10 w-10 flex items-center justify-center transition-colors"
                                 onClick={handlePrev}
                             >
                                 <ChevronLeft className="h-6 w-6" />
-                            </Button>
+                            </button>
 
                             <img
-                                src={currentViz.isBase64 && !currentViz.image.startsWith('http') ? `data:image/jpeg;base64,${currentViz.image}` : currentViz.image}
+                                src={currentViz.isBase64 && !currentViz.image.startsWith('http') && !currentViz.image.startsWith('blob:') ? `data:image/jpeg;base64,${currentViz.image}` : currentViz.image}
                                 alt={currentViz.title}
-                                className="max-h-[600px] w-auto object-contain"
+                                className="max-h-[600px] w-full h-full object-contain"
                             />
 
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                className="absolute right-4 z-10 text-white hover:bg-white/20 rounded-full h-10 w-10"
+                            <button
+                                className="absolute right-4 z-10 text-white bg-black/50 hover:bg-black/70 rounded-full h-10 w-10 flex items-center justify-center transition-colors"
                                 onClick={handleNext}
                             >
                                 <ChevronRight className="h-6 w-6" />
-                            </Button>
+                            </button>
 
                             {currentViz.type !== 'original' && (
-                                <div className="absolute bottom-6 flex items-center gap-2 text-white/80 bg-black/50 px-4 py-2 rounded-full">
+                                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 text-white/80 bg-black/50 px-4 py-2 rounded-full whitespace-nowrap">
                                     <AlertTriangle className="h-4 w-4" />
                                     <span className="text-xs">Zonas rojas/brillantes indican posible manipulación</span>
                                 </div>
@@ -135,7 +131,7 @@ export function VisualizationsTab({ data }: VisualizationsTabProps) {
                             <button
                                 key={idx}
                                 onClick={() => setCurrentIndex(idx)}
-                                className={`w-3 h-3 rounded-full transition-all ${idx === currentIndex ? 'bg-primary scale-125' : 'bg-muted-foreground/30 hover:bg-muted-foreground/50'
+                                className={`w-3 h-3 rounded-full transition-all ${idx === currentIndex ? 'bg-primary scale-125' : 'bg-gray-400 hover:bg-gray-600'
                                     }`}
                                 aria-label={`View ${viz.title}`}
                             />
@@ -149,26 +145,7 @@ export function VisualizationsTab({ data }: VisualizationsTabProps) {
                 </div>
             )}
 
-            {/* EXIF Data Section */}
-            <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Metadatos EXIF Extraídos</h3>
-                <Card>
-                    <CardContent className="p-6">
-                        {file_info?.exif_data && Object.keys(file_info.exif_data).length > 0 ? (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {Object.entries(file_info.exif_data).map(([key, value]) => (
-                                    <div key={key} className="flex flex-col border-b last:border-0 border-gray-100 pb-2 last:pb-0">
-                                        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{key}</span>
-                                        <span className="text-sm font-mono text-slate-700 break-all">{String(value)}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        ) : (
-                            <p className="text-sm text-muted-foreground italic">No se encontraron datos EXIF en la imagen.</p>
-                        )}
-                    </CardContent>
-                </Card>
-            </div>
+
         </div>
     );
 }

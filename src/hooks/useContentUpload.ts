@@ -107,6 +107,25 @@ export function useContentUpload(initialJobId?: string) {
           finalResult = await poll();
         }
 
+        if (finalResult && files[0]) {
+          // Inject the local file as original_image so it displays immediately
+          // We use a Blob URL. Note: detailed memory management (revokeObjectURL) is ideal but for this hook's valid lifecycle it's acceptable to let it persist until page unload or assume low impact for single image.
+          // Better: convert to Base64 (which we already do for submit) or just use createObjectURL
+          try {
+            const objectUrl = URL.createObjectURL(files[0]);
+            // Mutate or clone - let's clone to be safe
+            finalResult = {
+              ...finalResult,
+              summary: {
+                ...finalResult.summary,
+                original_image: objectUrl
+              }
+            };
+          } catch (e) {
+            console.error("Failed to create object URL", e);
+          }
+        }
+
         stopFakeProgress();
         setResult(finalResult);
         setProgress(100);

@@ -45,6 +45,9 @@ export function ImageAnalysisResultView({ data, onReset }: ImageAnalysisResultVi
                             <TabsTrigger value="markers" className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:shadow-none rounded-none px-2 py-3">
                                 Marcadores ({markersCount})
                             </TabsTrigger>
+                            <TabsTrigger value="exif" className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:shadow-none rounded-none px-2 py-3">
+                                Metadatos EXIF
+                            </TabsTrigger>
                             <TabsTrigger value="visualizations" className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:shadow-none rounded-none px-2 py-3">
                                 Visualizaciones
                             </TabsTrigger>
@@ -56,6 +59,26 @@ export function ImageAnalysisResultView({ data, onReset }: ImageAnalysisResultVi
 
                         <TabsContent value="markers" className="mt-6">
                             <MarkersList markers={data.markers || []} />
+                        </TabsContent>
+
+                        <TabsContent value="exif" className="mt-6">
+                            <div className="space-y-4">
+                                <h3 className="text-lg font-semibold">Metadatos EXIF Extraídos</h3>
+                                <div className="border rounded-lg bg-white p-6 shadow-sm">
+                                    {data.file_info?.exif_data && Object.keys(data.file_info.exif_data).length > 0 ? (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            {Object.entries(data.file_info.exif_data).map(([key, value]) => (
+                                                <div key={key} className="flex flex-col border-b last:border-0 border-gray-100 pb-2 last:pb-0">
+                                                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{key}</span>
+                                                    <span className="text-sm font-mono text-slate-700 break-all">{String(value)}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <p className="text-sm text-muted-foreground italic">No se encontraron datos EXIF en la imagen.</p>
+                                    )}
+                                </div>
+                            </div>
                         </TabsContent>
 
                         <TabsContent value="visualizations" className="mt-6">
@@ -70,7 +93,7 @@ export function ImageAnalysisResultView({ data, onReset }: ImageAnalysisResultVi
                     {data.stats && <AnalysisStats stats={data.stats} />}
                     {data.recommendations && <Recommendations recommendations={data.recommendations} />}
                 </div>
-            </div>
-        </div>
+            </div >
+        </div >
     );
 }
