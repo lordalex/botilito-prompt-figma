@@ -25,7 +25,14 @@ export function AudioAnalysisResultView({ data, onReset }: AudioAnalysisResultVi
     }
 
     const { human_report, file_info, local_audio_url } = data;
-    const { verdict, transcription, speaker_analysis, audio_forensics } = human_report;
+    const { verdict, transcription, speaker_analysis, audio_forensics } = human_report || {};
+
+    // Provide defaults for missing verdict
+    const safeVerdict = verdict || {
+        conclusion: 'Análisis completado - datos parciales',
+        risk_level: 'medium',
+        confidence: 0.5
+    };
 
     // Risk level color mapping
     const getRiskColor = (level: string) => {
@@ -95,21 +102,21 @@ export function AudioAnalysisResultView({ data, onReset }: AudioAnalysisResultVi
                     <div className="flex items-center justify-between">
                         <div>
                             <h3 className="text-lg font-semibold">Conclusión</h3>
-                            <p className="text-muted-foreground mt-1">{verdict.conclusion}</p>
+                            <p className="text-muted-foreground mt-1">{safeVerdict.conclusion}</p>
                         </div>
-                        <Badge className={`text-sm px-4 py-2 ${getRiskColor(verdict.risk_level)}`}>
-                            Riesgo: {verdict.risk_level.toUpperCase()}
+                        <Badge className={`text-sm px-4 py-2 ${getRiskColor(safeVerdict.risk_level)}`}>
+                            Riesgo: {safeVerdict.risk_level.toUpperCase()}
                         </Badge>
                     </div>
                     <div className="mt-4">
                         <div className="flex justify-between items-center mb-2">
                             <span className="text-sm font-medium">Confianza</span>
-                            <span className="text-sm font-bold">{(verdict.confidence * 100).toFixed(0)}%</span>
+                            <span className="text-sm font-bold">{(safeVerdict.confidence * 100).toFixed(0)}%</span>
                         </div>
                         <div className="w-full bg-gray-200 rounded-full h-2.5">
                             <div
                                 className="bg-primary h-2.5 rounded-full transition-all"
-                                style={{ width: `${verdict.confidence * 100}%` }}
+                                style={{ width: `${safeVerdict.confidence * 100}%` }}
                             />
                         </div>
                     </div>
