@@ -11,30 +11,16 @@ const POLLING_INTERVAL_MS = 2000;
 const MAX_ATTEMPTS = 90; // 3 minutes max for audio processing
 
 /**
- * Upload audio file to Supabase Storage and return public URL
+ * Convert audio file to Base64
  */
-async function uploadAudioToStorage(file: File): Promise<string> {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) throw new Error('No active session');
-
-    const fileName = `${Date.now()}-${file.name}`;
-    const filePath = `audio-uploads/${session.user.id}/${fileName}`;
-
-    const { data, error } = await supabase.storage
-        .from('analysis-files')
-        .upload(filePath, file, {
-            contentType: file.type,
-            cacheControl: '3600'
-        });
-
-    if (error) throw new Error(`Upload failed: ${error.message}`);
-
-    const { data: { publicUrl } } = supabase.storage
-        .from('analysis-files')
-        .getPublicUrl(filePath);
-
-    return publicUrl;
-}
+export const convertAudioToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = (error) => reject(error);
+    });
+};
 
 /**
  * Enrich audio analysis result with client-side data
@@ -115,8 +101,8 @@ export const audioAnalysisService = {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) throw new Error('No active session');
 
-        // Upload audio file to storage and get public URL
-        const audioUrl = await uploadAudioToStorage(file);
+        // Convert audio to base64 (same pattern as image analysis)
+        const base64 = await convertAudioToBase64(file);
 
         const response = await fetch(`${AUDIO_ANALYSIS_BASE_URL}/submit`, {
             method: 'POST',
@@ -125,7 +111,7 @@ export const audioAnalysisService = {
                 'Authorization': `Bearer ${session.access_token}`,
             },
             body: JSON.stringify({
-                url: audioUrl,
+                audio_base64: base64,
                 type: 'audio'
             }),
         });
