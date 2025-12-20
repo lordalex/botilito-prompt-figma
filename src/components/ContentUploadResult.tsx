@@ -21,13 +21,50 @@ interface ContentUploadResultProps {
 }
 
 import { ImageAnalysisResultView } from './image-analysis/ImageAnalysisResultView';
+import { AudioAnalysisResultView } from './audio-analysis/AudioAnalysisResultView';
 
 export function ContentUploadResult({ result, onReset }: ContentUploadResultProps) {
-  // If result has 'file_info' or 'details' with algorithms, assume it's an Image Analysis Result
-  const isImageAnalysis = result && (result.file_info || (result.details && Array.isArray(result.details))) && result.summary?.global_verdict;
+  // Comprehensive type detection for all payload formats
+  const resultType = result?.type || result?.meta?.type;
+
+  // IMAGE ANALYSIS DETECTION - Support all known formats:
+  // 1. New OpenAPI format: human_report + raw_forensics
+  // 2. Old/cached format: details[] + summary.global_verdict
+  // 3. Hybrid: meta.file_info with dimensions
+  const isImageAnalysis =
+    // Explicit type
+    resultType === 'image_analysis' ||
+    // New format from OpenAPI spec (multi-level hierarchical)
+    (result?.human_report && (result?.raw_forensics || result?.file_info?.dimensions)) ||
+    // Old cached format (details array + summary)
+    (result?.details && Array.isArray(result.details) && result?.summary?.global_verdict) ||
+    // Legacy format variations
+    (result?.summary && result?.summary.global_verdict !== undefined) ||
+    // File info with image dimensions (fallback)
+    (result?.file_info?.dimensions) ||
+    (result?.meta?.file_info?.dimensions);
+
   if (isImageAnalysis) {
     return <ImageAnalysisResultView data={result} onReset={onReset} />;
   }
+
+  // AUDIO ANALYSIS DETECTION - Support all known formats:
+  // 1. New OpenAPI format: human_report with transcription
+  // 2. Has duration_seconds (audio-specific field)
+  const isAudioAnalysis =
+    // Explicit type
+    resultType === 'audio_analysis' ||
+    // New format with human_report
+    (result?.human_report && result?.file_info?.duration_seconds !== undefined) ||
+    // Fallback: has duration field
+    (result?.file_info?.duration_seconds !== undefined) ||
+    (result?.meta?.file_info?.duration_seconds !== undefined);
+
+  if (isAudioAnalysis) {
+    return <AudioAnalysisResultView data={result} onReset={onReset} />;
+  }
+
+  // Fallback to text analysis view
   const { session } = useAuth();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [imageLoaded, setImageLoaded] = useState(false);

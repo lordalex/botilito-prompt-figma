@@ -2,15 +2,17 @@ import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { AlertCircle, CheckCircle, XCircle } from 'lucide-react';
-import { AnalysisSummary as IAnalysisSummary } from '@/types/imageAnalysis';
+import { Level3Verdict } from '@/types/imageAnalysis';
 
 interface Props {
-    summary: IAnalysisSummary;
+    verdict: Level3Verdict;
 }
 
-export function AnalysisSummary({ summary }: Props) {
+export function AnalysisSummary({ verdict }: Props) {
+    if (!verdict) return null;
+
     // Ensure strict number parsing to avoid NaN warnings
-    let riskScore = Number(summary.risk_score);
+    let riskScore = Number(verdict.manipulation_probability);
     if (isNaN(riskScore)) riskScore = 0;
 
     const isSafe = riskScore < 30;
@@ -20,9 +22,6 @@ export function AnalysisSummary({ summary }: Props) {
     const textColor = isSafe ? 'text-green-600' : isMedium ? 'text-yellow-600' : 'text-red-600';
     const bgColor = isSafe ? 'bg-green-50' : isMedium ? 'bg-yellow-50' : 'bg-red-50';
     const progressColor = isSafe ? "bg-green-500" : isMedium ? "bg-yellow-500" : "bg-red-500";
-
-    // Map verdict to display text
-    const displayVerdict = summary.global_verdict === 'TAMPERED' || riskScore > 50 ? 'Sintético (IA)' : 'Auténtico';
 
     return (
         <Card className={`border-2 ${borderColor} ${bgColor} overflow-hidden`}>
@@ -53,8 +52,8 @@ export function AnalysisSummary({ summary }: Props) {
                         />
                     </svg>
                     <div className="absolute inset-0 flex flex-col items-center justify-center pt-1">
-                        <span className={`text-3xl font-bold ${textColor}`}>{riskScore}%</span>
-                        <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-0.5">Confianza</span>
+                        <span className={`text-3xl font-bold ${textColor}`}>{Math.round(riskScore)}%</span>
+                        <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-0.5">Probabilidad</span>
                     </div>
                 </div>
 
@@ -66,24 +65,24 @@ export function AnalysisSummary({ summary }: Props) {
                                 <CheckCircle className="text-green-600 w-5 h-5" /> :
                                 <XCircle className="text-red-600 w-5 h-5" />
                             }
-                            <h3 className="text-sm font-bold uppercase tracking-wider text-gray-900">Diagnóstico</h3>
+                            <h3 className="text-sm font-bold uppercase tracking-wider text-gray-900">Veredicto</h3>
                         </div>
                         <div className={`text-2xl font-bold ${textColor}`}>
-                            {displayVerdict}
+                            {verdict.final_label}
                         </div>
                     </div>
 
                     <p className="text-sm text-gray-700 leading-relaxed">
-                        {summary.diagnosis}
+                        {verdict.user_explanation}
                     </p>
 
                     <div className="pt-2">
                         <div className="flex justify-between text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5">
                             <span className="flex items-center gap-1.5">
                                 <AlertCircle className="w-3.5 h-3.5" />
-                                Puntuación de Riesgo
+                                Severidad de Manipulación
                             </span>
-                            <span className={textColor}>{riskScore}/100</span>
+                            <span className={textColor}>{Math.round(verdict.severity_index * 100)}/100</span>
                         </div>
                         <Progress value={riskScore} className={`h-2.5 rounded-full bg-gray-200 [&>div]:${progressColor}`} />
                     </div>

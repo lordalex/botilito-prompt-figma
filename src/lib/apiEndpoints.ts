@@ -17,6 +17,9 @@ export const PROFILE_API_URL = `${SUPABASE_URL}/functions/v1/profileCRUD`;
 // Image Analysis API
 export const IMAGE_ANALYSIS_BASE_URL = `${SUPABASE_URL}/functions/v1/image-analysis`;
 
+// Audio Analysis API
+export const AUDIO_ANALYSIS_BASE_URL = `${SUPABASE_URL}/functions/v1/audio-analysis`;
+
 // Legacy/Other APIs
 export const WEB_SNAPSHOT_URL = `${SUPABASE_URL}/functions/v1/web-snapshot`;
 export const ANALYSIS_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/analysis_function`;
