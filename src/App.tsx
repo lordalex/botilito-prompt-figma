@@ -148,7 +148,7 @@ export default function App() {
         {!profileComplete && (
           <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 rounded-md mb-6" role="alert">
             <p className="font-bold">¡Casi listo!</p>
-            <p>Por favor, completa tu perfil para continuar.</p>
+            <p>Por favor, completa tu perfil para continuar. <strong>Falta: Nombre Completo</strong></p>
           </div>
         )}
 

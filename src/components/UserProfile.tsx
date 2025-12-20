@@ -229,7 +229,20 @@ export function UserProfile() {
                         {isEditing ? (
                             <form onSubmit={handleSaveProfile} className="space-y-6">
                                 {error && <p className="text-red-500">{error}</p>}
-                                <Input id="full_name" name="full_name" placeholder="Nombre Completo" value={profile.full_name || ''} onChange={handleInputChange} />
+                                <div className="space-y-1">
+                                    <label htmlFor="full_name" className={`text-sm font-medium ${!profile.full_name ? 'text-red-600' : ''}`}>
+                                        Nombre Completo {!profile.full_name && <span className="text-red-600">* (Requerido)</span>}
+                                    </label>
+                                    <Input
+                                        id="full_name"
+                                        name="full_name"
+                                        placeholder="Nombre Completo"
+                                        value={profile.full_name || ''}
+                                        onChange={handleInputChange}
+                                        className={!profile.full_name ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}
+                                        autoFocus={!profile.full_name}
+                                    />
+                                </div>
                                 <Input id="phone_number" name="phone_number" placeholder="Número de Teléfono" value={profile.phone_number || ''} onChange={handleInputChange} />
                                 <Input id="state_province" name="state_province" placeholder="Departamento" value={profile.state_province || ''} onChange={handleInputChange} />
                                 <Input id="city" name="city" placeholder="Ciudad" value={profile.city || ''} onChange={handleInputChange} />
@@ -242,7 +255,14 @@ export function UserProfile() {
                             </form>
                         ) : (
                             <div className="space-y-4 text-sm">
-                                <div className="flex justify-between items-center"><strong>Nombre:</strong> <span>{profile.full_name || 'No especificado'}</span></div>
+                                <div className={`flex justify-between items-center ${!profile.full_name ? 'bg-red-50 p-2 rounded-md border border-red-200' : ''}`}>
+                                    <strong className={!profile.full_name ? 'text-red-600' : ''}>
+                                        Nombre: {!profile.full_name && <span className="text-red-600 text-xs">(Requerido)</span>}
+                                    </strong>
+                                    <span className={!profile.full_name ? 'text-red-600 font-medium' : ''}>
+                                        {profile.full_name || '⚠️ Falta completar'}
+                                    </span>
+                                </div>
                                 <Separator />
                                 <div className="flex justify-between items-center"><strong>Email:</strong> <span>{profile.email}</span></div>
                                 <Separator />
