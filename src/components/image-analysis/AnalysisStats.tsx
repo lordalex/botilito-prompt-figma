@@ -1,12 +1,13 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { AnalysisStats as IAnalysisStats } from '@/types/imageAnalysis';
 
 interface Props {
-    stats: IAnalysisStats;
+    testsExecuted: number;
+    markersFound: number;
+    processingTimeMs?: number;
 }
 
-export function AnalysisStats({ stats }: Props) {
+export function AnalysisStats({ testsExecuted, markersFound, processingTimeMs }: Props) {
     return (
         <Card className="border border-gray-100 shadow-sm">
             <CardHeader className="pb-2 pt-4 px-4">
@@ -16,15 +17,17 @@ export function AnalysisStats({ stats }: Props) {
                 <div className="space-y-3 pt-2">
                     <div className="flex justify-between text-sm">
                         <span className="text-gray-500 font-medium">Pruebas ejecutadas</span>
-                        <span className="font-bold text-gray-900">{stats.tests_executed}</span>
+                        <span className="font-bold text-gray-900">{testsExecuted}</span>
                     </div>
-                    <div className="flex justify-between text-sm">
-                        <span className="text-gray-500 font-medium">Tiempo total</span>
-                        <span className="font-bold text-gray-900">{(stats.processing_time_ms / 1000).toFixed(1)}s</span>
-                    </div>
+                    {processingTimeMs && (
+                        <div className="flex justify-between text-sm">
+                            <span className="text-gray-500 font-medium">Tiempo total</span>
+                            <span className="font-bold text-gray-900">{(processingTimeMs / 1000).toFixed(1)}s</span>
+                        </div>
+                    )}
                     <div className="flex justify-between text-sm">
                         <span className="text-gray-500 font-medium">Marcadores</span>
-                        <span className="font-bold text-red-500">{stats.markers_found}</span>
+                        <span className="font-bold text-red-500">{markersFound}</span>
                     </div>
                 </div>
             </CardContent>

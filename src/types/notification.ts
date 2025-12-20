@@ -15,7 +15,7 @@ export interface Notification {
 
 export interface AsyncTask {
     job_id: string;
-    type: 'image_analysis' | 'text_analysis';
+    type: 'image_analysis' | 'text_analysis' | 'audio_analysis';
     status: 'created' | 'running' | 'completed' | 'failed';
     created_at: string;
     updated_at?: string;

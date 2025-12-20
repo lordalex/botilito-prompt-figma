@@ -112,30 +112,39 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
                         if (status === 'completed') {
                             const notification: Notification = {
                                 id: crypto.randomUUID(),
+                                user_id: '', // Will be handled by service/backend
                                 type: 'success',
                                 title: 'Análisis Completado',
-                                message: `Tu análisis de ${task.type === 'text_analysis' ? 'texto' : 'imagen'} ha finalizado correctamente.`,
+                                message: `Tu análisis de ${task.type === 'text_analysis' ? 'texto' : task.type === 'audio_analysis' ? 'audio' : 'imagen'} ha finalizado correctamente.`,
                                 created_at: new Date().toISOString(),
-                                read: false,
-                                actionable: true,
-                                source: task.type === 'text_analysis' ? 'ai-analysis' : 'upload',
-                                timestamp: 'Ahora'
+                                is_read: false,
+                                priority: 'normal',
+                                metadata: {
+                                    job_id: task.job_id,
+                                    source: task.type === 'text_analysis' ? 'ai-analysis' : task.type === 'audio_analysis' ? 'audio-upload' : 'upload',
+                                    actionable: true
+                                }
                             };
+                            await notificationService.sendNotification(notification).catch(console.error);
                             setNotifications(prev => [notification, ...prev]);
-                            // Also increment unread? usually setUnreadCount logic depends on list
                             setUnreadCount(prev => prev + 1);
                         } else if (status === 'failed') {
                             const notification: Notification = {
                                 id: crypto.randomUUID(),
+                                user_id: '',
                                 type: 'error',
                                 title: 'Error en Análisis',
-                                message: `Hubo un problema procesando tu solcitud de ${task.type === 'text_analysis' ? 'texto' : 'imagen'}.`,
+                                message: `Hubo un problema procesando tu solicitud de ${task.type === 'text_analysis' ? 'texto' : task.type === 'audio_analysis' ? 'audio' : 'imagen'}.`,
                                 created_at: new Date().toISOString(),
-                                read: false,
-                                actionable: true,
-                                source: task.type === 'text_analysis' ? 'ai-analysis' : 'upload',
-                                timestamp: 'Ahora'
+                                is_read: false,
+                                priority: 'high',
+                                metadata: {
+                                    job_id: task.job_id,
+                                    source: task.type === 'text_analysis' ? 'ai-analysis' : task.type === 'audio_analysis' ? 'audio-upload' : 'upload',
+                                    actionable: true
+                                }
                             };
+                            await notificationService.sendNotification(notification).catch(console.error);
                             setNotifications(prev => [notification, ...prev]);
                             setUnreadCount(prev => prev + 1);
                         }

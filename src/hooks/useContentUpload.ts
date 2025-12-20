@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
-// Asegúrate de que esta importación exista o ajústala a tu servicio de texto actual
 import { performAnalysis as performTextAnalysis } from '../services/contentAnalysisService';
 import { imageAnalysisService, convertFileToBase64 } from '../services/imageAnalysisService';
-import { useNotifications } from '@/providers/NotificationProvider'; // Import Hook
+import { audioAnalysisService } from '../services/audioAnalysisService';
+import { useNotifications } from '@/providers/NotificationProvider';
 import { ContentType, TransmissionVector } from '../utils/caseCodeGenerator';
 
 const POLLING_INTERVAL = 3000;
@@ -56,80 +56,107 @@ export function useContentUpload(initialJobId?: string) {
 
     try {
       if (files && files.length > 0) {
-        // --- FLUJO IMAGEN ---
-        setStatus('polling');
-        startFakeProgress();
+        const file = files[0];
+        const fileType = file.type.toLowerCase();
+        const fileName = file.name.toLowerCase();
 
-        // Use non-blocking submission
-        const { jobId, result: fastResult } = await imageAnalysisService.submitJob(files[0]);
+        // Detect if it's an audio file
+        const isAudioFile = fileType.startsWith('audio/') ||
+          fileName.endsWith('.wav') ||
+          fileName.endsWith('.mp3') ||
+          fileName.endsWith('.ogg') ||
+          fileName.endsWith('.m4a') ||
+          fileName.endsWith('.flac');
 
-        if (jobId) {
-          // REGISTER THE TASK IMMEDIATELY
-          registerTask(jobId, 'image_analysis', { filename: files[0].name });
-        }
+        if (isAudioFile) {
+          // --- AUDIO FLOW ---
+          setStatus('polling');
+          startFakeProgress();
 
-        let finalResult = fastResult;
+          const { jobId, result: fastResult } = await audioAnalysisService.submitJob(file);
 
-        // If we don't have a result yet, we must poll (because this hook drives the loading screen)
-        // Even though NotificationProvider tracks it, we want local result too.
-        if (!finalResult && jobId) {
-          // We can reuse the service's poll helper manually or rely on our 'polling' status
-          // Since `submitImage` (legacy) does exactly this, let's just await the result
-          // effectively blocking this view but allowing the Notification Center to show it running.
+          if (jobId) {
+            registerTask(jobId, 'audio_analysis', { filename: file.name });
+          }
 
-          // BUT: The original issue was "starting... doesn't add notification".
-          // By registering above, we fix that.
+          let finalResult = fastResult;
 
-          // We still need to wait for result to show it in THIS view.
-          const { data: { session } } = await import('@/utils/supabase/client').then(m => m.supabase.auth.getSession());
-          // We can't import pollJobStatus since it's not exported, but we can use getJobStatus loop or just call the legacy wrapper?
-          // Actually `imageAnalysisService.submitImage` calls `submitJob` then polls.
-          // We can't call `submitImage` again because it would re-submit.
-
-          // We need to poll manually here or assume `NotificationProvider` updates us?
-          // `useContentUpload` manages local state. 
-          // Ideally we just wait.
-
-          // Let's implement a simple poll loop here or call a helper.
-          // Since I can't easily import `pollJobStatus` (not exported from service object), 
-          // I will implement a loop using `imageAnalysisService.getJobStatus`
-
-          const poll = async () => {
-            while (true) {
-              await new Promise(r => setTimeout(r, 2000));
-              const status = await imageAnalysisService.getJobStatus(jobId);
-              if (status.status === 'completed' && status.result) {
-                return await imageAnalysisService.getAnalysisResult(jobId);
-              }
-              if (status.status === 'failed') throw new Error(status.error || 'Failed');
-            }
-          };
-          finalResult = await poll();
-        }
-
-        if (finalResult && files[0]) {
-          // Inject the local file as original_image so it displays immediately
-          // We use a Blob URL. Note: detailed memory management (revokeObjectURL) is ideal but for this hook's valid lifecycle it's acceptable to let it persist until page unload or assume low impact for single image.
-          // Better: convert to Base64 (which we already do for submit) or just use createObjectURL
-          try {
-            const objectUrl = URL.createObjectURL(files[0]);
-            // Mutate or clone - let's clone to be safe
-            finalResult = {
-              ...finalResult,
-              summary: {
-                ...finalResult.summary,
-                original_image: objectUrl
+          // Poll for result if not immediately available
+          if (!finalResult && jobId) {
+            const poll = async () => {
+              while (true) {
+                await new Promise(r => setTimeout(r, 2000));
+                const status = await audioAnalysisService.getJobStatus(jobId);
+                if (status.status === 'completed' && status.result) {
+                  return await audioAnalysisService.getAudioAnalysisResult(jobId);
+                }
+                if (status.status === 'failed') throw new Error(status.error?.message || 'Failed');
               }
             };
-          } catch (e) {
-            console.error("Failed to create object URL", e);
+            finalResult = await poll();
           }
-        }
 
-        stopFakeProgress();
-        setResult(finalResult);
-        setProgress(100);
-        setStatus('complete');
+          // Add local audio URL for playback
+          if (finalResult && file) {
+            try {
+              const objectUrl = URL.createObjectURL(file);
+              finalResult = {
+                ...finalResult,
+                local_audio_url: objectUrl
+              };
+            } catch (e) {
+              console.error("Failed to create object URL for audio", e);
+            }
+          }
+
+          stopFakeProgress();
+          setResult(finalResult);
+          setProgress(100);
+          setStatus('complete');
+        } else {
+          // --- IMAGE FLOW ---
+          setStatus('polling');
+          startFakeProgress();
+
+          const { jobId, result: fastResult } = await imageAnalysisService.submitJob(file);
+
+          if (jobId) {
+            registerTask(jobId, 'image_analysis', { filename: file.name });
+          }
+
+          let finalResult = fastResult;
+
+          if (!finalResult && jobId) {
+            const poll = async () => {
+              while (true) {
+                await new Promise(r => setTimeout(r, 2000));
+                const status = await imageAnalysisService.getJobStatus(jobId);
+                if (status.status === 'completed' && status.result) {
+                  return await imageAnalysisService.getAnalysisResult(jobId);
+                }
+                if (status.status === 'failed') throw new Error(typeof status.error === 'string' ? status.error : status.error?.message || 'Failed');
+              }
+            };
+            finalResult = await poll();
+          }
+
+          if (finalResult && file) {
+            try {
+              const objectUrl = URL.createObjectURL(file);
+              finalResult = {
+                ...finalResult,
+                local_image_url: objectUrl
+              };
+            } catch (e) {
+              console.error("Failed to create object URL", e);
+            }
+          }
+
+          stopFakeProgress();
+          setResult(finalResult);
+          setProgress(100);
+          setStatus('complete');
+        }
       } else {
         // --- FLUJO TEXTO ---
         const textResult = await performTextAnalysis(content, transmissionMedium, (p: number) => {
@@ -142,7 +169,7 @@ export function useContentUpload(initialJobId?: string) {
       console.error(err);
       stopFakeProgress();
       setStatus('error');
-      setError({ message: err.message || 'Error al procesar la solicitud.' });
+      setError(err?.message || 'Error al procesar la solicitud.');
     }
   };
 
@@ -182,7 +209,7 @@ export function useContentUpload(initialJobId?: string) {
             setStatus('complete');
             setProgress(100);
           } else if (statusRes.status === 'failed') {
-            setError({ message: statusRes.error || 'Job failed' });
+            setError(statusRes.error || 'Job failed');
             setStatus('error');
           } else {
             // Still running
@@ -191,7 +218,7 @@ export function useContentUpload(initialJobId?: string) {
           }
         } catch (e) {
           console.error("Restoration error", e);
-          setError({ message: "Failed to load job" });
+          setError("Failed to load job");
           setStatus('error');
         }
       };

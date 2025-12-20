@@ -127,6 +127,9 @@ export default function App() {
     } else if (type === 'image_analysis') {
       // Assuming ContentUpload or ImageResult handles jobId lookup (TODO)
       setActiveTab('upload');
+    } else if (type === 'audio_analysis') {
+      // Audio result will be displayed through ContentUpload
+      setActiveTab('upload');
     }
   };
 
