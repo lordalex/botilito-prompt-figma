@@ -1,6 +1,13 @@
 import { supabase } from '@/utils/supabase/client';
 import { IMAGE_ANALYSIS_BASE_URL } from '@/lib/apiEndpoints';
-import { AnalysisResult, ChainOfCustodyEvent, JobStatusResponse } from '@/types/imageAnalysis';
+import {
+  AnalysisResult,
+  JobStatusResponse,
+  FrameAnalysis,
+  Insight,
+  ChainOfCustodyEvent,
+  FileInfo
+} from '@/types/imageAnalysis';
 
 // Re-export for external use
 export type { JobStatusResponse } from '@/types/imageAnalysis';
@@ -18,13 +25,142 @@ export const convertFileToBase64 = (file: File): Promise<string> => {
 const POLLING_INTERVAL_MS = 2000;
 const MAX_ATTEMPTS = 60; // 2 minutes max
 
+/**
+ * Normalize individual insight per OpenAPI spec
+ * Schema reference: #/components/schemas/Insight
+ * 
+ * Required fields: algo, type, value, description
+ * Optional fields: heatmap, mask, data
+ */
+function normalizeInsight(insight: any): Insight {
+  return {
+    // Required: Technical algorithm name (e.g., ELA, SLIC, CLONE, MOTION_FLOW)
+    algo: insight.algo || insight.name || 'Unknown',
+    // Required: Category enum - classic_algo, ai_model, or metadata
+    type: insight.type || 'classic_algo',
+    // Required: Confidence (0-1) or qualitative summary
+    value: insight.value ?? insight.score ?? 0,
+    // Required: Spanish explanation of what this engine detects
+    description: insight.description || '',
+    // Optional: Base64 JET colormap visualization (Red=Suspect, Blue=Clean)
+    heatmap: insight.heatmap,
+    // Optional: Base64 binary mask (White/Black) isolating anomaly pixels
+    mask: insight.mask,
+    // Optional: Additional context data
+    data: insight.data
+  };
+}
+
+
+/**
+ * Normalize API response to match our AnalysisResult type
+ * TRUTH BASE: image-analysis-api.json (OpenAPI v3.0.0)
+ * 
+ * This parser is the source of truth for mapping API responses to our types.
+ * It handles both the new OpenAPI format and legacy formats for backward compatibility.
+ */
+function normalizeAnalysisResult(raw: any): AnalysisResult {
+  // Check if it's already in the new OpenAPI format (has summary.global_verdict and details)
+  if (raw.summary && raw.summary.global_verdict !== undefined && Array.isArray(raw.details)) {
+    // New format - matches OpenAPI spec exactly
+    // Schema reference: #/components/schemas/AnalysisResult
+    return {
+      summary: {
+        // Schema: summary.global_score (number, 0.0 to 1.0)
+        global_score: raw.summary.global_score ?? raw.summary.score ?? 0,
+        // Schema: summary.global_verdict (enum: CLEAN, SUSPICIOUS, TAMPERED)
+        global_verdict: raw.summary.global_verdict
+      },
+      // Schema: details (array of FrameAnalysis)
+      details: raw.details.map((frame: any) => ({
+        // Schema: FrameAnalysis.frame_index (integer, 0 for static images)
+        frame_index: frame.frame_index ?? 0,
+        // Schema: FrameAnalysis.original_frame (Base64 string, optional)
+        original_frame: frame.original_frame,
+        // Schema: FrameAnalysis.max_score (number, highest manipulation probability)
+        max_score: frame.max_score ?? 0,
+        // Schema: FrameAnalysis.insights (array of Insight)
+        insights: (frame.insights || []).map((insight: any) => normalizeInsight(insight))
+      })) as FrameAnalysis[]
+    };
+  }
+
+  // Legacy format handling - convert to new structure
+  // This handles old responses with human_report/raw_forensics structure
+  const summary = {
+    global_score: raw.summary?.global_score ?? raw.summary?.score ?? 0,
+    global_verdict: raw.summary?.global_verdict ?? 'SUSPICIOUS' as const
+  };
+
+  // Convert legacy details/algorithms to insights
+  let details: FrameAnalysis[] = [];
+
+  if (raw.details && Array.isArray(raw.details)) {
+    details = raw.details.map((detail: any, idx: number) => {
+      // Handle both old format (algorithms array in details) and new format
+      const insights: Insight[] = [];
+
+      // Old format: detail.algorithms
+      if (detail.algorithms && Array.isArray(detail.algorithms)) {
+        detail.algorithms.forEach((alg: any) => {
+          insights.push(normalizeInsight({
+            algo: alg.name,
+            type: 'classic_algo',
+            value: alg.score,
+            description: `Score: ${((alg.score ?? 0) * 100).toFixed(1)}%`,
+            heatmap: alg.heatmap,
+            mask: alg.mask
+          }));
+        });
+      }
+
+      // New format: detail.insights - use normalizeInsight for consistency
+      if (detail.insights && Array.isArray(detail.insights)) {
+        detail.insights.forEach((ins: any) => {
+          insights.push(normalizeInsight(ins));
+        });
+      }
+
+      return {
+        frame_index: detail.frame_index ?? idx,
+        // Capture original_frame from legacy format if present
+        original_frame: detail.original_frame,
+        max_score: detail.max_score ?? detail.summary?.score ?? 0,
+        insights
+      };
+    });
+  }
+
+  return {
+    summary,
+    details,
+    // Preserve any existing extended fields
+    file_info: raw.file_info,
+    chain_of_custody: raw.chain_of_custody,
+    recommendations: raw.recommendations,
+    // Preserve legacy fields for backward compatibility
+    meta: raw.meta,
+    human_report: raw.human_report,
+    raw_forensics: raw.raw_forensics
+  };
+}
+
+/**
+ * Enrich normalized result with client-side data
+ */
 function enrichAnalysisResult(result: AnalysisResult, file?: File): AnalysisResult {
-  // Ensure we have reasonable defaults for optional fields if missing from API
+  const enriched = { ...result };
+
+  // Generate timestamp from available sources
+  const timestamp = (result as any).meta?.timestamp ||
+    (result as any).created_at ||
+    new Date().toISOString();
+
   // 1. Chain of Custody (Simulation if missing)
-  if (!result.chain_of_custody || result.chain_of_custody.length === 0) {
-    result.chain_of_custody = [
+  if (!enriched.chain_of_custody || enriched.chain_of_custody.length === 0) {
+    enriched.chain_of_custody = [
       {
-        timestamp: result.meta.timestamp,
+        timestamp: timestamp,
         action: "Caso creado",
         actor: "Sistema Botilito",
         details: "Recepción de archivo y asignación de ID único.",
@@ -34,14 +170,14 @@ function enrichAnalysisResult(result: AnalysisResult, file?: File): AnalysisResu
         timestamp: new Date().toISOString(),
         action: "Análisis finalizado",
         actor: "Motor IA",
-        details: "Generación de reporte forense nivel 3."
+        details: "Generación de reporte forense."
       }
     ];
   }
 
-  // 2. File Info enrichment
-  if (!result.file_info && file) {
-    result.file_info = {
+  // 2. File Info enrichment from client file
+  if (!enriched.file_info && file) {
+    enriched.file_info = {
       name: file.name,
       size_bytes: file.size,
       mime_type: file.type,
@@ -50,7 +186,25 @@ function enrichAnalysisResult(result: AnalysisResult, file?: File): AnalysisResu
     };
   }
 
-  return result;
+  // 3. Generate recommendations based on verdict
+  if (!enriched.recommendations) {
+    const verdict = enriched.summary?.global_verdict;
+    if (verdict === 'TAMPERED' || verdict === 'SUSPICIOUS') {
+      enriched.recommendations = [
+        'Verificar la fuente original del archivo',
+        'Revisar metadatos EXIF para inconsistencias',
+        'Considerar análisis forense adicional',
+        'No utilizar como evidencia sin verificación'
+      ];
+    } else {
+      enriched.recommendations = [
+        'La imagen parece auténtica',
+        'Verificar procedencia antes de uso'
+      ];
+    }
+  }
+
+  return enriched;
 }
 
 // Polling Helper
@@ -66,19 +220,23 @@ async function pollJobStatus(jobId: string, token: string, file?: File): Promise
     });
 
     if (!response.ok) {
-      // 404 means job not found (maybe not ready yet?)
       if (response.status === 404 && attempts < 5) continue;
       throw new Error(`Polling failed: ${response.status}`);
     }
 
-    const data: JobStatusResponse = await response.json();
+    const data = await response.json();
 
-    if (data.status === 'completed' && data.result) {
-      return enrichAnalysisResult(data.result, file);
+    // Handle error field (can be string or object per OpenAPI spec)
+    if (data.status === 'failed') {
+      const errorMsg = typeof data.error === 'string'
+        ? data.error
+        : data.error?.message || 'Image analysis failed';
+      throw new Error(errorMsg);
     }
 
-    if (data.status === 'failed') {
-      throw new Error(data.error?.message || 'Image analysis failed');
+    if (data.status === 'completed' && data.result) {
+      const normalized = normalizeAnalysisResult(data.result);
+      return enrichAnalysisResult(normalized, file);
     }
   }
 
@@ -86,46 +244,27 @@ async function pollJobStatus(jobId: string, token: string, file?: File): Promise
 }
 
 export const imageAnalysisService = {
-  // Main entry point
+  /**
+   * Submit image for analysis
+   * Based on OpenAPI /submit endpoint
+   */
   submitJob: async (file: File): Promise<{ jobId?: string; result?: AnalysisResult }> => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) throw new Error('No active session');
 
     const base64 = await convertFileToBase64(file);
 
+    // OpenAPI spec requires image_base64 field
     const response = await fetch(`${IMAGE_ANALYSIS_BASE_URL}/submit`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${session.access_token}`,
       },
-      // We send both 'url' to satisfy strict schema validation (if any) and 'image_base64' for the actual content
-      // if the backend logic prioritizes base64 when present.
       body: JSON.stringify({
-        url: "https://example.com/placeholder.jpg",
-        type: "image",
-        image_base64: base64 // Restored from _base64_hack
+        image_base64: base64
       }),
-      // Note: The API spec says 'url' is required. 
-      // If the backend accepts base64 injection or if we need to upload first, that logic should be here.
-      // Assuming for now the backend handles the custom body or we agreed on 'url' but currently we use base64.
-      // **Wait**: The spec provided in Step 10 explicitly says:
-      // "SubmitRequest": { "required": ["url"], "properties": { "url": ... } }
-      // It does NOT mention base64. This implies we need to upload the image somewhere public first or the spec is incomplete/we are using a bypass.
-      // Given previous code sent `image_base64`, I will assume the backend might still support it OR I need to upload.
-      // However, checking the previous code: `body: JSON.stringify({ image_base64: base64 })`
-      // I will keep using `image_base64` property if I can, but strict JSON validation might fail if I send strict JSON.
-      // The spec implies URL. I'll define strictly what was there but try to conform.
-      // Actually, if the user wants me to follow `image-analysis-api.json`, I should probably respect it.
-      // But if I don't have an S3/Storage upload step, I can't provide a URL.
-      // I will stick to what was working (`image_base64`) but wrapped in the new structure if needed, 
-      // or just assume the backend is flexible. 
-      // Let's send `image_base64` as previously working, assuming the spec doc capture was just the "public" face.
     });
-
-    // Actually, looking at the previous file content, it was sending `image_base64`.
-    // The JSON spec shows `/submit` accepts `SubmitRequest`.
-    // I will trust the previous implementation used `image_base64` and the backend handles it.
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
@@ -133,13 +272,13 @@ export const imageAnalysisService = {
     }
 
     const data = await response.json();
-    // data should be SubmitResponse { job_id, status }
-
     return { jobId: data.job_id };
   },
 
+  /**
+   * Submit image and wait for result (blocking)
+   */
   submitImage: async (file: File): Promise<AnalysisResult> => {
-    // Legacy wrapper
     const { jobId } = await imageAnalysisService.submitJob(file);
     if (!jobId) throw new Error("No Job ID returned");
 
@@ -147,6 +286,10 @@ export const imageAnalysisService = {
     return await pollJobStatus(jobId, session?.access_token || '', file);
   },
 
+  /**
+   * Get job status by ID
+   * Based on OpenAPI /status/{job_id} endpoint
+   */
   getJobStatus: async (jobId: string): Promise<JobStatusResponse> => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) throw new Error('No active session');
@@ -156,11 +299,21 @@ export const imageAnalysisService = {
     });
 
     if (!response.ok) throw new Error(`Status check failed: ${response.status}`);
-    return await response.json();
+
+    const data = await response.json();
+
+    // Normalize the result if present
+    if (data.result) {
+      data.result = normalizeAnalysisResult(data.result);
+    }
+
+    return data as JobStatusResponse;
   },
 
+  /**
+   * Get completed analysis result
+   */
   getAnalysisResult: async (jobId: string): Promise<AnalysisResult> => {
-    // Just calls status and extracts result
     const status = await imageAnalysisService.getJobStatus(jobId);
     if (status.status === 'completed' && status.result) {
       return enrichAnalysisResult(status.result);

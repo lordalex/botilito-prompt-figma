@@ -1,243 +1,113 @@
 {
   "openapi": "3.0.3",
   "info": {
-    "title": "API de Análisis Forense de Imágenes (Multi-Nivel)",
-    "description": "API avanzada para la detección de falsificaciones en imágenes. Utiliza un enfoque híbrido que combina 5 algoritmos forenses de visión por computador (ELA, Noise, SLIC, Ghosting/DCT, Clone Detection) procesados en Python, con una interpretación semántica jerárquica (Niveles 1-3) generada por IA (LLM).",
-    "version": "2.2.0",
+    "title": "Sistema Forense de Detección Multimodal (Botilito v3)",
+    "version": "3.0.0",
+    "description": "Esta especificación define la interfaz para el motor de detección de falsificaciones de Botilito. El sistema utiliza una arquitectura asíncrona avanzada que combina heurísticas clásicas (ELA, Ruido, Ghosting), análisis temporal (Vector Flow) y validación de metadatos binarios. Los resultados se entregan de forma polimórfica para permitir representaciones visuales ricas en el cliente.",
     "contact": {
-      "name": "Equipo de Ingeniería"
+      "name": "Soporte Técnico Forense",
+      "url": "https://botilito.lordalexand.dev"
     }
   },
   "servers": [
     {
-      "url": "https://mdkswlgcqsmgfmcuorxq.supabase.co/functions/v1/image-analysis-ai",
-      "description": "Servidor de Producción (Supabase Edge Function)"
+      "url": "https://mdkswlgcqsmgfmcuorxq.supabase.co/functions/v1/image-analysis",
+      "description": "Puerta de enlace (Edge Function) de Producción"
     }
   ],
+  "paths": {
+    "/submit": {
+      "post": {
+        "summary": "Iniciar análisis de archivo",
+        "description": "Recibe un archivo multimedia y encola una tarea de análisis en el backend de Python. El sistema utiliza 'magic bytes' para distinguir entre imágenes (JPEG/PNG) y videos (MP4/MOV). Si es video, se activa el motor de flujo vectorial y el muestreo aleatorio adaptativo.",
+        "operationId": "submitForAnalysis",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": {
+          "description": "Contenedor del archivo a analizar.",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/SubmissionRequest" }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Trabajo aceptado correctamente.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SubmissionResponse" }
+              }
+            }
+          },
+          "401": { "description": "No se proporcionó un token JWT válido de Supabase." },
+          "413": { "description": "El tamaño del Base64 excede el límite operativo de 50MB." }
+        }
+      }
+    },
+    "/status/{job_id}": {
+      "get": {
+        "summary": "Sincronizar y obtener resultados",
+        "description": "Endpoint de consulta de estado. Si el motor ha finalizado, este endpoint realiza una 'sincronización perezosa' (Lazy Sync) moviendo los resultados del backend de Python a la base de datos de Supabase antes de entregarlos.",
+        "operationId": "getJobStatus",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "description": "UUID único del trabajo generado en la petición /submit.",
+            "schema": { "type": "string", "format": "uuid", "example": "73a3dd2e-ba58-4932-91f0-357bbbd84332" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Respuesta con el estado y los datos forenses detallados.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/JobStatusResponse" }
+              }
+            }
+          },
+          "404": { "description": "El ID de trabajo no existe o ha expirado." }
+        }
+      }
+    }
+  },
   "components": {
     "securitySchemes": {
-      "bearerAuth": {
+      "BearerAuth": {
         "type": "http",
         "scheme": "bearer",
         "bearerFormat": "JWT",
-        "description": "Token de autenticación de Supabase (User Auth)"
+        "description": "Token de autenticación de usuario de Supabase."
       }
     },
     "schemas": {
-      "SubmitRequest": {
+      "SubmissionRequest": {
         "type": "object",
-        "required": ["url"],
+        "required": ["image_base64"],
         "properties": {
-          "url": {
+          "image_base64": {
             "type": "string",
-            "format": "uri",
-            "description": "URL pública directa de la imagen a analizar.",
-            "example": "https://bucket.s3.amazonaws.com/evidencia_caso_01.jpg"
-          },
-          "type": {
-            "type": "string",
-            "enum": ["image"],
-            "default": "image",
-            "description": "Tipo de análisis. Por defecto es 'image'."
+            "description": "Cadena codificada en Base64 del archivo (Imagen o Video). Se recomienda enviar el prefijo de tipo MIME (ej: data:image/jpeg;base64,...).",
+            "example": "data:image/jpeg;base64,/9j/4AAQSkZJRg..."
           }
         }
       },
-      "SubmitResponse": {
+      "SubmissionResponse": {
         "type": "object",
         "properties": {
           "job_id": {
             "type": "string",
             "format": "uuid",
-            "description": "Identificador único del trabajo para realizar seguimiento (polling).",
-            "example": "a1b2c3d4-e5f6-7890-1234-567890abcdef"
+            "description": "Identificador interno para seguimiento en Supabase.",
+            "example": "331c6f7e-2bbb-4a16-bd86-ccbbebc5a663"
           },
           "status": {
             "type": "string",
-            "example": "pending",
-            "description": "Estado inicial del trabajo."
-          }
-        }
-      },
-      "Level1AnalysisItem": {
-        "type": "object",
-        "description": "Evaluación individual de un algoritmo técnico.",
-        "properties": {
-          "algorithm": {
-            "type": "string",
-            "enum": ["ELA", "Noise", "SLIC", "Ghosting", "Clone"],
-            "description": "Nombre del algoritmo analizado."
-          },
-          "significance_score": {
-            "type": "number",
-            "format": "float",
-            "minimum": 0,
-            "maximum": 1,
-            "description": "Relevancia del hallazgo (0.0 = Ruido/Normal, 1.0 = Evidencia Crítica de manipulación).",
-            "example": 0.85
-          },
-          "interpretation": {
-            "type": "string",
-            "description": "Explicación técnica breve del resultado específico de este algoritmo.",
-            "example": "Alta varianza en la compresión JPEG detectada en la esquina superior."
-          }
-        }
-      },
-      "Level2Integration": {
-        "type": "object",
-        "description": "Análisis holístico que cruza datos de múltiples algoritmos y metadatos.",
-        "properties": {
-          "consistency_score": {
-            "type": "number",
-            "format": "float",
-            "minimum": 0,
-            "maximum": 1,
-            "description": "Nivel de coincidencia espacial entre los diferentes mapas de calor (0-1).",
-            "example": 0.92
-          },
-          "metadata_risk_score": {
-            "type": "number",
-            "format": "float",
-            "minimum": 0,
-            "maximum": 1,
-            "description": "Puntaje de riesgo basado en firmas de software de edición encontradas (Photoshop, Canva, etc.).",
-            "example": 1.0
-          },
-          "tampering_type": {
-            "type": "string",
-            "enum": ["Inexistente", "Global (Filtros)", "Local (Inserción/Clonado)"],
-            "description": "Categorización del tipo de manipulación detectada.",
-            "example": "Local (Inserción/Clonado)"
-          },
-          "synthesis_notes": {
-            "type": "string",
-            "description": "Explicación de cómo interactúan los hallazgos (ej: 'El ELA confirma la región detectada por Ghosting')."
-          }
-        }
-      },
-      "Level3Verdict": {
-        "type": "object",
-        "description": "Conclusión final probabilística y veredicto humano.",
-        "properties": {
-          "manipulation_probability": {
-            "type": "number",
-            "format": "float",
-            "minimum": 0,
-            "maximum": 100,
-            "description": "Probabilidad final calculada en porcentaje (0.0% - 100.0%).",
-            "example": 98.5
-          },
-          "severity_index": {
-            "type": "number",
-            "format": "float",
-            "minimum": 0,
-            "maximum": 1,
-            "description": "Índice de severidad o impacto de la manipulación (0-1).",
-            "example": 0.75
-          },
-          "final_label": {
-            "type": "string",
-            "enum": ["Auténtico", "Baja Sospecha", "Alta Sospecha", "Confirmado Manipulado"],
-            "description": "Etiqueta final legible para el usuario.",
-            "example": "Confirmado Manipulado"
-          },
-          "user_explanation": {
-            "type": "string",
-            "description": "Resumen ejecutivo final dirigido al usuario final, explicando el resultado sin tecnicismos excesivos."
-          }
-        }
-      },
-      "RawForensicsItem": {
-        "type": "object",
-        "description": "Datos técnicos crudos generados por el backend de Python (OpenCV/Scikit-Image).",
-        "properties": {
-          "summary": {
-            "type": "object",
-            "properties": {
-              "score": {
-                "type": "number",
-                "description": "Puntaje global técnico agregado (0-1)."
-              },
-              "verdict": {
-                "type": "string",
-                "description": "Veredicto preliminar de la máquina."
-              },
-              "heatmap": {
-                "type": "string",
-                "format": "byte",
-                "description": "Imagen combinada de todos los mapas de calor en formato Base64 (JPEG)."
-              },
-              "tampered_region": {
-                "type": "string",
-                "format": "byte",
-                "description": "Imagen original con la región manipulada resaltada/recortada en Base64 (JPEG)."
-              }
-            }
-          },
-          "algorithms": {
-            "type": "array",
-            "description": "Resultados individuales por algoritmo.",
-            "items": {
-              "type": "object",
-              "properties": {
-                "name": {
-                  "type": "string",
-                  "description": "Nombre del algoritmo (slic, ela, noise, ghosting, clone)."
-                },
-                "score": {
-                  "type": "number",
-                  "description": "Puntaje máximo normalizado encontrado por este algoritmo (0-1)."
-                },
-                "heatmap": {
-                  "type": "string",
-                  "format": "byte",
-                  "description": "Mapa de calor específico de este algoritmo en escala de grises, formato Base64 (JPEG)."
-                }
-              }
-            }
-          },
-          "metadata": {
-            "type": "object",
-            "properties": {
-              "software_detected": { "type": "boolean" },
-              "software_name": { "type": "string", "nullable": true },
-              "exif": { "type": "object", "additionalProperties": { "type": "string" } }
-            },
-            "description": "Metadatos técnicos y EXIF extraídos."
-          }
-        }
-      },
-      "AnalysisResult": {
-        "type": "object",
-        "description": "Objeto de respuesta completo que contiene el análisis de IA y la evidencia forense cruda.",
-        "properties": {
-          "meta": {
-            "type": "object",
-            "properties": {
-              "job_id": { "type": "string", "format": "uuid" },
-              "python_job_id": { "type": "string" },
-              "timestamp": { "type": "string", "format": "date-time" }
-            }
-          },
-          "human_report": {
-            "type": "object",
-            "description": "Informe estructurado generado por el LLM basado en el análisis técnico.",
-            "properties": {
-              "level_1_analysis": {
-                "type": "array",
-                "items": { "$ref": "#/components/schemas/Level1AnalysisItem" }
-              },
-              "level_2_integration": {
-                "$ref": "#/components/schemas/Level2Integration"
-              },
-              "level_3_verdict": {
-                "$ref": "#/components/schemas/Level3Verdict"
-              }
-            }
-          },
-          "raw_forensics": {
-            "type": "array",
-            "description": "Lista de resultados técnicos (generalmente 1 elemento para imágenes, múltiples para video).",
-            "items": { "$ref": "#/components/schemas/RawForensicsItem" }
+            "description": "Estado inicial del trabajo.",
+            "example": "processing"
           }
         }
       },
@@ -248,82 +118,121 @@
           "status": {
             "type": "string",
             "enum": ["pending", "processing", "completed", "failed"],
-            "description": "Estado actual del proceso."
+            "description": "Ciclo de vida del trabajo. 'completed' indica que el objeto 'result' está disponible.",
+            "example": "completed"
           },
-          "current_step": {
-            "type": "string",
-            "description": "Descripción legible del paso actual.",
-            "example": "Generating Human Report"
-          },
+          "result": { "$ref": "#/components/schemas/AnalysisResult" },
           "error": {
-            "type": "object",
+            "type": "string",
             "nullable": true,
+            "description": "Si el status es 'failed', contiene la traza técnica del error.",
+            "example": "Error en extracción de fotogramas via FFmpeg."
+          }
+        }
+      },
+      "AnalysisResult": {
+        "type": "object",
+        "description": "Contenedor de resultados globales y segmentados por tiempo.",
+        "properties": {
+          "summary": {
+            "type": "object",
             "properties": {
-              "message": { "type": "string" }
-            }
-          },
-          "result": {
-            "$ref": "#/components/schemas/AnalysisResult",
-            "description": "Objeto de resultados, presente solo cuando status es 'completed'."
-          }
-        }
-      }
-    }
-  },
-  "paths": {
-    "/submit": {
-      "post": {
-        "summary": "Iniciar análisis de imagen",
-        "description": "Envía una URL de imagen para ser procesada. El sistema descargará la imagen, ejecutará 5 algoritmos forenses en paralelo y utilizará una IA para interpretar los resultados y generar un informe de 3 niveles.",
-        "security": [{ "bearerAuth": [] }],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": { "$ref": "#/components/schemas/SubmitRequest" }
-            }
-          }
-        },
-        "responses": {
-          "202": {
-            "description": "Solicitud aceptada. Se devuelve un Job ID para consultar el estado.",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/SubmitResponse" }
+              "global_score": {
+                "type": "number",
+                "description": "Puntaje de sospecha ponderado (0.0 a 1.0).",
+                "example": 0.82
+              },
+              "global_verdict": {
+                "type": "string",
+                "enum": ["CLEAN", "SUSPICIOUS", "TAMPERED"],
+                "description": "Evaluación textual basada en los umbrales de los algoritmos.",
+                "example": "TAMPERED"
               }
             }
           },
-          "401": { "description": "No autorizado. Token inválido o expirado." },
-          "500": { "description": "Error interno del servidor." }
-        }
-      }
-    },
-    "/status/{job_id}": {
-      "get": {
-        "summary": "Consultar estado y resultados",
-        "description": "Permite verificar el progreso de un análisis. Si el estado es 'completed', devuelve el informe forense completo.",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [
-          {
-            "name": "job_id",
-            "in": "path",
-            "required": true,
-            "schema": { "type": "string", "format": "uuid" },
-            "description": "El ID del trabajo recibido en la respuesta de /submit"
+          "details": {
+            "type": "array",
+            "description": "Lista de análisis realizados. En imágenes es un array de 1 elemento. En videos varía según la duración (muestreo dinámico).",
+            "items": { "$ref": "#/components/schemas/FrameAnalysis" }
           }
-        ],
-        "responses": {
-          "200": {
-            "description": "Estado del trabajo y resultados (si está completo).",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/JobStatusResponse" }
-              }
-            }
+        }
+      },
+      "FrameAnalysis": {
+        "type": "object",
+        "description": "Análisis forense de un cuadro específico de la fuente original.",
+        "properties": {
+          "frame_index": {
+            "type": "integer",
+            "description": "Posición del cuadro en la secuencia original (0 para imágenes estáticas).",
+            "example": 450
           },
-          "404": { "description": "Trabajo no encontrado." }
+          "original_frame": {
+            "type": "string",
+            "description": "Captura Base64 del cuadro original analizado. Útil para comparar con el heatmap.",
+            "example": "iVBORw0KGgoAAAANSUhEUgAA..."
+          },
+          "max_score": {
+            "type": "number",
+            "description": "La mayor probabilidad de manipulación encontrada entre todos los insights de este cuadro.",
+            "example": 0.75
+          },
+          "insights": {
+            "type": "array",
+            "description": "Colección polimórfica de hallazgos para este cuadro.",
+            "items": { "$ref": "#/components/schemas/Insight" }
+          }
+        }
+      },
+      "Insight": {
+        "type": "object",
+        "required": ["algo", "type", "value", "description"],
+        "description": "Hallazgo individual generado por un motor específico. El campo 'type' define cómo debe interpretarse la respuesta.",
+        "properties": {
+          "algo": {
+            "type": "string",
+            "description": "Nombre técnico del motor de análisis (ej: ELA, SLIC, CLONE, MOTION_FLOW).",
+            "example": "ELA"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["classic_algo", "ai_model", "metadata"],
+            "description": "Categoría de análisis: algoritmos de visión, redes neuronales o datos de cabecera.",
+            "example": "classic_algo"
+          },
+          "value": {
+            "oneOf": [
+              { "type": "number", "description": "Confianza (0-1)." },
+              { "type": "string", "description": "Resumen cualitativo." }
+            ],
+            "example": 0.94
+          },
+          "description": {
+            "type": "string",
+            "description": "Explicación en español sobre qué detecta este motor y por qué es relevante el valor obtenido.",
+            "example": "Detecta áreas con inconsistencia en la compresión JPEG, sugiriendo que el objeto fue insertado posteriormente."
+          },
+          "heatmap": {
+            "type": "string",
+            "description": "Visualización del hallazgo en mapa de colores JET (Base64). Rojo=Mala calidad/Sospecha, Azul=Limpio.",
+            "example": "iVBORw0KGgoAAA..."
+          },
+          "mask": {
+            "type": "string",
+            "description": "Máscara binaria (Blanco/Negro) que aísla los píxeles que superaron el umbral de anomalía.",
+            "example": "iVBORw0KGgoAAA..."
+          },
+          "data": {
+            "type": "object",
+            "description": "Datos adicionales de contexto. Si es 'Veredicto Compuesto', contiene la imagen 'overlay' con resaltados rojos sobre el original.",
+            "example": {
+              "overlay": "iVBORw0KGgoAAA...",
+              "software_detected": "Photoshop CC 2024",
+              "motion_magnitude": 12.5
+            }
+          }
         }
       }
     }
   }
 }
+
