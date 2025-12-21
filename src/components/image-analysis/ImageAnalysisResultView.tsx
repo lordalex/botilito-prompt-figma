@@ -4,10 +4,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { AIAnalysisDetails } from './AIAnalysisDetails'; // Import added
 import {
     Download, Share2, Zap, FileImage, AlertTriangle,
     CheckCircle, XCircle, ChevronLeft, ChevronRight,
-    Smartphone
+    BrainCircuit, Smartphone
 } from 'lucide-react';
 
 interface ImageAnalysisResultViewProps {
@@ -72,10 +73,10 @@ const formatBytes = (bytes: number) => {
 export function ImageAnalysisResultView({ data, onReset }: ImageAnalysisResultViewProps) {
     if (!data) return null;
 
-    const { summary, details, file_info, chain_of_custody, recommendations } = data;
+    const { summary, details, file_info, chain_of_custody, recommendations, ai_analysis } = data;
     const legacyData = data as any;
 
-    const hasValidData = summary?.global_verdict || legacyData?.human_report;
+    const hasValidData = summary?.global_verdict || legacyData?.human_report || ai_analysis;
     if (!hasValidData) return null;
 
     const globalScore = summary?.global_score ?? legacyData?.summary?.score ?? 0;
@@ -84,19 +85,25 @@ export function ImageAnalysisResultView({ data, onReset }: ImageAnalysisResultVi
 
     const verdictInfo = getVerdictInfo(globalVerdict, globalScore);
 
-    // Per OpenAPI spec (FrameAnalysis): original_frame is the Base64 capture of the original analyzed frame
+    // Per OpenAPI v3.2.0 (FrameAnalysis): original_frame is a URL to R2, not Base64
     // For static images, details[0] contains the single frame analysis
-    const originalFrameBase64 = details?.[0]?.original_frame;
+    const originalFrameUrl = details?.[0]?.original_frame;
 
     const allInsights = details?.flatMap(d => d.insights || []) || [];
     const tests = allInsights.filter(i => i.type === 'classic_algo' || i.type === 'ai_model');
     const markers = allInsights.filter(i => typeof i.value === 'number' && i.value > 0.5);
-    // Per OpenAPI spec (Insight): heatmap or mask indicate a visual insight
+    // Per OpenAPI v3.2.0 (Insight): heatmap/mask are URLs to R2
     const visualizations = allInsights.filter(i => i.heatmap || i.mask);
 
+    // Use AI analysis explanation if available (v3.2.0), fallback to hardcoded text
     const getExplanation = () => {
+        // Try to get explanation from ai_analysis (v3.2.0 spec)
+        if (ai_analysis?.level_3_verdict?.user_explanation) {
+            return ai_analysis.level_3_verdict.user_explanation;
+        }
+        // Fallback to hardcoded explanations
         if (globalVerdict === 'TAMPERED') {
-            return 'Múltiples indicadores de generación por IA: patrones GAN detectados en análisis espectral, ausencia de metadatos EXIF auténticos, y distribución de ruido inconsistente con sensores de cámaras reales. El modelo CNNDetection identificó características típicas de StyleGAN/Midjourney.';
+            return 'Múltiples indicadores de generación por IA: patrones GAN detectados en análisis espectral, ausencia de metadatos EXIF auténticos, y distribución de ruido inconsistente con sensores de cámaras reales.';
         }
         if (globalVerdict === 'SUSPICIOUS') {
             return 'Se detectaron algunos indicadores sospechosos que requieren verificación adicional.';
@@ -106,11 +113,12 @@ export function ImageAnalysisResultView({ data, onReset }: ImageAnalysisResultVi
 
     // Determine first available tab
     const getDefaultTab = () => {
+        if (ai_analysis) return 'ai';
         if (tests.length > 0) return 'tests';
         if (markers.length > 0) return 'markers';
         if (visualizations.length > 0) return 'visualizations';
         if (chain_of_custody && chain_of_custody.length > 0) return 'custody';
-        return 'tests';
+        return 'ai';
     };
 
     return (
@@ -199,6 +207,15 @@ export function ImageAnalysisResultView({ data, onReset }: ImageAnalysisResultVi
                     {/* Tabs - directly below diagnosis, no gap */}
                     <Tabs defaultValue={getDefaultTab()} className="w-full">
                         <TabsList className="w-full justify-start border-b border-gray-200 rounded-none h-auto p-0 bg-white gap-1 mt-4">
+                            {ai_analysis && (
+                                <TabsTrigger
+                                    value="ai"
+                                    className="data-[state=active]:border-b-2 data-[state=active]:border-gray-900 data-[state=active]:font-semibold rounded-none px-3 py-2.5 text-sm bg-transparent data-[state=active]:shadow-none flex items-center gap-2"
+                                >
+                                    <BrainCircuit className="h-4 w-4" />
+                                    Análisis IA
+                                </TabsTrigger>
+                            )}
                             {tests.length > 0 && (
                                 <TabsTrigger
                                     value="tests"
@@ -233,6 +250,13 @@ export function ImageAnalysisResultView({ data, onReset }: ImageAnalysisResultVi
                             )}
                         </TabsList>
 
+                        {/* AI Analysis Tab Content */}
+                        {ai_analysis && (
+                            <TabsContent value="ai" className="mt-4">
+                                <AIAnalysisDetails report={ai_analysis} />
+                            </TabsContent>
+                        )}
+
                         {/* Tests Tab Content */}
                         {tests.length > 0 && (
                             <TabsContent value="tests" className="mt-4 space-y-3">
@@ -257,7 +281,7 @@ export function ImageAnalysisResultView({ data, onReset }: ImageAnalysisResultVi
                                 <VisualizationsCarousel
                                     visualizations={visualizations}
                                     localImageUrl={data.local_image_url}
-                                    originalFrameBase64={originalFrameBase64}
+                                    originalFrameUrl={originalFrameUrl}
                                     fileName={file_info?.name}
                                     fileSize={file_info?.size_bytes}
                                     dimensions={file_info?.dimensions}
@@ -427,6 +451,7 @@ export function ImageAnalysisResultView({ data, onReset }: ImageAnalysisResultVi
     );
 }
 
+
 // Test Card Component - matches design
 function TestCard({ insight }: { insight: Insight }) {
     const score = typeof insight.value === 'number' ? insight.value : 0;
@@ -498,18 +523,19 @@ function MarkerCard({ insight }: { insight: Insight }) {
 }
 
 // Visualizations Carousel Component
-// Per OpenAPI spec: FrameAnalysis.original_frame contains Base64 capture of the original analyzed frame
+// Per OpenAPI v3.2.0: FrameAnalysis.original_frame is a URL to R2 storage
+// Insight.heatmap and Insight.mask are also URLs to R2 storage
 function VisualizationsCarousel({
     visualizations,
     localImageUrl,
-    originalFrameBase64,
+    originalFrameUrl,
     fileName,
     fileSize,
     dimensions
 }: {
     visualizations: Insight[];
     localImageUrl?: string;
-    originalFrameBase64?: string;  // From API: FrameAnalysis.original_frame (Base64)
+    originalFrameUrl?: string;  // From API: FrameAnalysis.original_frame (URL or Base64)
     fileName?: string;
     fileSize?: number;
     dimensions?: { width: number; height: number };
@@ -525,10 +551,19 @@ function VisualizationsCarousel({
         return `${mb.toFixed(1)} MB`;
     };
 
-    // Prefer API's original_frame (per OpenAPI spec), fall back to client-side URL
-    const originalFrameSrc = originalFrameBase64
-        ? (originalFrameBase64.startsWith('data:') ? originalFrameBase64 : `data:image/jpeg;base64,${originalFrameBase64}`)
-        : localImageUrl;
+    // Helper to get image src (handles both URL and Base64)
+    const getImageSrc = (value: string | null | undefined, defaultMime = 'image/jpeg') => {
+        if (!value) return null;
+        // If already a URL (http/https) or data URI, use directly
+        if (value.startsWith('http') || value.startsWith('data:')) {
+            return value;
+        }
+        // Otherwise assume Base64 and add data URI prefix
+        return `data:${defaultMime};base64,${value}`;
+    };
+
+    // Prefer API's original_frame (per OpenAPI v3.2.0), fall back to client-side URL
+    const originalFrameSrc = getImageSrc(originalFrameUrl) || localImageUrl;
 
     return (
         <div className="space-y-4">
@@ -562,19 +597,18 @@ function VisualizationsCarousel({
                         {getSeverityBadge(vis.value)}
                     </div>
 
-                    {/* Per OpenAPI spec: heatmap is JET colormap (Red=Suspect, Blue=Clean) */}
-                    {/* mask is binary (White/Black) isolating anomaly pixels */}
+                    {/* Per OpenAPI v3.2.0: heatmap/mask are URLs to R2 (or Base64 for legacy) */}
                     <div className="relative bg-gray-900 aspect-video">
                         {/* Display heatmap if available, otherwise display mask */}
                         {vis.heatmap ? (
                             <img
-                                src={vis.heatmap.startsWith('data:') ? vis.heatmap : `data:image/jpeg;base64,${vis.heatmap}`}
+                                src={getImageSrc(vis.heatmap) || ''}
                                 alt={`${vis.algo} heatmap`}
                                 className="w-full h-full object-contain"
                             />
                         ) : vis.mask ? (
                             <img
-                                src={vis.mask.startsWith('data:') ? vis.mask : `data:image/png;base64,${vis.mask}`}
+                                src={getImageSrc(vis.mask, 'image/png') || ''}
                                 alt={`${vis.algo} mask`}
                                 className="w-full h-full object-contain"
                             />
@@ -608,7 +642,7 @@ function VisualizationsCarousel({
                             <p className="text-xs text-gray-500 mb-2">Máscara binaria de anomalías:</p>
                             <div className="relative bg-gray-100 aspect-video rounded-lg overflow-hidden">
                                 <img
-                                    src={vis.mask.startsWith('data:') ? vis.mask : `data:image/png;base64,${vis.mask}`}
+                                    src={getImageSrc(vis.mask, 'image/png') || ''}
                                     alt={`${vis.algo} mask`}
                                     className="w-full h-full object-contain"
                                 />

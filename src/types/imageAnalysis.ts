@@ -1,106 +1,183 @@
 /**
  * TypeScript types for Image Analysis API
- * Based on OpenAPI spec: image-analysis-api.json v3.0.0
- * Sistema Forense de Detección Multimodal (Botilito v3)
+ * Based on OpenAPI spec: image-analysis-api.json v3.2.0
+ * API de Análisis Forense de Medios (Botilito v3.2)
+ * 
+ * TRUTH BASE: This file must match the OpenAPI spec exactly.
+ * All types are derived from #/components/schemas/* in the spec.
  */
 
 // ============================================
-// API Response Types (from OpenAPI spec)
+// Enums (from OpenAPI spec)
 // ============================================
 
 export type GlobalVerdict = 'CLEAN' | 'SUSPICIOUS' | 'TAMPERED';
 export type InsightType = 'classic_algo' | 'ai_model' | 'metadata';
 export type JobStatus = 'pending' | 'processing' | 'completed' | 'failed';
+export type TamperingType = 'Inexistente' | 'Global (Filtros)' | 'Local (Inserción/Clonado)';
+
+// ============================================
+// Core API Response Types (from OpenAPI spec)
+// ============================================
 
 /**
  * Individual insight from an analysis engine
- * Corresponds to: #/components/schemas/Insight
+ * Schema: #/components/schemas/Insight
  * 
- * Required fields: algo, type, value, description
- * Optional fields: heatmap, mask, data
+ * Required: algo, type, value, description
+ * Optional: heatmap, mask, data
  */
 export interface Insight {
-    algo: string;           // Technical algorithm name (e.g., ELA, SLIC, CLONE, MOTION_FLOW)
-    type: InsightType;      // Category: classic_algo, ai_model, or metadata
-    value: number | string; // Confidence (0-1) or qualitative summary
-    description: string;    // Spanish explanation of what this engine detects
-    heatmap?: string;       // Base64 JET colormap visualization (Red=Suspect, Blue=Clean)
-    mask?: string;          // Base64 binary mask (White/Black) isolating anomaly pixels
-    data?: {                // Additional context data
-        overlay?: string;           // Base64 image with red highlights on original
-        software_detected?: string; // Detected software (e.g., "Photoshop CC 2024")
-        motion_magnitude?: number;  // Motion flow magnitude
-        execution_time?: string;    // Algorithm execution time
-        [key: string]: any;         // Allow additional arbitrary data
-    };
+    /** Internal algorithm code (slic, ela, noise, ghosting, clone, motion) */
+    algo: string;
+    /** Category for frontend rendering: classic_algo (graphic), metadata (text), ai_model */
+    type: InsightType;
+    /** Score (0-1) for classic_algo, or descriptive text for metadata */
+    value: number | string;
+    /** Educational description in Spanish explaining what this algorithm detects */
+    description: string;
+    /** URL (R2) to JET colormap heatmap image. Red = Suspicious. */
+    heatmap?: string | null;
+    /** URL (R2) to binary mask (White/Black) for precise overlay */
+    mask?: string | null;
+    /** Additional raw data. If algo='Veredicto Compuesto', contains 'overlay' URL */
+    data?: {
+        overlay?: string;           // URL to composite image
+        software_detected?: string;
+        motion_magnitude?: number;
+        execution_time?: string;
+        [key: string]: any;
+    } | null;
 }
 
 /**
- * Forensic analysis of a specific frame from the original source
- * Corresponds to: #/components/schemas/FrameAnalysis
- * 
- * For static images, frame_index is 0 and details contains a single element.
- * For videos, frame_index varies based on dynamic sampling.
+ * Forensic analysis of a specific frame
+ * Schema: #/components/schemas/FrameAnalysis
  */
 export interface FrameAnalysis {
-    frame_index: number;      // Position in original sequence (0 for static images)
-    original_frame?: string;  // Base64 capture of the original analyzed frame (for comparison with heatmap)
-    max_score: number;        // Highest manipulation probability found among all insights
-    insights: Insight[];      // Polymorphic collection of findings for this frame
+    /** Sequential frame index (0 for static images) */
+    frame_index: number;
+    /** Public URL (R2) to the original analyzed frame. Use for display to user. */
+    original_frame?: string;
+    /** Maximum score found in this specific frame */
+    max_score: number;
+    /** List of algorithm results for this frame */
+    insights: Insight[];
 }
 
 /**
- * Summary of the analysis
- * Part of AnalysisResult
+ * Result summary
+ * Schema: #/components/schemas/ResultSummary
  */
 export interface AnalysisSummary {
-    global_score: number;       // 0.0 to 1.0
+    /** Max manipulation score detected (0.0 = clean, 1.0 = confirmed tampering) */
+    global_score: number;
+    /** Categorical classification based on global_score */
     global_verdict: GlobalVerdict;
+    /** Total frames processed by the engine */
+    frames_analyzed?: number;
+}
+
+/**
+ * Level 1 Analysis Item (granular algorithm evaluation)
+ * Part of AIAnalysisReport.level_1_analysis
+ */
+export interface Level1AnalysisItem {
+    algorithm: string;
+    significance_score: number;
+    interpretation: string;
+}
+
+/**
+ * Level 2 Integration (holistic evaluation and consistency)
+ * Part of AIAnalysisReport.level_2_integration
+ */
+export interface Level2Integration {
+    consistency_score: number;
+    tampering_type: TamperingType;
+    synthesis_notes: string;
+    metadata_risk_score?: number;  // Legacy field
+}
+
+/**
+ * Level 3 Verdict (final conclusion for user)
+ * Part of AIAnalysisReport.level_3_verdict
+ */
+export interface Level3Verdict {
+    /** Estimated probability in percentage (0-100) */
+    manipulation_probability: number;
+    /** Final label for display */
+    final_label: string;
+    /** Final explanatory paragraph in natural language */
+    user_explanation: string;
+    severity_index?: number;  // Legacy field
+}
+
+/**
+ * AI Analysis Report - Hierarchical LLM reasoning structure
+ * Schema: #/components/schemas/AIAnalysisReport
+ */
+export interface AIAnalysisReport {
+    /** Granular algorithm-by-algorithm evaluation */
+    level_1_analysis: Level1AnalysisItem[];
+    /** Holistic evaluation and cross-test consistency */
+    level_2_integration: Level2Integration;
+    /** Final user-facing conclusion */
+    level_3_verdict: Level3Verdict;
 }
 
 /**
  * Main analysis result
- * Corresponds to: #/components/schemas/AnalysisResult
+ * Schema: #/components/schemas/AnalysisResult
  */
 export interface AnalysisResult {
     summary: AnalysisSummary;
+    /** Narrative report generated by LLM (Gemini/GPT) interpreting technical data */
+    ai_analysis?: AIAnalysisReport;
+    /** Frame-by-frame analysis. Single element for images, multiple for video. */
     details: FrameAnalysis[];
 
     // Extended fields (added by frontend/enrichment)
     file_info?: FileInfo;
     chain_of_custody?: ChainOfCustodyEvent[];
     recommendations?: string[];
-    local_image_url?: string;   // Client-side only
+    local_image_url?: string;   // Client-side only (not from API)
 
     // Legacy compatibility fields (for old format responses)
     meta?: AnalysisMeta;
-    human_report?: HumanReport;
+    human_report?: AIAnalysisReport;  // Alias for ai_analysis (legacy name)
     raw_forensics?: RawForensicsItem[];
 }
 
 /**
  * Job status response from /status/{job_id}
- * Corresponds to: #/components/schemas/JobResponse
+ * Schema: #/components/schemas/JobStatusResponse
  */
 export interface JobStatusResponse {
     id: string;
     status: JobStatus;
+    /** ISO 8601 creation timestamp */
+    created_at?: string;
+    /** ISO 8601 completion timestamp (null if not completed) */
+    completed_at?: string | null;
+    /** Technical error detail if status is 'failed' */
     error?: string | null;
+    /** Analysis result (only present if status is 'completed') */
     result?: AnalysisResult;
 }
 
 /**
  * Submit response from /submit
- * Corresponds to: #/components/schemas/SubmissionResponse
+ * Schema: #/components/schemas/SubmissionResponse
  */
 export interface SubmitResponse {
     job_id: string;
-    status: string;
+    status: 'processing';
     message?: string;
 }
 
 // ============================================
-// Extended/Enrichment Types
+// Extended/Enrichment Types (Frontend-only)
 // ============================================
 
 export interface FileInfo {
@@ -131,32 +208,6 @@ export interface AnalysisMeta {
     status?: JobStatus;
 }
 
-export interface Level1AnalysisItem {
-    algorithm: string;
-    significance_score: number;
-    interpretation: string;
-}
-
-export interface Level2Integration {
-    consistency_score: number;
-    metadata_risk_score: number;
-    tampering_type: 'Inexistente' | 'Global (Filtros)' | 'Local (Inserción/Clonado)';
-    synthesis_notes: string;
-}
-
-export interface Level3Verdict {
-    manipulation_probability: number;
-    severity_index: number;
-    final_label: 'Auténtico' | 'Baja Sospecha' | 'Alta Sospecha' | 'Confirmado Manipulado';
-    user_explanation: string;
-}
-
-export interface HumanReport {
-    level_1_analysis: Level1AnalysisItem[];
-    level_2_integration: Level2Integration;
-    level_3_verdict: Level3Verdict;
-}
-
 export interface RawForensicsSummary {
     score?: number;
     verdict?: string;
@@ -181,3 +232,6 @@ export interface RawForensicsItem {
     algorithms: RawAlgorithmResult[];
     metadata: RawExif;
 }
+
+// Legacy alias (for backward compatibility with v3.0.0)
+export type HumanReport = AIAnalysisReport;

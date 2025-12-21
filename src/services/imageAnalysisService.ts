@@ -27,61 +27,74 @@ const MAX_ATTEMPTS = 60; // 2 minutes max
 
 /**
  * Normalize individual insight per OpenAPI spec
- * Schema reference: #/components/schemas/Insight
+ * Schema reference: #/components/schemas/Insight (v3.2.0)
  * 
  * Required fields: algo, type, value, description
  * Optional fields: heatmap, mask, data
+ * 
+ * NOTE: In v3.2.0, heatmap and mask are URLs (R2), not Base64.
+ * The UI must handle both URL and Base64 formats for backward compatibility.
  */
 function normalizeInsight(insight: any): Insight {
   return {
-    // Required: Technical algorithm name (e.g., ELA, SLIC, CLONE, MOTION_FLOW)
+    // Required: Internal algorithm code (slic, ela, noise, ghosting, clone, motion)
     algo: insight.algo || insight.name || 'Unknown',
-    // Required: Category enum - classic_algo, ai_model, or metadata
+    // Required: Category for frontend rendering - classic_algo, ai_model, or metadata
     type: insight.type || 'classic_algo',
-    // Required: Confidence (0-1) or qualitative summary
+    // Required: Score (0-1) for classic_algo, or descriptive text for metadata
     value: insight.value ?? insight.score ?? 0,
-    // Required: Spanish explanation of what this engine detects
+    // Required: Educational description in Spanish
     description: insight.description || '',
-    // Optional: Base64 JET colormap visualization (Red=Suspect, Blue=Clean)
+    // Optional: URL (R2) or Base64 to JET colormap heatmap. Red = Suspicious.
     heatmap: insight.heatmap,
-    // Optional: Base64 binary mask (White/Black) isolating anomaly pixels
+    // Optional: URL (R2) or Base64 to binary mask (White/Black)
     mask: insight.mask,
-    // Optional: Additional context data
+    // Optional: Additional raw data (may contain 'overlay' URL)
     data: insight.data
   };
 }
 
 
+
 /**
  * Normalize API response to match our AnalysisResult type
- * TRUTH BASE: image-analysis-api.json (OpenAPI v3.0.0)
+ * TRUTH BASE: image-analysis-api.json (OpenAPI v3.2.0)
  * 
  * This parser is the source of truth for mapping API responses to our types.
  * It handles both the new OpenAPI format and legacy formats for backward compatibility.
  */
 function normalizeAnalysisResult(raw: any): AnalysisResult {
-  // Check if it's already in the new OpenAPI format (has summary.global_verdict and details)
+  // Check if it's in the new OpenAPI v3.2.0 format (has summary.global_verdict and details)
   if (raw.summary && raw.summary.global_verdict !== undefined && Array.isArray(raw.details)) {
-    // New format - matches OpenAPI spec exactly
+    // New format - matches OpenAPI v3.2.0 spec exactly
     // Schema reference: #/components/schemas/AnalysisResult
     return {
       summary: {
-        // Schema: summary.global_score (number, 0.0 to 1.0)
+        // Schema: ResultSummary.global_score (number, 0.0 to 1.0)
         global_score: raw.summary.global_score ?? raw.summary.score ?? 0,
-        // Schema: summary.global_verdict (enum: CLEAN, SUSPICIOUS, TAMPERED)
-        global_verdict: raw.summary.global_verdict
+        // Schema: ResultSummary.global_verdict (enum: CLEAN, SUSPICIOUS, TAMPERED)
+        global_verdict: raw.summary.global_verdict,
+        // Schema: ResultSummary.frames_analyzed (integer)
+        frames_analyzed: raw.summary.frames_analyzed
       },
-      // Schema: details (array of FrameAnalysis)
+      // Schema: AnalysisResult.ai_analysis (AIAnalysisReport - LLM narrative)
+      // Also check for legacy field name 'human_report'
+      ai_analysis: raw.ai_analysis || raw.human_report,
+      // Schema: AnalysisResult.details (array of FrameAnalysis)
       details: raw.details.map((frame: any) => ({
         // Schema: FrameAnalysis.frame_index (integer, 0 for static images)
         frame_index: frame.frame_index ?? 0,
-        // Schema: FrameAnalysis.original_frame (Base64 string, optional)
+        // Schema: FrameAnalysis.original_frame (URL string to R2)
         original_frame: frame.original_frame,
         // Schema: FrameAnalysis.max_score (number, highest manipulation probability)
         max_score: frame.max_score ?? 0,
         // Schema: FrameAnalysis.insights (array of Insight)
         insights: (frame.insights || []).map((insight: any) => normalizeInsight(insight))
-      })) as FrameAnalysis[]
+      })) as FrameAnalysis[],
+      // Preserve extended fields if present
+      file_info: raw.file_info,
+      chain_of_custody: raw.chain_of_custody,
+      recommendations: raw.recommendations
     };
   }
 
@@ -89,7 +102,8 @@ function normalizeAnalysisResult(raw: any): AnalysisResult {
   // This handles old responses with human_report/raw_forensics structure
   const summary = {
     global_score: raw.summary?.global_score ?? raw.summary?.score ?? 0,
-    global_verdict: raw.summary?.global_verdict ?? 'SUSPICIOUS' as const
+    global_verdict: raw.summary?.global_verdict ?? 'SUSPICIOUS' as const,
+    frames_analyzed: raw.summary?.frames_analyzed
   };
 
   // Convert legacy details/algorithms to insights
@@ -123,7 +137,6 @@ function normalizeAnalysisResult(raw: any): AnalysisResult {
 
       return {
         frame_index: detail.frame_index ?? idx,
-        // Capture original_frame from legacy format if present
         original_frame: detail.original_frame,
         max_score: detail.max_score ?? detail.summary?.score ?? 0,
         insights
@@ -133,6 +146,8 @@ function normalizeAnalysisResult(raw: any): AnalysisResult {
 
   return {
     summary,
+    // Map legacy human_report to ai_analysis
+    ai_analysis: raw.ai_analysis || raw.human_report,
     details,
     // Preserve any existing extended fields
     file_info: raw.file_info,

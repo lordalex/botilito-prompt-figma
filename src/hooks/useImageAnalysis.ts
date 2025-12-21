@@ -23,23 +23,23 @@ export const useImageAnalysis = (): UseImageAnalysisReturn => {
         setData(null);
 
         try {
-            const initialResult = await imageAnalysisService.submitImage(file);
-            let result = initialResult;
+            // This now correctly waits for the entire polling process to complete
+            const result = await imageAnalysisService.submitImage(file);
 
-            if (result) {
-                // Inject local preview
-                try {
-                    const objectUrl = URL.createObjectURL(file);
-                    result = { ...result, local_image_url: objectUrl };
-                } catch (e) {
-                    console.error("Failed to create object URL", e);
-                }
-                setData(result);
+            // Inject local preview URL for immediate display
+            let finalResult = result;
+            try {
+                const objectUrl = URL.createObjectURL(file);
+                finalResult = { ...result, local_image_url: objectUrl };
+            } catch (e) {
+                console.error("Failed to create object URL for preview", e);
             }
+
+            setData(finalResult);
 
         } catch (err: any) {
             console.error('Analysis failed:', err);
-            setError(err.message || 'Error analyzing image');
+            setError(err.message || 'An unknown error occurred during image analysis.');
         } finally {
             setLoading(false);
         }
