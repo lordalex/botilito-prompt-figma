@@ -388,7 +388,7 @@ export function UserProfile() {
                                             </div>
                                         ) : (
                                             <div className="grid grid-cols-4 gap-6 px-4 py-2">
-                                                {loadedAvatars.slice(0, 8).map(({ avatar, url }) => (
+                                                {loadedAvatars.map(({ avatar, url }) => (
                                                     <motion.button
                                                         key={avatar.id}
                                                         onClick={() => {
@@ -397,7 +397,7 @@ export function UserProfile() {
                                                         }}
                                                         whileHover={{ scale: 1.05 }}
                                                         whileTap={{ scale: 0.95 }}
-                                                        className="relative flex justify-center items-center w-24 h-24"
+                                                        className="relative flex justify-center items-center w-24 h-24 rounded-md"
                                                         title={avatar.description}
                                                     >
                                                         {/* Fondo amarillo circular detrás */}
