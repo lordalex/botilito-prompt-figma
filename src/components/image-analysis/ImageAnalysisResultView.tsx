@@ -16,85 +16,23 @@ interface ImageAnalysisResultViewProps {
 }
 
 export function ImageAnalysisResultView({ data, onReset }: ImageAnalysisResultViewProps) {
-    // Handle both new OpenAPI format and old cached format
-    if (!data) return null;
-
-    // Adapter: Convert old cached format to new format structure if needed
-    let adaptedData = data;
-
-    // Check if we have old cached format (details[] + summary.global_verdict)
-    // Use type assertion since old format doesn't match AnalysisResult type
-    const oldData = data as any;
-    const isOldFormat = oldData.details && Array.isArray(oldData.details) && oldData.summary?.global_verdict && !data.human_report;
-
-    if (isOldFormat) {
-        // Convert old format to new format structure
-        adaptedData = {
-            ...data,
-            meta: {
-                job_id: oldData.id || 'legacy',
-                timestamp: oldData.meta?.analyzed_at || new Date().toISOString(),
-                status: 'completed' as const
-            },
-            human_report: {
-                level_1_analysis: oldData.details?.[0]?.algorithms?.map((alg: any) => ({
-                    algorithm: alg.name,
-                    significance_score: alg.score,
-                    interpretation: `Score: ${(alg.score * 100).toFixed(1)}%`
-                })) || [],
-                level_2_integration: {
-                    consistency_score: oldData.summary?.score || 0,
-                    metadata_risk_score: 0.5,
-                    tampering_type: oldData.summary?.global_verdict === 'TAMPERED' ? 'Local (Inserción/Clonado)' as const : 'Inexistente' as const,
-                    synthesis_notes: `Global verdict: ${oldData.summary?.global_verdict}`
-                },
-                level_3_verdict: {
-                    manipulation_probability: (oldData.summary?.confidence_score || 0) * 100,
-                    severity_index: oldData.summary?.score || 0,
-                    final_label: oldData.summary?.global_verdict === 'TAMPERED' ? 'Confirmado Manipulado' as const : 'Auténtico' as const,
-                    user_explanation: `The image has been analyzed. Verdict: ${oldData.summary?.global_verdict}`
-                }
-            },
-            raw_forensics: oldData.details?.map((detail: any) => ({
-                summary: detail.summary || {},
-                algorithms: detail.algorithms || [],
-                metadata: detail.metadata || {}
-            })) || [],
-            file_info: oldData.meta?.file_info ? {
-                // Convert old flat format to new nested format with dimensions
-                name: oldData.meta.file_info.filename || 'unknown.jpg',
-                size_bytes: oldData.meta.file_info.size_bytes || 0,
-                mime_type: oldData.meta.file_info.format ? `image/${oldData.meta.file_info.format.toLowerCase()}` : 'image/jpeg',
-                dimensions: {
-                    width: oldData.meta.file_info.width || 0,
-                    height: oldData.meta.file_info.height || 0
-                },
-                created_at: oldData.meta.analyzed_at || new Date().toISOString()
-            } : (oldData.file_info || {
-                name: 'unknown.jpg',
-                size_bytes: 0,
-                mime_type: 'image/jpeg',
-                dimensions: { width: 0, height: 0 },
-                created_at: new Date().toISOString()
-            }),
-            recommendations: [
-                'Verificar la fuente original de la imagen',
-                'Revisar metadatos EXIF para inconsistencias',
-                'Considerar análisis forense adicional'
-            ]
-        };
+    // The data is now pre-processed by the service layer to a consistent format.
+    if (!data || !data.human_report) {
+        // You might want a loading indicator or a more graceful empty state here
+        return (
+            <div className="max-w-7xl mx-auto p-4 space-y-6 text-center">
+                <p className="text-muted-foreground">Cargando resultados del análisis...</p>
+            </div>
+        );
     }
 
-    // Now safely access human_report (either original or adapted)
-    if (!adaptedData.human_report) return null;
-
-    const { human_report, raw_forensics, file_info } = adaptedData;
+    const { human_report, raw_forensics, file_info } = data;
     const { level_1_analysis, level_2_integration, level_3_verdict } = human_report;
 
     // Derived counts
     const testsCount = level_1_analysis?.length || 0;
     // Markers are significant findings
-    const markersCount = level_1_analysis.filter(i => i.significance_score > 0.4).length + (level_2_integration.tampering_type !== 'Inexistente' ? 1 : 0);
+    const markersCount = (level_1_analysis?.filter(i => i.significance_score > 0.4).length || 0) + (level_2_integration?.tampering_type !== 'Inexistente' ? 1 : 0);
 
     // Recommendations - fake them if not present, or maybe derive them from verdict
     const derivedRecommendations = data.recommendations || (level_3_verdict.final_label !== 'Auténtico'

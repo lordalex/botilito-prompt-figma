@@ -1,6 +1,6 @@
 import { supabase } from '@/utils/supabase/client';
 import { IMAGE_ANALYSIS_BASE_URL } from '@/lib/apiEndpoints';
-import { AnalysisResult, ChainOfCustodyEvent, JobStatusResponse } from '@/types/imageAnalysis';
+import { AnalysisResult, JobStatusResponse } from '@/types/imageAnalysis';
 
 // Re-export for external use
 export type { JobStatusResponse } from '@/types/imageAnalysis';
@@ -18,40 +18,86 @@ export const convertFileToBase64 = (file: File): Promise<string> => {
 const POLLING_INTERVAL_MS = 2000;
 const MAX_ATTEMPTS = 60; // 2 minutes max
 
-function enrichAnalysisResult(result: AnalysisResult, file?: File): AnalysisResult {
-  // Ensure we have reasonable defaults for optional fields if missing from API
-  // 1. Chain of Custody (Simulation if missing)
-  if (!result.chain_of_custody || result.chain_of_custody.length === 0) {
-    result.chain_of_custody = [
-      {
-        timestamp: result.meta.timestamp,
-        action: "Caso creado",
-        actor: "Sistema Botilito",
-        details: "Recepción de archivo y asignación de ID único.",
-        hash: "pending-hash"
-      },
-      {
-        timestamp: new Date().toISOString(),
-        action: "Análisis finalizado",
-        actor: "Motor IA",
-        details: "Generación de reporte forense nivel 3."
-      }
-    ];
-  }
+function enrichAnalysisResult(status: JobStatusResponse, file?: File): AnalysisResult {
+    const apiResult = status.result as any;
 
-  // 2. File Info enrichment
-  if (!result.file_info && file) {
-    result.file_info = {
-      name: file.name,
-      size_bytes: file.size,
-      mime_type: file.type,
-      dimensions: { width: 0, height: 0 },
-      created_at: new Date().toISOString()
-    };
-  }
+    // Handle new format (already has human_report)
+    if (apiResult && apiResult.human_report) {
+        apiResult.meta = {
+            job_id: status.id,
+            timestamp: status.completed_at || status.created_at || new Date().toISOString(),
+            status: 'completed'
+        };
+        return apiResult as AnalysisResult;
+    }
 
-  return result;
+    // Handle old format (details + summary) and transform it
+    const isOldFormat = apiResult?.details && Array.isArray(apiResult.details) && apiResult.summary?.global_verdict;
+    if (isOldFormat) {
+        const oldData = apiResult;
+        const metadataInsight = oldData.details?.[0]?.insights?.find((i: any) => i.algo === 'Metadatos')?.data || {};
+
+        const transformedResult: AnalysisResult = {
+            meta: {
+                job_id: status.id,
+                timestamp: status.completed_at || status.created_at || new Date().toISOString(),
+                status: 'completed' as const
+            },
+            human_report: {
+                level_1_analysis: oldData.details?.[0]?.insights?.map((alg: any) => ({
+                    algorithm: alg.algo,
+                    significance_score: alg.value,
+                    interpretation: alg.description || `Value: ${alg.value}`
+                })) || [],
+                level_2_integration: {
+                    consistency_score: oldData.summary?.global_score || 0,
+                    metadata_risk_score: 0,
+                    tampering_type: oldData.summary?.global_verdict === 'CLEAN' ? 'Inexistente' : 'Local (Inserción/Clonado)',
+                    synthesis_notes: `Global verdict from legacy API: ${oldData.summary?.global_verdict}`
+                },
+                level_3_verdict: {
+                    manipulation_probability: (oldData.summary?.global_score || 0) * 100,
+                    severity_index: oldData.summary?.global_score || 0,
+                    final_label: oldData.summary?.global_verdict === 'CLEAN' ? 'Auténtico' : 'Confirmado Manipulado',
+                    user_explanation: `The image was analyzed with a global score of ${oldData.summary?.global_score.toFixed(2)}. Verdict: ${oldData.summary?.global_verdict}`
+                }
+            },
+            raw_forensics: oldData.details?.map((detail: any) => ({
+                summary: detail.summary || {},
+                algorithms: detail.insights?.map((insight: any) => ({
+                    name: insight.algo,
+                    score: insight.value,
+                    heatmap: insight.heatmap
+                })) || [],
+                metadata: {
+                    exif: metadataInsight,
+                    software_detected: !!metadataInsight.Software,
+                    software_name: metadataInsight.Software
+                }
+            })) || [],
+            file_info: {
+                name: file?.name || 'image.jpg',
+                size_bytes: file?.size || 0,
+                mime_type: file?.type || 'image/jpeg',
+                dimensions: {
+                    width: metadataInsight.width || 0,
+                    height: metadataInsight.height || 0
+                },
+                created_at: status.created_at || new Date().toISOString(),
+                exif_data: metadataInsight
+            },
+            chain_of_custody: [
+                { timestamp: status.created_at || '', action: "Caso creado", actor: "Sistema Botilito", details: "Recepción de archivo." },
+                { timestamp: status.completed_at || '', action: "Análisis finalizado", actor: "Motor IA", details: "Generación de reporte (adaptado de formato legacy)." }
+            ]
+        };
+        return transformedResult;
+    }
+
+    // Fallback for unknown or empty result
+    throw new Error('Analysis result is in an unknown or empty format.');
 }
+
 
 // Polling Helper
 async function pollJobStatus(jobId: string, token: string, file?: File): Promise<AnalysisResult> {
@@ -73,8 +119,8 @@ async function pollJobStatus(jobId: string, token: string, file?: File): Promise
 
     const data: JobStatusResponse = await response.json();
 
-    if (data.status === 'completed' && data.result) {
-      return enrichAnalysisResult(data.result, file);
+    if (data.status === 'completed') {
+      return enrichAnalysisResult(data, file);
     }
 
     if (data.status === 'failed') {
@@ -99,33 +145,12 @@ export const imageAnalysisService = {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${session.access_token}`,
       },
-      // We send both 'url' to satisfy strict schema validation (if any) and 'image_base64' for the actual content
-      // if the backend logic prioritizes base64 when present.
       body: JSON.stringify({
         url: "https://example.com/placeholder.jpg",
         type: "image",
-        image_base64: base64 // Restored from _base64_hack
+        image_base64: base64
       }),
-      // Note: The API spec says 'url' is required. 
-      // If the backend accepts base64 injection or if we need to upload first, that logic should be here.
-      // Assuming for now the backend handles the custom body or we agreed on 'url' but currently we use base64.
-      // **Wait**: The spec provided in Step 10 explicitly says:
-      // "SubmitRequest": { "required": ["url"], "properties": { "url": ... } }
-      // It does NOT mention base64. This implies we need to upload the image somewhere public first or the spec is incomplete/we are using a bypass.
-      // Given previous code sent `image_base64`, I will assume the backend might still support it OR I need to upload.
-      // However, checking the previous code: `body: JSON.stringify({ image_base64: base64 })`
-      // I will keep using `image_base64` property if I can, but strict JSON validation might fail if I send strict JSON.
-      // The spec implies URL. I'll define strictly what was there but try to conform.
-      // Actually, if the user wants me to follow `image-analysis-api.json`, I should probably respect it.
-      // But if I don't have an S3/Storage upload step, I can't provide a URL.
-      // I will stick to what was working (`image_base64`) but wrapped in the new structure if needed, 
-      // or just assume the backend is flexible. 
-      // Let's send `image_base64` as previously working, assuming the spec doc capture was just the "public" face.
     });
-
-    // Actually, looking at the previous file content, it was sending `image_base64`.
-    // The JSON spec shows `/submit` accepts `SubmitRequest`.
-    // I will trust the previous implementation used `image_base64` and the backend handles it.
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
@@ -133,9 +158,12 @@ export const imageAnalysisService = {
     }
 
     const data = await response.json();
-    // data should be SubmitResponse { job_id, status }
+    
+    if (data.status === 'completed' && data.result) {
+        return { jobId: data.id, result: enrichAnalysisResult(data, file) };
+    }
 
-    return { jobId: data.job_id };
+    return { jobId: data.job_id || data.id };
   },
 
   submitImage: async (file: File): Promise<AnalysisResult> => {
@@ -160,10 +188,9 @@ export const imageAnalysisService = {
   },
 
   getAnalysisResult: async (jobId: string): Promise<AnalysisResult> => {
-    // Just calls status and extracts result
     const status = await imageAnalysisService.getJobStatus(jobId);
-    if (status.status === 'completed' && status.result) {
-      return enrichAnalysisResult(status.result);
+    if (status.status === 'completed') {
+      return enrichAnalysisResult(status);
     }
     throw new Error(`Job not complete (Status: ${status.status})`);
   }

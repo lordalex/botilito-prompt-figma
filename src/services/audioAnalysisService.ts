@@ -47,6 +47,7 @@ async function pollJobStatus(jobId: string, token: string, file?: File): Promise
 
             if (apiResult) {
                 // Map the API result to the UI result type
+                const forensics = apiResult.metadata.analysis?.forensics;
                 const finalResult: AudioAnalysisResult = {
                     type: 'audio_analysis',
                     meta: {
@@ -68,15 +69,15 @@ async function pollJobStatus(jobId: string, token: string, file?: File): Promise
                             text: apiResult.transcription,
                         },
                         audio_forensics: {
-                            authenticity_score: 1 - apiResult.metadata.analysis.forensics.confidence_score,
-                            manipulation_detected: apiResult.metadata.analysis.forensics.is_synthetic,
-                            anomalies: [apiResult.metadata.analysis.forensics.explanation],
+                            authenticity_score: 1 - (forensics?.confidence_score ?? 1), // default to 0 authenticity
+                            manipulation_detected: forensics?.is_synthetic || false,
+                            anomalies: forensics?.explanation ? [forensics.explanation] : [],
                         },
                         verdict: {
-                            conclusion: apiResult.metadata.analysis.forensics.is_synthetic 
-                                ? `Se detectó manipulación (${apiResult.metadata.analysis.forensics.manipulation_type})`
-                                : 'No se detectó manipulación.',
-                            confidence: apiResult.metadata.analysis.forensics.confidence_score,
+                            conclusion: forensics?.is_synthetic
+                                ? `Se detectó manipulación (${forensics.manipulation_type})`
+                                : apiResult.content || 'No se detectó manipulación.', // Use main content as fallback
+                            confidence: forensics?.confidence_score ?? 0,
                             risk_level: 'medium', // This could be improved
                         }
                     },
@@ -125,6 +126,51 @@ export const audioAnalysisService = {
         }
 
         const data = await response.json();
+        
+        if (data.status === 'completed' && data.result) {
+            // Job completed synchronously, transform the result now.
+            const apiResult = data.result;
+            const forensics = apiResult.metadata.analysis?.forensics;
+            const finalResult: AudioAnalysisResult = {
+                type: 'audio_analysis',
+                meta: {
+                    job_id: apiResult.id, // use id from result object
+                    timestamp: apiResult.created_at || new Date().toISOString(),
+                    status: data.status,
+                },
+                assets: apiResult.metadata.assets,
+                file_info: file ? {
+                    name: file.name,
+                    size_bytes: file.size,
+                    mime_type: file.type,
+                    duration_seconds: apiResult.metadata.duration || 0,
+                    created_at: new Date().toISOString()
+                } : undefined,
+                human_report: {
+                    summary: apiResult.content,
+                    transcription: {
+                        text: apiResult.transcription,
+                    },
+                    audio_forensics: {
+                        authenticity_score: 1 - (forensics?.confidence_score ?? 1), // default to 0 authenticity
+                        manipulation_detected: forensics?.is_synthetic || false,
+                        anomalies: forensics?.explanation ? [forensics.explanation] : [],
+                    },
+                    verdict: {
+                        conclusion: forensics?.is_synthetic
+                            ? `Se detectó manipulación (${forensics.manipulation_type})`
+                            : apiResult.content || 'No se detectó manipulación.', // Use main content as fallback
+                        confidence: forensics?.confidence_score ?? 0,
+                        risk_level: 'medium', // This could be improved
+                    }
+                },
+                raw_results_summary: {
+                    duration_seconds: apiResult.metadata.duration,
+                }
+            };
+            return { jobId: apiResult.id, result: finalResult };
+        }
+
         return { jobId: data.job_id };
     },
 

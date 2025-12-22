@@ -48,17 +48,8 @@ export function ContentUploadResult({ result, onReset }: ContentUploadResultProp
     return <ImageAnalysisResultView data={result} onReset={onReset} />;
   }
 
-  // AUDIO ANALYSIS DETECTION - Support all known formats:
-  // 1. New OpenAPI format: human_report with transcription
-  // 2. Has duration_seconds (audio-specific field)
-  const isAudioAnalysis =
-    // Explicit type
-    resultType === 'audio_analysis' ||
-    // New format with human_report
-    (result?.human_report && result?.file_info?.duration_seconds !== undefined) ||
-    // Fallback: has duration field
-    (result?.file_info?.duration_seconds !== undefined) ||
-    (result?.meta?.file_info?.duration_seconds !== undefined);
+  // AUDIO ANALYSIS DETECTION
+  const isAudioAnalysis = resultType === 'audio_analysis';
 
   if (isAudioAnalysis) {
     return <AudioAnalysisResultView data={result} onReset={onReset} />;
