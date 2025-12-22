@@ -5,104 +5,78 @@ import { AnalysisResult, JobStatusResponse } from '@/types/imageAnalysis';
 // Re-export for external use
 export type { JobStatusResponse } from '@/types/imageAnalysis';
 
-// Helper: Convert File to Base64
-export const convertFileToBase64 = (file: File): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = (error) => reject(error);
-  });
-};
-
 const POLLING_INTERVAL_MS = 2000;
 const MAX_ATTEMPTS = 60; // 2 minutes max
+const CHUNK_SIZE = 4 * 1024 * 1024; // 4MB
 
-function enrichAnalysisResult(status: JobStatusResponse, file?: File): AnalysisResult {
-    const apiResult = status.result as any;
+// --- Hashing Utility ---
+async function getFileHash(file: File): Promise<string> {
+    const buffer = await file.arrayBuffer();
+    const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
 
-    // Handle new format (already has human_report)
-    if (apiResult && apiResult.human_report) {
-        apiResult.meta = {
+// --- Data Transformation ---
+function transformApiResult(status: JobStatusResponse, file?: File): AnalysisResult {
+    const forensicResult = status.result || {};
+    const aiAnalysis = forensicResult.ai_analysis || {};
+    const details = forensicResult.details || [];
+    const summary = forensicResult.summary || {};
+
+    const transformed: AnalysisResult = {
+        meta: {
             job_id: status.id,
-            timestamp: status.completed_at || status.created_at || new Date().toISOString(),
-            status: 'completed'
-        };
-        return apiResult as AnalysisResult;
-    }
-
-    // Handle old format (details + summary) and transform it
-    const isOldFormat = apiResult?.details && Array.isArray(apiResult.details) && apiResult.summary?.global_verdict;
-    if (isOldFormat) {
-        const oldData = apiResult;
-        const metadataInsight = oldData.details?.[0]?.insights?.find((i: any) => i.algo === 'Metadatos')?.data || {};
-
-        const transformedResult: AnalysisResult = {
-            meta: {
-                job_id: status.id,
-                timestamp: status.completed_at || status.created_at || new Date().toISOString(),
-                status: 'completed' as const
+            timestamp: status.completed_at || new Date().toISOString(),
+            status: 'completed',
+        },
+        human_report: {
+            level_1_analysis: details.flatMap((d: any) => d.insights?.map((i: any) => ({
+                algorithm: i.algo,
+                significance_score: typeof i.value === 'number' ? i.value : 0,
+                interpretation: i.description,
+            })) || []) || [],
+            level_2_integration: {
+                ...(aiAnalysis.level_2_integration || {}),
+                consistency_score: summary.global_score || 0,
+                synthesis_notes: `Global verdict: ${summary.global_verdict}`,
             },
-            human_report: {
-                level_1_analysis: oldData.details?.[0]?.insights?.map((alg: any) => ({
-                    algorithm: alg.algo,
-                    significance_score: alg.value,
-                    interpretation: alg.description || `Value: ${alg.value}`
-                })) || [],
-                level_2_integration: {
-                    consistency_score: oldData.summary?.global_score || 0,
-                    metadata_risk_score: 0,
-                    tampering_type: oldData.summary?.global_verdict === 'CLEAN' ? 'Inexistente' : 'Local (Inserción/Clonado)',
-                    synthesis_notes: `Global verdict from legacy API: ${oldData.summary?.global_verdict}`
-                },
-                level_3_verdict: {
-                    manipulation_probability: (oldData.summary?.global_score || 0) * 100,
-                    severity_index: oldData.summary?.global_score || 0,
-                    final_label: oldData.summary?.global_verdict === 'CLEAN' ? 'Auténtico' : 'Confirmado Manipulado',
-                    user_explanation: `The image was analyzed with a global score of ${oldData.summary?.global_score.toFixed(2)}. Verdict: ${oldData.summary?.global_verdict}`
-                }
+            level_3_verdict: {
+                ...(aiAnalysis.level_3_verdict || {}),
+                manipulation_probability: (summary.global_score || 0) * 100,
+                final_label: summary.global_verdict === 'CLEAN' ? 'Auténtico' : 'Confirmado Manipulado',
+            }
+        },
+        raw_forensics: details.map((d: any) => ({
+            summary: {
+                heatmap: d.insights?.find((i: any) => i.algo === 'Veredicto Compuesto')?.heatmap,
             },
-            raw_forensics: oldData.details?.map((detail: any) => ({
-                summary: detail.summary || {},
-                algorithms: detail.insights?.map((insight: any) => ({
-                    name: insight.algo,
-                    score: insight.value,
-                    heatmap: insight.heatmap
-                })) || [],
-                metadata: {
-                    exif: metadataInsight,
-                    software_detected: !!metadataInsight.Software,
-                    software_name: metadataInsight.Software
-                }
+            algorithms: d.insights?.map((i: any) => ({
+                name: i.algo,
+                score: typeof i.value === 'number' ? i.value : 0,
+                heatmap: i.heatmap,
             })) || [],
-            file_info: {
-                name: file?.name || 'image.jpg',
-                size_bytes: file?.size || 0,
-                mime_type: file?.type || 'image/jpeg',
-                dimensions: {
-                    width: metadataInsight.width || 0,
-                    height: metadataInsight.height || 0
-                },
-                created_at: status.created_at || new Date().toISOString(),
-                exif_data: metadataInsight
-            },
-            chain_of_custody: [
-                { timestamp: status.created_at || '', action: "Caso creado", actor: "Sistema Botilito", details: "Recepción de archivo." },
-                { timestamp: status.completed_at || '', action: "Análisis finalizado", actor: "Motor IA", details: "Generación de reporte (adaptado de formato legacy)." }
-            ]
-        };
-        return transformedResult;
-    }
+            metadata: {}
+        })),
+        file_info: {
+            name: file?.name || 'image.jpg',
+            size_bytes: file?.size || 0,
+            mime_type: file?.type || 'image/jpeg',
+            dimensions: { width: 0, height: 0 }, // This should be filled from metadata insight if available
+            created_at: status.created_at || new Date().toISOString(),
+            url: details[0]?.original_frame, // Pass the original frame URL
+        },
+        chain_of_custody: [],
+        recommendations: [],
+    };
 
-    // Fallback for unknown or empty result
-    throw new Error('Analysis result is in an unknown or empty format.');
+    return transformed;
 }
 
 
-// Polling Helper
+// --- Polling Helper ---
 async function pollJobStatus(jobId: string, token: string, file?: File): Promise<AnalysisResult> {
   let attempts = 0;
-
   while (attempts < MAX_ATTEMPTS) {
     await new Promise(r => setTimeout(r, POLLING_INTERVAL_MS));
     attempts++;
@@ -112,7 +86,6 @@ async function pollJobStatus(jobId: string, token: string, file?: File): Promise
     });
 
     if (!response.ok) {
-      // 404 means job not found (maybe not ready yet?)
       if (response.status === 404 && attempts < 5) continue;
       throw new Error(`Polling failed: ${response.status}`);
     }
@@ -120,55 +93,94 @@ async function pollJobStatus(jobId: string, token: string, file?: File): Promise
     const data: JobStatusResponse = await response.json();
 
     if (data.status === 'completed') {
-      return enrichAnalysisResult(data, file);
+      return transformApiResult(data, file);
     }
 
     if (data.status === 'failed') {
       throw new Error(data.error?.message || 'Image analysis failed');
     }
   }
-
   throw new Error('Analysis timed out');
 }
 
+// --- Service Definition ---
 export const imageAnalysisService = {
-  // Main entry point
   submitJob: async (file: File): Promise<{ jobId?: string; result?: AnalysisResult }> => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) throw new Error('No active session');
+    const token = session.access_token;
 
-    const base64 = await convertFileToBase64(file);
+    // 1. Get file hash
+    const fileHash = await getFileHash(file);
+    const useCache = import.meta.env.VITE_USE_CACHE === 'true';
 
-    const response = await fetch(`${IMAGE_ANALYSIS_BASE_URL}/submit`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({
-        url: "https://example.com/placeholder.jpg",
-        type: "image",
-        image_base64: base64
-      }),
+    // 2. Init Upload
+    const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+    const initResponse = await fetch(`${IMAGE_ANALYSIS_BASE_URL}/upload_session`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({
+            action: 'init',
+            filename: file.name,
+            total_chunks: totalChunks,
+            total_size: file.size,
+            file_hash: fileHash,
+            use_cache: useCache,
+        }),
     });
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || `Submission failed: ${response.status}`);
-    }
-
-    const data = await response.json();
+    if (!initResponse.ok) throw new Error('Upload initialization failed.');
+    const initData = await initResponse.json();
     
-    if (data.status === 'completed' && data.result) {
-        return { jobId: data.id, result: enrichAnalysisResult(data, file) };
+    if (initData.job_id && initData.status === 'completed' && initData.result) {
+        // This would be a cache hit if the API returned the result on init
+        return { jobId: initData.job_id, result: transformApiResult(initData, file) };
     }
 
-    return { jobId: data.job_id || data.id };
+    const uploadId = initData.upload_id;
+    if (!uploadId) throw new Error('Failed to get upload_id from server.');
+
+    // 3. Upload Chunks
+    for (let i = 0; i < totalChunks; i++) {
+        const start = i * CHUNK_SIZE;
+        const end = Math.min(start + CHUNK_SIZE, file.size);
+        const chunk = file.slice(start, end);
+
+        const formData = new FormData();
+        formData.append('action', 'chunk');
+        formData.append('upload_id', uploadId);
+        formData.append('chunk_index', String(i));
+        formData.append('chunk_data', chunk);
+
+        const chunkResponse = await fetch(`${IMAGE_ANALYSIS_BASE_URL}/upload_session`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` },
+            body: formData,
+        });
+
+        if (!chunkResponse.ok) throw new Error(`Chunk ${i} upload failed.`);
+    }
+
+    // 4. Finish Upload
+    const finishResponse = await fetch(`${IMAGE_ANALYSIS_BASE_URL}/upload_session`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({
+            action: 'finish',
+            upload_id: uploadId,
+            file_hash: fileHash,
+        }),
+    });
+
+    if (!finishResponse.ok) throw new Error('Upload finalization failed.');
+    const finishData = await finishResponse.json();
+
+    return { jobId: finishData.job_id };
   },
 
   submitImage: async (file: File): Promise<AnalysisResult> => {
-    // Legacy wrapper
-    const { jobId } = await imageAnalysisService.submitJob(file);
+    const { jobId, result } = await imageAnalysisService.submitJob(file);
+    if (result) return result;
     if (!jobId) throw new Error("No Job ID returned");
 
     const { data: { session } } = await supabase.auth.getSession();
@@ -190,7 +202,7 @@ export const imageAnalysisService = {
   getAnalysisResult: async (jobId: string): Promise<AnalysisResult> => {
     const status = await imageAnalysisService.getJobStatus(jobId);
     if (status.status === 'completed') {
-      return enrichAnalysisResult(status);
+      return transformApiResult(status, undefined);
     }
     throw new Error(`Job not complete (Status: ${status.status})`);
   }

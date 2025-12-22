@@ -109,6 +109,8 @@ export const audioAnalysisService = {
         // Convert audio file to base64 (same pattern as image analysis)
         const base64 = await convertFileToBase64(file);
 
+        const useCache = import.meta.env.VITE_USE_CACHE === 'true';
+
         const response = await fetch(`${AUDIO_ANALYSIS_BASE_URL}/submit`, {
             method: 'POST',
             headers: {
@@ -116,7 +118,8 @@ export const audioAnalysisService = {
                 'Authorization': `Bearer ${session.access_token}`,
             },
             body: JSON.stringify({
-                audio_base64: base64
+                audio_base64: base64,
+                use_cache: useCache
             }),
         });
 

@@ -83,6 +83,7 @@ export interface FileInfo {
     dimensions: { width: number; height: number };
     created_at?: string;
     exif_data?: Record<string, any>;
+    url?: string;
 }
 
 export interface ChainOfCustodyEvent {

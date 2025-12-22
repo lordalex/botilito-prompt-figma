@@ -16,32 +16,22 @@ export function VisualizationsTab({ data }: VisualizationsTabProps) {
 
     // Collect all visualizations
     const visualizations = [
-        // Tampered Region (Best evidence first)
-        ...(forensics?.summary?.tampered_region ? [{
-            type: 'composite',
-            title: 'Región Manipulada (Detectada)',
-            description: 'Zonas identificadas como anómalas por el análisis combinado.',
-            image: forensics.summary.tampered_region,
-            isBase64: true,
-            alert: true
-        }] : []),
-
-        // Global Heatmap
+        // Global Heatmap from composite verdict
         ...(forensics?.summary?.heatmap ? [{
             type: 'heatmap',
             title: 'Mapa de Calor Global',
             description: 'Fusión de todos los algoritmos forenses.',
             image: forensics.summary.heatmap,
-            isBase64: true
+            isBase64: false // It's a URL
         }] : []),
 
-        // Individual Algorithms
+        // Individual Algorithm Heatmaps
         ...(forensics?.algorithms?.filter(algo => algo.heatmap).map(algo => ({
             type: 'test_heatmap',
             title: `Algoritmo: ${algo.name}`,
             description: `Puntaje técnico: ${(algo.score * 100).toFixed(1)}%`,
             image: algo.heatmap!,
-            isBase64: true
+            isBase64: false // It's a URL
         })) || []),
 
         // Original Image (Last fallback)
@@ -49,10 +39,10 @@ export function VisualizationsTab({ data }: VisualizationsTabProps) {
             type: 'original',
             title: 'Imagen Original',
             description: `Original • ${file_info?.dimensions?.width || '?'}x${file_info?.dimensions?.height || '?'}`,
-            image: data.local_image_url || 'https://placehold.co/600x400?text=Original+Not+Available',
+            image: file_info?.url || data.local_image_url || 'https://placehold.co/600x400?text=Original+Not+Available',
             isBase64: false
         },
-    ];
+    ].filter(v => v.image && !v.image.endsWith('Not+Available')); // Filter out items without a valid image
 
     const [currentIndex, setCurrentIndex] = useState(0);
 
