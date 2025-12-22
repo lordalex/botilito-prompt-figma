@@ -3,12 +3,11 @@ import { AUDIO_ANALYSIS_BASE_URL } from '@/lib/apiEndpoints';
 import {
     AudioAnalysisResult,
     AudioJobStatusResponse,
-    AudioFileInfo,
-    ChainOfCustodyEvent
+    AudioApiAnalysisResult,
 } from '@/types/audioAnalysis';
 
-const POLLING_INTERVAL_MS = 2000;
-const MAX_ATTEMPTS = 90; // 3 minutes max for audio processing
+const POLLING_INTERVAL_MS = 3000;
+const MAX_ATTEMPTS = 90; // 4.5 minutes max for audio processing
 
 /**
  * Convert audio file to Base64 string
@@ -21,43 +20,6 @@ const convertFileToBase64 = (file: File): Promise<string> => {
         reader.onerror = (error) => reject(error);
     });
 };
-
-/**
- * Enrich audio analysis result with client-side data
- */
-function enrichAudioResult(result: AudioAnalysisResult, file?: File): AudioAnalysisResult {
-    // Add chain of custody if missing
-    if (!result.chain_of_custody || result.chain_of_custody.length === 0) {
-        result.chain_of_custody = [
-            {
-                timestamp: result.meta.timestamp,
-                action: "Audio recibido",
-                actor: "Sistema Botilito",
-                details: "Archivo de audio cargado y procesamiento iniciado.",
-                hash: "pending-hash"
-            },
-            {
-                timestamp: new Date().toISOString(),
-                action: "Análisis completado",
-                actor: "Motor de Análisis de Audio",
-                details: "Transcripción, análisis forense y verificación completados."
-            }
-        ];
-    }
-
-    // Add file info if missing
-    if (!result.file_info && file) {
-        result.file_info = {
-            name: file.name,
-            size_bytes: file.size,
-            mime_type: file.type,
-            duration_seconds: 0, // Will be filled by backend
-            created_at: new Date().toISOString()
-        };
-    }
-
-    return result;
-}
 
 /**
  * Poll job status until completion
@@ -80,8 +42,50 @@ async function pollJobStatus(jobId: string, token: string, file?: File): Promise
 
         const data: AudioJobStatusResponse = await response.json();
 
-        if (data.status === 'completed' && data.result) {
-            return enrichAudioResult(data.result, file);
+        if (data.status === 'completed') {
+            const apiResult = data.result || data.payload;
+
+            if (apiResult) {
+                // Map the API result to the UI result type
+                const finalResult: AudioAnalysisResult = {
+                    type: 'audio_analysis',
+                    meta: {
+                        job_id: data.id,
+                        timestamp: data.created_at || new Date().toISOString(),
+                        status: data.status,
+                    },
+                    assets: apiResult.metadata.assets,
+                    file_info: file ? {
+                        name: file.name,
+                        size_bytes: file.size,
+                        mime_type: file.type,
+                        duration_seconds: apiResult.metadata.duration || 0,
+                        created_at: new Date().toISOString()
+                    } : undefined,
+                    human_report: {
+                        summary: apiResult.content,
+                        transcription: {
+                            text: apiResult.transcription,
+                        },
+                        audio_forensics: {
+                            authenticity_score: 1 - apiResult.metadata.analysis.forensics.confidence_score,
+                            manipulation_detected: apiResult.metadata.analysis.forensics.is_synthetic,
+                            anomalies: [apiResult.metadata.analysis.forensics.explanation],
+                        },
+                        verdict: {
+                            conclusion: apiResult.metadata.analysis.forensics.is_synthetic 
+                                ? `Se detectó manipulación (${apiResult.metadata.analysis.forensics.manipulation_type})`
+                                : 'No se detectó manipulación.',
+                            confidence: apiResult.metadata.analysis.forensics.confidence_score,
+                            risk_level: 'medium', // This could be improved
+                        }
+                    },
+                    raw_results_summary: {
+                        duration_seconds: apiResult.metadata.duration,
+                    }
+                };
+                return finalResult;
+            }
         }
 
         if (data.status === 'failed') {
@@ -111,8 +115,6 @@ export const audioAnalysisService = {
                 'Authorization': `Bearer ${session.access_token}`,
             },
             body: JSON.stringify({
-                url: "https://placeholder.audio/file.wav",
-                type: 'audio',
                 audio_base64: base64
             }),
         });
@@ -156,10 +158,10 @@ export const audioAnalysisService = {
      * Get completed analysis result
      */
     getAudioAnalysisResult: async (jobId: string): Promise<AudioAnalysisResult> => {
-        const status = await audioAnalysisService.getJobStatus(jobId);
-        if (status.status === 'completed' && status.result) {
-            return enrichAudioResult(status.result);
-        }
-        throw new Error(`Job not complete (Status: ${status.status})`);
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) throw new Error('No active session');
+        
+        // We need to poll to get the final result
+        return await pollJobStatus(jobId, session.access_token);
     }
 };

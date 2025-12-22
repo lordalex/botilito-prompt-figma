@@ -215,18 +215,26 @@ export function AudioAnalysisResultView({ data, onReset }: AudioAnalysisResultVi
                                     </CardContent>
                                 </Card>
 
-                                {/* Spectrogram Placeholder */}
+                                {/* Spectrogram */}
                                 <Card className="border border-gray-100 shadow-sm">
                                     <CardHeader className="pb-2">
                                         <CardTitle className="text-base">Espectrograma</CardTitle>
                                     </CardHeader>
                                     <CardContent>
-                                        <div className="h-40 bg-gradient-to-b from-purple-900 via-red-600 to-yellow-400 rounded-lg opacity-70 relative overflow-hidden">
-                                            <div className="absolute inset-0 bg-[linear-gradient(90deg,transparent_0%,rgba(0,0,0,0.1)_50%,transparent_100%)]" />
-                                            <p className="absolute inset-0 flex items-center justify-center text-white text-sm font-medium">
-                                                Análisis Espectral
-                                            </p>
-                                        </div>
+                                        {data.recursos_nube?.espectrograma_png ? (
+                                            <img 
+                                                src={data.recursos_nube.espectrograma_png} 
+                                                alt="Espectrograma del audio"
+                                                className="w-full h-auto rounded-lg"
+                                            />
+                                        ) : (
+                                            <div className="h-40 bg-gradient-to-b from-purple-900 via-red-600 to-yellow-400 rounded-lg opacity-70 relative overflow-hidden">
+                                                <div className="absolute inset-0 bg-[linear-gradient(90deg,transparent_0%,rgba(0,0,0,0.1)_50%,transparent_100%)]" />
+                                                <p className="absolute inset-0 flex items-center justify-center text-white text-sm font-medium">
+                                                    Análisis Espectral
+                                                </p>
+                                            </div>
+                                        )}
                                         <p className="text-xs text-muted-foreground mt-2 text-center">
                                             Distribución de frecuencias a lo largo del tiempo
                                         </p>

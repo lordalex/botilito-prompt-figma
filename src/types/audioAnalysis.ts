@@ -7,7 +7,48 @@ export interface AudioMeta {
     current_step?: string;
 }
 
-// Human Report for Audio Analysis
+// Types from audio-analysis-api.json
+export interface AudioAnalysisContent {
+  type: string;
+  structure_notes: string;
+}
+
+export interface AudioAnalysisForensics {
+  is_synthetic: boolean;
+  confidence_score: number;
+  manipulation_type: 'Ninguna' | 'Clonación' | 'Edición';
+  explanation: string;
+}
+
+export interface AudioAnalysisDetails {
+  content: AudioAnalysisContent;
+  forensics: AudioAnalysisForensics;
+}
+
+export interface AudioAssets {
+  report_html: string;
+  spectrogram: string;
+}
+
+export interface AudioMetadata {
+  type: 'audio';
+  duration: number;
+  engine_job_id: string;
+  audio_url: string;
+  analysis: AudioAnalysisDetails;
+  assets: AudioAssets;
+}
+
+export interface AudioApiAnalysisResult {
+  title: string;
+  content: string;
+  transcription: string;
+  metadata: AudioMetadata;
+}
+// End: types from audio-analysis-api.json
+
+
+// Human Report for Audio Analysis - This structure is likely inside the datos_json
 export interface AudioHumanReport {
     summary: string;
     transcription?: {
@@ -44,7 +85,7 @@ export interface AudioHumanReport {
     };
 }
 
-// Raw Results Summary
+// Raw Results Summary - This structure is likely inside the datos_json
 export interface AudioRawResultsSummary {
     duration_seconds?: number;
     sample_rate?: number;
@@ -55,12 +96,15 @@ export interface AudioRawResultsSummary {
     waveform_data?: number[];
 }
 
-// Main Audio Analysis Result
+// Main Audio Analysis Result for UI
 export interface AudioAnalysisResult {
     type: 'audio_analysis';
     meta: AudioMeta;
     human_report: AudioHumanReport;
     raw_results_summary?: AudioRawResultsSummary;
+
+    // New field to hold cloud resources
+    assets?: AudioAssets;
 
     // Optional fields for compatibility
     file_info?: AudioFileInfo;
@@ -97,7 +141,8 @@ export interface AudioJobStatusResponse {
     status: AudioAnalysisStatus;
     current_step?: string;
     error?: { message: string };
-    result?: AudioAnalysisResult;
+    result?: AudioApiAnalysisResult;
+    payload?: AudioApiAnalysisResult;
     created_at?: string;
     completed_at?: string;
 }
