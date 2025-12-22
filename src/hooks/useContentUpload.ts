@@ -7,7 +7,7 @@ import { ContentType, TransmissionVector } from '../utils/caseCodeGenerator';
 
 const POLLING_INTERVAL = 3000;
 
-export function useContentUpload(initialJobId?: string) {
+export function useContentUpload(initialJobId?: string, initialJobType?: string) {
   const [status, setStatus] = useState<'idle' | 'uploading' | 'polling' | 'complete' | 'error'>('idle');
   const [progress, setProgress] = useState(0);
   const [retryCount, setRetryCount] = useState(0);
@@ -87,7 +87,7 @@ export function useContentUpload(initialJobId?: string) {
               while (true) {
                 await new Promise(r => setTimeout(r, 2000));
                 const status = await audioAnalysisService.getJobStatus(jobId);
-                if (status.status === 'completed' && status.result) {
+                if (status.status === 'completed') {
                   return await audioAnalysisService.getAudioAnalysisResult(jobId);
                 }
                 if (status.status === 'failed') throw new Error(status.error?.message || 'Failed');
@@ -131,7 +131,7 @@ export function useContentUpload(initialJobId?: string) {
               while (true) {
                 await new Promise(r => setTimeout(r, 2000));
                 const status = await imageAnalysisService.getJobStatus(jobId);
-                if (status.status === 'completed' && status.result) {
+                if (status.status === 'completed') {
                   return await imageAnalysisService.getAnalysisResult(jobId);
                 }
                 if (status.status === 'failed') throw new Error(typeof status.error === 'string' ? status.error : status.error?.message || 'Failed');
@@ -191,41 +191,60 @@ export function useContentUpload(initialJobId?: string) {
 
   // Restore job if ID provided
   useEffect(() => {
-    if (!initialJobId) return;
+    if (!initialJobId || !initialJobType) return;
 
     const restoreJob = async () => {
       setStatus('polling');
-      // Simple poll loop for restoration
-      // In a real app we might want to share this polling logic or use the provider
-      // But here we need local state (result/progress)
+      startFakeProgress();
 
       const check = async () => {
         try {
-          const statusRes = await imageAnalysisService.getJobStatus(initialJobId);
+          let statusRes;
+          let result;
+
+          if (initialJobType === 'image_analysis') {
+            statusRes = await imageAnalysisService.getJobStatus(initialJobId);
+            if (statusRes.status === 'completed') {
+              result = await imageAnalysisService.getAnalysisResult(initialJobId);
+            }
+          } else if (initialJobType === 'audio_analysis') {
+            statusRes = await audioAnalysisService.getJobStatus(initialJobId);
+             if (statusRes.status === 'completed') {
+              result = await audioAnalysisService.getAudioAnalysisResult(initialJobId);
+            }
+          } else {
+            // Basic text analysis doesn't have polling restoration in this hook
+            setError("No se puede restaurar este tipo de análisis.");
+            setStatus('error');
+            stopFakeProgress();
+            return;
+          }
+          
           if (statusRes.status === 'completed') {
-            // Fetch full result
-            const result = await imageAnalysisService.getAnalysisResult(initialJobId);
             setResult(result);
             setStatus('complete');
             setProgress(100);
+            stopFakeProgress();
           } else if (statusRes.status === 'failed') {
             setError(statusRes.error || 'Job failed');
             setStatus('error');
+            stopFakeProgress();
           } else {
-            // Still running
-            setProgress(50); // Indeterminate
-            setTimeout(check, 3000);
+            // Still running, check again
+            setProgress(prev => Math.min(90, prev + 10));
+            setTimeout(check, POLLING_INTERVAL);
           }
         } catch (e) {
           console.error("Restoration error", e);
           setError("Failed to load job");
           setStatus('error');
+          stopFakeProgress();
         }
       };
       check();
     };
     restoreJob();
-  }, [initialJobId]);
+  }, [initialJobId, initialJobType]);
 
   return { status, progress, result, error, submitContent, resetState, retryLastSubmission, retryCount };
 }

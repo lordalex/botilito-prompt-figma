@@ -7,10 +7,11 @@ import { ErrorManager } from './ErrorManager';
 
 interface ContentUploadProps {
   jobId?: string;
+  jobType?: string;
   onReset?: () => void;
 }
 
-export function ContentUpload({ jobId, onReset }: ContentUploadProps) {
+export function ContentUpload({ jobId, jobType, onReset }: ContentUploadProps) {
   const {
     status,
     progress,
@@ -20,7 +21,7 @@ export function ContentUpload({ jobId, onReset }: ContentUploadProps) {
     resetState: internalReset,
     retryLastSubmission,
     retryCount
-  } = useContentUpload(jobId);
+  } = useContentUpload(jobId, jobType);
 
   const handleReset = () => {
     internalReset();

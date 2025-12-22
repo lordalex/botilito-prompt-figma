@@ -14,17 +14,16 @@ export function NotificationCenter({ onViewTask }: { onViewTask: (jobId: string,
         activeTasks,
         markAsRead,
         loadingDetails,
-        getTaskResult
     } = useNotifications();
 
-    const handleTaskClick = async (jobId: string) => {
-        // Here we could trigger a callback to the parent to change view
-        // For now, let's just log or fetch result
-        console.log("Clicked task:", jobId);
-        // Determine type? We need the task object.
-        const task = activeTasks.find(t => t.job_id === jobId);
-        if (task) {
-            onViewTask(jobId, task.type);
+    const handleViewTask = (jobId: string, metadata: any) => {
+        // Map the metadata source to the job type expected by the App component
+        const jobType = metadata?.source === 'upload' ? 'image_analysis' :
+                        metadata?.source === 'audio-upload' ? 'audio_analysis' :
+                        metadata?.source === 'ai-analysis' ? 'text_analysis' : 'unknown';
+        
+        if (jobType !== 'unknown') {
+            onViewTask(jobId, jobType);
         }
     };
 
@@ -79,8 +78,8 @@ export function NotificationCenter({ onViewTask }: { onViewTask: (jobId: string,
                                     {notifications.map(n => (
                                         <div
                                             key={n.id}
-                                            className={`p-3 text-sm hover:bg-gray-50 cursor-pointer transition-colors ${!n.is_read ? 'bg-blue-50/50' : ''}`}
-                                            onClick={() => markAsRead(n.id)}
+                                            className={`p-3 text-sm hover:bg-gray-50 transition-colors ${!n.is_read ? 'bg-blue-50/50' : ''}`}
+                                            onClick={() => !n.is_read && markAsRead(n.id)}
                                         >
                                             <div className="flex gap-3 items-start">
                                                 <div className="mt-1">{getIcon(n.type)}</div>
@@ -91,9 +90,16 @@ export function NotificationCenter({ onViewTask }: { onViewTask: (jobId: string,
                                                     <p className="text-xs text-muted-foreground line-clamp-2">
                                                         {n.message}
                                                     </p>
-                                                    <p className="text-[10px] text-gray-400">
-                                                        {new Date(n.created_at).toLocaleString()}
-                                                    </p>
+                                                    <div className="flex justify-between items-center">
+                                                        <p className="text-[10px] text-gray-400">
+                                                            {new Date(n.created_at).toLocaleString()}
+                                                        </p>
+                                                        {n.metadata?.actionable && n.metadata?.job_id && (
+                                                            <Button variant="link" size="sm" className="h-6 text-xs" onClick={() => handleViewTask(n.metadata!.job_id, n.metadata)}>
+                                                                Ver
+                                                            </Button>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
@@ -114,7 +120,8 @@ export function NotificationCenter({ onViewTask }: { onViewTask: (jobId: string,
                                     {activeTasks.map(task => (
                                         <div
                                             key={task.job_id}
-                                            className="p-3 text-sm hover:bg-gray-50 transition-colors"
+                                            className="p-3 text-sm hover:bg-gray-50 transition-colors cursor-pointer"
+                                            onClick={() => onViewTask(task.job_id, task.type)}
                                         >
                                             <div className="flex justify-between items-start mb-2">
                                                 <span className="font-semibold text-xs uppercase tracking-wider text-gray-500">
@@ -132,17 +139,9 @@ export function NotificationCenter({ onViewTask }: { onViewTask: (jobId: string,
                                                 <span className="text-xs text-muted-foreground font-mono truncate max-w-[150px]">
                                                     ID: {task.job_id.slice(0, 8)}...
                                                 </span>
-                                                {task.status === 'completed' && (
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        className="h-6 text-xs"
-                                                        onClick={() => handleTaskClick(task.job_id)}
-                                                        disabled={loadingDetails[task.job_id]}
-                                                    >
-                                                        {loadingDetails[task.job_id] ? <Loader2 className="h-3 w-3 animate-spin" /> : "Ver Resultado"}
-                                                    </Button>
-                                                )}
+                                                <Button variant="link" size="sm" className="h-6 text-xs">
+                                                    Ver Progreso
+                                                </Button>
                                             </div>
                                         </div>
                                     ))}

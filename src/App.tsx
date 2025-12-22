@@ -22,6 +22,7 @@ export default function App() {
   const [showRegister, setShowRegister] = useState(false);
   const [activeTab, setActiveTab] = useState('upload');
   const [currentJobId, setCurrentJobId] = useState<string | undefined>();
+  const [currentJobType, setCurrentJobType] = useState<string | undefined>();
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -89,7 +90,10 @@ export default function App() {
   const renderContent = () => {
     switch (activeTab) {
       case 'upload':
-        return <ContentUpload jobId={currentJobId} onReset={() => setCurrentJobId(undefined)} />;
+        return <ContentUpload jobId={currentJobId} jobType={currentJobType} onReset={() => {
+          setCurrentJobId(undefined);
+          setCurrentJobType(undefined);
+        }} />;
       case 'review':
         return <ContentReview />;
       case 'analysis':
@@ -122,13 +126,12 @@ export default function App() {
 
   const handleViewTask = (jobId: string, type: string) => {
     setCurrentJobId(jobId);
+    setCurrentJobType(type);
+    
+    // Navigate to the correct tab based on type
     if (type === 'text_analysis') {
       setActiveTab('analysis');
-    } else if (type === 'image_analysis') {
-      // Assuming ContentUpload or ImageResult handles jobId lookup (TODO)
-      setActiveTab('upload');
-    } else if (type === 'audio_analysis') {
-      // Audio result will be displayed through ContentUpload
+    } else { // image_analysis and audio_analysis both go to the 'upload' tab
       setActiveTab('upload');
     }
   };
@@ -140,6 +143,7 @@ export default function App() {
         onTabChange={(tab) => {
           setActiveTab(tab);
           setCurrentJobId(undefined); // Clear job context when manually switching
+          setCurrentJobType(undefined);
         }}
         onLogout={handleLogout}
         onViewTask={handleViewTask}
