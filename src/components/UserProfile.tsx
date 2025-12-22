@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useUserProfile } from '../hooks/useUserProfile';
+import { defaultAvatars, type DefaultAvatar } from '../assets/avatars';
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
@@ -35,11 +36,39 @@ export function UserProfile() {
         handleInputChange,
         handleFileChange,
         handleUploadClick,
+        handleAvatarSelect,
         handleSaveProfile,
         fileInputRef
     } = useUserProfile();
     const [showLevelUp, setShowLevelUp] = useState(false);
     const [showAvatarModal, setShowAvatarModal] = useState(false);
+    const [loadedAvatars, setLoadedAvatars] = useState<Array<{ avatar: DefaultAvatar, url: string }>>([]);
+    const [selectedAvatarId, setSelectedAvatarId] = useState<string | null>(null);
+
+    // Cargar avatares desde assets/avatars
+    useEffect(() => {
+        const loadAvatars = async () => {
+            // Usar import.meta.glob para pre-cargar todos los SVG
+            const avatarModules = import.meta.glob('../assets/avatars/*.svg', { eager: true, import: 'default' }) as Record<string, string>;
+
+            const avatarPromises = defaultAvatars.map(async (avatar) => {
+                const modulePath = `../assets/avatars/${avatar.filename}`;
+                const url = avatarModules[modulePath];
+
+                if (url) {
+                    return { avatar, url };
+                }
+
+                return null;
+            });
+
+            const loaded = (await Promise.all(avatarPromises)).filter((item): item is { avatar: DefaultAvatar, url: string } => item !== null);
+
+            setLoadedAvatars(loaded);
+        };
+
+        loadAvatars();
+    }, []);
 
     if (isLoading) {
         return <div>Loading profile...</div>;
@@ -64,7 +93,7 @@ export function UserProfile() {
         return (current / requirement) * 100;
     };
 
-    const avatarSrc = profile.photo || profile.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.email || profile.id}&backgroundColor=ffda00`;
+    const avatarSrc = profile.photo || profile.avatar;
 
     return (
         <motion.div 
@@ -343,7 +372,7 @@ export function UserProfile() {
                                     <Separator />
 
                                     {/* Opciones de Cambio */}
-                                    <div className="space-y-3">
+                                    <div className="space-y-4">
                                         <Button 
                                             className="w-full" 
                                             variant="outline"
@@ -353,34 +382,42 @@ export function UserProfile() {
                                             Subir nueva foto
                                         </Button>
                                         
-                                        <div className="grid grid-cols-4 gap-3">
-                                            {/* Avatares digitales de ejemplo */}
-                                            {[
-                                                { style: 'avataaars', seed: 'Felix', bg: 'ffda00' },
-                                                { style: 'bottts', seed: 'Robot1', bg: 'ffe97a' },
-                                                { style: 'avataaars', seed: 'Aneka', bg: 'ff6b35' },
-                                                { style: 'personas', seed: 'Digital1', bg: '00b4d8' },
-                                                { style: 'avataaars', seed: 'Sofia', bg: 'f72585' },
-                                                { style: 'bottts', seed: 'Bot2024', bg: '7209b7' },
-                                                { style: 'personas', seed: 'Alex', bg: '06ffa5' },
-                                                { style: 'avataaars', seed: 'Carlos', bg: 'ffd60a' },
-                                            ].map((avatar, idx) => (
-                                                <button
-                                                    key={idx}
-                                                    onClick={() => {
-                                                        // This is a mock implementation, it should be replaced with a call to the backend
-                                                        // to get a real avatar and update the profile state.
-                                                    }}
-                                                    className="relative group"
-                                                >
-                                                    <Avatar className="h-16 w-16 border-2 border-gray-200 hover:border-primary transition-all cursor-pointer hover:scale-110 shadow-sm">
-                                                        <AvatarImage src={`https://api.dicebear.com/7.x/${avatar.style}/svg?seed=${avatar.seed}&backgroundColor=${avatar.bg}`} />
-                                                        <AvatarFallback>#{idx + 1}</AvatarFallback>
-                                                    </Avatar>
-                                                    <div className="absolute inset-0 bg-primary/0 group-hover:bg-primary/20 rounded-full transition-all" />
-                                                </button>
-                                            ))}
-                                        </div>
+                                        {loadedAvatars.length === 0 ? (
+                                            <div className="text-center text-sm text-muted-foreground py-4">
+                                                Cargando avatares...
+                                            </div>
+                                        ) : (
+                                            <div className="grid grid-cols-4 gap-6 px-4 py-2">
+                                                {loadedAvatars.slice(0, 8).map(({ avatar, url }) => (
+                                                    <motion.button
+                                                        key={avatar.id}
+                                                        onClick={() => {
+                                                            setSelectedAvatarId(avatar.id);
+                                                            handleAvatarSelect(url);
+                                                        }}
+                                                        whileHover={{ scale: 1.05 }}
+                                                        whileTap={{ scale: 0.95 }}
+                                                        className="relative flex justify-center items-center w-24 h-24"
+                                                        title={avatar.description}
+                                                    >
+                                                        {/* Fondo amarillo circular detrás */}
+                                                        {selectedAvatarId === avatar.id && (
+                                                            <motion.div
+                                                                initial={{ scale: 0 }}
+                                                                animate={{ scale: 1 }}
+                                                                className="absolute w-20 h-20 bg-[#ffda00] rounded-full"
+                                                            />
+                                                        )}
+                                                        <Avatar className="h-16 w-16 border-0 shadow-lg relative z-10">
+                                                            <AvatarImage src={url} alt={avatar.name} />
+                                                            <AvatarFallback>
+                                                                {avatar.name.split(' ').map(n => n[0]).join('')}
+                                                            </AvatarFallback>
+                                                        </Avatar>
+                                                    </motion.button>
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
 
                                     <Separator />
@@ -390,13 +427,21 @@ export function UserProfile() {
                                         <Button 
                                             variant="outline" 
                                             className="flex-1"
-                                            onClick={() => setShowAvatarModal(false)}
+                                            onClick={() => {
+                                                setShowAvatarModal(false);
+                                                setSelectedAvatarId(null);
+                                            }}
                                         >
                                             Cancelar
                                         </Button>
                                         <Button 
                                             className="flex-1 bg-primary hover:bg-primary/90"
-                                            onClick={handleSaveProfile}
+                                            onClick={async (e) => {
+                                                await handleSaveProfile(e);
+                                                setShowAvatarModal(false);
+                                                setSelectedAvatarId(null);
+                                            }}
+                                            disabled={!selectedAvatarId && !profile?.photo}
                                         >
                                             <CheckCircle className="h-4 w-4 mr-2" />
                                             Guardar
