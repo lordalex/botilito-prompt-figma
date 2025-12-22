@@ -3,6 +3,7 @@ import { supabase } from '@/utils/supabase/client';
 import { Notification, AsyncTask } from '@/types/notification';
 import { notificationService } from '@/services/notificationService';
 import { imageAnalysisService, JobStatusResponse } from '@/services/imageAnalysisService';
+import { audioAnalysisService } from '@/services/audioAnalysisService';
 import { checkAnalysisStatusOnce } from '@/lib/analysisPipeline';
 import { AnalysisResult } from '@/types/imageAnalysis';
 
@@ -99,6 +100,9 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
                     if (task.type === 'image_analysis') {
                         const jobStatus = await imageAnalysisService.getJobStatus(task.job_id);
                         status = jobStatus.status;
+                    } else if (task.type === 'audio_analysis') {
+                        const jobStatus = await audioAnalysisService.getJobStatus(task.job_id);
+                        status = jobStatus.status;
                     } else if (task.type === 'text_analysis') {
                         const jobStatus = await checkAnalysisStatusOnce(task.job_id);
                         status = jobStatus.status;
@@ -122,7 +126,8 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
                                 metadata: {
                                     job_id: task.job_id,
                                     source: task.type === 'text_analysis' ? 'ai-analysis' : task.type === 'audio_analysis' ? 'audio-upload' : 'upload',
-                                    actionable: true
+                                    actionable: true,
+                                    final_status: 'completed'
                                 }
                             };
                             await notificationService.sendNotification(notification).catch(console.error);
@@ -141,7 +146,8 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
                                 metadata: {
                                     job_id: task.job_id,
                                     source: task.type === 'text_analysis' ? 'ai-analysis' : task.type === 'audio_analysis' ? 'audio-upload' : 'upload',
-                                    actionable: true
+                                    actionable: true,
+                                    final_status: 'failed'
                                 }
                             };
                             await notificationService.sendNotification(notification).catch(console.error);

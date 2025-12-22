@@ -2,15 +2,15 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Forensic Media Analysis API",
-    "version": "2.1.0",
-    "description": "API for detecting digital forgeries in images and videos. Features chunked uploads for large files, multi-algorithm analysis (ELA, Noise, SLIC, Copy-Move), and LLM-based forensic reporting.",
+    "version": "2.3.0",
+    "description": "API for detecting digital forgeries. Features chunked uploads, video time-stamping, original file archiving, and Spanish-localized LLM analysis.",
     "contact": {
       "name": "API Support"
     }
   },
   "servers": [
     {
-      "url": "https://mdkswlgcqsmgfmcuorxq.supabase.co/functions/v1/image-analysis",
+      "url": "https://your-project.supabase.co/functions/v1/analysis",
       "description": "Supabase Edge Function Gateway"
     }
   ],
@@ -19,37 +19,31 @@
       "bearerAuth": {
         "type": "http",
         "scheme": "bearer",
-        "bearerFormat": "JWT"
+        "bearerFormat": "JWT",
+        "description": "Supabase Auth Token"
       }
     },
     "schemas": {
-      "Error": {
-        "type": "object",
-        "properties": {
-          "error": { "type": "string" }
-        }
-      },
       "UploadInitRequest": {
         "type": "object",
         "required": ["action", "filename", "total_chunks", "total_size", "file_hash"],
         "properties": {
           "action": { "type": "string", "enum": ["init"] },
-          "filename": { "type": "string", "example": "evidence_video.mp4" },
+          "filename": { "type": "string", "example": "evidence.mp4" },
           "total_chunks": { "type": "integer", "example": 12 },
-          "total_size": { "type": "integer", "description": "Total bytes", "example": 52428800 },
-          "file_hash": { "type": "string", "description": "SHA-256 hash of the complete binary file", "example": "a591a6d40bf420404a011733cfb7b190d62c65bf0bcda32b57b277d9ad9f146e" },
-          "use_cache": { "type": "boolean", "default": true, "description": "If true, returns existing result if hash matches." }
+          "total_size": { "type": "integer", "example": 52428800 },
+          "file_hash": { "type": "string", "description": "SHA-256 hash of the binary file", "example": "a591a6d4..." },
+          "use_cache": { "type": "boolean", "default": true }
         }
       },
-      "UploadChunkRequestJSON": {
+      "UploadChunkRequestMultipart": {
         "type": "object",
-        "description": "Use this for small chunks or non-browser clients. For efficiency, use multipart/form-data instead.",
-        "required": ["action", "upload_id", "chunk_index", "chunk_b64"],
+        "description": "Send as multipart/form-data",
         "properties": {
           "action": { "type": "string", "enum": ["chunk"] },
           "upload_id": { "type": "string", "format": "uuid" },
-          "chunk_index": { "type": "integer", "example": 0 },
-          "chunk_b64": { "type": "string", "description": "Base64 encoded chunk data (Max 5MB)" }
+          "chunk_index": { "type": "integer" },
+          "chunk_data": { "type": "string", "format": "binary" }
         }
       },
       "UploadFinishRequest": {
@@ -58,7 +52,7 @@
         "properties": {
           "action": { "type": "string", "enum": ["finish"] },
           "upload_id": { "type": "string", "format": "uuid" },
-          "file_hash": { "type": "string", "description": "Must match the hash sent in init for integrity check." }
+          "file_hash": { "type": "string" }
         }
       },
       "ForensicResult": {
@@ -67,24 +61,37 @@
           "summary": {
             "type": "object",
             "properties": {
-              "global_score": { "type": "number", "format": "float", "example": 0.89 },
+              "global_score": { "type": "number", "example": 0.98 },
               "global_verdict": { "type": "string", "enum": ["CLEAN", "SUSPICIOUS", "TAMPERED"], "example": "TAMPERED" },
-              "frames_analyzed": { "type": "integer", "example": 5 }
+              "frames_analyzed": { "type": "integer", "example": 5 },
+              "original_video": { 
+                "type": "string", 
+                "format": "uri", 
+                "nullable": true,
+                "description": "If input was video, this is the R2 URL to the full source file."
+              }
             }
           },
           "details": {
             "type": "array",
             "items": { "$ref": "#/components/schemas/FrameAnalysis" }
           },
-          "ai_analysis": { "$ref": "#/components/schemas/AIAnalysis" }
+          "ai_analysis": {
+            "$ref": "#/components/schemas/AIAnalysis"
+          }
         }
       },
       "FrameAnalysis": {
         "type": "object",
         "properties": {
           "frame_index": { "type": "integer", "example": 0 },
-          "max_score": { "type": "number", "example": 0.89 },
-          "original_frame": { "type": "string", "format": "uri", "description": "URL to the source image/frame on R2" },
+          "timestamp": { 
+            "type": "string", 
+            "example": "00:00:05", 
+            "description": "Time position of this frame in the source video." 
+          },
+          "max_score": { "type": "number", "example": 0.98 },
+          "original_frame": { "type": "string", "format": "uri", "description": "The specific extracted frame image." },
           "insights": {
             "type": "array",
             "items": { "$ref": "#/components/schemas/Insight" }
@@ -93,40 +100,27 @@
       },
       "Insight": {
         "type": "object",
-        "description": "Detailed result from a specific algorithm",
         "properties": {
-          "algo": {
-            "type": "string",
-            "enum": ["ELA", "NOISE", "SLIC", "GHOSTING", "CLONE", "TEMPORAL", "METADATA"],
-            "example": "ELA"
-          },
+          "algo": { "type": "string", "example": "ELA" },
           "type": { "type": "string", "enum": ["classic_algo", "metadata"], "example": "classic_algo" },
-          "value": {
-            "oneOf": [{ "type": "number" }, { "type": "string" }],
-            "description": "The score (0.0-1.0) or metadata value",
-            "example": 0.85
-          },
-          "description": { "type": "string", "example": "High frequency error rate suggests re-compression." },
-          "heatmap": { "type": "string", "format": "uri", "description": "Visual heatmap URL (Jet colormap)" },
-          "mask": { "type": "string", "format": "uri", "description": "Binary mask URL (White = Tampered)" },
-          "data": { "type": "object", "description": "Optional raw data (e.g., EXIF tags)" }
+          "value": { "oneOf": [{ "type": "number" }, { "type": "string" }], "example": 0.85 },
+          "description": { "type": "string" },
+          "heatmap": { "type": "string", "format": "uri" },
+          "mask": { "type": "string", "format": "uri" },
+          "data": { "type": "object", "description": "Raw metadata or overlay URLs" }
         }
       },
       "AIAnalysis": {
         "type": "object",
-        "description": "Generated by LLM based on technical signals",
         "properties": {
           "level_3_verdict": {
             "type": "object",
             "properties": {
-              "user_explanation": { "type": "string", "example": "The image shows strong signs of manipulation in the upper right corner." },
-              "confidence_score": { "type": "number", "example": 0.92 }
+              "user_explanation": { "type": "string" },
+              "confidence_score": { "type": "number" }
             }
           },
-          "level_2_integration": {
-             "type": "object",
-             "description": "Technical correlation analysis"
-          }
+          "level_2_integration": { "type": "object" }
         }
       }
     }
@@ -137,92 +131,67 @@
   "paths": {
     "/upload_session": {
       "post": {
-        "summary": "Orchestrate Upload Session",
-        "description": "Handles Initialization, Chunk Uploading, and Finalization. \n\n**Note for Chunks:** You can send `application/json` (Base64) OR `multipart/form-data` (Binary). Binary is recommended for performance.",
+        "summary": "Orchestrate Upload",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
                 "oneOf": [
                   { "$ref": "#/components/schemas/UploadInitRequest" },
-                  { "$ref": "#/components/schemas/UploadChunkRequestJSON" },
                   { "$ref": "#/components/schemas/UploadFinishRequest" }
                 ]
               }
             },
             "multipart/form-data": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "action": { "type": "string", "enum": ["chunk"] },
-                  "upload_id": { "type": "string", "format": "uuid" },
-                  "chunk_index": { "type": "integer" },
-                  "chunk_data": { "type": "string", "format": "binary" }
-                }
-              }
+              "schema": { "$ref": "#/components/schemas/UploadChunkRequestMultipart" }
             }
           }
         },
         "responses": {
           "200": {
-            "description": "Action Successful",
+            "description": "Success",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
                     "status": { "type": "string", "example": "ready" },
-                    "upload_id": { "type": "string", "format": "uuid" },
-                    "job_id": { "type": "string", "format": "uuid", "description": "Returned only on 'finish' action" }
+                    "upload_id": { "type": "string" },
+                    "job_id": { "type": "string" }
                   }
                 }
               }
             }
-          },
-          "400": { "description": "Integrity Check Failed (Hash Mismatch)" }
+          }
         }
       }
     },
     "/status/{jobId}": {
       "get": {
-        "summary": "Poll Job Status",
-        "description": "Check progress. When status is 'completed', returns full forensic report.",
-        "parameters": [
-          { "name": "jobId", "in": "path", "required": true, "schema": { "type": "string" } }
-        ],
+        "summary": "Get Results",
+        "parameters": [{ "name": "jobId", "in": "path", "required": true, "schema": { "type": "string" } }],
         "responses": {
           "200": {
-            "description": "Status or Result",
+            "description": "Result",
             "content": {
               "application/json": {
                 "schema": {
-                   "oneOf": [
-                     {
-                       "type": "object",
-                       "properties": {
-                         "id": { "type": "string" },
-                         "status": { "type": "string", "example": "processing" },
-                         "progress": {
-                           "type": "object",
-                           "properties": {
-                             "step": { "type": "string" },
-                             "percent": { "type": "integer" }
-                           }
-                         }
-                       }
-                     },
-                     {
-                       "allOf": [
-                         {
-                           "type": "object",
-                           "properties": {
-                             "status": { "type": "string", "example": "completed" },
-                             "result": { "$ref": "#/components/schemas/ForensicResult" }
-                           }
-                         }
-                       ]
-                     }
-                   ]
+                  "oneOf": [
+                    { 
+                      "type": "object", 
+                      "properties": { 
+                        "status": { "type": "string", "example": "processing" },
+                        "progress": { "type": "object" }
+                      } 
+                    },
+                    { 
+                      "type": "object", 
+                      "properties": { 
+                        "status": { "type": "string", "example": "completed" },
+                        "result": { "$ref": "#/components/schemas/ForensicResult" }
+                      } 
+                    }
+                  ]
                 }
               }
             }

@@ -35,6 +35,7 @@ function transformApiResult(status: JobStatusResponse, file?: File): AnalysisRes
                 algorithm: i.algo,
                 significance_score: typeof i.value === 'number' ? i.value : 0,
                 interpretation: i.description,
+                timestamp: d.timestamp, // Add frame timestamp to each insight
             })) || []) || [],
             level_2_integration: {
                 ...(aiAnalysis.level_2_integration || {}),
@@ -65,6 +66,7 @@ function transformApiResult(status: JobStatusResponse, file?: File): AnalysisRes
             dimensions: { width: 0, height: 0 }, // This should be filled from metadata insight if available
             created_at: status.created_at || new Date().toISOString(),
             url: details[0]?.original_frame, // Pass the original frame URL
+            original_video_url: summary.original_video, // Add original video URL
         },
         chain_of_custody: [],
         recommendations: [],

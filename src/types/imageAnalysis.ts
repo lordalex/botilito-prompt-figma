@@ -13,6 +13,7 @@ export interface Level1AnalysisItem {
     algorithm: string; // "ELA", "Noise", "SLIC", "Ghosting", "Clone"
     significance_score: number; // 0.0 - 1.0
     interpretation: string;
+    timestamp?: string;
 }
 
 // Level 2: Integration
@@ -84,6 +85,7 @@ export interface FileInfo {
     created_at?: string;
     exif_data?: Record<string, any>;
     url?: string;
+    original_video_url?: string;
 }
 
 export interface ChainOfCustodyEvent {

@@ -221,9 +221,9 @@ export function AudioAnalysisResultView({ data, onReset }: AudioAnalysisResultVi
                                         <CardTitle className="text-base">Espectrograma</CardTitle>
                                     </CardHeader>
                                     <CardContent>
-                                        {data.recursos_nube?.espectrograma_png ? (
+                                        {data.assets?.spectrogram ? (
                                             <img 
-                                                src={data.recursos_nube.espectrograma_png} 
+                                                src={data.assets.spectrogram} 
                                                 alt="Espectrograma del audio"
                                                 className="w-full h-auto rounded-lg"
                                             />
