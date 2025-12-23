@@ -23,6 +23,8 @@ function transformApiResult(status: JobStatusResponse, file?: File): AnalysisRes
     const aiAnalysis = forensicResult.ai_analysis || {};
     const details = forensicResult.details || [];
     const summary = forensicResult.summary || {};
+    const metadataInsight = details[0]?.insights?.find((i: any) => i.algo === 'Metadatos')?.data || {};
+    const exifData = metadataInsight.exif || {};
 
     const transformed: AnalysisResult = {
         meta: {
@@ -57,16 +59,24 @@ function transformApiResult(status: JobStatusResponse, file?: File): AnalysisRes
                 score: typeof i.value === 'number' ? i.value : 0,
                 heatmap: i.heatmap,
             })) || [],
-            metadata: {}
+            metadata: {
+                exif: exifData,
+                software_detected: !!metadataInsight.software_name,
+                software_name: metadataInsight.software_name
+            }
         })),
         file_info: {
-            name: file?.name || 'image.jpg',
-            size_bytes: file?.size || 0,
-            mime_type: file?.type || 'image/jpeg',
-            dimensions: { width: 0, height: 0 }, // This should be filled from metadata insight if available
+            name: file?.name || metadataInsight.filename || 'image.jpg',
+            size_bytes: file?.size || metadataInsight.size_bytes || 0,
+            mime_type: file?.type || `image/${metadataInsight.format?.toLowerCase()}` || 'image/jpeg',
+            dimensions: { 
+                width: metadataInsight.width || 0,
+                height: metadataInsight.height || 0
+            },
             created_at: status.created_at || new Date().toISOString(),
             url: details[0]?.original_frame, // Pass the original frame URL
             original_video_url: summary.original_video, // Add original video URL
+            exif_data: exifData,
         },
         chain_of_custody: [],
         recommendations: [],
