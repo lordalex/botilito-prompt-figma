@@ -17,6 +17,7 @@ export function ContentUpload({ jobId, jobType, onReset }: ContentUploadProps) {
     progress,
     result,
     error,
+    fileName,
     submitContent,
     resetState: internalReset,
     retryLastSubmission,
@@ -33,7 +34,7 @@ export function ContentUpload({ jobId, jobType, onReset }: ContentUploadProps) {
   }
 
   if (status === 'uploading' || status === 'polling') {
-    return <ContentUploadProgress progress={progress} step="Procesando" status="Analizando contenido..." />;
+    return <ContentUploadProgress progress={progress} step="Procesando" status="Extrayendo metadatos y características..." fileName={fileName} />;
   }
 
   if (status === 'complete' && result) {
