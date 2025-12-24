@@ -2,15 +2,6 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react-swc';
 import path from 'path';
 import fs from 'fs';
-import type { UserConfig as VitestUserConfigInterface } from 'vitest/config';
-
-const vitestConfig: VitestUserConfigInterface = {
-  test: {
-    globals: true,
-    environment: 'jsdom',
-    setupFiles: './src/setupTests.ts',
-  },
-};
 
 export default defineConfig({
   plugins: [react()],
@@ -81,6 +72,7 @@ export default defineConfig({
   server: {
     allowedHosts: ['.digitalia.gov.co'],
     host: '0.0.0.0',
+allowedHosts: ['.lordalexand.dev', 'localhost', '127.0.0.1', '0.0.0.0'],
     port: 3000,
     open: true,
     // Disable caching in dev mode
@@ -88,6 +80,5 @@ export default defineConfig({
       'Cache-Control': 'no-store',
     }
   },
-  ...vitestConfig,
 });
 

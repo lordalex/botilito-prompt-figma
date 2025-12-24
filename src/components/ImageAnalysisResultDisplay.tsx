@@ -1,10 +1,13 @@
 import React from 'react';
+import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
-import { AlertTriangle, CheckCircle, Shield } from 'lucide-react';
+import { AlertTriangle, CheckCircle } from 'lucide-react';
 import type { AnalysisResult } from '../services/imageAnalysisTypes';
+import MetadataDisplay from './image-analysis/MetadataDisplay';
+import { useImageAnalysisResult } from '../hooks/useImageAnalysisResult';
 
 interface ImageAnalysisResultDisplayProps {
   result: AnalysisResult;
@@ -12,9 +15,13 @@ interface ImageAnalysisResultDisplayProps {
 }
 
 export function ImageAnalysisResultDisplay({ result, onReset }: ImageAnalysisResultDisplayProps) {
-  const { summary, meta } = result;
-  const isTampered = summary.global_verdict === 'TAMPERED';
-  const confidencePercent = (summary.confidence_score * 100).toFixed(1);
+  const { 
+    isTampered, 
+    confidencePercent, 
+    verdictCardProps, 
+    metadataInsight,
+    meta 
+  } = useImageAnalysisResult(result);
 
   const getVerdictCard = () => {
     if (isTampered) {
@@ -23,11 +30,11 @@ export function ImageAnalysisResultDisplay({ result, onReset }: ImageAnalysisRes
           <CardHeader>
             <CardTitle className="flex items-center space-x-2 text-destructive">
               <AlertTriangle />
-              <span>Veredicto: Imagen Posiblemente Manipulada</span>
+              <span>{verdictCardProps.title}</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p>Nuestros análisis sugieren que esta imagen puede haber sido alterada digitalmente.</p>
+            <p>{verdictCardProps.description}</p>
           </CardContent>
         </Card>
       );
@@ -37,11 +44,11 @@ export function ImageAnalysisResultDisplay({ result, onReset }: ImageAnalysisRes
         <CardHeader>
           <CardTitle className="flex items-center space-x-2 text-primary">
             <CheckCircle />
-            <span>Veredicto: Imagen Limpia</span>
+            <span>{verdictCardProps.title}</span>
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p>No se encontraron señales evidentes de manipulación en esta imagen.</p>
+          <p>{verdictCardProps.description}</p>
         </CardContent>
       </Card>
     );
@@ -60,12 +67,14 @@ export function ImageAnalysisResultDisplay({ result, onReset }: ImageAnalysisRes
           <Card>
             <CardContent className="p-6 space-y-4">
               <div className="flex items-center justify-between">
-                <Label>Nivel de Confianza (Manipulación)</Label>
+                <span className="text-sm font-medium">Nivel de Confianza (Manipulación)</span>
                 <Badge variant={isTampered ? "destructive" : "secondary"}>{confidencePercent}%</Badge>
               </div>
               <Progress value={parseFloat(confidencePercent)} className={isTampered ? "bg-destructive" : ""} />
             </CardContent>
           </Card>
+
+          {metadataInsight && <MetadataDisplay insights={[metadataInsight]} />}
 
           <div className="text-xs text-muted-foreground text-center">
             Análisis completado en {meta.duration_ms}ms. {meta.cached && "(Resultado de caché)"}

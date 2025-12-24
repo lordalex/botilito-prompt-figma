@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { performAnalysis as performTextAnalysis } from '../services/contentAnalysisService';
-import { imageAnalysisService, convertFileToBase64 } from '../services/imageAnalysisService';
+import { imageAnalysisService } from '../services/imageAnalysisService';
 import { audioAnalysisService } from '../services/audioAnalysisService';
+import { textAnalysisService } from '../services/textAnalysisService';
 import { useNotifications } from '@/providers/NotificationProvider';
 import { ContentType, TransmissionVector } from '../utils/caseCodeGenerator';
 
@@ -158,11 +159,36 @@ export function useContentUpload(initialJobId?: string, initialJobType?: string)
           setStatus('complete');
         }
       } else {
-        // --- FLUJO TEXTO ---
-        const textResult = await performTextAnalysis(content, transmissionMedium, (p: number) => {
-          setProgress(p);
-        });
-        setResult(textResult);
+        // --- TEXT ANALYSIS FLOW (NEW API) ---
+        setStatus('polling');
+        startFakeProgress();
+
+        const { jobId, result: fastResult } = await textAnalysisService.submitJob(content);
+
+        if (jobId) {
+          registerTask(jobId, 'text_analysis', { content: content.substring(0, 100) });
+        }
+
+        let finalResult = fastResult;
+
+        // Poll for result if not immediately available
+        if (!finalResult && jobId) {
+          const poll = async () => {
+            while (true) {
+              await new Promise(r => setTimeout(r, 2000));
+              const status = await textAnalysisService.getJobStatus(jobId);
+              if (status.status === 'completed') {
+                return await textAnalysisService.getAnalysisResult(jobId);
+              }
+              if (status.status === 'failed') throw new Error(status.error || 'Failed');
+            }
+          };
+          finalResult = await poll();
+        }
+
+        stopFakeProgress();
+        setResult(finalResult);
+        setProgress(100);
         setStatus('complete');
       }
     } catch (err: any) {
@@ -209,17 +235,22 @@ export function useContentUpload(initialJobId?: string, initialJobType?: string)
             }
           } else if (initialJobType === 'audio_analysis') {
             statusRes = await audioAnalysisService.getJobStatus(initialJobId);
-             if (statusRes.status === 'completed') {
+            if (statusRes.status === 'completed') {
               result = await audioAnalysisService.getAudioAnalysisResult(initialJobId);
             }
+          } else if (initialJobType === 'text_analysis') {
+            statusRes = await textAnalysisService.getJobStatus(initialJobId);
+            if (statusRes.status === 'completed') {
+              result = await textAnalysisService.getAnalysisResult(initialJobId);
+            }
           } else {
-            // Basic text analysis doesn't have polling restoration in this hook
+            // Unknown job type
             setError("No se puede restaurar este tipo de análisis.");
             setStatus('error');
             stopFakeProgress();
             return;
           }
-          
+
           if (statusRes.status === 'completed') {
             setResult(result);
             setStatus('complete');

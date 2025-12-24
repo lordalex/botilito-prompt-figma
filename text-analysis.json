@@ -1,0 +1,289 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "API de Análisis Forense de Texto y Verificación",
+    "version": "1.0.0",
+    "description": "API orquestadora para el análisis de noticias, artículos y textos. \n\n**Funcionalidades Principales:**\n1. **Extracción WYSIWYG:** Utiliza navegadores headless (Playwright) para renderizar sitios web dinámicos (React, Angular) y extraer el texto tal cual lo ve el usuario.\n2. **Búsqueda de Contexto:** Realiza búsquedas externas (DuckDuckGo) para encontrar fuentes corroborativas o contradictorias.\n3. **Análisis de IA:** Utiliza LLMs para cruzar la información extraída con el contexto externo y generar un veredicto de credibilidad.\n\n**Flujo de Trabajo:**\n1. Enviar trabajo (`POST /submit`)\n2. Sondear estado (`GET /status/{jobId}`)\n3. Recibir resultado enriquecido.",
+    "contact": {
+      "name": "Soporte de API",
+      "email": "support@example.com"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://mdkswlgcqsmgfmcuorxq.supabase.co/functions/v1/text-analysis",
+      "description": "Servidor de Producción (Supabase Edge Functions)"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Token de acceso de Supabase (Service Role o Anon Key con usuario autenticado)."
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "Descripción legible del error ocurrido.",
+            "example": "Fallo en la extracción: Tiempo de espera agotado al renderizar URL."
+          }
+        }
+      },
+      "SubmitRequest": {
+        "type": "object",
+        "description": "Cuerpo de la petición para iniciar un análisis. Se debe proporcionar `url` O `text`.",
+        "properties": {
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "URL del artículo o noticia a analizar. El sistema utilizará un navegador headless para renderizar JS y extraer el contenido visible.",
+            "example": "https://noticias-ejemplo.com/articulo-falso-ovni"
+          },
+          "text": {
+            "type": "string",
+            "description": "Texto directo para analizar si no se dispone de una URL. Útil para cadenas de WhatsApp o textos copiados.",
+            "example": "URGENTE: Acaban de confirmar que el agua del grifo contiene..."
+          }
+        }
+      },
+      "SubmitResponse": {
+        "type": "object",
+        "properties": {
+          "job_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Identificador único del trabajo. Úsalo para consultar el estado.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          },
+          "status": {
+            "type": "string",
+            "example": "queued",
+            "description": "Estado inicial del trabajo."
+          }
+        }
+      },
+      "StatusProcessing": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "status": { 
+            "type": "string", 
+            "enum": ["queued", "processing"],
+            "example": "processing" 
+          },
+          "progress": {
+            "type": "object",
+            "description": "Detalles del progreso en tiempo real del nodo Python.",
+            "properties": {
+              "step": { "type": "string", "example": "Scraping" },
+              "percent": { "type": "integer", "example": 45 },
+              "logs": { "type": "string", "example": "Renderizando DOM con Playwright..." }
+            }
+          }
+        }
+      },
+      "StatusCompleted": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "status": { "type": "string", "enum": ["completed"], "example": "completed" },
+          "result": { "$ref": "#/components/schemas/AnalysisResult" }
+        }
+      },
+      "StatusFailed": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "status": { "type": "string", "enum": ["failed"], "example": "failed" },
+          "error": { "type": "string", "example": "Error 403: Acceso denegado por el sitio web." }
+        }
+      },
+      "AnalysisResult": {
+        "type": "object",
+        "description": "Objeto final que contiene toda la información recopilada y generada.",
+        "properties": {
+          "source_data": {
+            "type": "object",
+            "description": "Contenido crudo extraído de la URL o texto proporcionado.",
+            "properties": {
+              "title": { "type": "string", "example": "Invasión Alienígena Confirmada" },
+              "text": { "type": "string", "description": "Texto completo limpio." },
+              "hostname": { "type": "string", "example": "fakenews.com" },
+              "url": { "type": "string" },
+              "date": { "type": "string" }
+            }
+          },
+          "external_context": {
+            "type": "array",
+            "description": "Resultados de búsqueda web (DuckDuckGo) utilizados para fact-checking.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "title": { "type": "string" },
+                "href": { "type": "string" },
+                "body": { "type": "string", "description": "Fragmento del resultado de búsqueda." }
+              }
+            }
+          },
+          "ai_analysis": {
+            "$ref": "#/components/schemas/AIReport",
+            "description": "Análisis cognitivo generado por el LLM."
+          }
+        }
+      },
+      "AIReport": {
+        "type": "object",
+        "required": ["summary", "classification_labels"],
+        "properties": {
+          "summary": {
+            "type": "string",
+            "description": "Resumen conciso del artículo generado por la IA.",
+            "example": "El artículo alega falsamente una invasión alienígena sin pruebas."
+          },
+          "classification_labels": {
+            "type": "object",
+            "description": "Etiquetas de riesgo y credibilidad.",
+            "properties": {
+              "credibility_score": { "type": "integer", "description": "0 a 100", "example": 15 },
+              "category": { "type": "string", "example": "Desinformación / Sátira" },
+              "bias": { "type": "string", "example": "Extremo" }
+            }
+          },
+          "web_search_evaluation": {
+            "type": "object",
+            "description": "Evaluación de cómo la búsqueda externa apoya o refuta el texto.",
+            "properties": {
+              "consensus": { "type": "string", "example": "Refutado por fuentes principales" },
+              "conflicting_sources": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        }
+      }
+    }
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/submit": {
+      "post": {
+        "summary": "Enviar Texto/URL para Análisis",
+        "description": "Inicia un trabajo asíncrono. El servidor orquestará el scraping (si es URL) usando un navegador real, realizará búsquedas de contexto y generará un informe de IA.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Trabajo encolado exitosamente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubmitResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Solicitud inválida (falta URL o Texto)",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "401": {
+            "description": "No autorizado (Falta Token Bearer)"
+          },
+          "500": {
+            "description": "Error interno del servidor"
+          }
+        }
+      }
+    },
+    "/status/{jobId}": {
+      "get": {
+        "summary": "Obtener Estado o Resultado",
+        "description": "Consulta el estado actual del trabajo. Este endpoint es polimórfico: devuelve una estructura diferente dependiendo de si el trabajo está 'processing', 'completed' o 'failed'.",
+        "parameters": [
+          {
+            "name": "jobId",
+            "in": "path",
+            "required": true,
+            "description": "UUID devuelto por el endpoint /submit",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Estado del trabajo (Polimórfico)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    { "$ref": "#/components/schemas/StatusProcessing" },
+                    { "$ref": "#/components/schemas/StatusCompleted" },
+                    { "$ref": "#/components/schemas/StatusFailed" }
+                  ]
+                },
+                "examples": {
+                  "Processing": {
+                    "summary": "Trabajo en proceso (Scraping)",
+                    "value": {
+                      "id": "550e8400-e29b-41d4-a716-446655440000",
+                      "status": "processing",
+                      "progress": {
+                        "step": "Scraping",
+                        "percent": 20,
+                        "logs": "Renderizando página con Playwright..."
+                      }
+                    }
+                  },
+                  "Completed": {
+                    "summary": "Trabajo finalizado con éxito",
+                    "value": {
+                      "id": "550e8400-e29b-41d4-a716-446655440000",
+                      "status": "completed",
+                      "result": {
+                        "source_data": {
+                          "title": "Noticia Ejemplo",
+                          "text": "Contenido extraído...",
+                          "url": "https://ejemplo.com"
+                        },
+                        "ai_analysis": {
+                          "summary": "Resumen generado...",
+                          "classification_labels": { "credibility": 80 }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Trabajo no encontrado"
+          }
+        }
+      }
+    }
+  }
+}
+

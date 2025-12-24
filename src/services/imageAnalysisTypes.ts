@@ -25,6 +25,42 @@ export interface JobStatusResponse {
   trace_log?: any[];
 }
 
+export interface ExifData {
+  [key: string]: any;
+}
+
+export interface Metadata {
+  mode: string;
+  width: number;
+  format: string;
+  exif: ExifData;
+  height: number;
+  entropy: number;
+  filename: string;
+  size_bytes: number;
+  edge_density: number;
+  software_name: string;
+  software_detected: boolean;
+}
+
+export interface Insight {
+  algo: string;
+  data: Metadata | any;
+  mask: string;
+  type: string;
+  value: string;
+  heatmap: string;
+  original: string;
+  description: string;
+}
+
+export interface AnalysisDetail {
+  max_score: number;
+  frame_index: number;
+  original_frame: string;
+  insights: Insight[];
+}
+
 export interface AnalysisResult {
   meta: {
     analyzed_at: string;
@@ -35,5 +71,5 @@ export interface AnalysisResult {
     global_verdict: 'TAMPERED' | 'CLEAN';
     confidence_score: number;
   };
-  details: any[];
+  details: AnalysisDetail[];
 }

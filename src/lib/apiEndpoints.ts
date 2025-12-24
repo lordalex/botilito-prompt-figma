@@ -20,6 +20,9 @@ export const IMAGE_ANALYSIS_BASE_URL = `${SUPABASE_URL}/functions/v1/image-analy
 // Audio Analysis API
 export const AUDIO_ANALYSIS_BASE_URL = `${SUPABASE_URL}/functions/v1/audio-analysis`;
 
+// Text Analysis API
+export const TEXT_ANALYSIS_BASE_URL = `${SUPABASE_URL}/functions/v1/text-analysis`;
+
 // Legacy/Other APIs
 export const WEB_SNAPSHOT_URL = `${SUPABASE_URL}/functions/v1/web-snapshot`;
 export const ANALYSIS_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/analysis_function`;

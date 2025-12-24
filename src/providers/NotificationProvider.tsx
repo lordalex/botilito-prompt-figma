@@ -4,7 +4,7 @@ import { Notification, AsyncTask } from '@/types/notification';
 import { notificationService } from '@/services/notificationService';
 import { imageAnalysisService, JobStatusResponse } from '@/services/imageAnalysisService';
 import { audioAnalysisService } from '@/services/audioAnalysisService';
-import { checkAnalysisStatusOnce } from '@/lib/analysisPipeline';
+import { textAnalysisService } from '@/services/textAnalysisService';
 import { AnalysisResult } from '@/types/imageAnalysis';
 
 interface NotificationContextType {
@@ -104,7 +104,7 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
                         const jobStatus = await audioAnalysisService.getJobStatus(task.job_id);
                         status = jobStatus.status;
                     } else if (task.type === 'text_analysis') {
-                        const jobStatus = await checkAnalysisStatusOnce(task.job_id);
+                        const jobStatus = await textAnalysisService.getJobStatus(task.job_id);
                         status = jobStatus.status;
                     }
 
