@@ -41,7 +41,6 @@ export function Navigation({ activeTab, onTabChange, onLogout, onViewTask }: Nav
   const tabs = [
     { id: 'upload', label: 'Análisis IA', icon: Upload },
     { id: 'verification', label: 'Diagnóstico Humano', icon: Users },
-    { id: 'immunization', label: 'Inmunización', icon: Syringe },
     { id: 'review', label: 'Historial', icon: Bot },
     { id: 'mapa', label: 'Mapa Desinfodémico', icon: Map },
     { id: 'profile', label: 'Mi Perfil', icon: User },

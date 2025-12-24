@@ -35,6 +35,7 @@ export function HumanVerification() {
         handleSelectCase,
         handleSubmitVerification,
         handleBackToList,
+        pagination,
     } = useHumanVerification();
 
     const [showVoteSubmittedDialog, setShowVoteSubmittedDialog] = useState(false);
@@ -155,6 +156,25 @@ export function HumanVerification() {
                                 </CardContent>
                             </Card>
                         ))}
+                    </div>
+
+                    {/* Pagination Controls */}
+                    <div className="mt-8 flex justify-between items-center py-4 border-t">
+                        <Button
+                            variant="outline" size="sm"
+                            onClick={() => pagination.setCurrentPage(p => Math.max(1, p - 1))}
+                            disabled={pagination.currentPage === 1 || isLoading}
+                        >
+                            Anterior
+                        </Button>
+                        <span className="text-sm font-medium">Página {pagination.currentPage}</span>
+                        <Button
+                            variant="outline" size="sm"
+                            onClick={() => pagination.setCurrentPage(p => p + 1)}
+                            disabled={!pagination.hasMore || isLoading}
+                        >
+                            Siguiente
+                        </Button>
                     </div>
                 </CardContent>
             </Card>

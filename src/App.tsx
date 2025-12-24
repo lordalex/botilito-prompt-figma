@@ -107,8 +107,6 @@ export default function App() {
         />;
       case 'verification':
         return <HumanVerification />;
-      case 'immunization':
-        return <ImmunizationStudio />;
       case 'mapa':
         return <MapaDesinfodemico />;
       case 'docs':
@@ -127,7 +125,7 @@ export default function App() {
   const handleViewTask = (jobId: string, type: string) => {
     setCurrentJobId(jobId);
     setCurrentJobType(type);
-    
+
     // Navigate to the correct tab based on type
     if (type === 'text_analysis') {
       setActiveTab('analysis');

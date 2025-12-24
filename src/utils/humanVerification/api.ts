@@ -149,7 +149,11 @@ export async function fetchVerificationSummary(page: number, pageSize: number): 
 
     const result = await pollJobStatus(job_id);
     if ('cases' in result) {
-      return result;
+      // Ensure the result matches the type with pagination info if the API provides it
+      return {
+        cases: result.cases || [],
+        pagination: result.pagination || { page, pageSize, hasMore: (result.cases || []).length === pageSize }
+      };
     }
     throw new Error("API response did not contain 'cases'");
 

@@ -85,11 +85,20 @@ export interface ProgressInfo {
     percent: number;
 }
 
+export interface RewardInfo {
+    xp_added: number;
+    rep_added: number;
+    total_xp: number;
+    total_rep: number;
+    success: boolean;
+}
+
 export interface TextAnalysisJobStatusResponse {
     id?: string;
-    job_id?: string; // API uses job_id in some responses
+    job_id?: string;
     status: 'pending' | 'queued' | 'processing' | 'completed' | 'failed';
     progress?: ProgressInfo;
     result?: FinalAnalysisResult;
+    reward?: RewardInfo;
     error?: string;
 }

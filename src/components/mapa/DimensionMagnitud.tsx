@@ -4,16 +4,19 @@ import { Badge } from '../ui/badge';
 import { Progress } from '../ui/progress';
 import { TrendingUp, Bot, Users, Database } from 'lucide-react';
 import { AreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { DimensionNoData } from './DimensionNoData';
 
 export function DimensionMagnitud({ data }) {
-  const { 
-    noticiasReportadas, 
-    noticiasReportadasSemana, 
-    deteccionesPorIA, 
-    tiempoDeteccionIA, 
-    deteccionesPorHumanos, 
+  if (!data) return <DimensionNoData label="Dimensión de Magnitud" />;
+
+  const {
+    noticiasReportadas,
+    noticiasReportadasSemana,
+    deteccionesPorIA,
+    tiempoDeteccionIA,
+    deteccionesPorHumanos,
     tiempoDeteccionHumanos,
-    fuentesGeneradoras 
+    fuentesGeneradoras
   } = data;
 
   return (

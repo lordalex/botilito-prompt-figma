@@ -4,15 +4,19 @@ import { api } from '@/services/api';
 import { fetchVerificationSummary, fetchCaseDetails, getUserVerificationStats } from '../utils/humanVerification/api';
 import { useVoteTracker } from '../providers/VoteTrackerProvider';
 import { useJobTracker } from './useJobTracker';
-import type { CaseEnriched, Profile } from '../types';
+import type { CaseEnriched } from '../utils/humanVerification/types';
+import type { Profile } from '../types/profile';
 
 export const useHumanVerification = () => {
     const { user, session } = useAuth();
     const { submitVote } = useVoteTracker();
-    
+
     const [profile, setProfile] = useState<Profile | null>(null);
     const [cases, setCases] = useState<CaseEnriched[]>([]);
     const [selectedCase, setSelectedCase] = useState<CaseEnriched | null>(null);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [hasMore, setHasMore] = useState(false);
+    const [pageSize] = useState(10);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [userStats, setUserStats] = useState<{ total_verifications: number, points: number } | null>(null);
@@ -25,28 +29,30 @@ export const useHumanVerification = () => {
 
     const [initialProfile, setInitialProfile] = useState<Profile | null>(null);
 
+    const loadInitialData = async () => {
+        if (!user) return;
+        setIsLoading(true);
+        try {
+            const [profileResponse, summary, stats] = await Promise.all([
+                api.profile.get(session!),
+                fetchVerificationSummary(currentPage, pageSize),
+                getUserVerificationStats(user.id)
+            ]);
+            setProfile(profileResponse.data);
+            setInitialProfile(profileResponse.data); // Store initial profile
+            setCases(summary.cases);
+            setHasMore(summary.pagination?.hasMore || false);
+            setUserStats(stats);
+        } catch (e: any) {
+            setError(e.message || 'Error al cargar los datos.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     useEffect(() => {
-        const loadInitialData = async () => {
-            if (!user) return;
-            setIsLoading(true);
-            try {
-                const [profileResponse, summary, stats] = await Promise.all([
-                    api.profile.get(session!),
-                    fetchVerificationSummary(1, 10),
-                    getUserVerificationStats(user.id)
-                ]);
-                setProfile(profileResponse.data);
-                setInitialProfile(profileResponse.data); // Store initial profile
-                setCases(summary.cases);
-                setUserStats(stats);
-            } catch (e: any) {
-                setError(e.message || 'Error al cargar los datos.');
-            } finally {
-                setIsLoading(false);
-            }
-        };
         loadInitialData();
-    }, [user, session]);
+    }, [user, session, currentPage]);
 
     useEffect(() => {
         const handleVoteCompletion = async () => {
@@ -128,5 +134,10 @@ export const useHumanVerification = () => {
         handleSelectCase,
         handleSubmitVerification,
         handleBackToList,
+        pagination: {
+            currentPage,
+            setCurrentPage,
+            hasMore
+        }
     };
 };

@@ -6,12 +6,15 @@ import { Separator } from '../ui/separator';
 import { Alert, AlertDescription } from '../ui/alert';
 import { Shield, Users, Bot, UserCheck, Syringe, Hash, Eye, AlertCircle } from 'lucide-react';
 import { PieChart as RechartsPieChart, Pie, Cell, BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { DimensionNoData } from './DimensionNoData';
 
 export function DimensionMitigacion({ data }) {
-    const { 
+    if (!data) return <DimensionNoData label="Dimensión de Mitigación" />;
+
+    const {
         consensoValidacionHumana, consensoHumanoVsIA, distribucionDesacuerdo, noticiasMasReportadas,
         redEpidemiologos, redInmunizadores, marcadoresDiagnostico, vectoresContagio, casosPorPrioridad,
-        casosPorEstado, sistemaCodificacion 
+        casosPorEstado, sistemaCodificacion
     } = data;
 
     const COLORS = ['#ef4444', '#f97316', '#fb923c', '#f59e0b', '#6b7280'];

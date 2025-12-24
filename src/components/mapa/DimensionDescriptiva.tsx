@@ -5,10 +5,13 @@ import { Progress } from '../ui/progress';
 import { Alert, AlertDescription } from '../ui/alert';
 import { FileText, Share2, Trophy } from 'lucide-react';
 import { PieChart as RechartsPieChart, Pie, Cell, BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { DimensionNoData } from './DimensionNoData';
 
 const COLORS = ['#00B4D8', '#0077B6', '#7209B7', '#F72585', '#06FFA5', '#FFD60A'];
 
 export function DimensionDescriptiva({ data }) {
+    if (!data) return <DimensionNoData label="Dimensión Descriptiva" />;
+
     const { porSector, plataformasPropagacion, personalidadesAtacadas, sectorMasEficiente } = data;
 
     return (

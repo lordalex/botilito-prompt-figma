@@ -10,25 +10,29 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useCaseHistory } from '@/hooks/useCaseHistory';
-import { CaseDetailDialog } from '@/components/CaseDetailDialog';
+import { CaseFullDetail } from '@/components/CaseFullDetail';
 import { generateDisplayId } from '@/utils/humanVerification/api';
 
 export function ContentReview() {
-  const { 
-    cases, 
-    loading, 
+  const {
+    cases,
+    loading,
     error,
     stats,
-    pagination, 
+    pagination,
     filters,
-    refresh 
+    refresh
   } = useCaseHistory();
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
+  if (selectedId) {
+    return <CaseFullDetail caseId={selectedId} onBack={() => setSelectedId(null)} />;
+  }
+
   return (
     <div className="w-full space-y-8 p-6 bg-gray-50 min-h-screen font-sans">
-      
+
       {/* Franja de Botilito */}
       <div className="bg-[#ffe97a] border-2 border-[#ffda00] rounded-lg p-4 shadow-lg">
         <div className="flex items-center space-x-4">
@@ -109,15 +113,15 @@ export function ContentReview() {
           ) : (
             <div className="divide-y divide-gray-100">
               {cases.map((item) => (
-                <div 
-                  key={item.id} 
-                  className="p-4 hover:bg-yellow-50/30 cursor-pointer group transition-colors" 
+                <div
+                  key={item.id}
+                  className="p-4 hover:bg-yellow-50/30 cursor-pointer group transition-colors"
                   onClick={() => setSelectedId(item.id)}
                 >
                   <div className="flex justify-between items-start gap-4">
                     <div className="space-y-1">
                       <div className="flex items-center gap-2 text-xs text-gray-500">
-                        <span className="font-mono bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded font-semibold">{item.displayId || generateDisplayId(item)}</span>
+                        <span className="font-mono bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded font-semibold">{(item as any).displayId || generateDisplayId(item as any)}</span>
                         <span className="font-mono bg-gray-100 px-1 rounded">{new Date(item.created_at).toLocaleDateString()}</span>
                         <span>•</span>
                         <Badge variant="secondary" className="text-[10px] h-5">{item.submission_type}</Badge>
@@ -129,10 +133,10 @@ export function ContentReview() {
                       <Button variant="ghost" size="icon" className="shrink-0">
                         <Eye className="h-5 w-5 text-gray-400 group-hover:text-yellow-600" />
                       </Button>
-                      <Badge 
+                      <Badge
                         className={
-                          item.consensus?.state === 'human_consensus' 
-                            ? 'bg-green-100 text-green-800 hover:bg-green-100' 
+                          item.consensus?.state === 'human_consensus'
+                            ? 'bg-green-100 text-green-800 hover:bg-green-100'
                             : 'bg-blue-100 text-blue-800 hover:bg-blue-100'
                         }
                       >
@@ -147,20 +151,20 @@ export function ContentReview() {
 
           {/* Pagination Controls */}
           <div className="p-4 border-t border-gray-100 flex justify-between items-center bg-gray-50/30">
-            <Button 
-              variant="outline" size="sm" 
+            <Button
+              variant="outline" size="sm"
               onClick={() => pagination.setCurrentPage(p => Math.max(1, p - 1))}
               disabled={pagination.currentPage === 1 || loading}
             >
               <ChevronLeft className="h-4 w-4 mr-2" /> Anterior
             </Button>
-            
+
             <span className="text-sm font-medium text-gray-600">
               Página {pagination.currentPage}
             </span>
-            
-            <Button 
-              variant="outline" size="sm" 
+
+            <Button
+              variant="outline" size="sm"
               onClick={() => pagination.setCurrentPage(p => p + 1)}
               disabled={!pagination.hasMore || loading}
             >
@@ -169,9 +173,6 @@ export function ContentReview() {
           </div>
         </CardContent>
       </Card>
-
-      {/* Detailed View Component */}
-      <CaseDetailDialog caseId={selectedId} onClose={() => setSelectedId(null)} />
     </div>
   );
 }

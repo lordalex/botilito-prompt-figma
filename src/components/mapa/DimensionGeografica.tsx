@@ -4,8 +4,11 @@ import { Badge } from '../ui/badge';
 import { Progress } from '../ui/progress';
 import { MapPin, Globe } from 'lucide-react';
 import { BarChart, Bar, PieChart as RechartsPieChart, Pie, Cell, CartesianGrid, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { DimensionNoData } from './DimensionNoData';
 
 export function DimensionGeografica({ data }) {
+    if (!data) return <DimensionNoData label="Dimensión Geográfica" />;
+
     const { casosPorRegion, mapaCalor, fuentesInternacionalesVsNacionales } = data;
 
     return (

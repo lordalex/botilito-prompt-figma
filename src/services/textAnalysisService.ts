@@ -17,7 +17,7 @@ export type { TextAnalysisJobStatusResponse } from '@/types/textAnalysis';
  * Transform text analysis API v2.0.0 result to match the existing UI model
  * used by ContentUploadResult.tsx
  */
-function transformTextAnalysisToUI(apiResult: any, jobId: string, userId?: string): any {
+function transformTextAnalysisToUI(apiResult: any, jobId: string, userId?: string, reward?: any): any {
     // Robustly handle hierarchical result from v2.0.0
     const result = apiResult.result || apiResult;
     const { source_data = {}, search_context = [], ai_analysis = {} } = result;
@@ -118,30 +118,31 @@ function transformTextAnalysisToUI(apiResult: any, jobId: string, userId?: strin
         return 'General';
     };
 
-    const theme = inferTheme((source_data.title || '') + ' ' + (source_data.text || ''));
-    const region = source_data.hostname?.includes('.co') ? 'Colombia' : 'Internacional';
+    const theme = summaries.theme || inferTheme((source_data.title || '') + ' ' + (source_data.text || ''));
+    const region = summaries.region || (source_data.hostname?.includes('.co') ? 'Colombia' : 'Internacional');
     const reasoning = judgement.reasoning || summaries.summary || classification.observaciones || (labels.length > 0 ? (labels[0][1] as any).justificacion : '');
 
     return {
-        title: source_data.title || summaries.headline || 'Análisis de Texto',
+        title: summaries.headline || source_data.title || 'Análisis de Texto',
         summaryBotilito: {
             summary: summaries.summary || reasoning
         },
         theme,
         region,
         caseNumber: displayId,
-        consensusState: 'ai_only',
+        consensusState: result.requires_human_review ? 'conflicted' : (judgement.consensus_analysis ? 'human_consensus' : 'ai_only'),
         markersDetected,
         vectores: [source_data.vector_de_transmision || 'Web'],
-        finalVerdict: judgement.final_verdict || `Puntaje de credibilidad: ${credibilityScore}/100`,
+        finalVerdict: judgement.final_verdict || (judgement.error ? `Diagnóstico parcial: ${judgement.error}` : `Puntaje de credibilidad: ${credibilityScore}/100`),
         fullResult: {
             created_at: new Date().toISOString(),
             url: source_data.url,
             user_id: userId,
+            reported_by_name: result.reported_by?.name || null,
             document_id: displayId,
             metadata: {
-                source: source_data.hostname ? {
-                    name: source_data.hostname,
+                source: (source_data.hostname || summaries.source) ? {
+                    name: source_data.hostname || summaries.source,
                     url: source_data.url
                 } : null,
                 text_analysis: result,
@@ -152,12 +153,14 @@ function transformTextAnalysisToUI(apiResult: any, jobId: string, userId?: strin
                 })),
                 classification_labels: Object.fromEntries(labels),
                 comprehensive_judgement: {
-                    final_verdict: judgement.final_verdict,
-                    recommendation: credibilityScore < 50
+                    final_verdict: judgement.final_verdict || (judgement.error ? 'Error en análisis secundario' : ''),
+                    recommendation: judgement.recommendation || (credibilityScore < 50
                         ? 'No compartir esta información sin verificar con fuentes confiables'
-                        : 'Verificar con múltiples fuentes antes de compartir',
+                        : 'Verificar con múltiples fuentes antes de compartir'),
                     reasoning: reasoning,
-                    key_findings: judgement.key_findings || []
+                    key_findings: judgement.key_findings || [],
+                    consensus_analysis: judgement.consensus_analysis,
+                    requires_human_review: result.requires_human_review
                 },
                 web_search_evaluation: {
                     verdict: judgement.final_verdict,
@@ -165,7 +168,8 @@ function transformTextAnalysisToUI(apiResult: any, jobId: string, userId?: strin
                 },
                 evidence: result.evidence
             }
-        }
+        },
+        reward: reward // Include reward in the UI model
     };
 }
 
@@ -189,7 +193,7 @@ async function pollJobStatus(jobId: string, token: string): Promise<any> {
 
         if (data.status === 'completed' && data.result) {
             const { data: { session } } = await supabase.auth.getSession();
-            return transformTextAnalysisToUI(data.result, jobId, session?.user?.id);
+            return transformTextAnalysisToUI(data.result, jobId, session?.user?.id, data.reward);
         }
 
         if (data.status === 'failed') {
@@ -255,7 +259,7 @@ export const textAnalysisService = {
         const status = await textAnalysisService.getJobStatus(jobId);
         if (status.status === 'completed' && status.result) {
             const { data: { session } } = await supabase.auth.getSession();
-            return transformTextAnalysisToUI(status.result, jobId, session?.user?.id);
+            return transformTextAnalysisToUI(status.result, jobId, session?.user?.id, status.reward);
         }
         throw new Error(`Job not complete (Status: ${status.status})`);
     }

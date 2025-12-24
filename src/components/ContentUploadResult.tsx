@@ -22,6 +22,7 @@ interface ContentUploadResultProps {
 
 import { ImageAnalysisResultView } from './image-analysis/ImageAnalysisResultView';
 import { AudioAnalysisResultView } from './audio-analysis/AudioAnalysisResultView';
+import { VerificationSuccessDialog } from './VerificationSuccessDialog';
 
 export function ContentUploadResult({ result, onReset }: ContentUploadResultProps) {
   // Comprehensive type detection for all payload formats
@@ -62,6 +63,8 @@ export function ContentUploadResult({ result, onReset }: ContentUploadResultProp
   const [selectedMarker, setSelectedMarker] = useState<any | null>(null);
   const [newsScreenshot, setNewsScreenshot] = useState<string | null>(null);
   const [reportedBy, setReportedBy] = useState<string | null>('Cargando...');
+  const [showRewardModal, setShowRewardModal] = useState(false);
+  const [rewardData, setRewardData] = useState<any>(null);
 
   const {
     title,
@@ -82,6 +85,12 @@ export function ContentUploadResult({ result, onReset }: ContentUploadResultProp
 
   useEffect(() => {
     const fetchAuthor = async () => {
+      // Prioritize name from payload if available
+      if (fullResult?.reported_by_name) {
+        setReportedBy(fullResult.reported_by_name);
+        return;
+      }
+
       if (!fullResult?.user_id) {
         setReportedBy('Desconocido');
         return;
@@ -96,13 +105,22 @@ export function ContentUploadResult({ result, onReset }: ContentUploadResultProp
     };
 
     fetchAuthor();
-  }, [fullResult?.user_id, session]);
+  }, [fullResult?.user_id, fullResult?.reported_by_name, session]);
 
   useEffect(() => {
-    // Pre-fill the screenshot if it already exists in the initial data
     const existingScreenshot = result?.fullResult?.metadata?.screenshot || result?.fullResult?.screenshot;
     if (existingScreenshot) {
       setNewsScreenshot(existingScreenshot);
+    }
+
+    // Check for rewards
+    if (result?.reward?.success) {
+      setRewardData({
+        pointsEarned: result.reward.xp_added,
+        totalXP: result.reward.total_xp,
+        totalRep: result.reward.total_rep
+      });
+      setShowRewardModal(true);
     }
   }, [result]);
 
@@ -442,6 +460,8 @@ export function ContentUploadResult({ result, onReset }: ContentUploadResultProp
     return 'bg-gray-600 text-white border border-gray-700';
   };
 
+  const compJudgement = fullResult?.metadata?.comprehensive_judgement;
+
   return (
     <div className="max-w-5xl mx-auto p-4 md:p-6 lg:pt-5 space-y-6">
       {/* Botilito completion banner */}
@@ -651,10 +671,85 @@ export function ContentUploadResult({ result, onReset }: ContentUploadResultProp
             </div>
           )}
 
+          {/* Fact-check Table (Evidence) */}
+          {fullResult?.metadata?.evidence?.fact_check_table && fullResult.metadata.evidence.fact_check_table.length > 0 && (
+            <div className="p-4 bg-secondary/10 border border-secondary/30 rounded-lg space-y-3">
+              <Label className="flex items-center space-x-2">
+                <ExternalLink className="h-4 w-4 text-primary" />
+                <span>Evidencia y Verificación de Hechos:</span>
+              </Label>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-secondary/30">
+                      <th className="py-2 px-3 font-semibold pb-2">Afirmación</th>
+                      <th className="py-2 px-3 font-semibold pb-2">Veredicto</th>
+                      <th className="py-2 px-3 font-semibold pb-2">Explicación</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {fullResult.metadata.evidence.fact_check_table.map((item: any, index: number) => (
+                      <tr key={index} className="border-b border-secondary/10 hover:bg-secondary/5">
+                        <td className="py-2 px-3">{item.claim}</td>
+                        <td className="py-2 px-3">
+                          <Badge className={`${getMarkerColor(item.verdict)} text-white text-[10px] whitespace-nowrap`}>
+                            {item.verdict}
+                          </Badge>
+                        </td>
+                        <td className="py-2 px-3 text-xs opacity-80">{item.explanation}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Enriched AI Judgment Segments */}
+          {compJudgement && (
+            <div className="space-y-4">
+              {compJudgement.key_findings && compJudgement.key_findings.length > 0 && (
+                <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg">
+                  <Label className="mb-2 block font-bold text-primary">Hallazgos Clave:</Label>
+                  <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
+                    {compJudgement.key_findings.map((finding: string, idx: number) => (
+                      <li key={idx} className="leading-relaxed">{finding}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {compJudgement.consensus_analysis && (
+                <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
+                  <Label className="mb-1 block font-bold text-emerald-700">Análisis de Consenso:</Label>
+                  <p className="text-sm text-emerald-800 italic leading-relaxed">
+                    "{compJudgement.consensus_analysis}"
+                  </p>
+                </div>
+              )}
+
+              {compJudgement.recommendation && (
+                <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg">
+                  <Label className="mb-1 block font-bold text-orange-700">Recomendación:</Label>
+                  <p className="text-sm text-orange-800 leading-relaxed font-medium">
+                    {compJudgement.recommendation}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Epidemiological evaluation */}
           <div>
             <h4 className="text-lg md:text-xl font-semibold">Evaluación epidemiológica:</h4>
-            <p className="text-sm text-muted-foreground mt-1">{finalVerdict}</p>
+            <div className="mt-2 p-4 bg-secondary/20 rounded-lg border-l-4 border-primary">
+              <p className="text-sm text-foreground font-medium">{finalVerdict}</p>
+              {compJudgement?.reasoning && (
+                <p className="text-xs text-muted-foreground mt-2 italic">
+                  Motivo: {compJudgement.reasoning}
+                </p>
+              )}
+            </div>
           </div>
 
           {/* Transmission vectors */}
@@ -741,6 +836,11 @@ export function ContentUploadResult({ result, onReset }: ContentUploadResultProp
           Quiero reportar otro contenido!
         </Button>
       </div>
+      <VerificationSuccessDialog
+        isOpen={showRewardModal}
+        onClose={() => setShowRewardModal(false)}
+        gamificationData={rewardData}
+      />
     </div>
   );
 }

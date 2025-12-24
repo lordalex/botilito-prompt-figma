@@ -3,8 +3,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui
 import { Alert, AlertDescription } from '../ui/alert';
 import { Zap, Radio, Clock, AlertTriangle } from 'lucide-react';
 import { BarChart, Bar, AreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { DimensionNoData } from './DimensionNoData';
 
 export function DimensionTemporalidad({ data }) {
+  if (!data) return <DimensionNoData label="Dimensión de Temporalidad" />;
+
   const { velocidadDeteccion, tiempoViralizacionPromedio, evolucionSemanal, comparativaVerdaderasVsFalsas } = data;
   return (
     <Card>

@@ -3,8 +3,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui
 import { Alert, AlertDescription } from '../ui/alert';
 import { Flame, Target, AlertTriangle } from 'lucide-react';
 import { BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { DimensionNoData } from './DimensionNoData';
 
 export function DimensionAlcance({ data }) {
+    if (!data) return <DimensionNoData label="Dimensión de Alcance o Virulencia" />;
+
     const { indiceViralidad, rangoViralizacion, nivelEngagement, efectividadAlcance, distribucionViralidad } = data;
     return (
         <Card>
