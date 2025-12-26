@@ -547,23 +547,8 @@ export function ContentUploadResult({ result, onReset }: ContentUploadResultProp
                       alt="Captura de la noticia"
                       className="w-full h-40 md:h-48 object-cover object-top"
                       onLoad={() => setImageLoaded(true)}
-                      onError={() => setImageLoaded(true)} // Handle image load error if needed
+                      onError={() => setImageLoaded(true)}
                     />
-                    {/* Overlay with detected markers */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent flex items-end justify-center p-4">
-                      <div className="flex flex-wrap gap-2 justify-center">
-                        {markersDetected?.slice(0, 3).map((marker: any, index: number) => (
-                          <Badge
-                            key={index}
-                            onClick={() => setSelectedMarker(marker)}
-                            className={`${getMarkerColor(marker.type)} text-white shadow-lg cursor-pointer hover:opacity-90 transition-opacity px-3 py-1.5 text-sm`}
-                          >
-                            {getMarkerIcon(marker.type, index)}
-                            <span className="ml-1.5">{marker.type}</span>
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
                   </div>
                 </div>
               )}
@@ -814,11 +799,11 @@ export function ContentUploadResult({ result, onReset }: ContentUploadResultProp
           <div>
             <h4 className="text-lg md:text-xl font-semibold">Veredicto de Cumplimiento AMI:</h4>
             <div className={`mt-2 p-4 rounded-lg border-l-4 ${fullResult?.metadata?.ami_assessment?.ica?.nivel === 'Fully AMI Compliant' ? 'bg-emerald-50 border-emerald-500' :
-                fullResult?.metadata?.ami_assessment?.ica?.nivel === 'Needs Revision' ? 'bg-amber-50 border-amber-500' : 'bg-red-50 border-red-500'
+              fullResult?.metadata?.ami_assessment?.ica?.nivel === 'Needs Revision' ? 'bg-amber-50 border-amber-500' : 'bg-red-50 border-red-500'
               }`}>
               <div className="flex items-center justify-between">
                 <p className={`text-base font-bold ${fullResult?.metadata?.ami_assessment?.ica?.nivel === 'Fully AMI Compliant' ? 'text-emerald-700' :
-                    fullResult?.metadata?.ami_assessment?.ica?.nivel === 'Needs Revision' ? 'text-amber-700' : 'text-red-700'
+                  fullResult?.metadata?.ami_assessment?.ica?.nivel === 'Needs Revision' ? 'text-amber-700' : 'text-red-700'
                   }`}>
                   {fullResult?.metadata?.ami_assessment?.ica?.nivel || finalVerdict}
                 </p>
