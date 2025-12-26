@@ -297,6 +297,35 @@ c59b8c9 - Implement AI content analysis with Supabase Edge Functions
 
 4. **Crear Pull Request en GitHub**
 
+### Convenciones de Nombres de Ramas
+
+Usamos prefijos estándar para identificar el tipo de trabajo:
+
+| Prefijo | Significado | Uso |
+|---------|-------------|-----|
+| `feat/` | **Feature** | Nueva funcionalidad |
+| `fix/` o `Fix/` | **Fix** | Corrección de bugs |
+| `feature/` | **Feature** (largo) | Igual que `feat/` |
+| `hotfix/` | **Hotfix** | Correcciones urgentes en producción |
+| `refactor/` | **Refactor** | Reestructuración de código sin cambiar comportamiento |
+| `docs/` | **Docs** | Cambios en documentación |
+| `test/` | **Test** | Agregar o actualizar tests |
+| `chore/` | **Chore** | Tareas de mantenimiento (dependencias, configs) |
+
+**Formato recomendado:**
+```
+<tipo>/<descripcion>
+<tipo>/<numero-issue>/<descripcion>
+```
+
+**Ejemplos:**
+```bash
+feat/audioanalysis              # Nueva feature de análisis de audio
+feat/57/translate-error-message # Feature para issue #57
+Fix/image_analysis_results      # Corrección en resultados de análisis
+feature/51/avatar-y-perfil      # Feature para issue #51
+```
+
 ---
 
 ## 🔌 API Integration
