@@ -13,6 +13,7 @@ export function useContentUpload(initialJobId?: string, initialJobType?: string)
   const [retryCount, setRetryCount] = useState(0);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<any>(null);
+  const [fileName, setFileName] = useState<string | undefined>(undefined);
 
   // We need to use RegisterTask
   const { registerTask } = useNotifications();
@@ -25,6 +26,7 @@ export function useContentUpload(initialJobId?: string, initialJobType?: string)
     setProgress(0);
     setResult(null);
     setError(null);
+    setFileName(undefined);
     if (pollingRef.current) clearInterval(pollingRef.current);
   };
 
@@ -57,6 +59,7 @@ export function useContentUpload(initialJobId?: string, initialJobType?: string)
     try {
       if (files && files.length > 0) {
         const file = files[0];
+        setFileName(file.name);
         const fileType = file.type.toLowerCase();
         const fileName = file.name.toLowerCase();
 
@@ -246,6 +249,6 @@ export function useContentUpload(initialJobId?: string, initialJobType?: string)
     restoreJob();
   }, [initialJobId, initialJobType]);
 
-  return { status, progress, result, error, submitContent, resetState, retryLastSubmission, retryCount };
+  return { status, progress, result, error, fileName, submitContent, resetState, retryLastSubmission, retryCount };
 }
 
