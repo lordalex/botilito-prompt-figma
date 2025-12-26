@@ -96,6 +96,12 @@ export const useUserProfile = () => {
         fileInputRef.current?.click();
     };
 
+    const handleAvatarSelect = (avatarUrl: string) => {
+        if (profile) {
+            setProfile({ ...profile, avatar: avatarUrl, photo: avatarUrl });
+        }
+    };
+
     const handleSaveProfile = async (e: FormEvent) => {
         e.preventDefault();
         if (!profile || !profile.full_name) {
@@ -124,7 +130,9 @@ export const useUserProfile = () => {
         handleInputChange,
         handleFileChange,
         handleUploadClick,
+        handleAvatarSelect,
         handleSaveProfile,
-        fileInputRef
+        fileInputRef,
+        setProfile
     };
 };
