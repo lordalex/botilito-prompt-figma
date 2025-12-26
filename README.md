@@ -304,26 +304,50 @@ Usamos prefijos estándar para identificar el tipo de trabajo:
 | Prefijo | Significado | Uso |
 |---------|-------------|-----|
 | `feat/` | **Feature** | Nueva funcionalidad |
-| `fix/` o `Fix/` | **Fix** | Corrección de bugs |
-| `feature/` | **Feature** (largo) | Igual que `feat/` |
+| `fix/` | **Fix** | Corrección de bugs |
 | `hotfix/` | **Hotfix** | Correcciones urgentes en producción |
 | `refactor/` | **Refactor** | Reestructuración de código sin cambiar comportamiento |
 | `docs/` | **Docs** | Cambios en documentación |
 | `test/` | **Test** | Agregar o actualizar tests |
 | `chore/` | **Chore** | Tareas de mantenimiento (dependencias, configs) |
 
-**Formato recomendado:**
+**Formato obligatorio:**
 ```
-<tipo>/<descripcion>
-<tipo>/<numero-issue>/<descripcion>
+<tipo>/<numero-issue>/<descripcion-corta>
 ```
 
-**Ejemplos:**
+### Reglas Estrictas
+
+| Regla | ✅ Correcto | ❌ Incorrecto |
+|-------|-------------|---------------|
+| **Minúsculas siempre** | `fix/123/audio` | `Fix/123/audio` |
+| **Usar `feat/` no `feature/`** | `feat/45/login` | `feature/45/login` |
+| **Guiones, no underscores** | `fix/12/image-results` | `fix/12/image_results` |
+| **Inglés para código** | `feat/8/audio-analysis` | `feat/8/analisis-audio` |
+| **Incluir número de issue** | `fix/99/button-color` | `fix/button-color` |
+| **Descripciones cortas (2-4 palabras)** | `feat/5/user-avatar` | `feat/5/add-new-user-avatar-upload-feature` |
+
+### Ejemplos Correctos
+
 ```bash
-feat/audioanalysis              # Nueva feature de análisis de audio
-feat/57/translate-error-message # Feature para issue #57
-Fix/image_analysis_results      # Corrección en resultados de análisis
-feature/51/avatar-y-perfil      # Feature para issue #51
+feat/123/audio-analysis         # Nueva feature de análisis de audio
+feat/57/translate-errors        # Feature para issue #57
+fix/89/image-results            # Corrección en resultados de análisis
+hotfix/101/auth-crash           # Fix urgente en producción
+docs/15/api-endpoints           # Documentación de endpoints
+refactor/42/clean-utils         # Refactor de utilidades
+chore/33/update-deps            # Actualizar dependencias
+```
+
+### Crear una Nueva Rama
+
+```bash
+# Siempre desde main actualizado
+git checkout main
+git pull origin main
+
+# Crear rama con formato correcto
+git checkout -b feat/123/my-feature-name
 ```
 
 ---
