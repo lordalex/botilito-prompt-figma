@@ -21,38 +21,43 @@ function transformTextAnalysisToUI(apiResult: any, jobId: string, userId?: strin
     // Robustly handle hierarchical result from v2.0.0
     const result = apiResult.result || apiResult;
     const { source_data = {}, search_context = [], ai_analysis = {} } = result;
-    const { classification = {}, summaries = {}, judgement = {} } = ai_analysis;
+    const { classification = {}, summaries = {} } = ai_analysis;
 
-    // Map labels (etiquetas) to marker types
+    // AMI specific fields
+    const { indiceCumplimientoAMI = {}, criterios = {}, recomendaciones = [] } = classification;
+
+    // Map AMI score to credibility score for existing UI
+    const credibilityScore = indiceCumplimientoAMI.score !== undefined
+        ? indiceCumplimientoAMI.score
+        : (summaries.confidence !== undefined ? Math.round(summaries.confidence * 100) : 0);
+
+    // Map criteria to markersDetected for existing UI (fallback)
     const markersDetected: any[] = [];
-    const labels = Object.entries(classification.etiquetas || {});
-
-    labels.forEach(([name, data]: [string, any]) => {
-        markersDetected.push({
-            type: name,
-            explanation: data.justificacion || `Detectado: ${name}`
-        });
+    Object.entries(criterios).forEach(([id, data]: [string, any]) => {
+        if (data.score < 1) { // Only show problematic areas as markers
+            markersDetected.push({
+                type: data.nombre || `Criterio ${id}`,
+                explanation: data.justificacion || `Cumplimiento parcial/nulo: ${data.nombre}`
+            });
+        }
     });
 
-    const credibilityScore = judgement.confidence_score !== undefined
-        ? judgement.confidence_score
-        : Math.round((classification.nivel_confianza || 0) * 100);
-
-    // Determine primary marker based on credibility
-    if (credibilityScore < 30) {
-        markersDetected.push({
-            type: 'Falso',
-            explanation: `Baja credibilidad detectada (${credibilityScore}/100). ${judgement.reasoning || classification.observaciones || ''}`
-        });
-    } else if (credibilityScore < 60) {
-        markersDetected.push({
-            type: 'Descontextualizado',
-            explanation: `Credibilidad moderada (${credibilityScore}/100). Requiere verificación adicional.`
-        });
-    } else if (credibilityScore >= 80) {
-        markersDetected.push({
+    // Determine level-based marker
+    const nivel = indiceCumplimientoAMI.nivel || 'N/A';
+    if (nivel === 'Fully AMI Compliant') {
+        markersDetected.unshift({
             type: 'Verdadero',
-            explanation: `Alta credibilidad (${credibilityScore}/100). Corroborado por el análisis.`
+            explanation: 'Contenido que cumple con los estándares de alfabetización mediática.'
+        });
+    } else if (nivel === 'Needs Revision') {
+        markersDetected.unshift({
+            type: 'Descontextualizado',
+            explanation: 'Contenido que requiere revisión y verificación adicional.'
+        });
+    } else if (nivel === 'Needs Supervision') {
+        markersDetected.unshift({
+            type: 'Falso',
+            explanation: 'Contenido con serias deficiencias en los criterios AMI.'
         });
     }
 
@@ -67,7 +72,6 @@ function transformTextAnalysisToUI(apiResult: any, jobId: string, userId?: strin
         if (v.includes('youtube')) return 'YT';
         if (v.includes('telegram')) return 'TL';
 
-        // Fallback to URL detection if vectorName is generic
         if (url) {
             try {
                 const hostname = new URL(url).hostname.toLowerCase().replace('www.', '');
@@ -80,60 +84,46 @@ function transformTextAnalysisToUI(apiResult: any, jobId: string, userId?: strin
         return 'OT';
     };
 
-    const getTemaCode = (labelNames: string[]): string => {
-        if (labelNames.length === 0) return 'GE';
-        const temaMap: Record<string, string> = {
-            'Engañoso': 'EN',
-            'Falso': 'FA',
-            'Verdadero': 'VE',
-            'Sin contexto': 'SC',
-            'Sátira': 'SA',
-            'Desinformación': 'DE',
-            'Manipulado': 'MA',
-            'No verificable': 'NV',
-            'Teoría Conspirativa': 'CO',
-            'Discurso de Odio': 'OD'
+    const getTemaCode = (theme?: string): string => {
+        const themeMap: Record<string, string> = {
+            'Política': 'PO',
+            'Economía': 'EC',
+            'Salud': 'SA',
+            'Tecnología': 'TE',
+            'Deportes': 'DE',
+            'Internacional': 'IN',
+            'Nacional': 'NA',
+            'Cultura': 'CU',
+            'Ciencia': 'CI',
+            'Sucesos': 'SU'
         };
-        for (const label of labelNames) {
-            if (temaMap[label]) return temaMap[label];
-        }
-        return 'GE';
+        return themeMap[theme || ''] || 'GE';
     };
 
     const vectorCode = getVectorCode(source_data.vector_de_transmision, source_data.url);
     const tipoCode = 'TX';
-    const regionCode = (source_data.hostname?.endsWith('.co') || source_data.hostname?.includes('.co/')) ? 'CO' : 'IN';
-    const temaCode = getTemaCode(labels.map(([name]) => name));
+    const regionCode = summaries.region?.includes('Colombia') ? 'CO' : 'IN';
+    const temaCode = getTemaCode(summaries.theme);
     const hash = jobId.replace(/-/g, '').substring(0, 3).toUpperCase();
     const displayId = `${vectorCode}-${tipoCode}-${regionCode}-${temaCode}-${hash}`;
 
-    // Extract theme (simple heuristic)
-    const inferTheme = (text: string): string => {
-        const lowerText = text.toLowerCase();
-        if (lowerText.includes('política') || lowerText.includes('gobierno')) return 'Política';
-        if (lowerText.includes('salud') || lowerText.includes('covid') || lowerText.includes('vacuna')) return 'Salud';
-        if (lowerText.includes('economía') || lowerText.includes('dinero')) return 'Economía';
-        if (lowerText.includes('tecnología') || lowerText.includes('ia')) return 'Tecnología';
-        if (lowerText.includes('deporte')) return 'Deportes';
-        return 'General';
-    };
-
-    const theme = summaries.theme || inferTheme((source_data.title || '') + ' ' + (source_data.text || ''));
-    const region = summaries.region || (source_data.hostname?.includes('.co') ? 'Colombia' : 'Internacional');
-    const reasoning = judgement.reasoning || summaries.summary || classification.observaciones || (labels.length > 0 ? (labels[0][1] as any).justificacion : '');
+    const theme = summaries.theme || 'General';
+    const region = summaries.region || 'Internacional';
+    const reasoning = ai_analysis.diagnosticoAMI || summaries.summary || '';
 
     return {
-        title: summaries.headline || source_data.title || 'Análisis de Texto',
+        title: summaries.headline || source_data.title || 'Análisis AMI',
         summaryBotilito: {
-            summary: summaries.summary || reasoning
+            summary: summaries.summary || reasoning,
+            diagnosticoAMI: ai_analysis.diagnosticoAMI
         },
         theme,
         region,
         caseNumber: displayId,
-        consensusState: result.requires_human_review ? 'conflicted' : (judgement.consensus_analysis ? 'human_consensus' : 'ai_only'),
+        consensusState: result.requires_human_review ? 'conflicted' : (result.consensus_analysis ? 'human_consensus' : 'ai_only'),
         markersDetected,
         vectores: [source_data.vector_de_transmision || 'Web'],
-        finalVerdict: judgement.final_verdict || (judgement.error ? `Diagnóstico parcial: ${judgement.error}` : `Puntaje de credibilidad: ${credibilityScore}/100`),
+        finalVerdict: nivel,
         fullResult: {
             created_at: new Date().toISOString(),
             url: source_data.url,
@@ -151,25 +141,22 @@ function transformTextAnalysisToUI(apiResult: any, jobId: string, userId?: strin
                     url: ctx.href,
                     snippet: ctx.body
                 })),
-                classification_labels: Object.fromEntries(labels),
-                comprehensive_judgement: {
-                    final_verdict: judgement.final_verdict || (judgement.error ? 'Error en análisis secundario' : ''),
-                    recommendation: judgement.recommendation || (credibilityScore < 50
-                        ? 'No compartir esta información sin verificar con fuentes confiables'
-                        : 'Verificar con múltiples fuentes antes de compartir'),
-                    reasoning: reasoning,
-                    key_findings: judgement.key_findings || [],
-                    consensus_analysis: judgement.consensus_analysis,
-                    requires_human_review: result.requires_human_review
+                ami_assessment: {
+                    ica: indiceCumplimientoAMI,
+                    criterios,
+                    recomendaciones
                 },
-                web_search_evaluation: {
-                    verdict: judgement.final_verdict,
-                    credibility_score: credibilityScore
+                comprehensive_judgement: {
+                    final_verdict: nivel,
+                    recommendation: recomendaciones[0] || 'Verificar con múltiples fuentes antes de compartir',
+                    reasoning: reasoning,
+                    key_findings: [], // Can be populated from criteria if needed
+                    requires_human_review: result.requires_human_review
                 },
                 evidence: result.evidence
             }
         },
-        reward: reward // Include reward in the UI model
+        reward: reward
     };
 }
 

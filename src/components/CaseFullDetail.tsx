@@ -1,15 +1,20 @@
 import React from 'react';
 import {
+    ExternalLink,
+    AlertTriangle,
+    Tag,
+    ArrowLeft,
+    CheckCircle2,
+    Info,
+    AlertCircle,
     Bot,
     FileText,
     Activity,
     Users,
-    Database,
-    ExternalLink,
-    AlertTriangle,
-    Tag,
-    ArrowLeft
+    Database
 } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
+import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
@@ -99,42 +104,70 @@ export function CaseFullDetail({ caseId, onBack }: CaseFullDetailProps) {
                                     <section>
                                         <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2 border-b pb-2">
                                             <Bot className="h-5 w-5 text-blue-600" />
-                                            Análisis de IA
+                                            Análisis de IA (AMI)
                                         </h3>
                                         <Card>
                                             <CardContent className="p-5 space-y-6">
-                                                <div className="space-y-2">
-                                                    <div className="flex justify-between items-center">
-                                                        <span className="text-sm font-medium text-gray-500">Veredicto Global</span>
-                                                        <Badge
-                                                            variant={caseDetail.metadata?.global_verdict === 'TAMPERED' ? "destructive" : "secondary"}
-                                                            className="text-base px-3 py-1"
-                                                        >
-                                                            {caseDetail.metadata?.global_verdict || 'N/A'}
-                                                        </Badge>
+                                                {/* AMI Assessment Summary */}
+                                                {caseDetail.metadata?.ami_assessment?.ica ? (
+                                                    <div className="space-y-4">
+                                                        <div className="flex justify-between items-center">
+                                                            <span className="text-sm font-medium text-gray-500">Nivel de Cumplimiento</span>
+                                                            <Badge className={
+                                                                caseDetail.metadata.ami_assessment.ica.nivel === 'Fully AMI Compliant' ? 'bg-emerald-500' :
+                                                                    caseDetail.metadata.ami_assessment.ica.nivel === 'Needs Revision' ? 'bg-amber-500' : 'bg-red-500'
+                                                            }>
+                                                                {caseDetail.metadata.ami_assessment.ica.nivel}
+                                                            </Badge>
+                                                        </div>
+                                                        <div className="relative pt-1">
+                                                            <div className="flex items-center justify-between mb-2">
+                                                                <span className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-blue-600 bg-blue-200">
+                                                                    ICA Score
+                                                                </span>
+                                                                <span className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-blue-600 bg-blue-200">
+                                                                    {caseDetail.metadata.ami_assessment.ica.score}%
+                                                                </span>
+                                                            </div>
+                                                            <Progress value={caseDetail.metadata.ami_assessment.ica.score} className="h-2" />
+                                                        </div>
                                                     </div>
-                                                </div>
-
-                                                <div className="space-y-2">
-                                                    <div className="flex justify-between items-center text-sm">
-                                                        <span className="font-medium text-gray-500">Nivel de Confianza</span>
-                                                        <span className="font-bold text-blue-700">
-                                                            {((caseDetail.metadata?.confidence_score || 0) * 100).toFixed(1)}%
-                                                        </span>
+                                                ) : (
+                                                    <div className="space-y-4">
+                                                        <div className="flex justify-between items-center">
+                                                            <span className="text-sm font-medium text-gray-500">Veredicto Global</span>
+                                                            <Badge
+                                                                variant={caseDetail.metadata?.global_verdict === 'TAMPERED' || caseDetail.metadata?.global_verdict === 'Falso' ? "destructive" : "secondary"}
+                                                                className="text-base px-3 py-1"
+                                                            >
+                                                                {caseDetail.metadata?.global_verdict || 'N/A'}
+                                                            </Badge>
+                                                        </div>
+                                                        <div className="space-y-2">
+                                                            <div className="flex justify-between items-center text-sm">
+                                                                <span className="font-medium text-gray-500">Confianza del Modelo</span>
+                                                                <span className="font-bold text-blue-700">
+                                                                    {((caseDetail.metadata?.confidence_score || 0) * 100).toFixed(1)}%
+                                                                </span>
+                                                            </div>
+                                                            <Progress value={(caseDetail.metadata?.confidence_score || 0) * 100} className="h-2" />
+                                                        </div>
                                                     </div>
-                                                    <Progress value={(caseDetail.metadata?.confidence_score || 0) * 100} className="h-2" />
-                                                </div>
+                                                )}
 
                                                 <Separator />
 
                                                 <div className="space-y-3">
                                                     <span className="text-sm font-medium text-gray-500 flex items-center gap-2">
-                                                        <Tag className="h-4 w-4" /> Etiquetas
+                                                        <Tag className="h-4 w-4" /> Recomendaciones
                                                     </span>
-                                                    <div className="flex flex-wrap gap-2">
-                                                        {caseDetail.diagnostic_labels?.map((label: string, i: number) => (
-                                                            <Badge key={i} variant="outline">{label}</Badge>
+                                                    <div className="space-y-1">
+                                                        {(caseDetail.metadata?.ami_assessment?.recomendaciones || []).slice(0, 3).map((rec: string, i: number) => (
+                                                            <p key={i} className="text-xs text-gray-600 italic">• {rec}</p>
                                                         ))}
+                                                        {!(caseDetail.metadata?.ami_assessment?.recomendaciones) && (
+                                                            <p className="text-xs text-gray-500">Sin recomendaciones disponibles.</p>
+                                                        )}
                                                     </div>
                                                 </div>
                                             </CardContent>
@@ -202,6 +235,46 @@ export function CaseFullDetail({ caseId, onBack }: CaseFullDetailProps) {
                                         </Card>
                                     </section>
                                 </div>
+                                {/* Detailed AMI Pipeline */}
+                                {caseDetail.metadata?.ami_assessment?.criterios && (
+                                    <section className="col-span-full">
+                                        <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2 border-b pb-2">
+                                            <Info className="h-5 w-5 text-primary" />
+                                            Detalle de Criterios UNESCO (AMI)
+                                        </h3>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+                                            {Object.entries(caseDetail.metadata.ami_assessment.criterios).map(([id, criterion]: [string, any]) => (
+                                                <TooltipProvider key={id}>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <div className={`p-3 rounded-md border flex items-center justify-between cursor-help transition-all hover:bg-white/50 ${criterion.score === 1 ? 'bg-emerald-50 border-emerald-100' :
+                                                                criterion.score === 0.5 ? 'bg-amber-50 border-amber-100' : 'bg-red-50 border-red-100'
+                                                                }`}>
+                                                                <div className="flex flex-col truncate pr-2">
+                                                                    <span className="text-[9px] text-muted-foreground uppercase font-bold tracking-wider">Criterio {id}</span>
+                                                                    <span className="text-xs font-semibold truncate">{criterion.nombre}</span>
+                                                                </div>
+                                                                {criterion.score === 1 ? (
+                                                                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                                                                ) : criterion.score === 0.5 ? (
+                                                                    <AlertTriangle className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+                                                                ) : (
+                                                                    <AlertCircle className="h-3.5 w-3.5 text-red-600 shrink-0" />
+                                                                )}
+                                                            </div>
+                                                        </TooltipTrigger>
+                                                        <TooltipPrimitive.Portal>
+                                                            <TooltipContent className="max-w-xs p-4 space-y-2 bg-popover text-popover-foreground border shadow-xl z-50">
+                                                                <p className="font-bold text-sm border-b pb-1">{criterion.nombre}</p>
+                                                                <p className="text-xs italic leading-relaxed">"{criterion.justificacion}"</p>
+                                                            </TooltipContent>
+                                                        </TooltipPrimitive.Portal>
+                                                    </Tooltip>
+                                                </TooltipProvider>
+                                            ))}
+                                        </div>
+                                    </section>
+                                )}
                             </div>
                         </>
                     ) : null}

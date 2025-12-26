@@ -16,27 +16,38 @@ export interface SearchContextItem {
     body: string;
 }
 
-export interface AIClassification {
-    etiquetas: Record<string, { justificacion: string }>;
-    observaciones: string;
-    nivel_confianza: number;
+export interface AMICriterion {
+    nombre: string;
+    score: number;
+    justificacion: string;
+    evidencias: string[];
+    cita: string;
+    referencia: string;
+}
+
+export interface AMICumplimiento {
+    score: number;
+    nivel: string;
+}
+
+export interface AMIClassification {
+    indiceCumplimientoAMI: AMICumplimiento;
+    criterios: Record<string, AMICriterion>;
+    recomendaciones: string[];
 }
 
 export interface AISummaries {
     headline: string;
     summary: string;
+    theme?: string;
+    region?: string;
+    source?: string;
+    confidence?: number;
     summaries: {
-        short?: { text: string };
-        medium?: { text: string };
-        long?: { text: string };
+        short?: { text: string; factualAlignment?: number };
+        medium?: { text: string; factualAlignment?: number };
+        long?: { text: string; factualAlignment?: number };
     };
-}
-
-export interface AIJudgement {
-    final_verdict: string;
-    confidence_score: number;
-    reasoning: string;
-    key_findings: string[];
 }
 
 export interface FactCheckItem {
@@ -47,9 +58,9 @@ export interface FactCheckItem {
 }
 
 export interface AIAnalysis {
-    classification: AIClassification;
+    classification: AMIClassification;
     summaries: AISummaries;
-    judgement: AIJudgement;
+    documentText?: string;
 }
 
 export interface FinalAnalysisResult {

@@ -7,7 +7,7 @@ import { Badge } from './ui/badge';
 import {
   Share2, Download, Twitter, Facebook, MessageCircle, Linkedin, Bot, User,
   Newspaper, ExternalLink, Tag, XCircle, Skull, Ban, Flame, Target,
-  Music, Send, Youtube, Mail, Smartphone, Instagram
+  Music, Send, Youtube, Mail, Smartphone, Instagram, CheckCircle2, AlertTriangle, AlertCircle, Info, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from './ui/tooltip';
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
@@ -609,6 +609,50 @@ export function ContentUploadResult({ result, onReset }: ContentUploadResultProp
                 </div>
               )}
 
+              {/* ICA Score Section */}
+              {fullResult?.metadata?.ami_assessment?.ica && (
+                <div className="flex items-center justify-between p-4 bg-primary/10 rounded-lg border border-primary/20">
+                  <div className="flex items-center space-x-4">
+                    <div className="relative h-16 w-16 flex items-center justify-center">
+                      <svg className="h-16 w-16 -rotate-90">
+                        <circle
+                          cx="32"
+                          cy="32"
+                          r="28"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="8"
+                          className="text-secondary/30"
+                        />
+                        <circle
+                          cx="32"
+                          cy="32"
+                          r="28"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="8"
+                          strokeDasharray={`${2 * Math.PI * 28}`}
+                          strokeDashoffset={`${2 * Math.PI * 28 * (1 - fullResult.metadata.ami_assessment.ica.score / 100)}`}
+                          className={`${fullResult.metadata.ami_assessment.ica.score >= 80 ? 'text-emerald-500' :
+                            fullResult.metadata.ami_assessment.ica.score >= 40 ? 'text-amber-500' : 'text-red-500'
+                            }`}
+                        />
+                      </svg>
+                      <span className="absolute text-sm font-bold">{fullResult.metadata.ami_assessment.ica.score}%</span>
+                    </div>
+                    <div>
+                      <p className="font-bold text-lg">Índice de Cumplimiento AMI (ICA)</p>
+                      <p className="text-xs text-muted-foreground">Basado en 20 criterios UNESCO</p>
+                    </div>
+                  </div>
+                  <Badge className={`${fullResult.metadata.ami_assessment.ica.nivel === 'Fully AMI Compliant' ? 'bg-emerald-500' :
+                    fullResult.metadata.ami_assessment.ica.nivel === 'Needs Revision' ? 'bg-amber-500' : 'bg-red-500'
+                    } text-white px-3 py-1`}>
+                    {fullResult.metadata.ami_assessment.ica.nivel}
+                  </Badge>
+                </div>
+              )}
+
               {title && (
                 <div>
                   <Label>Titular de la noticia:</Label>
@@ -629,8 +673,53 @@ export function ContentUploadResult({ result, onReset }: ContentUploadResultProp
             </div>
           )}
 
-          {/* Classification Markers - Always show if available */}
-          {markersDetected && markersDetected.length > 0 && (
+          {/* AMI Criteria Dashboard */}
+          {fullResult?.metadata?.ami_assessment?.criterios && (
+            <div className="p-4 bg-secondary/10 border border-secondary/30 rounded-lg space-y-4">
+              <Label className="flex items-center space-x-2 text-lg">
+                <Info className="h-5 w-5 text-primary" />
+                <span>Evaluación de 20 Criterios AMI (UNESCO)</span>
+              </Label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                {Object.entries(fullResult.metadata.ami_assessment.criterios).map(([id, criterion]: [string, any]) => (
+                  <TooltipProvider key={id}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className={`p-3 rounded-md border flex items-center justify-between cursor-help transition-all hover:shadow-md ${criterion.score === 1 ? 'bg-emerald-50 border-emerald-200' :
+                          criterion.score === 0.5 ? 'bg-amber-50 border-amber-200' : 'bg-red-50 border-red-200'
+                          }`}>
+                          <div className="flex flex-col truncate pr-2">
+                            <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Criterio {id}</span>
+                            <span className="text-xs font-semibold truncate">{criterion.nombre}</span>
+                          </div>
+                          {criterion.score === 1 ? (
+                            <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                          ) : criterion.score === 0.5 ? (
+                            <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
+                          ) : (
+                            <AlertCircle className="h-4 w-4 text-red-600 shrink-0" />
+                          )}
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipPrimitive.Portal>
+                        <TooltipContent className="max-w-xs p-4 space-y-2 bg-popover text-popover-foreground border shadow-xl z-50">
+                          <p className="font-bold text-sm border-b pb-1">{criterion.nombre}</p>
+                          <p className="text-xs italic leading-relaxed">"{criterion.justificacion}"</p>
+                          <div className="pt-1">
+                            <p className="text-[10px] font-bold text-primary italic uppercase">{criterion.cita}</p>
+                            <p className="text-[9px] text-muted-foreground mt-0.5">{criterion.referencia}</p>
+                          </div>
+                        </TooltipContent>
+                      </TooltipPrimitive.Portal>
+                    </Tooltip>
+                  </TooltipProvider>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Classification Markers - Always show if available (Legacy/Support) */}
+          {markersDetected && markersDetected.length > 0 && !fullResult?.metadata?.ami_assessment && (
             <div className="p-4 bg-secondary/20 border border-secondary/40 rounded-lg">
               <Label className="mb-3 block">Marcadores de clasificación detectados:</Label>
               <div className="flex flex-wrap gap-2">
@@ -645,29 +734,6 @@ export function ContentUploadResult({ result, onReset }: ContentUploadResultProp
                   </Badge>
                 ))}
               </div>
-
-              {/* Description Panel */}
-              {selectedMarker && (
-                <div className="mt-4 p-4 bg-gray-900 text-white rounded-lg border-2 border-primary">
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      {getMarkerIcon(selectedMarker.type, 0)}
-                      <h4 className="font-bold text-lg">{selectedMarker.type}</h4>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setSelectedMarker(null)}
-                      className="text-white hover:bg-white/20 -mt-1 -mr-1"
-                    >
-                      <XCircle className="h-5 w-5" />
-                    </Button>
-                  </div>
-                  <p className="text-sm leading-relaxed">
-                    {selectedMarker.explanation || 'No hay descripción disponible'}
-                  </p>
-                </div>
-              )}
             </div>
           )}
 
@@ -705,10 +771,10 @@ export function ContentUploadResult({ result, onReset }: ContentUploadResultProp
             </div>
           )}
 
-          {/* Enriched AI Judgment Segments */}
-          {compJudgement && (
+          {/* Enriched AI Judgment Segments / AMI Recommendations */}
+          {(compJudgement || fullResult?.metadata?.ami_assessment?.recomendaciones) && (
             <div className="space-y-4">
-              {compJudgement.key_findings && compJudgement.key_findings.length > 0 && (
+              {compJudgement?.key_findings && compJudgement.key_findings.length > 0 && (
                 <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg">
                   <Label className="mb-2 block font-bold text-primary">Hallazgos Clave:</Label>
                   <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
@@ -719,7 +785,21 @@ export function ContentUploadResult({ result, onReset }: ContentUploadResultProp
                 </div>
               )}
 
-              {compJudgement.consensus_analysis && (
+              {(compJudgement?.recommendation || fullResult?.metadata?.ami_assessment?.recomendaciones?.length > 0) && (
+                <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg">
+                  <Label className="mb-2 block font-bold text-orange-700">Recomendaciones de Botilito:</Label>
+                  <ul className="list-disc list-inside space-y-1 text-sm text-orange-800">
+                    {fullResult?.metadata?.ami_assessment?.recomendaciones ?
+                      fullResult.metadata.ami_assessment.recomendaciones.map((rec: string, idx: number) => (
+                        <li key={idx} className="leading-relaxed font-medium">{rec}</li>
+                      )) :
+                      <li>{compJudgement.recommendation}</li>
+                    }
+                  </ul>
+                </div>
+              )}
+
+              {compJudgement?.consensus_analysis && (
                 <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
                   <Label className="mb-1 block font-bold text-emerald-700">Análisis de Consenso:</Label>
                   <p className="text-sm text-emerald-800 italic leading-relaxed">
@@ -727,26 +807,28 @@ export function ContentUploadResult({ result, onReset }: ContentUploadResultProp
                   </p>
                 </div>
               )}
-
-              {compJudgement.recommendation && (
-                <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg">
-                  <Label className="mb-1 block font-bold text-orange-700">Recomendación:</Label>
-                  <p className="text-sm text-orange-800 leading-relaxed font-medium">
-                    {compJudgement.recommendation}
-                  </p>
-                </div>
-              )}
             </div>
           )}
 
-          {/* Epidemiological evaluation */}
+          {/* Epidemiological evaluation / AMI Verdict */}
           <div>
-            <h4 className="text-lg md:text-xl font-semibold">Evaluación epidemiológica:</h4>
-            <div className="mt-2 p-4 bg-secondary/20 rounded-lg border-l-4 border-primary">
-              <p className="text-sm text-foreground font-medium">{finalVerdict}</p>
-              {compJudgement?.reasoning && (
-                <p className="text-xs text-muted-foreground mt-2 italic">
-                  Motivo: {compJudgement.reasoning}
+            <h4 className="text-lg md:text-xl font-semibold">Veredicto de Cumplimiento AMI:</h4>
+            <div className={`mt-2 p-4 rounded-lg border-l-4 ${fullResult?.metadata?.ami_assessment?.ica?.nivel === 'Fully AMI Compliant' ? 'bg-emerald-50 border-emerald-500' :
+                fullResult?.metadata?.ami_assessment?.ica?.nivel === 'Needs Revision' ? 'bg-amber-50 border-amber-500' : 'bg-red-50 border-red-500'
+              }`}>
+              <div className="flex items-center justify-between">
+                <p className={`text-base font-bold ${fullResult?.metadata?.ami_assessment?.ica?.nivel === 'Fully AMI Compliant' ? 'text-emerald-700' :
+                    fullResult?.metadata?.ami_assessment?.ica?.nivel === 'Needs Revision' ? 'text-amber-700' : 'text-red-700'
+                  }`}>
+                  {fullResult?.metadata?.ami_assessment?.ica?.nivel || finalVerdict}
+                </p>
+                {fullResult?.metadata?.ami_assessment?.ica?.score !== undefined && (
+                  <span className="text-sm font-bold opacity-70">ICA: {fullResult.metadata.ami_assessment.ica.score}/100</span>
+                )}
+              </div>
+              {(result.summaryBotilito?.diagnosticoAMI || compJudgement?.reasoning) && (
+                <p className="text-sm text-muted-foreground mt-2 italic leading-relaxed">
+                  {result.summaryBotilito?.diagnosticoAMI || compJudgement.reasoning}
                 </p>
               )}
             </div>
