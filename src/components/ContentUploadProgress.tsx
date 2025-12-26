@@ -3,16 +3,18 @@ import botilitoImage from 'figma:asset/e27a276e6ff0e187a67cf54678c265c1c38adbf7.
 import { Card, CardContent } from './ui/card';
 import { Progress } from './ui/progress';
 import { Button } from './ui/button';
-import { FileText, Upload, Loader2, Coffee } from 'lucide-react';
+import { FileText, Upload, Loader2, Coffee, SquareCheck } from 'lucide-react';
 
 interface ContentUploadProgressProps {
   step: string;
   status: string;
   progress: number;
   fileName?: string;
+  onViewResult?: () => void;
 }
 
-export function ContentUploadProgress({ step, status, progress, fileName }: ContentUploadProgressProps) {
+export function ContentUploadProgress({ step, status, progress, fileName, onViewResult }: ContentUploadProgressProps) {
+  const isComplete = progress >= 100;
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh]">
       {/* Botilito character */}
@@ -57,6 +59,16 @@ export function ContentUploadProgress({ step, status, progress, fileName }: Cont
             </div>
           </div>
 
+          {/* Success message when complete */}
+          {isComplete && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center gap-3">
+              <SquareCheck className="h-5 w-5 text-green-600 shrink-0" />
+              <p className="text-sm font-medium text-green-800">
+                ¡Listo parce! El análisis forense está completo
+              </p>
+            </div>
+          )}
+
           {/* Action buttons */}
           <div className="flex gap-3">
             <Button variant="outline" className="flex-1 bg-white hover:bg-gray-50" disabled>
@@ -66,9 +78,14 @@ export function ContentUploadProgress({ step, status, progress, fileName }: Cont
             <Button
               className="flex-1 text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
               style={{ backgroundColor: '#ffda00' }}
-              disabled
+              disabled={!isComplete}
+              onClick={onViewResult}
             >
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              {isComplete ? (
+                <SquareCheck className="h-4 w-4 mr-2" />
+              ) : (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              )}
               Ver resultado del análisis
             </Button>
           </div>
