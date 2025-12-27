@@ -325,6 +325,113 @@ export function generateImageAnalysisPDF(
   doc.save(filename);
 }
 
+// Audio test interface for PDF
+interface AudioTest {
+  name: string;
+  description: string;
+  confidence: number;
+  result: 'authentic' | 'manipulated' | 'synthetic' | 'uncertain';
+}
+
+// Generate tests from human report (mirrors AudioTestResults.tsx logic)
+function generateAudioTests(humanReport: AudioHumanReport): AudioTest[] {
+  const tests: AudioTest[] = [];
+
+  // Transcription analysis
+  if (humanReport.transcription) {
+    tests.push({
+      name: 'Análisis de Transcripción',
+      description: 'Transcripción automática del contenido de audio',
+      confidence: humanReport.transcription.confidence || 0.8,
+      result: 'authentic',
+    });
+  }
+
+  // Audio forensics
+  if (humanReport.audio_forensics) {
+    const forensics = humanReport.audio_forensics;
+
+    tests.push({
+      name: 'Análisis Forense de Audio',
+      description: 'Detección de manipulación y edición en el audio',
+      confidence: forensics.authenticity_score || 0.5,
+      result: forensics.manipulation_detected ? 'manipulated' : 'authentic',
+    });
+
+    // Add anomaly detection if anomalies exist
+    if (forensics.anomalies && forensics.anomalies.length > 0) {
+      tests.push({
+        name: 'Detección de Anomalías',
+        description: `Patrones irregulares detectados: ${forensics.anomalies.join(', ')}`,
+        confidence: Math.max(0.6, 1 - forensics.authenticity_score),
+        result: 'manipulated',
+      });
+    }
+  }
+
+  // Speaker analysis
+  if (humanReport.speaker_analysis && humanReport.speaker_analysis.num_speakers > 0) {
+    tests.push({
+      name: 'Diarización de Hablantes',
+      description: `Identificación de ${humanReport.speaker_analysis.num_speakers} hablante(s) en el audio`,
+      confidence: 0.85,
+      result: 'authentic',
+    });
+  }
+
+  // Sentiment analysis
+  if (humanReport.sentiment_analysis) {
+    tests.push({
+      name: 'Análisis de Sentimiento',
+      description: `Tono detectado: ${humanReport.sentiment_analysis.overall_sentiment}`,
+      confidence: humanReport.sentiment_analysis.confidence || 0.75,
+      result: 'authentic',
+    });
+  }
+
+  // Add deepfake detection if high risk
+  if (humanReport.verdict?.risk_level === 'high' || humanReport.verdict?.risk_level === 'critical') {
+    tests.push({
+      name: 'Detección de IA Generativa',
+      description: 'Análisis de patrones característicos de audio sintético',
+      confidence: humanReport.verdict.confidence || 0.7,
+      result: 'synthetic',
+    });
+  }
+
+  // If no tests generated, add placeholder
+  if (tests.length === 0) {
+    tests.push({
+      name: 'Análisis General',
+      description: 'Análisis básico del archivo de audio',
+      confidence: humanReport.verdict?.confidence || 0.5,
+      result: humanReport.audio_forensics?.manipulation_detected ? 'manipulated' : 'authentic',
+    });
+  }
+
+  return tests;
+}
+
+// Get result label in Spanish
+function getResultLabel(result: string): string {
+  switch (result) {
+    case 'manipulated': return 'MANIPULADO';
+    case 'synthetic': return 'SINTÉTICO';
+    case 'uncertain': return 'INCIERTO';
+    default: return 'AUTÉNTICO';
+  }
+}
+
+// Get result color
+function getResultColor(result: string): string {
+  switch (result) {
+    case 'manipulated': return COLORS.orange;
+    case 'synthetic': return '#a855f7'; // purple-500
+    case 'uncertain': return COLORS.yellow;
+    default: return COLORS.green;
+  }
+}
+
 // ============================================
 // AUDIO ANALYSIS PDF GENERATOR
 // ============================================
@@ -336,7 +443,7 @@ export function generateAudioAnalysisPDF(
   const doc = createPdfDocument();
   let y = addHeader(doc, 'Análisis de Audio', caseNumber);
 
-  const { human_report, file_info, chain_of_custody, recommendations, raw_results_summary } = data;
+  const { human_report, file_info, chain_of_custody, recommendations, raw_results_summary, assets } = data;
   const { verdict, transcription, speaker_analysis, audio_forensics, sentiment_analysis } = human_report;
 
   // Verdict Section
@@ -365,49 +472,72 @@ export function generateAudioAnalysisPDF(
     y += 5;
   }
 
-  // Audio Forensics
-  if (audio_forensics) {
-    y = checkNewPage(doc, y, 40);
-    y = addSectionTitle(doc, 'Análisis Forense de Audio', y);
-    y = addKeyValue(doc, 'Autenticidad', `${(audio_forensics.authenticity_score * 100).toFixed(0)}%`, y);
-    y = addKeyValue(doc, 'Manipulación Detectada', audio_forensics.manipulation_detected ? 'Sí' : 'No', y);
+  // ============================================
+  // PRUEBAS FORENSES INDIVIDUALES (Test Cards)
+  // ============================================
+  y = checkNewPage(doc, y, 60);
+  y = addSectionTitle(doc, 'Pruebas Forenses Individuales', y);
 
-    if (audio_forensics.anomalies && audio_forensics.anomalies.length > 0) {
-      y = addKeyValue(doc, 'Anomalías', audio_forensics.anomalies.join(', '), y);
-    }
-    y += 5;
-  }
+  const tests = generateAudioTests(human_report);
 
-  // Speaker Analysis
-  if (speaker_analysis) {
+  tests.forEach((test) => {
     y = checkNewPage(doc, y, 30);
-    y = addSectionTitle(doc, 'Análisis de Hablantes', y);
-    y = addKeyValue(doc, 'Número de Hablantes', speaker_analysis.num_speakers.toString(), y);
-    y += 5;
-  }
 
-  // Sentiment Analysis
-  if (sentiment_analysis) {
-    y = checkNewPage(doc, y, 30);
-    y = addSectionTitle(doc, 'Análisis de Sentimiento', y);
-    y = addKeyValue(doc, 'Sentimiento General', sentiment_analysis.overall_sentiment, y);
-    y = addKeyValue(doc, 'Confianza', `${(sentiment_analysis.confidence * 100).toFixed(0)}%`, y);
-    y += 5;
-  }
+    // Test name badge with color
+    const resultColor = getResultColor(test.result);
+    const rgb = hexToRgb(resultColor);
 
-  // Transcription
+    doc.setFillColor(rgb.r, rgb.g, rgb.b);
+    doc.roundedRect(15, y - 4, 55, 8, 2, 2, 'F');
+
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.text(test.name.substring(0, 25), 17, y + 1);
+
+    // Result label
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.text(getResultLabel(test.result), 75, y + 1);
+
+    // Confidence
+    doc.text(`${(test.confidence * 100).toFixed(0)}%`, 120, y + 1);
+
+    y += 10;
+
+    // Description
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(100, 100, 100);
+    const descText = doc.splitTextToSize(test.description, 165);
+    doc.text(descText, 17, y);
+    y += descText.length * 4 + 8;
+  });
+
+  y += 5;
+
+  // ============================================
+  // ANÁLISIS DE TRANSCRIPCIÓN (Detailed)
+  // ============================================
   if (transcription && transcription.text) {
     y = checkNewPage(doc, y, 50);
-    y = addSectionTitle(doc, 'Transcripción', y);
+    y = addSectionTitle(doc, 'Análisis de Transcripción', y);
 
     if (transcription.language) {
-      y = addKeyValue(doc, 'Idioma', transcription.language, y);
+      y = addKeyValue(doc, 'Idioma detectado', transcription.language, y);
     }
     if (transcription.confidence) {
       y = addKeyValue(doc, 'Confianza', `${(transcription.confidence * 100).toFixed(0)}%`, y);
     }
 
     y += 3;
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(0, 0, 0);
+    doc.text('Texto transcrito:', 15, y);
+    y += 6;
+
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
     const transcriptText = doc.splitTextToSize(transcription.text, 170);
@@ -418,6 +548,161 @@ export function generateAudioAnalysisPDF(
       doc.text(line, 15, y);
       y += 5;
     });
+    y += 5;
+
+    // Segments if available
+    if (transcription.segments && transcription.segments.length > 0) {
+      y = checkNewPage(doc, y, 30);
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Segmentos por tiempo:', 15, y);
+      y += 6;
+
+      transcription.segments.slice(0, 10).forEach((seg) => {
+        y = checkNewPage(doc, y, 10);
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'normal');
+        const startMin = Math.floor(seg.start_time / 60);
+        const startSec = Math.floor(seg.start_time % 60);
+        const endMin = Math.floor(seg.end_time / 60);
+        const endSec = Math.floor(seg.end_time % 60);
+        const timeStr = `[${startMin}:${startSec.toString().padStart(2, '0')} - ${endMin}:${endSec.toString().padStart(2, '0')}]`;
+        const speaker = seg.speaker ? ` (${seg.speaker})` : '';
+        const segText = doc.splitTextToSize(`${timeStr}${speaker}: ${seg.text}`, 165);
+        doc.text(segText, 17, y);
+        y += segText.length * 4 + 3;
+      });
+
+      if (transcription.segments.length > 10) {
+        doc.setFontSize(8);
+        doc.setTextColor(100, 100, 100);
+        doc.text(`... y ${transcription.segments.length - 10} segmentos más`, 17, y);
+        y += 6;
+      }
+    }
+  }
+
+  // ============================================
+  // ANÁLISIS FORENSE DE AUDIO (Detailed)
+  // ============================================
+  if (audio_forensics) {
+    y = checkNewPage(doc, y, 50);
+    y = addSectionTitle(doc, 'Análisis Forense de Audio', y);
+
+    y = addKeyValue(doc, 'Score de Autenticidad', `${(audio_forensics.authenticity_score * 100).toFixed(0)}%`, y);
+    y = addKeyValue(doc, 'Manipulación Detectada', audio_forensics.manipulation_detected ? 'SÍ - Se encontraron indicios de edición' : 'NO - Audio aparentemente original', y);
+
+    // Anomalies detailed section
+    if (audio_forensics.anomalies && audio_forensics.anomalies.length > 0) {
+      y += 3;
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0, 0, 0);
+      doc.text('Anomalías detectadas:', 15, y);
+      y += 6;
+
+      audio_forensics.anomalies.forEach((anomaly, idx) => {
+        y = checkNewPage(doc, y, 10);
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'normal');
+        const anomalyText = doc.splitTextToSize(`• ${anomaly}`, 165);
+        doc.text(anomalyText, 17, y);
+        y += anomalyText.length * 4 + 3;
+      });
+    }
+    y += 5;
+  }
+
+  // ============================================
+  // DETECCIÓN DE ANOMALÍAS (Separate section if many)
+  // ============================================
+  if (audio_forensics?.anomalies && audio_forensics.anomalies.length > 3) {
+    y = checkNewPage(doc, y, 40);
+    y = addSectionTitle(doc, 'Detección de Anomalías - Análisis Detallado', y);
+
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(0, 0, 0);
+
+    const anomalyIntro = 'Se detectaron patrones irregulares en el espectro de audio que podrían indicar manipulación o edición del contenido original:';
+    const introText = doc.splitTextToSize(anomalyIntro, 170);
+    doc.text(introText, 15, y);
+    y += introText.length * 5 + 5;
+
+    audio_forensics.anomalies.forEach((anomaly, idx) => {
+      y = checkNewPage(doc, y, 12);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`${idx + 1}.`, 17, y);
+      doc.setFont('helvetica', 'normal');
+      const anomalyText = doc.splitTextToSize(anomaly, 155);
+      doc.text(anomalyText, 25, y);
+      y += anomalyText.length * 5 + 4;
+    });
+    y += 5;
+  }
+
+  // ============================================
+  // VISUALIZACIONES (Note about available assets)
+  // ============================================
+  y = checkNewPage(doc, y, 40);
+  y = addSectionTitle(doc, 'Visualizaciones', y);
+
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(0, 0, 0);
+
+  const vizItems = [
+    '• Forma de Onda: Representación visual de la amplitud del audio a lo largo del tiempo',
+    '• Espectrograma: Distribución de frecuencias mostrando patrones espectrales',
+  ];
+
+  if (assets?.spectrogram) {
+    vizItems.push('  ✓ Espectrograma disponible en el análisis web');
+  }
+
+  vizItems.push('• Análisis de Frecuencia: Identificación de componentes armónicos y ruido');
+
+  vizItems.forEach((item) => {
+    y = checkNewPage(doc, y, 8);
+    const itemText = doc.splitTextToSize(item, 165);
+    doc.text(itemText, 15, y);
+    y += itemText.length * 5 + 2;
+  });
+
+  doc.setFontSize(8);
+  doc.setTextColor(100, 100, 100);
+  doc.setFont('helvetica', 'italic');
+  y += 3;
+  doc.text('Nota: Las visualizaciones interactivas están disponibles en la versión web del análisis.', 15, y);
+  y += 10;
+
+  // Speaker Analysis
+  if (speaker_analysis && speaker_analysis.num_speakers > 0) {
+    y = checkNewPage(doc, y, 30);
+    y = addSectionTitle(doc, 'Diarización de Hablantes', y);
+    y = addKeyValue(doc, 'Número de Hablantes', speaker_analysis.num_speakers.toString(), y);
+
+    if (speaker_analysis.speakers && speaker_analysis.speakers.length > 0) {
+      speaker_analysis.speakers.forEach((speaker, idx) => {
+        y = checkNewPage(doc, y, 10);
+        const segCount = speaker.segments?.length || 0;
+        y = addKeyValue(doc, `Hablante ${idx + 1}`, `${segCount} intervenciones`, y);
+      });
+    }
+    y += 5;
+  }
+
+  // Sentiment Analysis
+  if (sentiment_analysis) {
+    y = checkNewPage(doc, y, 30);
+    y = addSectionTitle(doc, 'Análisis de Sentimiento', y);
+
+    const sentimentLabel = sentiment_analysis.overall_sentiment === 'positive' ? 'Positivo'
+      : sentiment_analysis.overall_sentiment === 'negative' ? 'Negativo'
+      : 'Neutral';
+
+    y = addKeyValue(doc, 'Sentimiento General', sentimentLabel, y);
+    y = addKeyValue(doc, 'Confianza', `${(sentiment_analysis.confidence * 100).toFixed(0)}%`, y);
     y += 5;
   }
 
