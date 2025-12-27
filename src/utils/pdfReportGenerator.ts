@@ -4,23 +4,36 @@ import { AudioAnalysisResult, AudioHumanReport } from '@/types/audioAnalysis';
 
 // Helper to fetch image as base64 for embedding in PDF
 async function fetchImageAsBase64(url: string): Promise<string | null> {
+  console.log('[PDF] Fetching image:', url);
   try {
-    const response = await fetch(url);
-    if (!response.ok) return null;
+    const response = await fetch(url, {
+      mode: 'cors',
+      credentials: 'omit',
+    });
+
+    if (!response.ok) {
+      console.error('[PDF] Image fetch failed with status:', response.status);
+      return null;
+    }
 
     const blob = await response.blob();
+    console.log('[PDF] Image blob size:', blob.size, 'type:', blob.type);
+
     return new Promise((resolve) => {
       const reader = new FileReader();
       reader.onloadend = () => {
         const base64 = reader.result as string;
-        // Remove data URL prefix to get just the base64
+        console.log('[PDF] Image converted to base64, length:', base64.length);
         resolve(base64);
       };
-      reader.onerror = () => resolve(null);
+      reader.onerror = (err) => {
+        console.error('[PDF] FileReader error:', err);
+        resolve(null);
+      };
       reader.readAsDataURL(blob);
     });
   } catch (error) {
-    console.error('Failed to fetch image for PDF:', error);
+    console.error('[PDF] Failed to fetch image:', error);
     return null;
   }
 }
@@ -684,6 +697,7 @@ export async function generateAudioAnalysisPDF(
   y += 4;
 
   // Try to embed the spectrogram image if available
+  console.log('[PDF] Spectrogram URL:', assets?.spectrogram);
   if (assets?.spectrogram) {
     try {
       const spectrogramBase64 = await fetchImageAsBase64(assets.spectrogram);
