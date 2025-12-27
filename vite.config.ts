@@ -70,9 +70,8 @@ export default defineConfig({
     }
   },
   server: {
-    allowedHosts: ['.digitalia.gov.co'],
+    allowedHosts: ['.digitalia.gov.co', '.lordalexand.dev', 'localhost', '127.0.0.1', '0.0.0.0'],
     host: '0.0.0.0',
-allowedHosts: ['.lordalexand.dev', 'localhost', '127.0.0.1', '0.0.0.0'],
     port: 3000,
     open: true,
     // Disable caching in dev mode
