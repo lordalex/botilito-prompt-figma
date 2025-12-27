@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { performAnalysis as performTextAnalysis } from '../services/contentAnalysisService';
-import { imageAnalysisService, convertFileToBase64 } from '../services/imageAnalysisService';
+import { imageAnalysisService } from '../services/imageAnalysisService';
+import { convertFileToBase64 } from '../lib/utils';
 import { audioAnalysisService } from '../services/audioAnalysisService';
 import { useNotifications } from '@/providers/NotificationProvider';
 import { ContentType, TransmissionVector } from '../utils/caseCodeGenerator';
@@ -10,6 +11,7 @@ const POLLING_INTERVAL = 3000;
 export function useContentUpload(initialJobId?: string, initialJobType?: string) {
   const [status, setStatus] = useState<'idle' | 'uploading' | 'polling' | 'complete' | 'error'>('idle');
   const [progress, setProgress] = useState(0);
+  const [jobStep, setJobStep] = useState<string | undefined>(undefined);
   const [retryCount, setRetryCount] = useState(0);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<any>(null);
@@ -18,7 +20,7 @@ export function useContentUpload(initialJobId?: string, initialJobType?: string)
   // We need to use RegisterTask
   const { registerTask } = useNotifications();
 
-  const pollingRef = useRef<NodeJS.Timeout | null>(null);
+  const pollingRef = useRef<any>(null);
   const lastSubmissionRef = useRef<any>(null);
 
   const resetState = () => {
@@ -27,6 +29,7 @@ export function useContentUpload(initialJobId?: string, initialJobType?: string)
     setResult(null);
     setError(null);
     setFileName(undefined);
+    setJobStep(undefined);
     if (pollingRef.current) clearInterval(pollingRef.current);
   };
 
@@ -162,11 +165,43 @@ export function useContentUpload(initialJobId?: string, initialJobType?: string)
         }
       } else {
         // --- FLUJO TEXTO ---
-        const textResult = await performTextAnalysis(content, transmissionMedium, (p: number) => {
-          setProgress(p);
-        });
-        setResult(textResult);
+        setStatus('polling');
+        startFakeProgress();
+
+        const { submitTextAnalysis, pollTextAnalysis, transformTextAnalysisToUI } = await import('../services/textAnalysisService');
+        const { supabase } = await import('../utils/supabase/client');
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
+
+        if (!currentSession) throw new Error("No active session");
+
+        const urlRegex = /(https?:\/\/[^\s]+)/g;
+        const urls = content.match(urlRegex);
+        const isUrl = urls && urls.length > 0;
+
+        const submitPayload = isUrl ? { url: urls[0] } : { text: content };
+        const job = await submitTextAnalysis(currentSession, submitPayload);
+
+        if (job.job_id) {
+          registerTask(job.job_id, 'text_analysis', { content: content.substring(0, 30) });
+        }
+
+        if (job.status === 'completed' && job.result) {
+          const { transformTextAnalysisToUI } = await import('../services/textAnalysisService');
+          setResult(transformTextAnalysisToUI(job.result));
+        } else {
+          const pollResult = await pollTextAnalysis(currentSession, job.job_id, (p) => {
+            if (p.step) setJobStep(p.step);
+            if (p.percent !== undefined && p.percent !== null) {
+              stopFakeProgress();
+              setProgress(p.percent);
+            }
+          });
+          setResult(pollResult);
+        }
+
+        stopFakeProgress();
         setStatus('complete');
+        setProgress(100);
       }
     } catch (err: any) {
       console.error(err);
@@ -212,7 +247,7 @@ export function useContentUpload(initialJobId?: string, initialJobType?: string)
             }
           } else if (initialJobType === 'audio_analysis') {
             statusRes = await audioAnalysisService.getJobStatus(initialJobId);
-             if (statusRes.status === 'completed') {
+            if (statusRes.status === 'completed') {
               result = await audioAnalysisService.getAudioAnalysisResult(initialJobId);
             }
           } else {
@@ -222,7 +257,7 @@ export function useContentUpload(initialJobId?: string, initialJobType?: string)
             stopFakeProgress();
             return;
           }
-          
+
           if (statusRes.status === 'completed') {
             setResult(result);
             setStatus('complete');
@@ -249,6 +284,6 @@ export function useContentUpload(initialJobId?: string, initialJobType?: string)
     restoreJob();
   }, [initialJobId, initialJobType]);
 
-  return { status, progress, result, error, fileName, submitContent, resetState, retryLastSubmission, retryCount };
+  return { status, progress, jobStep, result, error, fileName, submitContent, resetState, retryLastSubmission, retryCount };
 }
 

@@ -13,22 +13,26 @@ import { useCaseHistory } from '@/hooks/useCaseHistory';
 import { CaseDetailDialog } from '@/components/CaseDetailDialog';
 import { generateDisplayId } from '@/utils/humanVerification/api';
 
-export function ContentReview() {
-  const { 
-    cases, 
-    loading, 
+interface ContentReviewProps {
+  onViewTask: (jobId: string, type: string) => void;
+}
+
+export function ContentReview({ onViewTask }: ContentReviewProps) {
+  const {
+    cases,
+    loading,
     error,
     stats,
-    pagination, 
+    pagination,
     filters,
-    refresh 
+    refresh
   } = useCaseHistory();
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   return (
     <div className="w-full space-y-8 p-6 bg-gray-50 min-h-screen font-sans">
-      
+
       {/* Franja de Botilito */}
       <div className="bg-[#ffe97a] border-2 border-[#ffda00] rounded-lg p-4 shadow-lg">
         <div className="flex items-center space-x-4">
@@ -108,11 +112,11 @@ export function ContentReview() {
             </div>
           ) : (
             <div className="divide-y divide-gray-100">
-              {cases.map((item) => (
-                <div 
-                  key={item.id} 
-                  className="p-4 hover:bg-yellow-50/30 cursor-pointer group transition-colors" 
-                  onClick={() => setSelectedId(item.id)}
+              {cases.map((item: any) => (
+                <div
+                  key={item.id}
+                  className="p-4 hover:bg-yellow-50/30 cursor-pointer group transition-colors"
+                  onClick={() => onViewTask(item.id, item.submission_type)}
                 >
                   <div className="flex justify-between items-start gap-4">
                     <div className="space-y-1">
@@ -129,10 +133,10 @@ export function ContentReview() {
                       <Button variant="ghost" size="icon" className="shrink-0">
                         <Eye className="h-5 w-5 text-gray-400 group-hover:text-yellow-600" />
                       </Button>
-                      <Badge 
+                      <Badge
                         className={
-                          item.consensus?.state === 'human_consensus' 
-                            ? 'bg-green-100 text-green-800 hover:bg-green-100' 
+                          item.consensus?.state === 'human_consensus'
+                            ? 'bg-green-100 text-green-800 hover:bg-green-100'
                             : 'bg-blue-100 text-blue-800 hover:bg-blue-100'
                         }
                       >
@@ -147,20 +151,20 @@ export function ContentReview() {
 
           {/* Pagination Controls */}
           <div className="p-4 border-t border-gray-100 flex justify-between items-center bg-gray-50/30">
-            <Button 
-              variant="outline" size="sm" 
+            <Button
+              variant="outline" size="sm"
               onClick={() => pagination.setCurrentPage(p => Math.max(1, p - 1))}
               disabled={pagination.currentPage === 1 || loading}
             >
               <ChevronLeft className="h-4 w-4 mr-2" /> Anterior
             </Button>
-            
+
             <span className="text-sm font-medium text-gray-600">
               Página {pagination.currentPage}
             </span>
-            
-            <Button 
-              variant="outline" size="sm" 
+
+            <Button
+              variant="outline" size="sm"
               onClick={() => pagination.setCurrentPage(p => p + 1)}
               disabled={!pagination.hasMore || loading}
             >
@@ -170,8 +174,8 @@ export function ContentReview() {
         </CardContent>
       </Card>
 
-      {/* Detailed View Component */}
-      <CaseDetailDialog caseId={selectedId} onClose={() => setSelectedId(null)} />
+      {/* Modal fallback if needed, but usually we navigate now */}
+      {selectedId && <CaseDetailDialog caseId={selectedId} onClose={() => setSelectedId(null)} />}
     </div>
   );
 }

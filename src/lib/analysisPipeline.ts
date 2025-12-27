@@ -110,6 +110,10 @@ export interface AnalysisResult {
   user_id: string;
   status: string;
   current_step?: string;
+  progress?: {
+    step: string;
+    percent: number;
+  };
   result?: any;
   error?: {
     message: string;
@@ -164,13 +168,13 @@ export async function checkAnalysisStatusOnce(jobId: string): Promise<AnalysisRe
 }
 
 // Legacy polling for backward compatibility if needed, using checkAnalysisStatusOnce
-async function pollAnalysis(jobId: string, onProgress: (status: string) => void): Promise<AnalysisResult> {
+async function pollAnalysis(jobId: string, onProgress: (status: string, percent?: number) => void): Promise<AnalysisResult> {
   const maxRetries = 60;
   const pollInterval = 3000;
 
   for (let i = 0; i < maxRetries; i++) {
     const result = await checkAnalysisStatusOnce(jobId);
-    onProgress(result.current_step || result.status);
+    onProgress(result.current_step || result.status, result.progress?.percent);
 
     if (result.status === 'completed' && result.result) {
       return result;
@@ -200,7 +204,7 @@ function isUrl(text: string): boolean {
 
 export async function analysisPipeline(
   textOrUrl: string,
-  onProgress: (progress: { step: string; status: string }) => void,
+  onProgress: (progress: { step: string; status: string; percent?: number }) => void,
   onJobCreated?: (jobId: string) => void
 ): Promise<{ result: any, user_id: string }> {
   let cleanedText = textOrUrl;
@@ -224,8 +228,8 @@ export async function analysisPipeline(
     if (onJobCreated) onJobCreated(submissionResponse);
 
     // We got a job ID, so we need to poll
-    analysisResult = await pollAnalysis(submissionResponse, (status) => {
-      onProgress({ step: 'analysis', status });
+    analysisResult = await pollAnalysis(submissionResponse, (status, percent) => {
+      onProgress({ step: 'analysis', status, percent });
     });
   } else {
     // Cached result

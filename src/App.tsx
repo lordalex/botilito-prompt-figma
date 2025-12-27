@@ -90,25 +90,32 @@ export default function App() {
   const renderContent = () => {
     switch (activeTab) {
       case 'upload':
-        return <ContentUpload jobId={currentJobId} jobType={currentJobType} onReset={() => {
-          setCurrentJobId(undefined);
-          setCurrentJobType(undefined);
-        }} />;
-      case 'review':
-        return <ContentReview />;
-      case 'analysis':
-        return <ContentAnalysisView
-          contentToAnalyze="https://www.semana.com/nacion/articulo/atencion-campeon-mundial-de-patinaje-luz-mery-tristan-fue-asesinada-en-cali/202320/"
-          onAnalyzeAnother={() => {
-            setCurrentJobId(undefined);
-            setActiveTab('upload'); // Or stay in analysis but clear
-          }}
+        return <ContentUpload
           jobId={currentJobId}
+          jobType={currentJobType}
+          onReset={() => {
+            setCurrentJobId(undefined);
+            setCurrentJobType(undefined);
+          }}
+          mode="ai"
         />;
       case 'verification':
+        // If we have a current job being analyzed, show the unified view in human mode
+        if (currentJobId) {
+          return <ContentUpload
+            jobId={currentJobId}
+            jobType={currentJobType}
+            onReset={() => {
+              setCurrentJobId(undefined);
+              setCurrentJobType(undefined);
+              setActiveTab('upload');
+            }}
+            mode="human"
+          />;
+        }
         return <HumanVerification />;
-      case 'immunization':
-        return <ImmunizationStudio />;
+      case 'review':
+        return <ContentReview onViewTask={handleViewTask} />;
       case 'mapa':
         return <MapaDesinfodemico />;
       case 'docs':
@@ -127,13 +134,9 @@ export default function App() {
   const handleViewTask = (jobId: string, type: string) => {
     setCurrentJobId(jobId);
     setCurrentJobType(type);
-    
-    // Navigate to the correct tab based on type
-    if (type === 'text_analysis') {
-      setActiveTab('analysis');
-    } else { // image_analysis and audio_analysis both go to the 'upload' tab
-      setActiveTab('upload');
-    }
+
+    // Always navigate to upload (AI) first when clicking a notification
+    setActiveTab('upload');
   };
 
   return (
@@ -142,8 +145,11 @@ export default function App() {
         activeTab={activeTab}
         onTabChange={(tab) => {
           setActiveTab(tab);
-          setCurrentJobId(undefined); // Clear job context when manually switching
-          setCurrentJobType(undefined);
+          // Only clear context if switching to non-analysis tabs
+          if (!['upload', 'verification'].includes(tab)) {
+            setCurrentJobId(undefined);
+            setCurrentJobType(undefined);
+          }
         }}
         onLogout={handleLogout}
         onViewTask={handleViewTask}

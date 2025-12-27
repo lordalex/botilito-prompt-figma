@@ -19,9 +19,9 @@ export function NotificationCenter({ onViewTask }: { onViewTask: (jobId: string,
     const handleViewTask = (jobId: string, metadata: any) => {
         // Map the metadata source to the job type expected by the App component
         const jobType = metadata?.source === 'upload' ? 'image_analysis' :
-                        metadata?.source === 'audio-upload' ? 'audio_analysis' :
-                        metadata?.source === 'ai-analysis' ? 'text_analysis' : 'unknown';
-        
+            metadata?.source === 'audio-upload' ? 'audio_analysis' :
+                metadata?.source === 'ai-analysis' ? 'text_analysis' : 'unknown';
+
         if (jobType !== 'unknown') {
             onViewTask(jobId, jobType);
         }
@@ -69,44 +69,56 @@ export function NotificationCenter({ onViewTask }: { onViewTask: (jobId: string,
 
                     <TabsContent value="inbox" className="m-0">
                         <ScrollArea className="h-[300px]">
-                            {notifications.length === 0 ? (
+                            {notifications.filter(n => !n.is_read).length === 0 ? (
                                 <div className="p-8 text-center text-muted-foreground text-xs">
-                                    No hay notificaciones
+                                    No hay notificaciones nuevas
                                 </div>
                             ) : (
                                 <div className="divide-y">
-                                    {notifications.map(n => (
-                                        <div
-                                            key={n.id}
-                                            className={`p-3 text-sm hover:bg-gray-50 transition-colors ${!n.is_read ? 'bg-blue-50/50' : ''}`}
-                                            onClick={() => !n.is_read && markAsRead(n.id)}
-                                        >
-                                            <div className="flex gap-3 items-start">
-                                                <div className="mt-1">{getIcon(n.type)}</div>
-                                                <div className="flex-1 space-y-1">
-                                                    <p className={`font-medium leading-none ${!n.is_read ? 'text-black' : 'text-gray-600'}`}>
-                                                        {n.title}
-                                                    </p>
-                                                    <p className="text-xs text-muted-foreground line-clamp-2">
-                                                        {n.message}
-                                                    </p>
-                                                    <div className="flex justify-between items-center">
-                                                        <p className="text-[10px] text-gray-400">
-                                                            {new Date(n.created_at).toLocaleString()}
+                                    {notifications
+                                        .filter(n => !n.is_read)
+                                        .map(n => (
+                                            <div
+                                                key={n.id}
+                                                className="p-3 text-sm hover:bg-gray-50 transition-colors bg-blue-50/50"
+                                                onClick={() => markAsRead(n.id)}
+                                            >
+                                                <div className="flex gap-3 items-start">
+                                                    <div className="mt-1">{getIcon(n.type)}</div>
+                                                    <div className="flex-1 space-y-1">
+                                                        <p className="font-medium leading-none text-black">
+                                                            {n.title}
                                                         </p>
-                                                        {n.metadata?.actionable && n.metadata?.job_id && (
-                                                            <Button variant="link" size="sm" className="h-6 text-xs" onClick={() => handleViewTask(n.metadata!.job_id, n.metadata)}>
-                                                                Ver
-                                                            </Button>
-                                                        )}
+                                                        <p className="text-xs text-muted-foreground line-clamp-2">
+                                                            {n.message}
+                                                        </p>
+                                                        <div className="flex justify-between items-center">
+                                                            <p className="text-[10px] text-gray-400">
+                                                                {new Date(n.created_at).toLocaleString()}
+                                                            </p>
+                                                            {n.metadata?.actionable && n.metadata?.job_id && (
+                                                                <Button
+                                                                    variant="link"
+                                                                    size="sm"
+                                                                    className="h-6 text-xs"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        handleViewTask(n.metadata!.job_id, n.metadata);
+                                                                        markAsRead(n.id);
+                                                                    }}
+                                                                >
+                                                                    Ver
+                                                                </Button>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    ))}
+                                        ))}
                                 </div>
                             )}
                         </ScrollArea>
+
                     </TabsContent>
 
                     <TabsContent value="tasks" className="m-0">

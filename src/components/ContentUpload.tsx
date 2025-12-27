@@ -9,13 +9,15 @@ interface ContentUploadProps {
   jobId?: string;
   jobType?: string;
   onReset?: () => void;
+  mode?: 'ai' | 'human';
 }
 
-export function ContentUpload({ jobId, jobType, onReset }: ContentUploadProps) {
+export function ContentUpload({ jobId, jobType, onReset, mode }: ContentUploadProps) {
   const [showResult, setShowResult] = useState(false);
   const {
     status,
     progress,
+    jobStep,
     result,
     error,
     fileName,
@@ -24,6 +26,8 @@ export function ContentUpload({ jobId, jobType, onReset }: ContentUploadProps) {
     retryLastSubmission,
     retryCount
   } = useContentUpload(jobId, jobType);
+
+  const currentMode = mode || 'ai';
 
   const handleReset = () => {
     internalReset();
@@ -42,10 +46,10 @@ export function ContentUpload({ jobId, jobType, onReset }: ContentUploadProps) {
 
   if (status === 'uploading' || status === 'polling' || (status === 'complete' && !showResult)) {
     return (
-      <ContentUploadProgress 
-        progress={progress} 
-        step="Procesando" 
-        status="Extrayendo metadatos y características..." 
+      <ContentUploadProgress
+        progress={progress}
+        step={jobStep || "Procesando"}
+        status={jobStep === 'Analyzing' ? "Botilito está analizando la veracidad..." : "Extrayendo metadatos y características..."}
         fileName={fileName}
         onViewResult={handleViewResult}
       />
@@ -53,7 +57,7 @@ export function ContentUpload({ jobId, jobType, onReset }: ContentUploadProps) {
   }
 
   if (status === 'complete' && result && showResult) {
-    return <ContentUploadResult result={result} onReset={handleReset} />; // Pass handleReset to clear App state too
+    return <ContentUploadResult result={result} onReset={handleReset} mode={currentMode} />; // Pass handleReset to clear App state too
   }
 
   return <ContentUploadForm onSubmit={submitContent} isSubmitting={status !== 'idle'} />;

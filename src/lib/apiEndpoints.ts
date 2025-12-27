@@ -1,5 +1,8 @@
 const SUPABASE_URL = 'https://mdkswlgcqsmgfmcuorxq.supabase.co';
 
+// Text & Media Analysis API (v1.2.0 - AMI UNESCO)
+export const TEXT_ANALYSIS_BASE_URL = `${SUPABASE_URL}/functions/v1/text-analysis`;
+
 // Vector Async API (v2.4.0)
 export const VECTOR_ASYNC_BASE_URL = `${SUPABASE_URL}/functions/v1/vector-async`;
 export const SEARCH_ENDPOINT = `${VECTOR_ASYNC_BASE_URL}/search`;
