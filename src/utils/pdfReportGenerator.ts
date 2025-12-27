@@ -281,7 +281,7 @@ export function generateImageAnalysisPDF(
   y = checkNewPage(doc, y, 55);
   y = addSectionTitle(doc, 'Análisis Integrado', y);
   y = addKeyValue(doc, 'Consistencia:', `${(level_2_integration.consistency_score * 100).toFixed(0)}%`, y);
-  y = addKeyValue(doc, 'Riesgo Metadata:', `${(level_2_integration.metadata_risk_score * 100).toFixed(0)}%`, y);
+  y = addKeyValue(doc, 'Riesgo Metadatos:', `${(level_2_integration.metadata_risk_score * 100).toFixed(0)}%`, y);
   y = addKeyValue(doc, 'Tipo de Manipulación:', level_2_integration.tampering_type, y);
 
   if (level_2_integration.synthesis_notes) {
@@ -751,7 +751,7 @@ export async function generateAudioAnalysisPDF(
       y = addKeyValue(doc, 'Duración:', `${raw_results_summary.duration_seconds.toFixed(2)} seg`, y, 25);
     }
     if (raw_results_summary.sample_rate) {
-      y = addKeyValue(doc, 'Sample Rate:', `${raw_results_summary.sample_rate} Hz`, y, 28);
+      y = addKeyValue(doc, 'Frecuencia:', `${raw_results_summary.sample_rate} Hz`, y, 25);
     }
     if (raw_results_summary.channels) {
       y = addKeyValue(doc, 'Canales:', raw_results_summary.channels.toString(), y, 22);
