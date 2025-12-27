@@ -9,6 +9,8 @@ import { AnalysisStats } from './AnalysisStats';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { VisualizationsTab } from './VisualizationsTab';
+import { Download, RefreshCw } from 'lucide-react';
+import { generateImageAnalysisPDF } from '@/utils/pdfReportGenerator';
 
 interface ImageAnalysisResultViewProps {
     data: AnalysisResult;
@@ -43,7 +45,20 @@ export function ImageAnalysisResultView({ data, onReset }: ImageAnalysisResultVi
         <div className="max-w-7xl mx-auto p-4 space-y-6">
             <div className="flex justify-between items-center">
                 <h1 className="text-2xl font-bold">Resultados del Análisis Multi-Nivel</h1>
-                <Button variant="outline" onClick={onReset}>Nuevo Análisis</Button>
+                <div className="flex gap-2">
+                    <Button
+                        variant="outline"
+                        onClick={() => generateImageAnalysisPDF(data, data.meta?.job_id, file_info?.name)}
+                        className="bg-white hover:bg-gray-50"
+                    >
+                        <Download className="w-4 h-4 mr-2" />
+                        Descargar PDF
+                    </Button>
+                    <Button variant="outline" onClick={onReset}>
+                        <RefreshCw className="w-4 h-4 mr-2" />
+                        Nuevo Análisis
+                    </Button>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
