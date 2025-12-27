@@ -2,6 +2,29 @@ import { jsPDF } from 'jspdf';
 import { AnalysisResult, Level1AnalysisItem, Level2Integration, Level3Verdict } from '@/types/imageAnalysis';
 import { AudioAnalysisResult, AudioHumanReport } from '@/types/audioAnalysis';
 
+// Helper to fetch image as base64 for embedding in PDF
+async function fetchImageAsBase64(url: string): Promise<string | null> {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) return null;
+
+    const blob = await response.blob();
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64 = reader.result as string;
+        // Remove data URL prefix to get just the base64
+        resolve(base64);
+      };
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+  } catch (error) {
+    console.error('Failed to fetch image for PDF:', error);
+    return null;
+  }
+}
+
 // Botilito brand colors
 const COLORS = {
   primary: '#ffda00',
@@ -11,6 +34,7 @@ const COLORS = {
   orange: '#f97316',
   red: '#ef4444',
   gray: '#6b7280',
+  lightGray: '#f3f4f6',
   black: '#000000',
   white: '#ffffff',
 };
@@ -35,23 +59,6 @@ function getRiskColor(score: number): string {
   return COLORS.red;
 }
 
-function getVerdictColor(verdict: string): string {
-  const lower = verdict.toLowerCase();
-  if (lower.includes('auténtico') || lower.includes('authentic') || lower.includes('baja')) {
-    return COLORS.green;
-  }
-  if (lower.includes('sospecha') || lower.includes('medium')) {
-    return COLORS.yellow;
-  }
-  if (lower.includes('alta') || lower.includes('high')) {
-    return COLORS.orange;
-  }
-  if (lower.includes('manipulado') || lower.includes('critical')) {
-    return COLORS.red;
-  }
-  return COLORS.gray;
-}
-
 // Common PDF setup
 function createPdfDocument(): jsPDF {
   const doc = new jsPDF({
@@ -65,111 +72,159 @@ function createPdfDocument(): jsPDF {
 // Add header to PDF
 function addHeader(doc: jsPDF, title: string, caseNumber?: string): number {
   const pageWidth = doc.internal.pageSize.getWidth();
-  let y = 15;
 
   // Yellow header bar
   const rgb = hexToRgb(COLORS.primary);
   doc.setFillColor(rgb.r, rgb.g, rgb.b);
-  doc.rect(0, 0, pageWidth, 35, 'F');
+  doc.rect(0, 0, pageWidth, 32, 'F');
 
   // Title
   doc.setTextColor(0, 0, 0);
-  doc.setFontSize(24);
+  doc.setFontSize(22);
   doc.setFont('helvetica', 'bold');
-  doc.text('BOTILITO', 15, 18);
+  doc.text('BOTILITO', 15, 15);
 
-  doc.setFontSize(12);
+  doc.setFontSize(11);
   doc.setFont('helvetica', 'normal');
-  doc.text('Reporte de Análisis Forense', 15, 26);
+  doc.text('Reporte de Análisis Forense', 15, 23);
 
-  // Case number
+  // Case number and date on the right
+  doc.setFontSize(9);
   if (caseNumber) {
-    doc.setFontSize(10);
-    doc.text(`Caso: ${caseNumber}`, pageWidth - 15, 18, { align: 'right' });
+    doc.text(`Caso: ${caseNumber}`, pageWidth - 15, 15, { align: 'right' });
   }
+  doc.text(new Date().toLocaleDateString('es-CO', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  }), pageWidth - 15, 22, { align: 'right' });
 
-  // Date
-  doc.text(new Date().toLocaleString('es-CO'), pageWidth - 15, 26, { align: 'right' });
-
-  return 45; // Return Y position after header
+  return 42; // Return Y position after header
 }
 
-// Add section title
+// Add section title with yellow background
 function addSectionTitle(doc: jsPDF, title: string, y: number): number {
   const rgb = hexToRgb(COLORS.secondary);
+  const pageWidth = doc.internal.pageSize.getWidth();
+
   doc.setFillColor(rgb.r, rgb.g, rgb.b);
-  doc.rect(10, y - 5, doc.internal.pageSize.getWidth() - 20, 10, 'F');
+  doc.roundedRect(15, y - 2, pageWidth - 30, 9, 2, 2, 'F');
 
   doc.setTextColor(0, 0, 0);
-  doc.setFontSize(14);
+  doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');
-  doc.text(title, 15, y + 2);
+  doc.text(title, 18, y + 4);
 
-  return y + 15;
+  return y + 14;
 }
 
-// Add key-value pair
-function addKeyValue(doc: jsPDF, key: string, value: string, y: number, maxWidth: number = 170): number {
-  doc.setFontSize(10);
+// Add key-value pair with proper spacing
+function addKeyValue(doc: jsPDF, key: string, value: string, y: number, keyWidth: number = 45): number {
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const maxValueWidth = pageWidth - 35 - keyWidth;
+
+  doc.setFontSize(9);
   doc.setFont('helvetica', 'bold');
-  doc.setTextColor(100, 100, 100);
-  doc.text(key + ':', 15, y);
+  doc.setTextColor(80, 80, 80);
+  doc.text(key, 18, y);
 
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(0, 0, 0);
 
-  const splitValue = doc.splitTextToSize(value, maxWidth - 50);
-  doc.text(splitValue, 55, y);
+  const splitValue = doc.splitTextToSize(value, maxValueWidth);
+  doc.text(splitValue, 18 + keyWidth, y);
 
-  return y + (splitValue.length * 5) + 3;
+  return y + (splitValue.length * 4.5) + 2;
 }
 
-// Add verdict box
+// Add verdict box with proper text wrapping
 function addVerdictBox(doc: jsPDF, verdict: string, score: number, y: number): number {
   const pageWidth = doc.internal.pageSize.getWidth();
   const boxWidth = pageWidth - 30;
-  const boxHeight = 25;
+
+  // Truncate long verdicts for the main display
+  const maxVerdictLength = 60;
+  const displayVerdict = verdict.length > maxVerdictLength
+    ? verdict.substring(0, maxVerdictLength) + '...'
+    : verdict;
+
+  const boxHeight = 22;
 
   const color = getRiskColor(score);
   const rgb = hexToRgb(color);
   doc.setFillColor(rgb.r, rgb.g, rgb.b);
   doc.roundedRect(15, y, boxWidth, boxHeight, 3, 3, 'F');
 
+  // Verdict label
   doc.setTextColor(255, 255, 255);
-  doc.setFontSize(16);
+  doc.setFontSize(13);
   doc.setFont('helvetica', 'bold');
-  doc.text(verdict, pageWidth / 2, y + 10, { align: 'center' });
+  doc.text(displayVerdict, pageWidth / 2, y + 9, { align: 'center', maxWidth: boxWidth - 10 });
 
-  doc.setFontSize(12);
-  doc.text(`Probabilidad de manipulación: ${score}%`, pageWidth / 2, y + 18, { align: 'center' });
+  // Score
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Probabilidad de manipulación: ${score}%`, pageWidth / 2, y + 17, { align: 'center' });
 
-  return y + boxHeight + 10;
+  return y + boxHeight + 8;
 }
 
-// Add footer
+// Add footer to all pages
 function addFooter(doc: jsPDF): void {
+  const pageCount = doc.getNumberOfPages();
   const pageHeight = doc.internal.pageSize.getHeight();
   const pageWidth = doc.internal.pageSize.getWidth();
 
-  doc.setTextColor(100, 100, 100);
-  doc.setFontSize(8);
-  doc.text(
-    'Verificado por Botilito - Plataforma Anti-Desinformación con Análisis IA',
-    pageWidth / 2,
-    pageHeight - 10,
-    { align: 'center' }
-  );
-  doc.text('https://digitalia.gov.co', pageWidth / 2, pageHeight - 5, { align: 'center' });
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+
+    // Footer line
+    const lineRgb = hexToRgb(COLORS.primary);
+    doc.setDrawColor(lineRgb.r, lineRgb.g, lineRgb.b);
+    doc.setLineWidth(0.5);
+    doc.line(15, pageHeight - 18, pageWidth - 15, pageHeight - 18);
+
+    doc.setTextColor(100, 100, 100);
+    doc.setFontSize(7);
+    doc.setFont('helvetica', 'normal');
+    doc.text(
+      'Verificado por Botilito - Plataforma Anti-Desinformación con Análisis IA',
+      15,
+      pageHeight - 12
+    );
+    doc.text('https://digitalia.gov.co', 15, pageHeight - 8);
+
+    // Page number
+    doc.text(`Página ${i} de ${pageCount}`, pageWidth - 15, pageHeight - 10, { align: 'right' });
+  }
 }
 
 // Check if we need a new page
 function checkNewPage(doc: jsPDF, y: number, neededSpace: number = 30): number {
   const pageHeight = doc.internal.pageSize.getHeight();
-  if (y + neededSpace > pageHeight - 20) {
+  if (y + neededSpace > pageHeight - 25) {
     doc.addPage();
     return 20;
   }
   return y;
+}
+
+// Draw a card/box with optional border
+function drawCard(doc: jsPDF, y: number, height: number, bgColor?: string): void {
+  const pageWidth = doc.internal.pageSize.getWidth();
+
+  if (bgColor) {
+    const rgb = hexToRgb(bgColor);
+    doc.setFillColor(rgb.r, rgb.g, rgb.b);
+    doc.roundedRect(15, y, pageWidth - 30, height, 2, 2, 'F');
+  }
+
+  // Light border
+  doc.setDrawColor(220, 220, 220);
+  doc.setLineWidth(0.3);
+  doc.roundedRect(15, y, pageWidth - 30, height, 2, 2, 'S');
 }
 
 // ============================================
@@ -195,126 +250,129 @@ export function generateImageAnalysisPDF(
     y
   );
 
-  // Explanation
-  doc.setTextColor(0, 0, 0);
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
-  const explanation = doc.splitTextToSize(level_3_verdict.user_explanation, 170);
-  doc.text(explanation, 15, y);
-  y += explanation.length * 5 + 10;
+  // Explanation in a card
+  if (level_3_verdict.user_explanation) {
+    const explanationLines = doc.splitTextToSize(level_3_verdict.user_explanation, 165);
+    const cardHeight = explanationLines.length * 4 + 8;
+
+    drawCard(doc, y, cardHeight, COLORS.lightGray);
+
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.text(explanationLines, 18, y + 5);
+    y += cardHeight + 8;
+  }
 
   // File Info
   if (file_info) {
-    y = checkNewPage(doc, y, 40);
+    y = checkNewPage(doc, y, 45);
     y = addSectionTitle(doc, 'Información del Archivo', y);
-    y = addKeyValue(doc, 'Nombre', file_info.name || fileName || 'N/A', y);
-    y = addKeyValue(doc, 'Tamaño', `${((file_info.size_bytes || 0) / 1024).toFixed(2)} KB`, y);
-    y = addKeyValue(doc, 'Tipo', file_info.mime_type || 'N/A', y);
+    y = addKeyValue(doc, 'Nombre:', file_info.name || fileName || 'N/A', y);
+    y = addKeyValue(doc, 'Tamaño:', `${((file_info.size_bytes || 0) / 1024).toFixed(2)} KB`, y);
+    y = addKeyValue(doc, 'Tipo:', file_info.mime_type || 'N/A', y);
     if (file_info.dimensions) {
-      y = addKeyValue(doc, 'Dimensiones', `${file_info.dimensions.width} x ${file_info.dimensions.height} px`, y);
+      y = addKeyValue(doc, 'Dimensiones:', `${file_info.dimensions.width} x ${file_info.dimensions.height} px`, y);
     }
-    y += 5;
+    y += 6;
   }
 
   // Level 2 Integration
-  y = checkNewPage(doc, y, 50);
+  y = checkNewPage(doc, y, 55);
   y = addSectionTitle(doc, 'Análisis Integrado', y);
-  y = addKeyValue(doc, 'Consistencia', `${(level_2_integration.consistency_score * 100).toFixed(0)}%`, y);
-  y = addKeyValue(doc, 'Riesgo Metadata', `${(level_2_integration.metadata_risk_score * 100).toFixed(0)}%`, y);
-  y = addKeyValue(doc, 'Tipo de Manipulación', level_2_integration.tampering_type, y);
+  y = addKeyValue(doc, 'Consistencia:', `${(level_2_integration.consistency_score * 100).toFixed(0)}%`, y);
+  y = addKeyValue(doc, 'Riesgo Metadata:', `${(level_2_integration.metadata_risk_score * 100).toFixed(0)}%`, y);
+  y = addKeyValue(doc, 'Tipo de Manipulación:', level_2_integration.tampering_type, y);
 
-  const synthNotes = doc.splitTextToSize(level_2_integration.synthesis_notes, 170);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(100, 100, 100);
-  doc.text('Notas:', 15, y);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(0, 0, 0);
-  y += 5;
-  doc.text(synthNotes, 15, y);
-  y += synthNotes.length * 5 + 10;
+  if (level_2_integration.synthesis_notes) {
+    y += 2;
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(80, 80, 80);
+    doc.text('Notas:', 18, y);
+    y += 4;
+
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(0, 0, 0);
+    const synthNotes = doc.splitTextToSize(level_2_integration.synthesis_notes, 165);
+    doc.text(synthNotes, 18, y);
+    y += synthNotes.length * 4 + 8;
+  }
 
   // Level 1 Analysis - Individual Tests
   y = checkNewPage(doc, y, 60);
   y = addSectionTitle(doc, 'Pruebas Forenses Individuales', y);
 
   level_1_analysis.forEach((test: Level1AnalysisItem) => {
-    y = checkNewPage(doc, y, 25);
+    y = checkNewPage(doc, y, 28);
 
-    // Test name with score
+    // Test card
     const scoreColor = getRiskColor(test.significance_score * 100);
     const rgb = hexToRgb(scoreColor);
 
+    // Badge for algorithm name
     doc.setFillColor(rgb.r, rgb.g, rgb.b);
-    doc.roundedRect(15, y - 4, 50, 8, 2, 2, 'F');
+    doc.roundedRect(18, y - 3, 45, 7, 2, 2, 'F');
 
     doc.setTextColor(255, 255, 255);
-    doc.setFontSize(10);
+    doc.setFontSize(8);
     doc.setFont('helvetica', 'bold');
-    doc.text(test.algorithm, 17, y + 1);
+    doc.text(test.algorithm.substring(0, 18), 20, y + 1);
 
+    // Score
     doc.setTextColor(0, 0, 0);
+    doc.setFontSize(10);
     doc.text(`${(test.significance_score * 100).toFixed(0)}%`, 70, y + 1);
 
     y += 8;
 
     // Interpretation
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
-    const interpretation = doc.splitTextToSize(test.interpretation, 165);
-    doc.text(interpretation, 17, y);
-    y += interpretation.length * 4 + 8;
+    doc.setFontSize(8);
+    doc.setTextColor(80, 80, 80);
+    const interpretation = doc.splitTextToSize(test.interpretation, 160);
+    doc.text(interpretation, 20, y);
+    y += interpretation.length * 3.5 + 6;
   });
 
-  // Raw Forensics Summary
-  if (raw_forensics && raw_forensics.length > 0) {
-    y = checkNewPage(doc, y, 40);
-    y = addSectionTitle(doc, 'Resultados de Algoritmos', y);
+  // Recommendations
+  if (recommendations && recommendations.length > 0) {
+    y = checkNewPage(doc, y, 45);
+    y = addSectionTitle(doc, 'Recomendaciones', y);
 
-    raw_forensics.forEach((forensic) => {
-      if (forensic.algorithms) {
-        forensic.algorithms.forEach((algo) => {
-          y = checkNewPage(doc, y, 15);
-          y = addKeyValue(doc, algo.name, `Score: ${(algo.score * 100).toFixed(0)}%`, y);
-        });
-      }
+    recommendations.forEach((rec, index) => {
+      y = checkNewPage(doc, y, 12);
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(0, 0, 0);
+      const recText = doc.splitTextToSize(`${index + 1}. ${rec}`, 160);
+      doc.text(recText, 20, y);
+      y += recText.length * 4 + 3;
     });
     y += 5;
   }
 
-  // Recommendations
-  if (recommendations && recommendations.length > 0) {
-    y = checkNewPage(doc, y, 40);
-    y = addSectionTitle(doc, 'Recomendaciones', y);
-
-    recommendations.forEach((rec, index) => {
-      y = checkNewPage(doc, y, 15);
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
-      const recText = doc.splitTextToSize(`${index + 1}. ${rec}`, 165);
-      doc.text(recText, 17, y);
-      y += recText.length * 5 + 3;
-    });
-  }
-
   // Chain of Custody
   if (chain_of_custody && chain_of_custody.length > 0) {
-    y = checkNewPage(doc, y, 40);
+    y = checkNewPage(doc, y, 45);
     y = addSectionTitle(doc, 'Cadena de Custodia', y);
 
     chain_of_custody.forEach((event) => {
-      y = checkNewPage(doc, y, 20);
-      doc.setFontSize(9);
+      y = checkNewPage(doc, y, 18);
+      doc.setFontSize(8);
       doc.setFont('helvetica', 'bold');
-      doc.text(`${new Date(event.timestamp).toLocaleString('es-CO')} - ${event.action}`, 17, y);
+      doc.setTextColor(0, 0, 0);
+      doc.text(`${new Date(event.timestamp).toLocaleString('es-CO')} - ${event.action}`, 20, y);
       doc.setFont('helvetica', 'normal');
-      y += 5;
-      doc.text(`${event.actor}: ${event.details}`, 17, y);
+      doc.setTextColor(80, 80, 80);
+      y += 4;
+      doc.text(`${event.actor}: ${event.details}`, 20, y);
       if (event.hash) {
-        y += 4;
-        doc.setFontSize(7);
-        doc.text(`Hash: ${event.hash}`, 17, y);
+        y += 3;
+        doc.setFontSize(6);
+        doc.text(`Hash: ${event.hash}`, 20, y);
       }
-      y += 8;
+      y += 6;
     });
   }
 
@@ -340,7 +398,7 @@ function generateAudioTests(humanReport: AudioHumanReport): AudioTest[] {
   // Transcription analysis
   if (humanReport.transcription) {
     tests.push({
-      name: 'Análisis de Transcripción',
+      name: 'Transcripción',
       description: 'Transcripción automática del contenido de audio',
       confidence: humanReport.transcription.confidence || 0.8,
       result: 'authentic',
@@ -352,7 +410,7 @@ function generateAudioTests(humanReport: AudioHumanReport): AudioTest[] {
     const forensics = humanReport.audio_forensics;
 
     tests.push({
-      name: 'Análisis Forense de Audio',
+      name: 'Forense de Audio',
       description: 'Detección de manipulación y edición en el audio',
       confidence: forensics.authenticity_score || 0.5,
       result: forensics.manipulation_detected ? 'manipulated' : 'authentic',
@@ -361,8 +419,8 @@ function generateAudioTests(humanReport: AudioHumanReport): AudioTest[] {
     // Add anomaly detection if anomalies exist
     if (forensics.anomalies && forensics.anomalies.length > 0) {
       tests.push({
-        name: 'Detección de Anomalías',
-        description: `Patrones irregulares detectados: ${forensics.anomalies.join(', ')}`,
+        name: 'Anomalías',
+        description: 'Patrones irregulares detectados en el espectro de audio',
         confidence: Math.max(0.6, 1 - forensics.authenticity_score),
         result: 'manipulated',
       });
@@ -372,8 +430,8 @@ function generateAudioTests(humanReport: AudioHumanReport): AudioTest[] {
   // Speaker analysis
   if (humanReport.speaker_analysis && humanReport.speaker_analysis.num_speakers > 0) {
     tests.push({
-      name: 'Diarización de Hablantes',
-      description: `Identificación de ${humanReport.speaker_analysis.num_speakers} hablante(s) en el audio`,
+      name: 'Hablantes',
+      description: `Identificación de ${humanReport.speaker_analysis.num_speakers} hablante(s)`,
       confidence: 0.85,
       result: 'authentic',
     });
@@ -381,9 +439,11 @@ function generateAudioTests(humanReport: AudioHumanReport): AudioTest[] {
 
   // Sentiment analysis
   if (humanReport.sentiment_analysis) {
+    const sentimentLabel = humanReport.sentiment_analysis.overall_sentiment === 'positive' ? 'positivo'
+      : humanReport.sentiment_analysis.overall_sentiment === 'negative' ? 'negativo' : 'neutral';
     tests.push({
-      name: 'Análisis de Sentimiento',
-      description: `Tono detectado: ${humanReport.sentiment_analysis.overall_sentiment}`,
+      name: 'Sentimiento',
+      description: `Tono detectado: ${sentimentLabel}`,
       confidence: humanReport.sentiment_analysis.confidence || 0.75,
       result: 'authentic',
     });
@@ -392,7 +452,7 @@ function generateAudioTests(humanReport: AudioHumanReport): AudioTest[] {
   // Add deepfake detection if high risk
   if (humanReport.verdict?.risk_level === 'high' || humanReport.verdict?.risk_level === 'critical') {
     tests.push({
-      name: 'Detección de IA Generativa',
+      name: 'IA Generativa',
       description: 'Análisis de patrones característicos de audio sintético',
       confidence: humanReport.verdict.confidence || 0.7,
       result: 'synthetic',
@@ -402,7 +462,7 @@ function generateAudioTests(humanReport: AudioHumanReport): AudioTest[] {
   // If no tests generated, add placeholder
   if (tests.length === 0) {
     tests.push({
-      name: 'Análisis General',
+      name: 'General',
       description: 'Análisis básico del archivo de audio',
       confidence: humanReport.verdict?.confidence || 0.5,
       result: humanReport.audio_forensics?.manipulation_detected ? 'manipulated' : 'authentic',
@@ -435,11 +495,11 @@ function getResultColor(result: string): string {
 // ============================================
 // AUDIO ANALYSIS PDF GENERATOR
 // ============================================
-export function generateAudioAnalysisPDF(
+export async function generateAudioAnalysisPDF(
   data: AudioAnalysisResult,
   caseNumber?: string,
   fileName?: string
-): void {
+): Promise<void> {
   const doc = createPdfDocument();
   let y = addHeader(doc, 'Análisis de Audio', caseNumber);
 
@@ -456,130 +516,112 @@ export function generateAudioAnalysisPDF(
 
   y = addVerdictBox(doc, verdict.conclusion, riskScore, y);
 
-  // Confidence
-  y = addKeyValue(doc, 'Confianza', `${(verdict.confidence * 100).toFixed(0)}%`, y);
-  y = addKeyValue(doc, 'Nivel de Riesgo', verdict.risk_level.toUpperCase(), y);
-  y += 5;
+  // Confidence and Risk Level in a row
+  const riskLabel = verdict.risk_level === 'critical' ? 'CRÍTICO'
+    : verdict.risk_level === 'high' ? 'ALTO'
+    : verdict.risk_level === 'medium' ? 'MEDIO'
+    : 'BAJO';
+
+  y = addKeyValue(doc, 'Confianza:', `${(verdict.confidence * 100).toFixed(0)}%`, y, 25);
+  y = addKeyValue(doc, 'Nivel de Riesgo:', riskLabel, y, 35);
+  y += 4;
 
   // File Info
   if (file_info) {
-    y = checkNewPage(doc, y, 40);
+    y = checkNewPage(doc, y, 45);
     y = addSectionTitle(doc, 'Información del Archivo', y);
-    y = addKeyValue(doc, 'Nombre', file_info.name || fileName || 'N/A', y);
-    y = addKeyValue(doc, 'Tamaño', `${((file_info.size_bytes || 0) / 1024).toFixed(2)} KB`, y);
-    y = addKeyValue(doc, 'Tipo', file_info.mime_type || 'N/A', y);
-    y = addKeyValue(doc, 'Duración', `${(file_info.duration_seconds || 0).toFixed(2)} segundos`, y);
-    y += 5;
+    y = addKeyValue(doc, 'Nombre:', file_info.name || fileName || 'N/A', y);
+    y = addKeyValue(doc, 'Tamaño:', `${((file_info.size_bytes || 0) / 1024).toFixed(2)} KB`, y);
+    y = addKeyValue(doc, 'Tipo:', file_info.mime_type || 'N/A', y);
+    y = addKeyValue(doc, 'Duración:', `${(file_info.duration_seconds || 0).toFixed(2)} segundos`, y);
+    y += 4;
   }
 
   // ============================================
   // PRUEBAS FORENSES INDIVIDUALES (Test Cards)
   // ============================================
   y = checkNewPage(doc, y, 60);
-  y = addSectionTitle(doc, 'Pruebas Forenses Individuales', y);
+  y = addSectionTitle(doc, 'Pruebas Forenses', y);
 
   const tests = generateAudioTests(human_report);
 
   tests.forEach((test) => {
-    y = checkNewPage(doc, y, 30);
+    y = checkNewPage(doc, y, 22);
+
+    // Test card background
+    const pageWidth = doc.internal.pageSize.getWidth();
+    drawCard(doc, y - 2, 18, '#fafafa');
 
     // Test name badge with color
     const resultColor = getResultColor(test.result);
     const rgb = hexToRgb(resultColor);
 
     doc.setFillColor(rgb.r, rgb.g, rgb.b);
-    doc.roundedRect(15, y - 4, 55, 8, 2, 2, 'F');
+    doc.roundedRect(18, y, 38, 6, 1.5, 1.5, 'F');
 
     doc.setTextColor(255, 255, 255);
-    doc.setFontSize(9);
+    doc.setFontSize(8);
     doc.setFont('helvetica', 'bold');
-    doc.text(test.name.substring(0, 25), 17, y + 1);
+    doc.text(test.name, 20, y + 4);
 
     // Result label
     doc.setTextColor(0, 0, 0);
-    doc.setFontSize(9);
+    doc.setFontSize(8);
     doc.setFont('helvetica', 'bold');
-    doc.text(getResultLabel(test.result), 75, y + 1);
+    doc.text(getResultLabel(test.result), 62, y + 4);
 
-    // Confidence
-    doc.text(`${(test.confidence * 100).toFixed(0)}%`, 120, y + 1);
+    // Confidence percentage
+    doc.setTextColor(80, 80, 80);
+    doc.text(`${(test.confidence * 100).toFixed(0)}%`, pageWidth - 25, y + 4);
 
-    y += 10;
+    y += 9;
 
     // Description
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
+    doc.setFontSize(8);
     doc.setTextColor(100, 100, 100);
-    const descText = doc.splitTextToSize(test.description, 165);
-    doc.text(descText, 17, y);
-    y += descText.length * 4 + 8;
+    const descText = doc.splitTextToSize(test.description, 155);
+    doc.text(descText, 20, y);
+    y += descText.length * 3.5 + 8;
   });
-
-  y += 5;
 
   // ============================================
   // ANÁLISIS DE TRANSCRIPCIÓN (Detailed)
   // ============================================
   if (transcription && transcription.text) {
     y = checkNewPage(doc, y, 50);
-    y = addSectionTitle(doc, 'Análisis de Transcripción', y);
+    y = addSectionTitle(doc, 'Transcripción', y);
 
     if (transcription.language) {
-      y = addKeyValue(doc, 'Idioma detectado', transcription.language, y);
+      y = addKeyValue(doc, 'Idioma:', transcription.language, y, 20);
     }
     if (transcription.confidence) {
-      y = addKeyValue(doc, 'Confianza', `${(transcription.confidence * 100).toFixed(0)}%`, y);
+      y = addKeyValue(doc, 'Confianza:', `${(transcription.confidence * 100).toFixed(0)}%`, y, 25);
     }
 
-    y += 3;
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(0, 0, 0);
-    doc.text('Texto transcrito:', 15, y);
-    y += 6;
+    y += 2;
+
+    // Transcription text in a card
+    const transcriptLines = doc.splitTextToSize(transcription.text, 160);
+    const cardHeight = Math.min(transcriptLines.length * 4 + 8, 60);
+
+    drawCard(doc, y, cardHeight, COLORS.lightGray);
 
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
-    const transcriptText = doc.splitTextToSize(transcription.text, 170);
+    doc.setTextColor(0, 0, 0);
 
-    // Handle long transcriptions with page breaks
-    transcriptText.forEach((line: string) => {
-      y = checkNewPage(doc, y, 8);
-      doc.text(line, 15, y);
-      y += 5;
-    });
-    y += 5;
+    // Only show first portion if too long
+    const linesToShow = transcriptLines.slice(0, 12);
+    doc.text(linesToShow, 18, y + 5);
 
-    // Segments if available
-    if (transcription.segments && transcription.segments.length > 0) {
-      y = checkNewPage(doc, y, 30);
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'bold');
-      doc.text('Segmentos por tiempo:', 15, y);
-      y += 6;
-
-      transcription.segments.slice(0, 10).forEach((seg) => {
-        y = checkNewPage(doc, y, 10);
-        doc.setFontSize(8);
-        doc.setFont('helvetica', 'normal');
-        const startMin = Math.floor(seg.start_time / 60);
-        const startSec = Math.floor(seg.start_time % 60);
-        const endMin = Math.floor(seg.end_time / 60);
-        const endSec = Math.floor(seg.end_time % 60);
-        const timeStr = `[${startMin}:${startSec.toString().padStart(2, '0')} - ${endMin}:${endSec.toString().padStart(2, '0')}]`;
-        const speaker = seg.speaker ? ` (${seg.speaker})` : '';
-        const segText = doc.splitTextToSize(`${timeStr}${speaker}: ${seg.text}`, 165);
-        doc.text(segText, 17, y);
-        y += segText.length * 4 + 3;
-      });
-
-      if (transcription.segments.length > 10) {
-        doc.setFontSize(8);
-        doc.setTextColor(100, 100, 100);
-        doc.text(`... y ${transcription.segments.length - 10} segmentos más`, 17, y);
-        y += 6;
-      }
+    if (transcriptLines.length > 12) {
+      doc.setFontSize(7);
+      doc.setTextColor(100, 100, 100);
+      doc.text(`[... ${transcriptLines.length - 12} líneas más]`, 18, y + cardHeight - 3);
     }
+
+    y += cardHeight + 6;
   }
 
   // ============================================
@@ -589,141 +631,135 @@ export function generateAudioAnalysisPDF(
     y = checkNewPage(doc, y, 50);
     y = addSectionTitle(doc, 'Análisis Forense de Audio', y);
 
-    y = addKeyValue(doc, 'Score de Autenticidad', `${(audio_forensics.authenticity_score * 100).toFixed(0)}%`, y);
-    y = addKeyValue(doc, 'Manipulación Detectada', audio_forensics.manipulation_detected ? 'SÍ - Se encontraron indicios de edición' : 'NO - Audio aparentemente original', y);
+    y = addKeyValue(doc, 'Autenticidad:', `${(audio_forensics.authenticity_score * 100).toFixed(0)}%`, y, 28);
+
+    const manipLabel = audio_forensics.manipulation_detected
+      ? 'SÍ - Se encontraron indicios de edición'
+      : 'NO - Audio aparentemente original';
+    y = addKeyValue(doc, 'Manipulación:', manipLabel, y, 28);
 
     // Anomalies detailed section
     if (audio_forensics.anomalies && audio_forensics.anomalies.length > 0) {
-      y += 3;
-      doc.setFontSize(10);
+      y += 4;
+      doc.setFontSize(9);
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(0, 0, 0);
-      doc.text('Anomalías detectadas:', 15, y);
-      y += 6;
+      doc.text('Anomalías detectadas:', 18, y);
+      y += 5;
 
-      audio_forensics.anomalies.forEach((anomaly, idx) => {
-        y = checkNewPage(doc, y, 10);
-        doc.setFontSize(9);
+      audio_forensics.anomalies.forEach((anomaly) => {
+        y = checkNewPage(doc, y, 15);
+        doc.setFontSize(8);
         doc.setFont('helvetica', 'normal');
-        const anomalyText = doc.splitTextToSize(`• ${anomaly}`, 165);
-        doc.text(anomalyText, 17, y);
-        y += anomalyText.length * 4 + 3;
+        doc.setTextColor(80, 80, 80);
+        const anomalyText = doc.splitTextToSize(`• ${anomaly}`, 160);
+        doc.text(anomalyText, 20, y);
+        y += anomalyText.length * 3.5 + 3;
       });
     }
-    y += 5;
+    y += 4;
   }
 
   // ============================================
-  // DETECCIÓN DE ANOMALÍAS (Separate section if many)
+  // VISUALIZACIONES (with embedded spectrogram)
   // ============================================
-  if (audio_forensics?.anomalies && audio_forensics.anomalies.length > 3) {
-    y = checkNewPage(doc, y, 40);
-    y = addSectionTitle(doc, 'Detección de Anomalías - Análisis Detallado', y);
-
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(0, 0, 0);
-
-    const anomalyIntro = 'Se detectaron patrones irregulares en el espectro de audio que podrían indicar manipulación o edición del contenido original:';
-    const introText = doc.splitTextToSize(anomalyIntro, 170);
-    doc.text(introText, 15, y);
-    y += introText.length * 5 + 5;
-
-    audio_forensics.anomalies.forEach((anomaly, idx) => {
-      y = checkNewPage(doc, y, 12);
-      doc.setFont('helvetica', 'bold');
-      doc.text(`${idx + 1}.`, 17, y);
-      doc.setFont('helvetica', 'normal');
-      const anomalyText = doc.splitTextToSize(anomaly, 155);
-      doc.text(anomalyText, 25, y);
-      y += anomalyText.length * 5 + 4;
-    });
-    y += 5;
-  }
-
-  // ============================================
-  // VISUALIZACIONES (Note about available assets)
-  // ============================================
-  y = checkNewPage(doc, y, 40);
+  y = checkNewPage(doc, y, 80); // Need more space for image
   y = addSectionTitle(doc, 'Visualizaciones', y);
 
-  doc.setFontSize(9);
+  doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
-  doc.setTextColor(0, 0, 0);
+  doc.setTextColor(60, 60, 60);
 
   const vizItems = [
-    '• Forma de Onda: Representación visual de la amplitud del audio a lo largo del tiempo',
+    '• Forma de Onda: Representación visual de la amplitud del audio',
     '• Espectrograma: Distribución de frecuencias mostrando patrones espectrales',
+    '• Análisis de Frecuencia: Identificación de componentes armónicos y ruido',
   ];
 
-  if (assets?.spectrogram) {
-    vizItems.push('  ✓ Espectrograma disponible en el análisis web');
-  }
-
-  vizItems.push('• Análisis de Frecuencia: Identificación de componentes armónicos y ruido');
-
   vizItems.forEach((item) => {
-    y = checkNewPage(doc, y, 8);
-    const itemText = doc.splitTextToSize(item, 165);
-    doc.text(itemText, 15, y);
-    y += itemText.length * 5 + 2;
+    doc.text(item, 20, y);
+    y += 4;
   });
 
-  doc.setFontSize(8);
-  doc.setTextColor(100, 100, 100);
-  doc.setFont('helvetica', 'italic');
-  y += 3;
-  doc.text('Nota: Las visualizaciones interactivas están disponibles en la versión web del análisis.', 15, y);
-  y += 10;
+  y += 4;
 
-  // Speaker Analysis
-  if (speaker_analysis && speaker_analysis.num_speakers > 0) {
-    y = checkNewPage(doc, y, 30);
-    y = addSectionTitle(doc, 'Diarización de Hablantes', y);
-    y = addKeyValue(doc, 'Número de Hablantes', speaker_analysis.num_speakers.toString(), y);
+  // Try to embed the spectrogram image if available
+  if (assets?.spectrogram) {
+    try {
+      const spectrogramBase64 = await fetchImageAsBase64(assets.spectrogram);
+      if (spectrogramBase64) {
+        // Check if we need a new page for the image
+        y = checkNewPage(doc, y, 70);
 
-    if (speaker_analysis.speakers && speaker_analysis.speakers.length > 0) {
-      speaker_analysis.speakers.forEach((speaker, idx) => {
-        y = checkNewPage(doc, y, 10);
-        const segCount = speaker.segments?.length || 0;
-        y = addKeyValue(doc, `Hablante ${idx + 1}`, `${segCount} intervenciones`, y);
-      });
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(0, 0, 0);
+        doc.text('Espectrograma:', 18, y);
+        y += 5;
+
+        // Add the image - spectrogram images are typically wide
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const imgWidth = pageWidth - 36; // Leave margins
+        const imgHeight = 50; // Fixed height, aspect ratio may vary
+
+        doc.addImage(spectrogramBase64, 'PNG', 18, y, imgWidth, imgHeight);
+        y += imgHeight + 8;
+
+        doc.setFontSize(7);
+        doc.setTextColor(100, 100, 100);
+        doc.setFont('helvetica', 'italic');
+        doc.text('Espectrograma generado durante el análisis forense del audio.', 18, y);
+        y += 6;
+      } else {
+        doc.setTextColor(200, 100, 100);
+        doc.setFontSize(7);
+        doc.text('[No se pudo cargar el espectrograma]', 20, y);
+        y += 4;
+      }
+    } catch (error) {
+      console.error('Error embedding spectrogram:', error);
+      doc.setTextColor(200, 100, 100);
+      doc.setFontSize(7);
+      doc.text('[Error al cargar el espectrograma]', 20, y);
+      y += 4;
     }
-    y += 5;
+  } else {
+    doc.setFontSize(7);
+    doc.setTextColor(120, 120, 120);
+    doc.setFont('helvetica', 'italic');
+    doc.text('Las visualizaciones interactivas están disponibles en la versión web del análisis.', 20, y);
+    y += 4;
   }
 
-  // Sentiment Analysis
-  if (sentiment_analysis) {
-    y = checkNewPage(doc, y, 30);
-    y = addSectionTitle(doc, 'Análisis de Sentimiento', y);
+  y += 4;
 
-    const sentimentLabel = sentiment_analysis.overall_sentiment === 'positive' ? 'Positivo'
-      : sentiment_analysis.overall_sentiment === 'negative' ? 'Negativo'
-      : 'Neutral';
+  // ============================================
+  // DATOS TÉCNICOS (only if has data)
+  // ============================================
+  const hasTechData = raw_results_summary && (
+    raw_results_summary.duration_seconds ||
+    raw_results_summary.sample_rate ||
+    raw_results_summary.channels ||
+    raw_results_summary.format
+  );
 
-    y = addKeyValue(doc, 'Sentimiento General', sentimentLabel, y);
-    y = addKeyValue(doc, 'Confianza', `${(sentiment_analysis.confidence * 100).toFixed(0)}%`, y);
-    y += 5;
-  }
-
-  // Raw Results Summary
-  if (raw_results_summary) {
-    y = checkNewPage(doc, y, 40);
+  if (hasTechData) {
+    y = checkNewPage(doc, y, 35);
     y = addSectionTitle(doc, 'Datos Técnicos', y);
 
     if (raw_results_summary.duration_seconds) {
-      y = addKeyValue(doc, 'Duración', `${raw_results_summary.duration_seconds.toFixed(2)} seg`, y);
+      y = addKeyValue(doc, 'Duración:', `${raw_results_summary.duration_seconds.toFixed(2)} seg`, y, 25);
     }
     if (raw_results_summary.sample_rate) {
-      y = addKeyValue(doc, 'Sample Rate', `${raw_results_summary.sample_rate} Hz`, y);
+      y = addKeyValue(doc, 'Sample Rate:', `${raw_results_summary.sample_rate} Hz`, y, 28);
     }
     if (raw_results_summary.channels) {
-      y = addKeyValue(doc, 'Canales', raw_results_summary.channels.toString(), y);
+      y = addKeyValue(doc, 'Canales:', raw_results_summary.channels.toString(), y, 22);
     }
     if (raw_results_summary.format) {
-      y = addKeyValue(doc, 'Formato', raw_results_summary.format, y);
+      y = addKeyValue(doc, 'Formato:', raw_results_summary.format, y, 22);
     }
-    y += 5;
+    y += 4;
   }
 
   // Recommendations
@@ -732,13 +768,15 @@ export function generateAudioAnalysisPDF(
     y = addSectionTitle(doc, 'Recomendaciones', y);
 
     recommendations.forEach((rec, index) => {
-      y = checkNewPage(doc, y, 15);
-      doc.setFontSize(10);
+      y = checkNewPage(doc, y, 12);
+      doc.setFontSize(9);
       doc.setFont('helvetica', 'normal');
-      const recText = doc.splitTextToSize(`${index + 1}. ${rec}`, 165);
-      doc.text(recText, 17, y);
-      y += recText.length * 5 + 3;
+      doc.setTextColor(0, 0, 0);
+      const recText = doc.splitTextToSize(`${index + 1}. ${rec}`, 160);
+      doc.text(recText, 20, y);
+      y += recText.length * 4 + 3;
     });
+    y += 4;
   }
 
   // Chain of Custody
@@ -747,19 +785,21 @@ export function generateAudioAnalysisPDF(
     y = addSectionTitle(doc, 'Cadena de Custodia', y);
 
     chain_of_custody.forEach((event) => {
-      y = checkNewPage(doc, y, 20);
-      doc.setFontSize(9);
+      y = checkNewPage(doc, y, 16);
+      doc.setFontSize(8);
       doc.setFont('helvetica', 'bold');
-      doc.text(`${new Date(event.timestamp).toLocaleString('es-CO')} - ${event.action}`, 17, y);
+      doc.setTextColor(0, 0, 0);
+      doc.text(`${new Date(event.timestamp).toLocaleString('es-CO')} - ${event.action}`, 20, y);
       doc.setFont('helvetica', 'normal');
-      y += 5;
-      doc.text(`${event.actor}: ${event.details}`, 17, y);
+      doc.setTextColor(80, 80, 80);
+      y += 4;
+      doc.text(`${event.actor}: ${event.details}`, 20, y);
       if (event.hash) {
-        y += 4;
-        doc.setFontSize(7);
-        doc.text(`Hash: ${event.hash}`, 17, y);
+        y += 3;
+        doc.setFontSize(6);
+        doc.text(`Hash: ${event.hash}`, 20, y);
       }
-      y += 8;
+      y += 6;
     });
   }
 

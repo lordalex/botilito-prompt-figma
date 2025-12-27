@@ -314,7 +314,9 @@ export function AudioAnalysisResultView({ data, onReset }: AudioAnalysisResultVi
                 <Button
                     variant="outline"
                     className="flex-1 sm:flex-none"
-                    onClick={() => generateAudioAnalysisPDF(data, caseNumber, file_info?.name)}
+                    onClick={async () => {
+                        await generateAudioAnalysisPDF(data, caseNumber, file_info?.name);
+                    }}
                 >
                     <Download className="w-4 h-4 mr-2" />
                     Descargar PDF
