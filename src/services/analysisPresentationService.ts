@@ -163,59 +163,81 @@ export const transformAudioAnalysisToUI = (data: any) => {
 }
 
 /**
- * Transforms the CaseEnriched object (Human Verification) for the Unified View
+ * Transforms the CaseEnriched object (Human Verification / Historial) for the Unified View.
+ * 
+ * Handles multiple payload structures:
+ * 1. Direct case object: { id, metadata: { ai_analysis, source_data }, human_votes }
+ * 2. Result wrapper: { result: { cases: [{ metadata: { ai_analysis } }] } }
+ * 3. Legacy structure: { case_judgement, diagnostic_labels }
  */
 export const transformHumanCaseToUI = (caseData: any) => {
     if (!caseData) return null;
 
-    // We need to map the caseData structure to what UnifiedAnalysisView expects.
-    // UnifiedAnalysisView expects:
-    // - ai_analysis: for rendering the AI part (if available)
-    // - human_votes: for sidebar votes
-    // - metadata: for sidebar metadata
-    // - stats: for sidebar stats
-    // - human_report: (optional) for previous human verdicts?
+    // Extract the actual case data from nested structures
+    const extractedCase = caseData.result?.cases?.[0] || caseData.case || caseData;
 
-    // caseData usually contains:
-    // - case_judgement (the AI analysis summary)
-    // - diagnostic_labels (AI labels)
-    // - human_votes
-    // - raw analysis result might be nested or we construction a fake one based on available fields
+    // Extract AI analysis from metadata or direct
+    const aiAnalysis = extractedCase.metadata?.ai_analysis || extractedCase.ai_analysis;
+    const sourceData = extractedCase.metadata?.source_data || extractedCase.source_data;
+    const evidence = extractedCase.metadata?.evidence || extractedCase.evidence;
 
-    // Construct a compatible AI Analysis object from the Case Data
+    // Extract AMI score from classification
+    const amiScore = aiAnalysis?.classification?.indiceCumplimientoAMI;
+    const scoreValue = amiScore?.score || 0;
+    const scorePercent = scoreValue > 1 ? scoreValue : Math.round(scoreValue * 100);
+
+    // Build AI analysis compatible object for UnifiedAnalysisView
     const aiAnalysisCompatible = {
         classification: {
             indiceCumplimientoAMI: {
-                score: 0, // Not available in simple case view usually, unless fully populated
-                nivel: "Análisis Previo",
-                diagnostico: caseData.case_judgement?.reasoning || "Análisis completado.",
-                criterios: {} // We might not have full criteria details here
-            }
+                score: scoreValue,
+                percent: scorePercent,
+                nivel: amiScore?.nivel || "Análisis Completado",
+                diagnostico: aiAnalysis?.classification?.diagnostico || extractedCase.summary || "Análisis completado."
+            },
+            criterios: aiAnalysis?.classification?.criterios || {},
+            recomendaciones: aiAnalysis?.classification?.recomendaciones || []
         },
+        summaries: aiAnalysis?.summaries,
+        specific_techniques_analysis: aiAnalysis?.specific_techniques_analysis,
+        competencies_analysis: aiAnalysis?.competencies_analysis,
         verification: {
-            fact_check_table: [] // Populate if available
+            fact_check_table: evidence?.fact_check_table || []
         },
-        verdict: caseData.case_judgement?.final_verdict
+        verdict: extractedCase.case_judgement?.final_verdict || aiAnalysis?.classification?.indiceCumplimientoAMI?.nivel
     };
 
     return {
-        id: caseData.id,
-        created_at: caseData.created_at,
-        file_name: "Caso de Verificación", // Generic
+        // Core identity
+        id: extractedCase.id,
+        created_at: extractedCase.created_at,
+        title: extractedCase.title || sourceData?.title || "Caso de Verificación",
+        summary: extractedCase.summary,
+        url: extractedCase.url || sourceData?.url,
 
-        // Crucial for the banner
+        // AI Analysis (primary data source)
         ai_analysis: aiAnalysisCompatible,
 
-        // Crucial for Sidebar
-        human_votes: caseData.human_votes,
+        // Source data
+        source_data: sourceData,
+
+        // Evidence & fact checking
+        evidence: evidence,
+
+        // Human validation data
+        human_votes: extractedCase.human_votes,
+        consensus: extractedCase.consensus,
 
         // Metadata
         metadata: {
-            source: caseData.url ? 'Web Link' : 'Direct Submission',
-            submission_type: caseData.submission_type
+            screenshot: extractedCase.metadata?.screenshot || sourceData?.screenshot,
+            source: sourceData?.hostname || (extractedCase.url ? 'Web Link' : 'Direct Submission'),
+            submission_type: extractedCase.submission_type,
+            vector_de_transmision: sourceData?.vector_de_transmision,
+            reported_by: extractedCase.metadata?.reported_by || extractedCase.reported_by
         },
 
-        // Pass raw for fallback
+        // Pass raw for fallback access
         raw: caseData
     };
 }
