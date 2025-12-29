@@ -1,9 +1,11 @@
 import { useMemo } from 'react';
 import {
-    analysisPresentationService,
-    AnalysisSidebarMetadataProps,
-    AnalysisSidebarStatsProps
+    mapMetadataProps,
+    mapStatsProps,
+    mapRecommendations,
+    mapCommunityVotes
 } from '@/services/analysisPresentationService';
+import { useTextAnalysisData } from './useTextAnalysisData';
 
 interface UseAnalysisSidebarDataProps {
     data: any;
@@ -12,33 +14,97 @@ interface UseAnalysisSidebarDataProps {
 }
 
 export function useAnalysisSidebarData({ data, contentType, mode }: UseAnalysisSidebarDataProps) {
+    // Use useTextAnalysisData for consistent data extraction
+    const {
+        caseData,
+        caseId,
+        caseTitle,
+        createdAt,
+        reportedBy,
+        sourceData,
+        humanVotes,
+        icoScore
+    } = useTextAnalysisData(data);
+
     const metadataProps = useMemo(() =>
-        analysisPresentationService.mapMetadataProps(contentType, data),
+        mapMetadataProps(data, contentType),
         [contentType, data]
     );
 
     const statsProps = useMemo(() =>
-        analysisPresentationService.mapStatsProps(contentType, data),
+        mapStatsProps(data, contentType),
         [contentType, data]
     );
 
     const recommendations = useMemo(() =>
-        analysisPresentationService.getRecommendations(data),
+        mapRecommendations(data),
         [data]
     );
 
     const communityVotes = useMemo(() =>
-        analysisPresentationService.getCommunityVotes(data),
+        mapCommunityVotes(data),
         [data]
     );
 
-    const showVotes = mode === 'human' && communityVotes.length > 0;
+    // Case Info Props for new sidebar section
+    const caseInfoProps = useMemo(() => ({
+        caseNumber: caseId?.slice(0, 8)?.toUpperCase() || 'N/A',
+        contentType: contentType?.toUpperCase() || 'TEXT',
+        transmissionVector: sourceData?.vector_de_transmision || 'Web',
+        reportedBy: reportedBy?.name || reportedBy?.email || 'Anónimo',
+        date: createdAt ? new Date(createdAt).toLocaleDateString('es-CO') : 'N/A'
+    }), [caseId, contentType, sourceData, reportedBy, createdAt]);
+
+    // Chain of Custody Events
+    const chainOfCustodyEvents = useMemo(() => {
+        const events = [];
+
+        // 1. Case Created
+        events.push({
+            id: 'created',
+            title: 'Caso creado',
+            description: createdAt ? new Date(createdAt).toLocaleString('es-CO') : 'Fecha desconocida',
+            timestamp: createdAt,
+            status: 'completed' as const,
+            actor: 'system' as const
+        });
+
+        // 2. AI Analysis
+        events.push({
+            id: 'ai_analysis',
+            title: 'Análisis desinformético ejecutado',
+            description: icoScore ? `Score: ${icoScore.percent}%` : 'Procesado',
+            status: 'completed' as const,
+            actor: 'ai' as const
+        });
+
+        // 3. Human Diagnosis (if applicable)
+        if (mode === 'human' || humanVotes?.count > 0) {
+            events.push({
+                id: 'human_diagnosis',
+                title: 'Diagnóstico generado',
+                description: humanVotes?.count > 0
+                    ? `${humanVotes.count} votos registrados`
+                    : 'Requiere un enfoque AMI',
+                status: humanVotes?.count > 0 ? 'completed' as const : 'in_progress' as const,
+                actor: 'human' as const
+            });
+        }
+
+        return events;
+    }, [createdAt, icoScore, mode, humanVotes]);
+
+    const showVotes = mode === 'human';
 
     return {
         metadataProps,
-        statsProps: statsProps.stats,
+        statsProps,
         recommendations,
         communityVotes,
-        showVotes
+        showVotes,
+        // New props
+        caseInfoProps,
+        chainOfCustodyEvents
     };
 }
+

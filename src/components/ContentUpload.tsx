@@ -4,16 +4,25 @@ import { ContentUploadForm } from './ContentUploadForm';
 import { ContentUploadProgress } from './ContentUploadProgress';
 import { ContentUploadResult } from './ContentUploadResult';
 import { ErrorManager } from './ErrorManager';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card'; // Assuming these are available
+import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs'; // Assuming these are available
+import { Textarea } from './ui/textarea'; // Assuming these are available
+import { Button } from './ui/button'; // Assuming these are available
+import { Search } from 'lucide-react'; // Assuming lucide-react is installed
 
 interface ContentUploadProps {
   jobId?: string;
   jobType?: string;
-  onReset?: () => void;
+  onReset: () => void;
+  onAnalyze?: (content: string) => void;
   mode?: 'ai' | 'human';
 }
 
-export function ContentUpload({ jobId, jobType, onReset, mode }: ContentUploadProps) {
+export function ContentUpload({ jobId, jobType, onReset, onAnalyze, mode = 'ai' }: ContentUploadProps) {
   const [showResult, setShowResult] = useState(false);
+  const [activeTab, setActiveTab] = useState('text');
+  const [text, setText] = useState('');
+  const [isDragging, setIsDragging] = useState(false);
   const {
     status,
     progress,

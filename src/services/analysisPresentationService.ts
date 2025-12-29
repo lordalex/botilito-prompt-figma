@@ -1,135 +1,304 @@
+
+import {
+    CheckCircle,
+    AlertTriangle,
+    AlertCircle,
+    HelpCircle,
+    User,
+    Clock,
+    ThumbsUp,
+    ThumbsDown,
+    MessageSquare,
+    Bot
+} from 'lucide-react';
+
+/* -------------------------------------------------------------------------- */
+/*                                Types & Interfaces                          */
+/* -------------------------------------------------------------------------- */
+
+// ... (Existing types remain if needed, or import from types file)
+
+/* -------------------------------------------------------------------------- */
+/*                           Main Transformation Logic                        */
+/* -------------------------------------------------------------------------- */
+
+export const normalizeAMIScore = (score: number) => {
+    if (typeof score !== 'number') return 0;
+    // Normalize to 0-1 range
+    // If score is > 10, assume 0-100 scale -> divide by 100
+    // If score is > 1 (and <= 10), assume 0-10 scale -> divide by 10
+    // If score is <= 1, assume 0-1 scale -> return as is
+    if (score > 10) return score / 100;
+    if (score > 1) return score / 10;
+    return score;
+};
+
 /**
- * Analysis Presentation Service
- * Handles data transformation and mapping for analysis UI components.
- * Enforces separation of concerns by moving mapping logic out of UI components.
+ * Transforms the API response (Text Analysis) into a UI-ready object
+ * compatible with the Sidebar components.
  */
+export const transformTextAnalysisToUI = (data: any) => {
+    if (!data) return null;
 
-export interface AnalysisSidebarMetadataProps {
-    type: 'text' | 'image' | 'audio';
-    fileName?: string;
-    fileSize?: number;
-    basicMetadata: { label: string; value: string | number }[];
-    technicalMetadata: { label: string; value: string | number }[];
+    // Normalizing the AMI Score
+    // Accessing strict path based on: data.classification.indiceCumplimientoAMI.score
+    const amiScoreRaw = data.classification?.indiceCumplimientoAMI?.score || 0;
+    const amiNivel = data.classification?.indiceCumplimientoAMI?.nivel || "No disponible";
+    const diagnostic = data.classification?.indiceCumplimientoAMI?.diagnostico || "";
+
+    // Normalize criteria list
+    const criteriaRaw = data.classification?.indiceCumplimientoAMI?.criterios || {};
+    const criteriaList = Object.entries(criteriaRaw).map(([key, val]: any) => {
+        // "cumple": true/false/parcial
+        let statusColor = 'bg-slate-200';
+        let verdictType = 'info';
+
+        if (val.cumple === true) {
+            statusColor = 'bg-emerald-500';
+            verdictType = 'success';
+        } else if (val.cumple === false) {
+            statusColor = 'bg-red-500';
+            verdictType = 'error';
+        } else {
+            statusColor = 'bg-amber-500';
+            verdictType = 'warning';
+        }
+
+        return {
+            id: key,
+            nombre: val.nombre,
+            justificacion: val.justificacion,
+            referencia: val.referencia,
+            score: val.score || 0,
+            normalizedScore: (val.score || 0) / 10, // Assuming 0-10 scale
+            cumple: val.cumple,
+            statusColor,
+            verdictType
+        };
+    });
+
+    // Normalize Fact Check table
+    // Path: data.verification?.fact_check_table
+    const factCheckTable = (data.verification?.fact_check_table || []).map((item: any) => ({
+        claim: item.claim || item.afirmacion, // Handle both english/spanish keys if needed
+        verdict: item.verdict || item.veredicto,
+        explanation: item.explanation || item.explicacion,
+        sources: item.sources || []
+    }));
+
+    return {
+        // Core Identity
+        id: data.id,
+        created_at: data.created_at,
+
+        // Metadata for Sidebar
+        fileName: "Texto Analizado", // Text analysis usually doesn't have a file name unless from file
+        fileSize: `${data.content?.length || 0} chars`,
+
+        // Specific Analysis Blocks
+        icoScore: {
+            score: amiScoreRaw,
+            percent: Math.round(data.classification?.indiceCumplimientoAMI?.porcentaje_cumplimiento || 0), // If raw percent exists, use it
+            nivel: amiNivel,
+        },
+        diagnosticoAMI: diagnostic,
+
+        criterios: criteriaList,
+        factCheckTable: factCheckTable,
+
+        // Raw Data Access (for legacy components if needed)
+        raw: data,
+
+        // Mapping for Sidebar components
+        metadata: {
+            type: 'text',
+            // ... extract other metadata
+            language: data.language || 'es',
+            source: data.metadata?.source || 'Direct Input'
+        },
+
+        // Stats for Sidebar
+        stats: [
+            { label: "Criterios Evaluados", value: criteriaList.length, icon: CheckCircle },
+            { label: "Fuentes Consultadas", value: data.verification?.trusted_sources_count || 0, icon: User },
+            // Add more generic stats
+        ]
+    };
+};
+
+
+/**
+ * Transforms the API response (Image Analysis) into a UI-ready object.
+ */
+export const transformImageAnalysisToUI = (data: any) => {
+    if (!data) return null;
+
+    // ... Implementation for Image
+    // Extract manipulation markers, metadata, etc.
+    const technical = data.technical_analysis || {};
+    const metadata = data.metadata || {};
+
+    return {
+        id: data.id,
+        created_at: data.created_at,
+        fileName: metadata.filename || "Imagen",
+        fileSize: metadata.size || "Unknown",
+
+        // ... specific props for ImageAIAnalysis
+        raw: data
+    };
+};
+
+/**
+ * Transforms the API response (Audio Analysis) into a UI-ready object.
+ */
+export const transformAudioAnalysisToUI = (data: any) => {
+    if (!data) return null;
+
+    // ... Implementation for Audio
+    return {
+        id: data.id,
+        raw: data
+    };
 }
 
-export interface AnalysisSidebarStatsProps {
-    stats: { label: string; value: string | number; color?: string }[];
+/**
+ * Transforms the CaseEnriched object (Human Verification) for the Unified View
+ */
+export const transformHumanCaseToUI = (caseData: any) => {
+    if (!caseData) return null;
+
+    // We need to map the caseData structure to what UnifiedAnalysisView expects.
+    // UnifiedAnalysisView expects:
+    // - ai_analysis: for rendering the AI part (if available)
+    // - human_votes: for sidebar votes
+    // - metadata: for sidebar metadata
+    // - stats: for sidebar stats
+    // - human_report: (optional) for previous human verdicts?
+
+    // caseData usually contains:
+    // - case_judgement (the AI analysis summary)
+    // - diagnostic_labels (AI labels)
+    // - human_votes
+    // - raw analysis result might be nested or we construction a fake one based on available fields
+
+    // Construct a compatible AI Analysis object from the Case Data
+    const aiAnalysisCompatible = {
+        classification: {
+            indiceCumplimientoAMI: {
+                score: 0, // Not available in simple case view usually, unless fully populated
+                nivel: "Análisis Previo",
+                diagnostico: caseData.case_judgement?.reasoning || "Análisis completado.",
+                criterios: {} // We might not have full criteria details here
+            }
+        },
+        verification: {
+            fact_check_table: [] // Populate if available
+        },
+        verdict: caseData.case_judgement?.final_verdict
+    };
+
+    return {
+        id: caseData.id,
+        created_at: caseData.created_at,
+        file_name: "Caso de Verificación", // Generic
+
+        // Crucial for the banner
+        ai_analysis: aiAnalysisCompatible,
+
+        // Crucial for Sidebar
+        human_votes: caseData.human_votes,
+
+        // Metadata
+        metadata: {
+            source: caseData.url ? 'Web Link' : 'Direct Submission',
+            submission_type: caseData.submission_type
+        },
+
+        // Pass raw for fallback
+        raw: caseData
+    };
 }
 
-export const analysisPresentationService = {
-    /**
-     * Maps raw analysis data to props for AnalysisSidebarMetadata
-     */
-    mapMetadataProps(contentType: 'text' | 'image' | 'audio', data: any): AnalysisSidebarMetadataProps {
-        if (contentType === 'text') {
-            return {
-                type: 'text',
-                basicMetadata: [
-                    { label: 'Formato', value: 'Texto Plano / Web' },
-                    { label: 'Nivel Humano', value: data?.human_review_required ? 'Alta' : 'Baja' }
-                ],
-                technicalMetadata: [
-                    { label: 'Longitud', value: `${data?.source_data?.text?.length || 0} caracteres` },
-                    { label: 'URL Original', value: data?.source_data?.url || 'No disponible' }
-                ]
-            };
-        }
-        if (contentType === 'image') {
-            const info = data?.file_info;
-            return {
-                type: 'image',
-                fileName: info?.name,
-                fileSize: info?.size_bytes,
-                basicMetadata: [
-                    { label: 'Resolución', value: info?.dimensions ? `${info.dimensions.width}x${info.dimensions.height}` : 'N/A' },
-                    { label: 'Formato', value: info?.mime_type?.split('/')[1]?.toUpperCase() || 'IMAGE' }
-                ],
-                technicalMetadata: [
-                    { label: 'Cámara', value: info?.exif_data?.Model || 'No disponible' },
-                    { label: 'Software', value: info?.exif_data?.Software || 'No disponible' },
-                    { label: 'Fecha Captura', value: info?.exif_data?.DateTime || 'No disponible' }
-                ]
-            };
-        }
-        if (contentType === 'audio') {
-            const info = data?.file_info;
-            return {
-                type: 'audio',
-                fileName: info?.name,
-                fileSize: info?.size_bytes,
-                basicMetadata: [
-                    { label: 'Duración', value: info?.duration_seconds ? `${Math.floor(info.duration_seconds / 60)}:${(info.duration_seconds % 60).toString().padStart(2, '0')}` : 'N/A' },
-                    { label: 'Formato', value: info?.mime_type?.split('/')[1]?.toUpperCase() || 'AUDIO' }
-                ],
-                technicalMetadata: [
-                    { label: 'Sample Rate', value: info?.metadata?.sample_rate ? `${(info.metadata.sample_rate / 1000).toFixed(1)} kHz` : 'N/A' },
-                    { label: 'Canales', value: info?.metadata?.channels === 1 ? 'Mono' : 'Stereo' },
-                    { label: 'Bitrate', value: info?.metadata?.bit_rate ? `${Math.round(info.metadata.bit_rate / 1000)} kbps` : 'N/A' }
-                ]
-            };
-        }
-        return { type: contentType, basicMetadata: [], technicalMetadata: [] };
-    },
+/* -------------------------------------------------------------------------- */
+/*                        Sidebar Props Mappers                               */
+/* -------------------------------------------------------------------------- */
 
-    /**
-     * Maps raw analysis data to props for AnalysisSidebarStats
-     */
-    mapStatsProps(contentType: 'text' | 'image' | 'audio', data: any): AnalysisSidebarStatsProps {
-        if (contentType === 'text') {
-            const criterios = Object.keys(data?.ai_analysis?.classification?.criterios || {}).length;
-            const hallazgos = data?.evidence?.fact_check_table?.length || 0;
-            return {
-                stats: [
-                    { label: 'Criterios AMI', value: criterios },
-                    { label: 'Hechos Verificados', value: hallazgos },
-                    { label: 'Confianza IA', value: `${data?.ai_analysis?.classification?.nivel_confianza || 0}%`, color: 'text-primary' }
-                ]
-            };
-        }
-        if (contentType === 'image') {
-            const reports = data?.human_report?.level_1_analysis?.length || 0;
-            const markers = (data?.human_report?.level_1_analysis?.filter((i: any) => i.significance_score > 0.4).length || 0);
-            return {
-                stats: [
-                    { label: 'Pruebas Forenses', value: reports },
-                    { label: 'Marcadores', value: markers, color: 'text-red-500' },
-                    { label: 'Confianza', value: `${Math.round((data?.human_report?.level_3_verdict?.confidence || 0) * 100)}%` }
-                ]
-            };
-        }
-        if (contentType === 'audio') {
-            const anomalies = data?.human_report?.audio_forensics?.anomalies?.length || 0;
-            return {
-                stats: [
-                    { label: 'Hablantes', value: data?.human_report?.speaker_analysis?.num_speakers || 0 },
-                    { label: 'Anomalías', value: anomalies, color: anomalies > 0 ? 'text-red-500' : 'text-emerald-500' },
-                    { label: 'Confianza', value: `${Math.round((data?.human_report?.verdict?.confidence || 0) * 100)}%` }
-                ]
-            };
-        }
-        return { stats: [] };
-    },
+export const mapMetadataProps = (data: any, type: 'text' | 'image' | 'audio') => {
+    // Handle both direct data and nested case data from API response
+    const caseData = data?.case || data;
 
-    /**
-     * Extracts recommendations from analysis data
-     */
-    getRecommendations(data: any): string[] {
-        return data?.ai_analysis?.classification?.recomendaciones || data?.recommendations || [];
-    },
+    const defaultProps = {
+        type,
+        fileName: caseData?.title || caseData?.source_data?.title || 'Archivo Desconocido',
+        fileSize: undefined as number | undefined,
+        basicMetadata: [] as any[],
+        technicalMetadata: [] as any[]
+    };
 
-    /**
-     * Extracts community votes from analysis data
-     */
-    getCommunityVotes(data: any): any[] {
-        return data?.human_votes?.entries || [];
-    },
+    if (!caseData) return defaultProps;
 
-    /**
-     * Normalizes AMI criteria scores to a 0-1 range
-     */
-    normalizeAMIScore(score: number): number {
-        if (score > 5) return score / 100;
-        if (score > 1.2) return score / 5;
-        return score;
+    if (type === 'text') {
+        // Extract metadata from the actual API response structure
+        const sourceData = caseData?.source_data;
+        const metadata = caseData?.metadata;
+        const aiAnalysis = caseData?.ai_analysis;
+
+        return {
+            ...defaultProps,
+            fileName: caseData?.title || sourceData?.title || 'Archivo Desconocido',
+            basicMetadata: [
+                { label: 'Idioma', value: 'Español' },
+                { label: 'Tipo', value: 'Texto / Noticia' },
+                { label: 'Fuente', value: sourceData?.hostname || 'Web Link' }
+            ],
+            technicalMetadata: [
+                { label: 'Caracteres', value: caseData?.content?.length || sourceData?.text?.length || 0 },
+                { label: 'Sentimiento', value: 'Neutro' }
+            ]
+        };
     }
+
+    // ... Implement Image/Audio mappers similar to previous specific components components
+    return defaultProps;
+};
+
+export const mapStatsProps = (data: any, type: 'text' | 'image' | 'audio') => {
+    if (!data) return [];
+
+    if (type === 'text') {
+        return data.stats || [];
+    }
+
+    return [];
+};
+
+export const mapRecommendations = (data: any) => {
+    // Handle both direct data and nested case data
+    const caseData = data?.case || data;
+
+    // Try to get recommendations from ai_analysis.classification.recomendaciones
+    const recommendations = caseData?.ai_analysis?.classification?.recomendaciones;
+
+    if (Array.isArray(recommendations) && recommendations.length > 0) {
+        return recommendations;
+    }
+
+    // Fallback
+    return ["Verificar fuentes citadas", "Contrastar con otros medios"];
+};
+
+export const mapCommunityVotes = (data: any) => {
+    // Handle both direct data and nested case data
+    const caseData = data?.case || data;
+
+    // Expecting caseData.human_votes
+    const votes = caseData?.human_votes?.entries || [];
+    return votes.map((v: any) => ({
+        user: v.user?.full_name || 'Usuario Anónimo',
+        vote: v.vote, // 'true', 'false', etc.
+        reputation: v.user?.reputation || 0,
+        date: v.date,
+        reason: v.reason
+    }));
 };

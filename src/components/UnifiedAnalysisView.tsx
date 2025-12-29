@@ -1,5 +1,6 @@
-import React from 'react';
-import { Bot, Users } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { Progress } from './ui/progress';
+import { Loader2, Bot, Users } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { TextAIAnalysis } from './TextAIAnalysis';
 import { ImageAIAnalysis } from './ImageAIAnalysis';
@@ -9,7 +10,9 @@ import { AnalysisSidebarMetadata } from './analysis-shared/AnalysisSidebarMetada
 import { AnalysisSidebarStats } from './analysis-shared/AnalysisSidebarStats';
 import { AnalysisSidebarRecommendations } from './analysis-shared/AnalysisSidebarRecommendations';
 import { AnalysisSidebarVotes } from './analysis-shared/AnalysisSidebarVotes';
-import { AnalysisScoreBanner } from './analysis-shared/AnalysisScoreBanner';
+import { AnalysisVerdictCards } from './analysis-shared/AnalysisVerdictCards';
+import { AnalysisSidebarCaseInfo } from './analysis-shared/AnalysisSidebarCaseInfo';
+import { AnalysisSidebarChainOfCustody } from './analysis-shared/AnalysisSidebarChainOfCustody';
 import { useAnalysisSidebarData } from '@/hooks/useAnalysisSidebarData';
 
 
@@ -28,6 +31,9 @@ interface UnifiedAnalysisViewProps {
     title?: string;
     screenshot?: string;
     mode?: 'ai' | 'human';
+    // Loading State
+    isLoading?: boolean;
+    progress?: { step: string; status: string; percent?: number };
 }
 
 export function UnifiedAnalysisView({
@@ -41,15 +47,58 @@ export function UnifiedAnalysisView({
     reportedBy,
     title,
     screenshot,
-    mode = 'ai'
+    mode = 'ai',
+    isLoading,
+    progress
 }: UnifiedAnalysisViewProps) {
+
+    // Handle Loading State Internally
+    if (isLoading) {
+        return (
+            <div className="space-y-6 animate-in fade-in duration-500">
+                <div className="text-center space-y-2 pt-12">
+                    <h1 className="flex items-center justify-center space-x-3 text-xl font-semibold">
+                        <Bot className="h-8 w-8 text-primary animate-pulse" />
+                        <span>Análisis IA en progreso...</span>
+                    </h1>
+                    <p className="text-muted-foreground">
+                        Botilito está procesando tu contenido.
+                    </p>
+                </div>
+                <div className="max-w-md mx-auto">
+                    <Card className="border-2 border-primary/10 shadow-lg">
+                        <CardHeader>
+                            <CardTitle className="text-center text-lg">Estado del Análisis</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-6">
+                            <div className="space-y-2">
+                                <div className="flex justify-between text-sm font-medium">
+                                    <span>Etapa: {progress?.step || 'Iniciando...'}</span>
+                                    <span className="text-primary">{progress?.percent || 0}%</span>
+                                </div>
+                                <Progress value={progress?.percent || (progress?.status === 'completed' ? 100 : 10)} className="h-2" />
+                            </div>
+                            <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 text-center">
+                                <p className="text-xs text-slate-500 italic flex items-center justify-center gap-2">
+                                    {progress?.status === 'processing' && <Loader2 className="h-3 w-3 animate-spin" />}
+                                    {progress?.status || 'Preparando motores...'}
+                                </p>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+            </div>
+        );
+    }
 
     const {
         metadataProps,
         statsProps,
         recommendations,
         communityVotes,
-        showVotes
+        showVotes,
+        caseInfoProps,
+        chainOfCustodyEvents
     } = useAnalysisSidebarData({ data, contentType, mode });
 
 
@@ -153,8 +202,8 @@ export function UnifiedAnalysisView({
                 {/* 1. Visual Context (Screenshot/Image/Audio) - 100% Width */}
                 {renderVisualContext()}
 
-                {/* 2. Analysis Score Banner (AMI) - 100% Width */}
-                <AnalysisScoreBanner data={data} contentType={contentType} />
+                {/* 2. Analysis Verdict Cards (Side-by-Side) */}
+                <AnalysisVerdictCards data={data} contentType={contentType} mode={mode} />
             </div>
 
             {/* Main Content Area: 2-Column Skeleton */}
@@ -176,17 +225,25 @@ export function UnifiedAnalysisView({
 
                 {/* Sidebar Column */}
                 <div className="space-y-6 lg:sticky lg:top-8">
+                    {/* Case Information */}
+                    <AnalysisSidebarCaseInfo {...caseInfoProps} />
+
+                    {/* Analysis Stats */}
+                    {statsProps.length > 0 && <AnalysisSidebarStats stats={statsProps} />}
+
+                    {/* Chain of Custody */}
+                    <AnalysisSidebarChainOfCustody events={chainOfCustodyEvents} />
+
+                    {/* Recommendations */}
+                    <AnalysisSidebarRecommendations recommendations={recommendations} />
+
+                    {/* Community Votes (Human mode only) */}
                     {showVotes && (
                         <AnalysisSidebarVotes votes={communityVotes} />
                     )}
 
-                    <AnalysisSidebarMetadata
-                        {...metadataProps}
-                    />
-
-                    {statsProps.length > 0 && <AnalysisSidebarStats stats={statsProps} />}
-
-                    <AnalysisSidebarRecommendations recommendations={recommendations} />
+                    {/* File Metadata */}
+                    <AnalysisSidebarMetadata {...metadataProps} />
                 </div>
 
             </div>

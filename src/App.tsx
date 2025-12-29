@@ -6,6 +6,7 @@ import { CompleteDashboard } from './components/CompleteDashboard';
 import { ContentUpload } from './components/ContentUpload';
 import { ContentReview } from './components/ContentReview';
 import { ContentAnalysisView } from './components/ContentAnalysisView';
+import { UnifiedAnalysisView } from './components/UnifiedAnalysisView';
 import { HumanVerification } from './components/HumanVerification';
 import { UserProfile } from './components/UserProfile';
 import { Navigation } from './components/Navigation';
@@ -13,29 +14,34 @@ import { ExtensionApp } from './components/extension/ExtensionApp';
 import { MapaDesinfodemico } from './components/MapaDesinfodemico';
 import { DocumentacionIndicadores } from './components/DocumentacionIndicadores';
 import { ImmunizationStudio } from './components/ImmunizationStudio';
-import AdminDashboard from './components/AdminDashboard'; // Import default export
+import AdminDashboard from './components/AdminDashboard'; // Default export
+import { useAnalysisPolling } from './hooks/useAnalysisPolling';
+import { transformTextAnalysisToUI } from './services/analysisPresentationService';
 import { useAuth } from './providers/AuthProvider'; // Import the hook
 
+type ViewState = 'upload' | 'verification' | 'review' | 'mapa' | 'docs' | 'profile' | 'extension' | 'admin';
 
 export default function App() {
   const { isAuthenticated, isLoading, signOut, profileComplete, profileChecked, checkUserProfile, isPasswordRecovery, clearPasswordRecovery } = useAuth();
   const [showRegister, setShowRegister] = useState(false);
-  const [activeTab, setActiveTab] = useState('upload');
+  const [activeTab, setActiveTab] = useState<ViewState>('upload');
   const [currentJobId, setCurrentJobId] = useState<string | undefined>();
   const [currentJobType, setCurrentJobType] = useState<string | undefined>();
+  const [analysisInput, setAnalysisInput] = useState('');
 
-  useEffect(() => {
-    if (isAuthenticated) {
-      checkUserProfile();
-    }
-  }, [isAuthenticated]);
+  // Analysis Polling State
+  const analysisPolling = useAnalysisPolling();
 
+  // Watch for input change to trigger analysis
   useEffect(() => {
-    // Only redirect to profile if we've checked and confirmed the profile is incomplete
-    if (profileChecked && !profileComplete) {
-      setActiveTab('profile');
+    if (analysisInput && !analysisPolling.isLoading && !analysisPolling.analysisResult) {
+      analysisPolling.startNewAnalysis(analysisInput);
     }
-  }, [profileChecked, profileComplete]);
+  }, [analysisInput]);
+
+  const handleNavigate = (view: ViewState) => {
+    setActiveTab(view);
+  };
 
   const handleLogout = async () => {
     try {
@@ -46,88 +52,92 @@ export default function App() {
     }
   };
 
-  const goToRegister = () => setShowRegister(true);
-  const goToLogin = () => setShowRegister(false);
-
-  // Show loading spinner while the AuthProvider is checking the session
+  // Authentication & Loading Handling
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-primary flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-black mx-auto mb-4"></div>
-          <p className="text-black text-lg font-medium">Cargando...</p>
-        </div>
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
       </div>
     );
   }
 
-  // Show password reset page when user clicks reset link from email
-  if (isPasswordRecovery) {
-    return (
-      <ResetPassword
-        onSuccess={() => {
-          clearPasswordRecovery();
-          // User will be signed out after password change, redirect to login
-        }}
-        onBackToLogin={() => {
-          clearPasswordRecovery();
-          signOut();
-        }}
-      />
-    );
+  if (!isAuthenticated) {
+    if (isPasswordRecovery) {
+      return <ResetPassword onBack={clearPasswordRecovery} />;
+    }
+    if (showRegister) {
+      return <Register onLoginClick={() => setShowRegister(false)} />;
+    }
+    return <Login onRegisterClick={() => setShowRegister(true)} />;
   }
 
-  // If not authenticated, show the login or register screen
-  if (!isAuthenticated) {
-    if (showRegister) {
-      // The onRegister and onLogin handlers are no longer needed here,
-      // as the AuthProvider handles state changes automatically.
-      return <Register onRegister={() => setShowRegister(false)} onBackToLogin={goToLogin} />;
-    }
-    return <Login onGoToRegister={goToRegister} />;
+  // Profile Completion Check
+  if (!profileChecked) {
+    checkUserProfile();
+    // Don't block render here, let auth provider handle state or use effect
   }
 
   const renderContent = () => {
     switch (activeTab) {
       case 'upload':
+        // If we have an analysis result or are loading, show Unified View
+        if (analysisPolling.analysisResult || analysisPolling.isLoading) {
+          return (
+            <div className="container mx-auto px-4 py-8">
+              <UnifiedAnalysisView
+                isLoading={analysisPolling.isLoading}
+                progress={analysisPolling.progress}
+                data={analysisPolling.analysisResult ? transformTextAnalysisToUI(analysisPolling.analysisResult.result) : null}
+                contentType="text"
+                mode="ai"
+                onReset={() => {
+                  analysisPolling.resetAnalysis();
+                  setAnalysisInput('');
+                }}
+                onSubmitDiagnosis={() => { }}
+                title={analysisPolling.analysisResult?.result?.title}
+                timestamp={analysisPolling.analysisResult?.result?.created_at}
+                caseNumber={analysisPolling.analysisResult?.result?.id?.slice(0, 8)}
+                reportedBy="Botilito IA"
+              />
+            </div>
+          );
+        }
+        // Otherwise show Input View
         return <ContentUpload
           jobId={currentJobId}
           jobType={currentJobType}
           onReset={() => {
             setCurrentJobId(undefined);
             setCurrentJobType(undefined);
+            setAnalysisInput('');
           }}
-          mode="ai"
+          onAnalyze={(content) => setAnalysisInput(content)} // Assuming ContentUpload has this prop now or we need to adapt
         />;
+
       case 'verification':
-        // If we have a current job being analyzed, show the unified view in human mode
-        if (currentJobId) {
-          return <ContentUpload
-            jobId={currentJobId}
-            jobType={currentJobType}
-            onReset={() => {
-              setCurrentJobId(undefined);
-              setCurrentJobType(undefined);
-              setActiveTab('upload');
-            }}
-            mode="human"
-          />;
-        }
         return <HumanVerification />;
+
       case 'review':
         return <ContentReview onViewTask={handleViewTask} />;
+
       case 'mapa':
         return <MapaDesinfodemico />;
+
       case 'docs':
         return <DocumentacionIndicadores />;
+
       case 'profile':
         return <UserProfile />;
+
       case 'extension':
         return <ExtensionApp />;
+
       case 'admin':
         return <AdminDashboard />;
+
       default:
-        return <ContentUpload />;
+        return null;
     }
   };
 
@@ -144,7 +154,7 @@ export default function App() {
       <Navigation
         activeTab={activeTab}
         onTabChange={(tab) => {
-          setActiveTab(tab);
+          setActiveTab(tab as ViewState);
           // Only clear context if switching to non-analysis tabs
           if (!['upload', 'verification'].includes(tab)) {
             setCurrentJobId(undefined);

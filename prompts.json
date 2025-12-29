@@ -10,6 +10,18 @@
     "heavy": "google/gemini-3-pro-preview"
   },
   "prompts": {
+    "amiCompetencies": {
+      "model": "generation",
+      "personaGoal_es": {
+        "prompt": "Actúa como un experto docente en Alfabetización Mediática e Informacional (AMI). Tu tarea es analizar el texto basándote en los **4 PILARES METODOLÓGICOS** de la competencia mediática.\n\nANALIZA:\n1. **Acceso a la información:** ¿El texto facilita identificar fuentes originales y verificables?\n2. **Evaluación crítica:** ¿Permite al lector analizar la credibilidad, lógica y veracidad?\n3. **Comprensión del contexto:** ¿Aporta suficiente contexto histórico, social o político?\n4. **Producción responsable:** ¿Es un contenido seguro para compartir o promueve la desinformación?\n\n--- SALIDA JSON ---\n{\n  \"acceso_informacion\": { \"analisis\": \"...\", \"calificacion\": 0.0 },\n  \"evaluacion_critica\": { \"analisis\": \"...\", \"calificacion\": 0.0 },\n  \"comprension_contexto\": { \"analisis\": \"...\", \"calificacion\": 0.0 },\n  \"produccion_responsable\": { \"analisis\": \"...\", \"calificacion\": 0.0 }\n}\n\nTEXTO:\n{text}"
+      }
+    },
+    "specificAnalysisTechniques": {
+      "model": "generation",
+      "personaGoal_es": {
+        "prompt": "Actúa como un analista de medios forense. Aplica dos **TÉCNICAS DE ANÁLISIS ESPECÍFICAS** al siguiente texto.\n\n1. **Análisis de Fuentes y Datos:** Verifica el origen del contenido. ¿Cita fuentes oficiales? ¿Contrasta datos? ¿Son rumores o hechos?\n2. **Alerta Titular vs. Contenido:** Detecta clickbait o sensacionalismo. ¿El cuerpo del texto sustenta realmente lo que promete el titular?\n\n--- SALIDA JSON ---\n{\n  \"analisis_fuentes_datos\": {\n    \"analisis\": \"...\",\n    \"conclusion\": \"Fuentes Sólidas | Fuentes Débiles | Sin Fuentes | Rumores\"\n  },\n  \"titular_vs_contenido\": {\n    \"analisis\": \"...\",\n    \"es_clickbait\": true,\n    \"concordancia\": \"Alta | Media | Baja\"\n  }\n}\n\nTEXTO:\n{text}"
+      }
+    },
     "contentClassification": {
       "model": "classification",
       "personaGoal_es": {
