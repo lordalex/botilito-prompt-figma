@@ -6,8 +6,8 @@ import { Textarea } from './ui/textarea';
 import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { 
-  Send, X, Link2, Image as ImageIcon, Video, Volume2, Plus, Share2,
-  Twitter, Facebook, MessageCircle, Instagram, Music, Youtube, Smartphone, Mail, FileText
+  Send, X, Link2, Image as ImageIcon, Video, Volume2, Share2,
+  Twitter, Facebook, MessageCircle, Instagram, Music, Youtube, Smartphone, Mail, FileText, Paperclip
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 import type { ContentType, TransmissionVector } from '../utils/caseCodeGenerator';
@@ -149,11 +149,11 @@ export function ContentUploadForm({ onSubmit, isSubmitting }: ContentUploadFormP
                       </TooltipProvider>
                     </div>
                   </div>
-                  <div className="text-center"><p>Arrastra y suelta o pega tu contenido aquí</p></div>
+                  <div className="text-center"><p>Carga, pega o suelta tu contenido aquí</p></div>
                   <div className="space-y-2">
                     <div className="relative flex items-start bg-white border-2 border-secondary/60 rounded-[8px] shadow-sm min-h-11">
-                      <button type="button" onClick={() => fileInputRef.current?.click()} className="flex-shrink-0 ml-2 p-1.5 rounded-full bg-transparent hover:bg-primary no-hover-effect group transition-colors" title="Adjuntar archivo">
-                        <Plus className="h-4 w-4 text-black/60" />
+                      <button type="button" onClick={() => fileInputRef.current?.click()} className="flex-shrink-0 ml-2 p-1.5 rounded-full bg-transparent hover:bg-primary no-hover-effect group transition-colors mt-1 cursor-pointer" title="Adjuntar archivo">
+                        <Paperclip className="h-4 w-4 text-black/60" />
                       </button>
                       <Textarea placeholder="Pega aquí una URL, texto sospechoso, o escribe lo que quieras analizar..." value={content} onChange={handleContentChange} rows={textareaRows} className="flex-1 resize-none border-0 bg-transparent px-3 min-h-11 focus:outline-none focus:ring-0 focus-visible:ring-0 focus-visible:border-0 placeholder:text-muted-foreground text-sm leading-relaxed transition-all duration-200"/>
                     </div>
