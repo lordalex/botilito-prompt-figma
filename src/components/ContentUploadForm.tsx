@@ -71,10 +71,9 @@ export function ContentUploadForm({ onSubmit, isSubmitting }: ContentUploadFormP
   
   const handleFileUpload = (files: FileList | null) => {
     if (!files) return;
-    const newFiles = Array.from(files);
-    setUploadedFiles(prev => [...prev, ...newFiles]);
-    if (files.length > 0) {
-      const file = files[0];
+    const file = files[0];
+    setUploadedFiles([file]);
+    if (file) {
       if (file.type.startsWith('image/')) setContentType('imagen');
       else if (file.type.startsWith('video/')) setContentType('video');
       else if (file.type.startsWith('audio/')) setContentType('audio');
@@ -161,7 +160,7 @@ export function ContentUploadForm({ onSubmit, isSubmitting }: ContentUploadFormP
                   </div>
                 </div>
               </div>
-              <input ref={fileInputRef} type="file" multiple className="hidden" accept=".jpg,.jpeg,.wav,.mp3,.mp4" onChange={(e) => handleFileUpload(e.target.files)}/>
+              <input ref={fileInputRef} type="file" className="hidden" accept=".jpg,.jpeg,.wav,.mp3,.mp4" onChange={(e) => handleFileUpload(e.target.files)}/>
               {uploadedFiles.length > 0 && (
                 <div className="space-y-2 pt-6 mt-6 border-t border-secondary/40">
                   <Label>Archivos seleccionados:</Label>
@@ -174,7 +173,7 @@ export function ContentUploadForm({ onSubmit, isSubmitting }: ContentUploadFormP
                           <p className="text-xs text-muted-foreground">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
                         </div>
                       </div>
-                      <Button variant="ghost" size="sm" onClick={() => removeFile(index)} className="h-8 w-8 p-0 hover:bg-secondary/40"><X className="h-4 w-4" /></Button>
+                      <Button type="button" variant="ghost" size="sm" onClick={() => removeFile(index)} className="h-8 w-8 p-0 hover:bg-secondary/40"><X className="h-4 w-4" /></Button>
                     </div>
                   ))}
                 </div>
