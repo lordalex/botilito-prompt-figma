@@ -161,7 +161,7 @@ export function ContentUploadForm({ onSubmit, isSubmitting }: ContentUploadFormP
                   </div>
                 </div>
               </div>
-              <input ref={fileInputRef} type="file" multiple className="hidden" accept="image/*,video/*,audio/*" onChange={(e) => handleFileUpload(e.target.files)}/>
+              <input ref={fileInputRef} type="file" multiple className="hidden" accept=".jpg,.jpeg,.wav,.mp3,.mp4" onChange={(e) => handleFileUpload(e.target.files)}/>
               {uploadedFiles.length > 0 && (
                 <div className="space-y-2 pt-6 mt-6 border-t border-secondary/40">
                   <Label>Archivos seleccionados:</Label>
