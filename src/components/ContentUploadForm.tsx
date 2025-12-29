@@ -33,6 +33,7 @@ export function ContentUploadForm({ onSubmit, isSubmitting }: ContentUploadFormP
   const [transmissionMedium, setTransmissionMedium] = useState<TransmissionVector>('Otro');
   const [isDragging, setIsDragging] = useState(false);
   const [textareaRows, setTextareaRows] = useState(1);
+  const [fileError, setFileError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
 
@@ -70,15 +71,38 @@ export function ContentUploadForm({ onSubmit, isSubmitting }: ContentUploadFormP
   };
   
   const handleFileUpload = (files: FileList | null) => {
-    if (!files) return;
+    if (!files || files.length === 0) return;
     const file = files[0];
-    setUploadedFiles([file]);
-    if (file) {
-      if (file.type.startsWith('image/')) setContentType('imagen');
-      else if (file.type.startsWith('video/')) setContentType('video');
-      else if (file.type.startsWith('audio/')) setContentType('audio');
-      else setContentType('texto');
+    if (!file) return;
+    setFileError(null);
+    
+    // Validar límites de tamaño según tipo de archivo
+    const fileSizeMB = file.size / 1024 / 1024;
+    let maxSizeMB = 0;
+    let fileTypeLabel = '';
+    
+    if (file.type.startsWith('image/')) {
+      maxSizeMB = 2;
+      fileTypeLabel = 'imagen';
+    } else if (file.type.startsWith('audio/')) {
+      maxSizeMB = 25;
+      fileTypeLabel = 'audio';
+    } else if (file.type.startsWith('video/')) {
+      maxSizeMB = 50;
+      fileTypeLabel = 'video';
     }
+    
+    if (maxSizeMB > 0 && fileSizeMB > maxSizeMB) {
+      setFileError(`El archivo de ${fileTypeLabel} excede el tamaño máximo permitido de ${maxSizeMB} MB`);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+    
+    setUploadedFiles([file]);
+    if (file.type.startsWith('image/')) setContentType('imagen');
+    else if (file.type.startsWith('video/')) setContentType('video');
+    else if (file.type.startsWith('audio/')) setContentType('audio');
+    else setContentType('texto');
   };
 
   const handleDragEnter = (e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); setIsDragging(true); };
@@ -161,6 +185,11 @@ export function ContentUploadForm({ onSubmit, isSubmitting }: ContentUploadFormP
                 </div>
               </div>
               <input ref={fileInputRef} type="file" className="hidden" accept=".jpg,.jpeg,.wav,.mp3,.mp4" onChange={(e) => handleFileUpload(e.target.files)}/>
+              {fileError && (
+                <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-sm text-red-600">{fileError}</p>
+                </div>
+              )}
               {uploadedFiles.length > 0 && (
                 <div className="space-y-2 pt-6 mt-6 border-t border-secondary/40">
                   <Label>Archivos seleccionados:</Label>
@@ -201,7 +230,7 @@ export function ContentUploadForm({ onSubmit, isSubmitting }: ContentUploadFormP
           </CardContent>
         </Card>
         <div className="flex justify-end">
-          <Button type="submit" disabled={(!content && uploadedFiles.length === 0) || !transmissionMedium || isSubmitting} className="flex items-center space-x-2">
+          <Button type="submit" disabled={(!content && uploadedFiles.length === 0) || !transmissionMedium || isSubmitting} className="flex items-center space-x-2 mt-2">
             <Send className="h-4 w-4" />
             <span>{isSubmitting ? 'Analizando...' : 'Iniciar Diagnóstico'}</span>
           </Button>
