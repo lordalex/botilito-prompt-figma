@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { BarChart3 } from 'lucide-react';
+import { Activity } from 'lucide-react';
 
 interface StatItem {
     label: string;
@@ -18,24 +18,24 @@ export function AnalysisSidebarStats({
     title = 'Estadísticas del Análisis'
 }: AnalysisSidebarStatsProps) {
     return (
-        <Card className="border border-slate-100 shadow-sm bg-white">
-            <CardHeader className="pb-2 pt-4 px-4">
-                <CardTitle className="text-sm font-bold flex items-center gap-2 uppercase tracking-wider text-slate-800">
-                    <BarChart3 className="h-4 w-4 text-primary" />
-                    {title}
+        <Card className="border-2 border-[#ffda00] bg-white rounded-[12px]">
+            <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2">
+                    <Activity className="h-5 w-5 text-[#ffda00]" />
+                    <span className="text-[16px] leading-[24px] font-normal text-black">
+                        {title}
+                    </span>
                 </CardTitle>
             </CardHeader>
-            <CardContent className="px-4 pb-4">
-                <div className="space-y-3 pt-2">
-                    {stats.map((stat, idx) => (
-                        <div key={idx} className="flex justify-between text-xs">
-                            <span className="text-slate-400 font-bold uppercase tracking-tighter">{stat.label}</span>
-                            <span className={`font-black ${stat.color || 'text-slate-900'}`}>
-                                {stat.value}
-                            </span>
-                        </div>
-                    ))}
-                </div>
+            <CardContent className="space-y-3 pt-0">
+                {stats.map((stat, idx) => (
+                    <div key={idx} className="flex justify-between items-start">
+                        <span className="text-[12px] leading-[16px] text-[#6b7280]">{stat.label}</span>
+                        <span className={`text-[12px] leading-[16px] font-normal ${stat.color || 'text-black'}`}>
+                            {stat.value}
+                        </span>
+                    </div>
+                ))}
             </CardContent>
         </Card>
     );

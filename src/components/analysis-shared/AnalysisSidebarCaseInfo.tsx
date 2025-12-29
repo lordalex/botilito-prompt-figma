@@ -31,18 +31,22 @@ export function AnalysisSidebarCaseInfo({
     ];
 
     return (
-        <Card className="border border-slate-200 shadow-sm bg-white rounded-lg">
-            <CardHeader className="py-3 px-4 border-b border-slate-100">
-                <CardTitle className="text-xs font-semibold flex items-center gap-2 text-slate-700">
-                    <FileText className="h-4 w-4 text-amber-500" />
-                    Información del Caso
+        <Card className="border-2 border-[#ffda00] bg-white rounded-[12px]">
+            <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-3">
+                    <div className="w-5 h-5 rounded-full bg-[#ffda00] flex items-center justify-center flex-shrink-0">
+                        <FileText className="h-3 w-3 text-white" />
+                    </div>
+                    <span className="text-[16px] leading-[24px] font-normal text-black">
+                        Información del Caso
+                    </span>
                 </CardTitle>
             </CardHeader>
-            <CardContent className="px-4 py-3 space-y-2">
+            <CardContent className="space-y-3 pt-0">
                 {items.map((item, idx) => (
-                    <div key={idx} className="flex justify-between items-center text-xs">
-                        <span className="text-slate-500">{item.label}</span>
-                        <span className="font-medium text-slate-800 text-right truncate max-w-[150px]" title={String(item.value)}>
+                    <div key={idx} className="flex justify-between items-start">
+                        <span className="text-[12px] leading-[16px] text-[#6b7280]">{item.label}</span>
+                        <span className="text-[12px] leading-[16px] text-black font-normal text-right truncate max-w-[150px]" title={String(item.value)}>
                             {item.value}
                         </span>
                     </div>

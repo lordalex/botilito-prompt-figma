@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Link2, CheckCircle, Clock, AlertTriangle, Bot, User } from 'lucide-react';
+import { Shield, CheckCircle, Clock, AlertTriangle, Bot, User } from 'lucide-react';
 
 interface ChainEvent {
     id: string;
@@ -30,45 +30,34 @@ export function AnalysisSidebarChainOfCustody({ events }: AnalysisSidebarChainOf
         }
     };
 
-    const getStatusColor = (status: string) => {
-        switch (status) {
-            case 'completed':
-                return 'bg-emerald-500 text-white';
-            case 'in_progress':
-                return 'bg-amber-500 text-white';
-            default:
-                return 'bg-slate-300 text-slate-600';
-        }
-    };
-
     return (
-        <Card className="border border-slate-200 shadow-sm bg-white rounded-lg">
-            <CardHeader className="py-3 px-4 border-b border-slate-100">
-                <CardTitle className="text-xs font-semibold flex items-center gap-2 text-slate-700">
-                    <Link2 className="h-4 w-4 text-amber-500" />
-                    Cadena de Custodia
+        <Card className="border-2 border-[#ffda00] bg-white rounded-[12px]">
+            <CardHeader className="pb-4">
+                <CardTitle className="flex items-center gap-3">
+                    <Shield className="h-5 w-5 text-[#ffda00] flex-shrink-0" />
+                    <span className="text-[16px] leading-[24px] font-normal text-black">
+                        Cadena de Custodia
+                    </span>
                 </CardTitle>
             </CardHeader>
-            <CardContent className="px-4 py-3">
-                <div className="relative pl-4">
-                    {/* Timeline line */}
-                    <div className="absolute left-[5px] top-1 bottom-1 w-px bg-slate-200" />
-
-                    {/* Events */}
-                    <div className="space-y-3">
-                        {events.map((event, idx) => (
-                            <div key={event.id || idx} className="relative flex gap-2 items-start">
-                                {/* Dot */}
-                                <div className={`absolute -left-4 top-1 w-2 h-2 rounded-full ${getStatusColor(event.status).split(' ')[0]}`} />
-
-                                {/* Content */}
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-xs font-medium text-slate-800">{event.title}</p>
-                                    <p className="text-[11px] text-slate-500">{event.description}</p>
+            <CardContent className="space-y-0 pt-0">
+                <div className="space-y-0">
+                    {events.map((event, idx) => (
+                        <React.Fragment key={event.id || idx}>
+                            {idx > 0 && <div className="border-t border-gray-200" />}
+                            <div className={`flex items-start gap-3 ${idx === 0 ? 'pb-4' : idx === events.length - 1 ? 'pt-4' : 'py-4'}`}>
+                                <div className="w-2 h-2 rounded-full bg-[#ffda00] mt-1.5 flex-shrink-0" />
+                                <div className="flex-1">
+                                    <p className="text-[14px] leading-[20px] text-black font-medium mb-0.5">
+                                        {event.title}
+                                    </p>
+                                    <p className="text-[12px] leading-[18px] text-[#6b7280]">
+                                        {event.description}
+                                    </p>
                                 </div>
                             </div>
-                        ))}
-                    </div>
+                        </React.Fragment>
+                    ))}
                 </div>
             </CardContent>
         </Card>

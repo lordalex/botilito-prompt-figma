@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Lightbulb } from 'lucide-react';
+import botilitoMascot from '@/assets/botilito-mascot.png';
 
 interface AnalysisSidebarRecommendationsProps {
     recommendations: string[];
@@ -12,19 +12,25 @@ export function AnalysisSidebarRecommendations({
     if (!recommendations || recommendations.length === 0) return null;
 
     return (
-        <Card className="bg-[#FFFCE8] border-yellow-200 border-2 shadow-sm rounded-2xl overflow-hidden">
-            <CardHeader className="pb-2 pt-4 px-4 bg-yellow-100/50">
-                <CardTitle className="text-sm font-bold flex items-center gap-2 uppercase tracking-widest text-amber-900">
-                    <Lightbulb className="h-4 w-4 text-amber-500" />
-                    Recomendaciones
-                </CardTitle>
+        <Card className="border-2 border-[#ffda00] bg-[#fffbeb] rounded-[12px]">
+            <CardHeader className="pb-4">
+                <div className="flex items-center gap-3">
+                    <img
+                        src={botilitoMascot}
+                        alt="Botilito"
+                        className="h-[48px] w-[48px] object-contain"
+                    />
+                    <CardTitle className="text-[16px] leading-[24px] font-medium text-black">
+                        Recomendaciones
+                    </CardTitle>
+                </div>
             </CardHeader>
-            <CardContent className="px-4 pb-4 pt-3">
+            <CardContent className="pt-0">
                 <ul className="space-y-3">
                     {recommendations.map((rec, index) => (
-                        <li key={index} className="text-xs font-bold text-amber-800/80 flex items-start gap-2 leading-relaxed">
-                            <span className="text-amber-400 mt-1 font-black">•</span>
-                            <span>{rec}</span>
+                        <li key={index} className="flex items-start gap-3">
+                            <span className="text-[#ffda00] text-[14px] mt-0.5 flex-shrink-0">•</span>
+                            <span className="text-[14px] leading-[21px] text-[#1f2937]">{rec}</span>
                         </li>
                     ))}
                 </ul>
