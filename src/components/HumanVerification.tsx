@@ -3,14 +3,190 @@ import { useHumanVerification } from '../hooks/useHumanVerification';
 import { HumanVerificationDetail } from './HumanVerificationDetail';
 import { VerificationSuccessDialog } from './VerificationSuccessDialog';
 import { VoteSubmittedDialog } from './VoteSubmittedDialog';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
-import { Button } from './ui/button';
-import { Badge } from './ui/badge';
+import { CaseValidationList } from './CaseValidationList';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Progress } from './ui/progress';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { Loader2 } from 'lucide-react';
 import { LoadingView } from './LoadingView';
-import { generateDisplayId } from '../utils/humanVerification/api';
+import type { CaseEnrichedCompatible } from '../types/validation';
+
+// Mock data basado en el diseño Figma
+const MOCK_CASES: CaseEnrichedCompatible[] = [
+    {
+        id: 'mock-1',
+        displayId: 'T-WB-20241015-156',
+        title: 'Las vacunas contra COVID-19 causan problemas cardíacos en el 90% de los vacunado...',
+        status: 'pending',
+        summary: 'Afirmación sobre efectos adversos de vacunas COVID-19 en el sistema cardiovascular',
+        url: 'https://example.com/covid-vaccines',
+        created_at: '2024-01-15T06:30:00Z',
+        submission_type: 'Text',
+        human_votes: {
+            count: 8
+        },
+        consensus: {
+            state: 'ai_only',
+            final_labels: []
+        },
+        metadata: {
+            reported_by: {
+                id: 'user-123',
+                name: 'usuario_123'
+            },
+            ai_analysis: {
+                summaries: {
+                    theme: 'Desinformódico'
+                },
+                classification: {
+                    indiceCumplimientoAMI: {
+                        nivel: 'Requiere un enfoque AMI',
+                        score: 3.5
+                    }
+                }
+            }
+        }
+    },
+    {
+        id: 'mock-2',
+        displayId: 'I-FB-20241015-234',
+        title: 'imagen_manifestacion_2024.jpg...',
+        status: 'pending',
+        summary: 'Análisis forense de imagen de manifestación',
+        url: 'https://example.com/imagen_manifestacion_2024.jpg',
+        created_at: '2024-01-15T05:15:00Z',
+        submission_type: 'Image',
+        human_votes: {
+            count: 5
+        },
+        consensus: {
+            state: 'ai_only',
+            final_labels: []
+        },
+        metadata: {
+            reported_by: {
+                id: 'user-456',
+                name: 'usuario_456'
+            },
+            ai_analysis: {
+                summaries: {
+                    theme: 'Forense'
+                },
+                classification: {
+                    indiceCumplimientoAMI: {
+                        nivel: 'No cumple las premisas AMI',
+                        score: 2.0
+                    }
+                }
+            },
+            screenshot: 'https://example.com/screenshots/mock-2.png'
+        }
+    },
+    {
+        id: 'mock-3',
+        displayId: 'V-YT-20241015-089',
+        title: 'declaraciones_presidente_economia.mp4...',
+        status: 'pending',
+        summary: 'Análisis forense de video con declaraciones económicas',
+        url: 'https://example.com/declaraciones_presidente_economia.mp4',
+        created_at: '2024-01-15T04:45:00Z',
+        submission_type: 'Video',
+        human_votes: {
+            count: 3
+        },
+        consensus: {
+            state: 'ai_only',
+            final_labels: []
+        },
+        metadata: {
+            reported_by: {
+                id: 'user-789',
+                name: 'usuario_789'
+            },
+            ai_analysis: {
+                summaries: {
+                    theme: 'Forense'
+                },
+                classification: {
+                    indiceCumplimientoAMI: {
+                        nivel: 'Cumple las premisas AMI',
+                        score: 5.0
+                    }
+                }
+            }
+        }
+    },
+    {
+        id: 'mock-4',
+        displayId: 'A-WA-20241014-312',
+        title: 'audio_emergencia_sanitaria.m4a...',
+        status: 'pending',
+        summary: 'Análisis forense de audio sobre emergencia sanitaria',
+        url: 'https://example.com/audio_emergencia_sanitaria.m4a',
+        created_at: '2024-01-14T12:20:00Z',
+        submission_type: 'Audio',
+        human_votes: {
+            count: 6
+        },
+        consensus: {
+            state: 'ai_only',
+            final_labels: []
+        },
+        metadata: {
+            reported_by: {
+                id: 'user-321',
+                name: 'usuario_321'
+            },
+            ai_analysis: {
+                summaries: {
+                    theme: 'Forense'
+                },
+                classification: {
+                    indiceCumplimientoAMI: {
+                        nivel: 'Generado por IA',
+                        score: 1.5
+                    }
+                }
+            }
+        }
+    },
+    {
+        id: 'mock-5',
+        displayId: 'T-TW-20241013-445',
+        title: 'El gobierno anuncia nueva reforma tributaria que eliminará impuestos a las grand...',
+        status: 'pending',
+        summary: 'Información sobre nueva reforma tributaria gubernamental',
+        url: 'https://example.com/reforma-tributaria',
+        created_at: '2024-01-13T10:10:00Z',
+        submission_type: 'Text',
+        human_votes: {
+            count: 2
+        },
+        consensus: {
+            state: 'ai_only',
+            final_labels: []
+        },
+        metadata: {
+            reported_by: {
+                id: 'user-555',
+                name: 'usuario_555'
+            },
+            ai_analysis: {
+                summaries: {
+                    theme: 'Desinformódico'
+                },
+                classification: {
+                    indiceCumplimientoAMI: {
+                        nivel: 'Desarrolla las estrategias AMI',
+                        score: 4.8
+                    }
+                }
+            }
+        }
+    }
+];
+
+const USE_MOCK_DATA = true;
 
 const levels = [
     { level: 1, title: 'VIGILANTE CENTINELA', subtitle: 'Primera Línea de Defensa', minXP: 0, maxXP: 500, badge: '👁️' },
@@ -127,37 +303,12 @@ export function HumanVerification() {
                 </CardContent>
             </Card>
 
-            <Card>
-                <CardHeader>
-                    <CardTitle>Casos Pendientes de Verificación Humana</CardTitle>
-                    <CardDescription>Tu análisis es crucial para determinar la veracidad de estos contenidos.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div className="space-y-4">
-                        {cases.map((c, index) => (
-                            <Card key={index} className="hover:shadow-md transition-shadow">
-                                <CardHeader>
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <Badge variant="outline" className="font-mono text-xs bg-gray-50">
-                                            {c.displayId || generateDisplayId(c)}
-                                        </Badge>
-                                    </div>
-                                    <CardTitle className="text-lg">{c.title || 'Sin título'}</CardTitle>
-                                    <div className="text-xs text-muted-foreground">
-                                        <span>{new Date(c.created_at).toLocaleDateString()}</span> | <span>Votos: {c.human_votes?.count || 0}</span>
-                                    </div>
-                                </CardHeader>
-                                <CardContent>
-                                    <p className="text-sm mb-4 line-clamp-2">{c.summary || 'No hay resumen disponible.'}</p>
-                                    <div className="flex justify-between items-center">
-                                        <Button onClick={() => handleSelectCase(c.id)} disabled={!c.id}>Verificar Ahora</Button>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        ))}
-                    </div>
-                </CardContent>
-            </Card>
+            <CaseValidationList
+                cases={USE_MOCK_DATA ? MOCK_CASES : cases}
+                onSelectCase={handleSelectCase}
+                isLoading={isLoading}
+                isEnrichedFormat={true}
+            />
         </div>
     );
 }
