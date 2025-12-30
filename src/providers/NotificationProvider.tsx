@@ -36,7 +36,9 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
             const inbox = await notificationService.getInbox(20);
             setNotifications(inbox.notifications);
             setUnreadCount(inbox.unread_count);
-        } catch (err) {
+        } catch (err: any) {
+            // Suppress "No active session" error as it is expected when logged out
+            if (err.message === 'No active session') return;
             console.error('Failed to fetch notifications:', err);
         }
     }, []);

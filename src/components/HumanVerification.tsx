@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useHumanVerification } from '../hooks/useHumanVerification';
-import { HumanVerificationDetail } from './HumanVerificationDetail';
+import { UnifiedAnalysisView } from './UnifiedAnalysisView';
+import { transformHumanCaseToUI } from '../services/analysisPresentationService';
 import { VerificationSuccessDialog } from './VerificationSuccessDialog';
 import { VoteSubmittedDialog } from './VoteSubmittedDialog';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
@@ -75,6 +76,11 @@ export function HumanVerification() {
         handleBackToList();
     };
 
+    // Prepare data for Unified View
+    const unifiedCaseData = useMemo(() => {
+        return selectedCase ? transformHumanCaseToUI(selectedCase) : null;
+    }, [selectedCase]);
+
     if (isLoading && !selectedCase) {
         return <LoadingView message="Cargando casos para verificación..." />;
     }
@@ -86,12 +92,41 @@ export function HumanVerification() {
         </Alert>;
     }
 
-    if (selectedCase) {
-        return <HumanVerificationDetail
-            caseData={selectedCase}
-            onBackToList={handleBackToList}
-            onSubmit={handleSubmitVerification}
-            isSubmitting={isSubmitting}
+    if (selectedCase && unifiedCaseData) {
+        // Determine content type from forensic metadata
+        const getContentType = (): 'text' | 'image' | 'audio' => {
+            // Check if it's forensic analysis with image data
+            const isForensic = unifiedCaseData?.raw?.metadata?.is_forensic || selectedCase.metadata?.is_forensic;
+            if (isForensic) {
+                const hasImageDetails = unifiedCaseData?.raw?.all_documents?.[0]?.result?.details?.[0]?.original_frame;
+                if (hasImageDetails) return 'image';
+            }
+
+            // Check submission_type from raw.metadata or case metadata
+            const submissionType = (
+                unifiedCaseData?.raw?.metadata?.submission_type ||
+                selectedCase.metadata?.submission_type ||
+                ''
+            ).toLowerCase();
+
+            if (submissionType.includes('image') || submissionType === 'media') return 'image';
+            if (submissionType.includes('audio')) return 'audio';
+
+            return 'text';
+        };
+
+        return <UnifiedAnalysisView
+            data={unifiedCaseData}
+            contentType={getContentType()}
+            mode="human"
+            title={selectedCase.title}
+            caseNumber={selectedCase.displayId || selectedCase.id.slice(0, 8)}
+            timestamp={selectedCase.created_at}
+            reportedBy="Comunidad"
+            screenshot={selectedCase.metadata?.screenshot}
+            onReset={handleBackToList}
+            onSubmitDiagnosis={handleSubmitVerification} // Hook handles the logic
+            isSubmittingDiagnosis={isSubmitting}
         />;
     }
 

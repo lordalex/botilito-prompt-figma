@@ -23,10 +23,24 @@ export async function generateContentHash(content: string): Promise<string> {
     console.warn("SubtleCrypto not available. Using a simple fallback for hashing.");
     let hash = 0;
     for (let i = 0; i < content.length; i++) {
-        const char = content.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash |= 0; // Convert to 32bit integer
+      const char = content.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash |= 0; // Convert to 32bit integer
     }
     return hash.toString(16);
   }
 }
+
+/**
+ * Converts a File object to a Base64 string.
+ * @param {File} file - The file to convert.
+ * @returns {Promise<string>} A promise that resolves to the Base64 string.
+ */
+export const convertFileToBase64 = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = (error) => reject(error);
+  });
+};

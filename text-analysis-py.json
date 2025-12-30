@@ -1,0 +1,377 @@
+{
+    "openapi": "3.0.3",
+    "info": {
+        "title": "Botilito Python Analysis Engine",
+        "description": "Internal Python Microservice for Text Analysis. It handles scraping, AI orchestration (LLM), Fact-Checking, AMI Classification, and Cloud Storage (R2) uploads.\n\n**Key Features:**\n- **Async Pipeline:** Submit -> Queue -> Poll Status.\n- **Hybrid Scraping:** Playwright (Text) + ScreenshotMachine (Visuals).\n- **AMI Framework:** Evaluates content against 20 UNESCO criteria.\n- **Dynamic Storage:** Accepts ephemeral R2 credentials to upload screenshots directly to the requester's bucket.",
+        "version": "1.3.0",
+        "contact": {
+            "name": "Backend Team",
+            "email": "dev@botilito.dev"
+        }
+    },
+    "servers": [
+        {
+            "url": "http://localhost:8000",
+            "description": "Local Python Container"
+        },
+        {
+            "url": "https://botilito.lordalexand.dev/textanalysis",
+            "description": "Production Endpoint"
+        }
+    ],
+    "paths": {
+        "/submit_text_job": {
+            "post": {
+                "summary": "Submit a new analysis job",
+                "description": "Initiates the analysis pipeline. Requires either a `url` or `text`. Accepts optional credentials for third-party services (OpenRouter, ScreenshotMachine, R2).",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SubmissionPayload"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Job successfully queued.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/JobQueuedResponse"
+                                },
+                                "example": {
+                                    "job_id": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+                                    "status": "queued"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error (Missing required fields)."
+                    }
+                }
+            }
+        },
+        "/status/{job_id}": {
+            "get": {
+                "summary": "Poll job status and results",
+                "description": "Checks the status of a job. If `completed`, returns the full analysis result including AMI scores, fact checks, and storage URLs.",
+                "parameters": [
+                    {
+                        "name": "job_id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "description": "The UUID received from /submit_text_job"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Current status and result (if ready).",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/JobStatusResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Job ID not found in local database."
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "SubmissionPayload": {
+                "type": "object",
+                "required": [
+                    "user_id",
+                    "openrouter_api_key",
+                    "vector_de_transmision"
+                ],
+                "properties": {
+                    "url": {
+                        "type": "string",
+                        "format": "uri",
+                        "description": "Target URL to analyze. Scraper will attempt to fetch text and take a screenshot.",
+                        "example": "https://www.bbc.com/news/world-latin-america-12345"
+                    },
+                    "text": {
+                        "type": "string",
+                        "description": "Direct text input (if URL is not provided).",
+                        "example": "Flash informativo: Se reportan alienígenas en Bogotá..."
+                    },
+                    "user_id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "UUID of the user requesting the analysis (for logging/metadata)."
+                    },
+                    "openrouter_api_key": {
+                        "type": "string",
+                        "description": "API Key for LLM inference (OpenRouter)."
+                    },
+                    "screenshot_machine_key": {
+                        "type": "string",
+                        "description": "API Key for ScreenshotMachine. Required if `url` is present and screenshot is desired."
+                    },
+                    "vector_de_transmision": {
+                        "type": "string",
+                        "description": "Context of where this content was found.",
+                        "enum": [
+                            "Web",
+                            "WhatsApp",
+                            "Telegram",
+                            "Twitter",
+                            "Facebook",
+                            "Directo"
+                        ],
+                        "example": "Web"
+                    },
+                    "r2_credentials": {
+                        "$ref": "#/components/schemas/R2Credentials",
+                        "description": "Ephemeral credentials to allow the Python worker to upload the screenshot to your Cloudflare R2 bucket."
+                    }
+                }
+            },
+            "R2Credentials": {
+                "type": "object",
+                "description": "Credentials required to upload assets to Cloudflare R2.",
+                "properties": {
+                    "account_id": {
+                        "type": "string"
+                    },
+                    "access_key_id": {
+                        "type": "string"
+                    },
+                    "secret_access_key": {
+                        "type": "string"
+                    },
+                    "bucket_name": {
+                        "type": "string"
+                    },
+                    "public_url": {
+                        "type": "string",
+                        "description": "Base URL to access uploaded assets (e.g., https://pub-xxxx.r2.dev)"
+                    }
+                }
+            },
+            "JobQueuedResponse": {
+                "type": "object",
+                "properties": {
+                    "job_id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "status": {
+                        "type": "string",
+                        "example": "queued"
+                    }
+                }
+            },
+            "JobStatusResponse": {
+                "type": "object",
+                "properties": {
+                    "job_id": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "queued",
+                            "processing",
+                            "completed",
+                            "failed"
+                        ]
+                    },
+                    "progress": {
+                        "type": "object",
+                        "properties": {
+                            "step": {
+                                "type": "string",
+                                "example": "Analyzing"
+                            },
+                            "percent": {
+                                "type": "integer",
+                                "example": 30
+                            }
+                        }
+                    },
+                    "error": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "result": {
+                        "$ref": "#/components/schemas/AnalysisResult"
+                    }
+                }
+            },
+            "AnalysisResult": {
+                "type": "object",
+                "description": "The final payload generated by the pipeline.",
+                "properties": {
+                    "source_data": {
+                        "type": "object",
+                        "properties": {
+                            "url": {
+                                "type": "string"
+                            },
+                            "title": {
+                                "type": "string"
+                            },
+                            "text": {
+                                "type": "string"
+                            },
+                            "screenshot": {
+                                "type": "string",
+                                "format": "uri",
+                                "description": "Public URL of the captured screenshot in R2."
+                            }
+                        }
+                    },
+                    "ai_analysis": {
+                        "type": "object",
+                        "properties": {
+                            "classification": {
+                                "$ref": "#/components/schemas/AMIClassification"
+                            },
+                            "summaries": {
+                                "$ref": "#/components/schemas/Summaries"
+                            }
+                        }
+                    },
+                    "evidence": {
+                        "type": "object",
+                        "properties": {
+                            "fact_check_table": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/components/schemas/FactCheckItem"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "AMIClassification": {
+                "type": "object",
+                "properties": {
+                    "indiceCumplimientoAMI": {
+                        "type": "object",
+                        "properties": {
+                            "score": {
+                                "type": "number",
+                                "description": "Calculated percentage (0-100).",
+                                "example": 85.5
+                            },
+                            "nivel": {
+                                "type": "string",
+                                "enum": [
+                                    "Desarrolla las estrategias AMI",
+                                    "Necesita Estrategias AMI"
+                                ],
+                                "description": "Category based on score (Cutoff at 65%)."
+                            }
+                        }
+                    },
+                    "criterios": {
+                        "type": "object",
+                        "description": "Key-value map of 20 AMI criteria.",
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/AMICriterion"
+                        }
+                    },
+                    "recomendaciones": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "AMICriterion": {
+                "type": "object",
+                "properties": {
+                    "nombre": {
+                        "type": "string",
+                        "example": "Claridad de la fuente"
+                    },
+                    "score": {
+                        "type": "number",
+                        "enum": [
+                            0,
+                            0.5,
+                            1
+                        ]
+                    },
+                    "justificacion": {
+                        "type": "string"
+                    },
+                    "cita": {
+                        "type": "string"
+                    },
+                    "referencia": {
+                        "type": "string"
+                    }
+                }
+            },
+            "FactCheckItem": {
+                "type": "object",
+                "properties": {
+                    "claim": {
+                        "type": "string"
+                    },
+                    "verdict": {
+                        "type": "string",
+                        "enum": [
+                            "Verificado",
+                            "Refutado",
+                            "No Verificable"
+                        ]
+                    },
+                    "explanation": {
+                        "type": "string"
+                    }
+                }
+            },
+            "Summaries": {
+                "type": "object",
+                "properties": {
+                    "short": {
+                        "$ref": "#/components/schemas/SummaryObject"
+                    },
+                    "medium": {
+                        "$ref": "#/components/schemas/SummaryObject"
+                    },
+                    "long": {
+                        "$ref": "#/components/schemas/SummaryObject"
+                    },
+                    "region": {
+                        "type": "string",
+                        "example": "América Latina"
+                    }
+                }
+            },
+            "SummaryObject": {
+                "type": "object",
+                "properties": {
+                    "text": {
+                        "type": "string"
+                    },
+                    "factualAlignment": {
+                        "type": "number",
+                        "example": 1.0
+                    }
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,316 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Botilito Text & Media Analysis API",
+    "description": "API for analyzing text and media content using the AMI (Media and Information Literacy) UNESCO framework. It performs content classification, fact-checking against internal knowledge, forensic diagnosis (forgery/audio), and compliance scoring.\n\n**Key Features:**\n- **AMI Scoring:** Calculates compliance based on 20 UNESCO criteria.\n- **Fact Checking:** Verifies specific claims (Verified/Refuted/Unverifiable).\n- **Forensic Diagnosis:** Detects AI generation, manipulation, or Deepfakes.\n- **Caching:** Optional deduplication of previously analyzed URLs.",
+    "version": "1.2.0",
+    "contact": {
+      "name": "API Support",
+      "email": "support@botilito.dev"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://mdkswlgcqsmgfmcuorxq.supabase.co/functions/v1/text-analysis",
+      "description": "Production Supabase Edge Function"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Supabase User JWT Token"
+      }
+    },
+    "schemas": {
+      "SubmitRequest": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "The URL of the article or content to analyze. If provided, the system scrapes the content. (Mutually exclusive with 'text' recommended, but 'url' takes precedence if both exist for transmission vector).",
+            "example": "https://example.com/news/article-123"
+          },
+          "text": {
+            "type": "string",
+            "description": "Raw text to analyze if no URL is provided. Maximum length is typically 50,000 characters.",
+            "example": "El presidente anunció hoy nuevas medidas económicas..."
+          },
+          "use_cache": {
+            "type": "boolean",
+            "default": false,
+            "description": "If `true`, the system checks if this URL has been analyzed before. If found, returns the stored result immediately (status: completed). If `false` (default), forces a fresh analysis and overwrites previous records."
+          }
+        }
+      },
+      "JobResponse": {
+        "type": "object",
+        "properties": {
+          "job_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Unique identifier for the analysis job."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "processing",
+              "completed",
+              "failed"
+            ],
+            "description": "Current state of the job."
+          },
+          "cached": {
+            "type": "boolean",
+            "description": "True if the result was retrieved from the database without running the AI pipeline."
+          },
+          "result": {
+            "$ref": "#/components/schemas/AnalysisResult",
+            "description": "The full analysis payload. Only present if status is 'completed'."
+          }
+        }
+      },
+      "AnalysisResult": {
+        "type": "object",
+        "description": "The complex result object containing all analysis vectors.",
+        "properties": {
+          "source_data": {
+            "type": "object",
+            "properties": {
+              "url": { "type": "string" },
+              "title": { "type": "string" },
+              "text": { "type": "string" },
+              "vector_de_transmision": { "type": "string", "example": "Web" }
+            }
+          },
+          "ai_analysis": {
+            "type": "object",
+            "properties": {
+              "classification": { "$ref": "#/components/schemas/AMIClassification" },
+              "summaries": { "$ref": "#/components/schemas/Summaries" }
+            }
+          },
+          "evidence": {
+            "type": "object",
+            "properties": {
+              "fact_check_table": {
+                "type": "array",
+                "items": { "$ref": "#/components/schemas/FactCheckItem" }
+              }
+            }
+          },
+          "reported_by": { "$ref": "#/components/schemas/UserProfile" }
+        }
+      },
+      "AMIClassification": {
+        "type": "object",
+        "properties": {
+          "indiceCumplimientoAMI": {
+            "type": "object",
+            "properties": {
+              "score": { "type": "integer", "example": 85 },
+              "nivel": { "type": "string", "example": "Desarrolla las premisas AMI" }
+            }
+          },
+          "criterios": {
+            "type": "object",
+            "description": "Map of 20 criteria evaluations.",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/AMICriterion"
+            },
+            "example": {
+              "1": { "nombre": "Claridad de la fuente", "score": 1, "justificacion": "..." }
+            }
+          },
+          "recomendaciones": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Actionable advice to improve Media Literacy based on the content."
+          }
+        }
+      },
+      "AMICriterion": {
+        "type": "object",
+        "properties": {
+          "nombre": { "type": "string" },
+          "score": { "type": "number", "enum": [0, 0.5, 1] },
+          "justificacion": { "type": "string" },
+          "evidencias": { "type": "array", "items": { "type": "string" } },
+          "cita": { "type": "string" },
+          "referencia": { "type": "string" }
+        }
+      },
+      "FactCheckItem": {
+        "type": "object",
+        "properties": {
+          "claim": { "type": "string", "description": "The specific statement extracted from the text." },
+          "verdict": {
+            "type": "string",
+            "enum": ["Verificado", "Refutado", "No Verificable"],
+            "description": "Result of the internal knowledge check."
+          },
+          "explanation": { "type": "string" }
+        }
+      },
+      "Summaries": {
+        "type": "object",
+        "properties": {
+          "short": { "type": "object", "properties": { "text": { "type": "string" } } },
+          "medium": { "type": "object", "properties": { "text": { "type": "string" } } },
+          "long": { "type": "object", "properties": { "text": { "type": "string" } } },
+          "summary": { "type": "string", "description": "Legacy field, same as medium." }
+        }
+      },
+      "UserProfile": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "name": { "type": "string" },
+          "email": { "type": "string" }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": { "type": "string", "example": "Python API Error" },
+          "details": { "type": "string", "example": "Connection timeout" }
+        }
+      }
+    }
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/submit": {
+      "post": {
+        "summary": "Submit Text or URL for Analysis",
+        "description": "Queues a new analysis job. If `url` is provided, it scrapes the content. If `use_cache` is true, it attempts to return a previously computed result for that URL. If not, it calls the Python AI Engine.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Job successfully queued OR result returned from cache.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobResponse"
+                },
+                "examples": {
+                  "Queued": {
+                    "value": {
+                      "job_id": "550e8400-e29b-41d4-a716-446655440000",
+                      "status": "queued"
+                    }
+                  },
+                  "CachedHit": {
+                    "value": {
+                      "job_id": "dummy-uuid-for-cache",
+                      "status": "completed",
+                      "cached": true,
+                      "result": { "source_data": "..." }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized. Missing or invalid Bearer token."
+          },
+          "500": {
+            "description": "Server error or Python API failure.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/status/{job_id}": {
+      "get": {
+        "summary": "Get Job Status",
+        "description": "Checks the status of an analysis job. If the job is `completed`, this endpoint performs the final aggregation, saves the result to the `documents_vectors` table (overwriting if it exists), awards user XP, and returns the full analysis payload.",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "The ID returned by the /submit endpoint."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Job status and result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobResponse"
+                },
+                "examples": {
+                  "Processing": {
+                    "value": {
+                      "job_id": "550e8400-...",
+                      "status": "processing",
+                      "progress": { "step": "Analyzing", "percent": 30 }
+                    }
+                  },
+                  "Completed": {
+                    "value": {
+                      "job_id": "550e8400-...",
+                      "status": "completed",
+                      "result": {
+                        "source_data": {
+                          "url": "https://fake-news.com/aliens",
+                          "title": "Aliens in Bogota",
+                          "text": "..."
+                        },
+                        "ai_analysis": {
+                          "classification": {
+                            "indiceCumplimientoAMI": { "score": 15, "nivel": "Requiere un enfoque AMI" },
+                            "recomendaciones": ["Verificar fuente", "Contrastar fechas"]
+                          }
+                        },
+                        "evidence": {
+                          "fact_check_table": [
+                            { "claim": "Aliens landed today", "verdict": "Refutado", "explanation": "No evidence found." }
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Job ID not found."
+          },
+          "502": {
+            "description": "Python API unreachable."
+          }
+        }
+      }
+    }
+  }
+}
