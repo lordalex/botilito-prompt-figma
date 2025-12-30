@@ -9,7 +9,7 @@ import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
-import { Loader2, FileText, Image, Video, Music, Calendar, User, Users as UsersIcon } from 'lucide-react';
+import { Loader2, FileText, Image, Video, Music, Calendar, User, Users as UsersIcon, ChevronRight } from 'lucide-react';
 import { LoadingView } from './LoadingView';
 import { generateDisplayId } from '../utils/humanVerification/api';
 
@@ -164,9 +164,17 @@ export function HumanVerification() {
     }
 
     if (selectedCase && unifiedCaseData) {
-        // Determine content type from forensic metadata
+        // Determine content type from standardized_case type or legacy metadata
         const getContentType = (): 'text' | 'image' | 'audio' => {
-            // Check if it's forensic analysis with image data
+            // Check new DTO type field first
+            if (unifiedCaseData.type) {
+                const type = unifiedCaseData.type.toLowerCase();
+                if (type === 'image' || type === 'video') return 'image';
+                if (type === 'audio') return 'audio';
+                return 'text';
+            }
+
+            // Fallback to legacy forensic detection
             const isForensic = unifiedCaseData?.raw?.metadata?.is_forensic || selectedCase.metadata?.is_forensic;
             if (isForensic) {
                 const hasImageDetails = unifiedCaseData?.raw?.all_documents?.[0]?.result?.details?.[0]?.original_frame;
@@ -186,17 +194,23 @@ export function HumanVerification() {
             return 'text';
         };
 
+        // Get main asset URL from StandardizedCase (main_asset_url) or legacy format
+        const mainAssetUrl = unifiedCaseData.mainAssetUrl ||
+            unifiedCaseData.overview?.main_asset_url ||
+            unifiedCaseData.metadata?.screenshot ||
+            selectedCase.metadata?.screenshot;
+
         return <UnifiedAnalysisView
             data={unifiedCaseData}
             contentType={getContentType()}
             mode="human"
-            title={selectedCase.title}
-            caseNumber={selectedCase.displayId || selectedCase.id.slice(0, 8)}
-            timestamp={selectedCase.created_at}
-            reportedBy="Comunidad"
-            screenshot={selectedCase.metadata?.screenshot}
+            title={unifiedCaseData.title || selectedCase.title}
+            caseNumber={generateDisplayId(selectedCase)}
+            timestamp={unifiedCaseData.created_at || selectedCase.created_at}
+            reportedBy={unifiedCaseData.reporter?.name || "Comunidad"}
+            screenshot={mainAssetUrl}
             onReset={handleBackToList}
-            onSubmitDiagnosis={handleSubmitVerification} // Hook handles the logic
+            onSubmitDiagnosis={handleSubmitVerification}
             isSubmittingDiagnosis={isSubmitting}
         />;
     }
@@ -308,8 +322,17 @@ export function HumanVerification() {
                                                 {verdictBadge.label}
                                             </Badge>
                                         ) : (
-                                            <Button size="sm" variant="outline">
-                                                Verificar
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                className="gap-2 hover:bg-slate-100"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    if (c.id) handleSelectCase(c.id);
+                                                }}
+                                            >
+                                                Validar
+                                                <ChevronRight className="h-4 w-4" />
                                             </Button>
                                         )}
                                     </div>

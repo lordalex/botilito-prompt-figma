@@ -4,26 +4,69 @@ import type { JobStatusResponse, VerificationSummaryResult, CaseEnriched } from 
 
 /**
  * Generate a display ID for a case
- * Format: VECTOR-TIPO-REGION-TEMA-HASH
- * Example: WE-TX-LA-PO-22D
+ * Format: TYPE-VECTOR-YYYYMMDD-SEQ
+ * Example: T-WB-20241015-156 (Text from Web, Oct 15 2024, sequence 156)
+ * 
+ * TYPE: T=Text, I=Image, V=Video, A=Audio
+ * VECTOR: WB=Web, WH=WhatsApp, FA=Facebook, XX=Twitter/X, IG=Instagram, etc.
+ * DATE: YYYYMMDD from created_at
+ * SEQ: First 3 digits from UUID converted to number
  */
-export function generateDisplayId(caseData: CaseEnriched): string {
-  // VECTOR: Detect from URL
-  const vector = detectVector(caseData.url || '');
+export function generateDisplayId(caseData: any): string {
+  // Handle both StandardizedCase and legacy formats
+  const id = caseData.id || '';
+  const createdAt = caseData.created_at;
+  const url = caseData.url || caseData.overview?.source_domain || '';
+  const type = caseData.type || caseData.submission_type || 'text';
 
-  // TIPO: From submission_type
-  const tipo = getTipoCode(caseData.submission_type);
+  // TYPE: Single letter based on content type
+  const typeCode = getTypeCode(type);
 
-  // REGION: Default to LA (LatAm) - can be enhanced later
-  const region = 'LA';
+  // VECTOR: Detect from URL or source_domain
+  const vector = detectVector(url);
 
-  // TEMA: Default to GE (General) - can be enhanced from diagnostic_labels
-  const tema = getTemaFromLabels(caseData.diagnostic_labels);
+  // DATE: Format YYYYMMDD from created_at
+  const dateStr = formatDateCode(createdAt);
 
-  // HASH: First 3 characters of UUID, uppercase
-  const hash = caseData.id.replace(/-/g, '').substring(0, 3).toUpperCase();
+  // SEQ: Convert first 3 chars of UUID to a 3-digit sequence
+  const seq = getSequenceNumber(id);
 
-  return `${vector}-${tipo}-${region}-${tema}-${hash}`;
+  return `${typeCode}-${vector}-${dateStr}-${seq}`;
+}
+
+/**
+ * Get single letter type code
+ */
+function getTypeCode(type: string): string {
+  const t = (type || 'text').toLowerCase();
+  if (t.includes('image') || t === 'media') return 'I';
+  if (t.includes('video')) return 'V';
+  if (t.includes('audio')) return 'A';
+  return 'T'; // Text default
+}
+
+/**
+ * Format date as YYYYMMDD
+ */
+function formatDateCode(createdAt: string | undefined): string {
+  if (!createdAt) return new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  try {
+    const date = new Date(createdAt);
+    return date.toISOString().slice(0, 10).replace(/-/g, '');
+  } catch {
+    return new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  }
+}
+
+/**
+ * Convert UUID prefix to sequence number
+ */
+function getSequenceNumber(id: string): string {
+  if (!id) return '000';
+  // Take first 3 hex chars and convert to number (0-4095), then pad to 3 digits
+  const hexPart = id.replace(/-/g, '').substring(0, 3);
+  const num = parseInt(hexPart, 16) % 1000;
+  return num.toString().padStart(3, '0');
 }
 
 /**

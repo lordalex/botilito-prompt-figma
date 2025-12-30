@@ -11,6 +11,7 @@ import {
     MessageSquare,
     Bot
 } from 'lucide-react';
+import { generateDisplayId } from '@/utils/humanVerification/api';
 
 /* -------------------------------------------------------------------------- */
 /*                                Types & Interfaces                          */
@@ -437,8 +438,79 @@ export const transformHumanCaseToUI = (caseData: any) => {
         const reporter = extractedCase.reporter || {};
         const community = extractedCase.community || {};
 
-        // Separate insights by category
+        // Extract recommendations and competencies from insights
+        const recommendationInsights = insights.filter((i: any) => i.category === 'recommendation');
+        const competencyInsights = insights.filter((i: any) => i.category === 'competency');
+
+        // Build recommendations array (Primary source: explicit insights)
+        let recomendaciones = recommendationInsights.map((i: any) => i.description || i.label);
+
+        // Build competencies analysis object (Primary source: explicit insights)
+        let competenciesAnalysis = competencyInsights.reduce((acc: any, curr: any) => {
+            acc[curr.id] = {
+                score: curr.score || 0,
+                name: curr.label,
+                description: curr.description,
+                recommendations: curr.raw_data?.recommendations || []
+            };
+            return acc;
+        }, {});
+
+        // FALLBACK: If no explicit competencies, derive from failed AMI criteria
         const contentQualityInsights = insights.filter((i: any) => i.category === 'content_quality');
+
+        if (Object.keys(competenciesAnalysis).length === 0 && contentQualityInsights.length > 0) {
+            // Identify failed criteria (score < 70 or value "No Cumple")
+            const failedCriteria = contentQualityInsights.filter((i: any) =>
+                (i.score !== undefined && i.score < 70) ||
+                (i.value && i.value.toString().toLowerCase().includes('no cumple'))
+            );
+
+            // Generate Map of criteria to recommendations
+            const remediationMap: Record<string, string> = {
+                'Claridad de la fuente': 'Verificar siempre la autoría y la reputación del medio.',
+                'Trazabilidad': 'Buscar enlaces a las fuentes primarias y documentos originales.',
+                'Hechos vs Opinión': 'Diferenciar claramente entre la información factual y los comentarios de opinión.',
+                'Contexto Temporal': 'Confirmar la fecha de publicación y si el contenido es vigente.',
+                'Contexto Geográfico': 'Validar la ubicación de los hechos reportados.',
+                'Pluralidad': 'Consultar otras fuentes para contrastar diferentes puntos de vista.',
+                'Credibilidad': 'Investigar el historial de veracidad del medio y el autor.',
+                'Uso de datos': 'Exigir referencias claras para cifras y estadísticas presentadas.',
+                'Lenguaje emocional': 'Analizar si el lenguaje busca manipular emociones en lugar de informar.',
+                'Intencionalidad': 'Reflexionar sobre el propósito del contenido (informar, persuadir, vender).',
+                'Derechos Humanos': 'Evaluar si el contenido respeta la dignidad y derechos de las personas.',
+                'Ética': 'Considerar si el contenido cumple con estándares éticos periodísticos.',
+                'Desinformación': 'Estar alerta ante contenido fabricado o manipulado intencionalmente.',
+                'Malinformación': 'Identificar información verídica usada fuera de contexto para dañar.',
+                'Sesgos': 'Reconocer los posibles sesgos ideológicos o comerciales del medio.',
+                'Transparencia': 'Valorar si el medio es abierto sobre su financiación y metodología.',
+                'Influencia algorítmica': 'Ser consciente de cómo los algoritmos pueden filtrar lo que ves.',
+                'Participación': 'Buscar formas de participar constructivamente en el debate público.',
+                'Impacto social': 'Considerar las consecuencias sociales del contenido consumido.',
+                'Pensamiento crítico': 'Cuestionar siempre la información y buscar evidencia adicional.'
+            };
+
+            // Populate recommendations and competencies from failures
+            failedCriteria.slice(0, 5).forEach((crit: any) => {
+                const label = crit.label;
+                const advice = remediationMap[label] || `Mejorar el aspecto de ${label} mediante verificación adicional.`;
+
+                // Add to recommendations list if empty
+                if (recomendaciones.length < 5) {
+                    recomendaciones.push(advice);
+                }
+
+                // Add to competencies analysis
+                competenciesAnalysis[`comp_${crit.id}`] = {
+                    score: crit.score || 0,
+                    name: `Competencia: ${label}`,
+                    description: `El contenido presenta debilidades en ${label}.`,
+                    recommendations: [advice]
+                };
+            });
+        }
+
+        // Separate insights by category (continued)
         const factCheckInsights = insights.filter((i: any) => i.category === 'fact_check');
         const forensicsInsights = insights.filter((i: any) => i.category === 'forensics');
         const metadataInsights = insights.filter((i: any) => i.category === 'metadata');
@@ -484,8 +556,13 @@ export const transformHumanCaseToUI = (caseData: any) => {
                     nivel: overview.verdict_label || "Análisis Completado",
                     diagnostico: overview.summary || "Análisis completado."
                 },
+                // Badge fields for UnifiedAnalysisView
+                tipoFuente: overview.source_domain || 'Desconocido',
+                tipoContenido: extractedCase.type === 'text' ? 'Hecho' : (extractedCase.type || 'Contenido'),
+                tema: 'General', // Default as specific theme is not in current DTO
+
                 criterios: criterios,
-                recomendaciones: []
+                recomendaciones: recomendaciones
             },
             summaries: {
                 resumen: overview.summary,
@@ -493,7 +570,7 @@ export const transformHumanCaseToUI = (caseData: any) => {
                 fuente: overview.source_domain
             },
             specific_techniques_analysis: {},
-            competencies_analysis: {},
+            competencies_analysis: competenciesAnalysis,
             verification: {
                 fact_check_table: factCheckTable
             },
@@ -637,6 +714,8 @@ export const transformHumanCaseToUI = (caseData: any) => {
     };
 }
 
+
+
 /* -------------------------------------------------------------------------- */
 /*                        Sidebar Props Mappers                               */
 /* -------------------------------------------------------------------------- */
@@ -655,6 +734,9 @@ export const mapMetadataProps = (data: any, type: 'text' | 'image' | 'audio') =>
 
     if (!caseData) return defaultProps;
 
+    // Generate formatted ID
+    const formattedId = generateDisplayId(caseData);
+
     // Check if this is StandardizedCase format (has overview/insights)
     const isStandardizedCase = !!(caseData.overview || caseData.insights);
 
@@ -667,7 +749,7 @@ export const mapMetadataProps = (data: any, type: 'text' | 'image' | 'audio') =>
             ...defaultProps,
             fileName: overview.title || caseData.title || 'Archivo Desconocido',
             basicMetadata: [
-                { label: 'Caso', value: caseData.id?.slice(0, 8).toUpperCase() },
+                { label: 'Caso', value: formattedId },
                 { label: 'Tipo', value: (caseData.type || type).toUpperCase() },
                 { label: 'Vector de transmisión', value: overview.source_domain ? 'Web' : 'Direct' },
                 { label: 'Reportado por', value: reporter.name || 'Anónimo' },
@@ -742,15 +824,27 @@ export const mapRecommendations = (data: any) => {
     // Handle both direct data and nested case data
     const caseData = data?.case || data;
 
-    // Try to get recommendations from ai_analysis.classification.recomendaciones
-    const recommendations = caseData?.ai_analysis?.classification?.recomendaciones;
-
-    if (Array.isArray(recommendations) && recommendations.length > 0) {
-        return recommendations;
+    // 1. Try to get from specific StandardizedCase extraction first (set in transformHumanCaseToUI)
+    if (caseData?.ai_analysis?.classification?.recomendaciones?.length > 0) {
+        return caseData.ai_analysis.classification.recomendaciones;
     }
 
-    // Fallback
-    return ["Verificar fuentes citadas", "Contrastar con otros medios"];
+    // 2. Fallback: Try to extract from insights directly if not already done
+    if (caseData?.insights) {
+        const recs = caseData.insights
+            .filter((i: any) => i.category === 'recommendation')
+            .map((i: any) => i.description || i.label);
+
+        if (recs.length > 0) return recs;
+    }
+
+    // 3. Fallback: Legacy location
+    const legacyRecs = caseData?.ai_analysis?.classification?.recomendaciones;
+    if (Array.isArray(legacyRecs) && legacyRecs.length > 0) {
+        return legacyRecs;
+    }
+
+    return [];
 };
 
 export const mapCommunityVotes = (data: any) => {
