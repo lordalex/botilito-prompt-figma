@@ -5,20 +5,6 @@ import { ContentUploadResult } from './ContentUploadResult';
 import { CaseRegisteredView } from './CaseRegisteredView';
 import { ErrorManager } from './ErrorManager';
 
-// ========== MOCK DATA PARA TESTING ==========
-const USE_MOCK_DATA = false; // Cambiar a false para usar datos reales
-
-const MOCK_CASE_DATA = {
-  caseCode: 'I-TL-20241230-7XK',
-  createdAt: '2024-12-30T15:32:00.000Z',
-  contentType: 'imagen' as const,
-  analysisType: 'Forense',
-  fileName: '1920x1000-05.jpg',
-  fileSize: '245.32 KB',
-  vector: 'Telegram',
-};
-// ============================================
-
 interface ContentUploadProps {
   jobId?: string;
   jobType?: string;
@@ -44,12 +30,6 @@ export function ContentUpload({ jobId, jobType, onReset }: ContentUploadProps) {
     internalReset();
     onReset?.();
   };
-
-  // ========== MOCK MODE ==========
-  if (USE_MOCK_DATA) {
-    return <CaseRegisteredView caseData={MOCK_CASE_DATA} onReportAnother={handleReset} />;
-  }
-  // ===============================
 
   if (status === 'error' && error) {
     return (
