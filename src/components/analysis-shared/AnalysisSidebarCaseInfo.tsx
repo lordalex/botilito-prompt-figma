@@ -31,11 +31,11 @@ export function AnalysisSidebarCaseInfo({
     ];
 
     return (
-        <Card className="border-2 border-[#ffda00] bg-white rounded-[12px]">
+        <Card className="border-2 border-[#ffda00] bg-white rounded-md">
             <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-3">
                     <div className="w-5 h-5 rounded-full bg-[#ffda00] flex items-center justify-center flex-shrink-0">
-                        <FileText className="h-3 w-3 text-white" />
+                        <FileText className="h-5 w-5 text-primary" />
                     </div>
                     <span className="text-[16px] leading-[24px] font-normal text-black">
                         Información del Caso
@@ -45,7 +45,7 @@ export function AnalysisSidebarCaseInfo({
             <CardContent className="space-y-3 pt-0">
                 {items.map((item, idx) => (
                     <div key={idx} className="flex justify-between items-start">
-                        <span className="text-[12px] leading-[16px] text-[#6b7280]">{item.label}</span>
+                        <span className="text-[12px] leading-[16px] text-muted-foreground">{item.label}</span>
                         <span className="text-[12px] leading-[16px] text-black font-normal text-right truncate max-w-[150px]" title={String(item.value)}>
                             {item.value}
                         </span>

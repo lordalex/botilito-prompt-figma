@@ -100,9 +100,21 @@ export function CaseDetailView({
     // Determine content type from case data
     // The API might return different values for submission_type
     const getContentType = (): 'text' | 'image' | 'audio' => {
+        // Check if it's forensic analysis with image/audio data
+        const isForensic = transformedData?.raw?.metadata?.is_forensic || caseDetail.metadata?.is_forensic;
+        if (isForensic) {
+            const hasImageDetails = transformedData?.raw?.all_documents?.[0]?.result?.details?.[0]?.original_frame;
+            if (hasImageDetails) return 'image';
+
+            // Check for audio in submission_type when forensic
+            if (caseDetail.submission_type?.toLowerCase?.().includes('audio')) return 'audio';
+        }
+
+        // Check submission_type
         const submissionType = caseDetail.submission_type?.toLowerCase?.() || '';
-        if (submissionType.includes('image')) return 'image';
+        if (submissionType.includes('image') || submissionType === 'media') return 'image';
         if (submissionType.includes('audio')) return 'audio';
+
         return 'text';
     };
     const contentType = getContentType();

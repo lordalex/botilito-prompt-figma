@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Progress } from './ui/progress';
-import { Loader2, Bot, Users, CheckCircle, AlertTriangle, XCircle, ArrowLeft, Image as ImageIcon, Video, Volume2, FileText, Link2, Tag, Clock, MapPin, User, Zap, Search, Shield, Flame } from 'lucide-react';
-import botilitoMascot from '@/assets/botilito-mascot.png';
+import { Loader2, Bot, Users, CheckCircle, AlertTriangle, XCircle, ArrowLeft, Image as ImageIcon, Video, Volume2, FileText, Link2, Tag, Clock, MapPin, User, Zap, Search, Shield, Flame, ChevronLeft, ChevronRight } from 'lucide-react';
+// import botilitoMascot from '@/assets/botilito-mascot.png';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { TextAIAnalysis } from './TextAIAnalysis';
@@ -73,7 +73,7 @@ export function UnifiedAnalysisView({
                     </p>
                 </div>
                 <div className="max-w-md mx-auto">
-                    <Card className="border-2 border-primary/10 shadow-lg rounded-[12px]">
+                    <Card className="border-2 border-primary/10 shadow-lg rounded-md">
                         <CardHeader>
                             <CardTitle className="text-center text-lg">Estado del Análisis</CardTitle>
                         </CardHeader>
@@ -111,6 +111,48 @@ export function UnifiedAnalysisView({
     // Forensic mode detection and state
     const isForensic = contentType === 'image' || contentType === 'audio';
     const [forensicTab, setForensicTab] = useState<'pruebas' | 'evidencias'>('pruebas');
+    const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
+    // Get all available images from forensic data (all_documents + related_documents)
+    const getAvailableImages = () => {
+        if (contentType !== 'image') return [];
+
+        const images: string[] = [];
+
+        // Get images from all_documents
+        const allDocs = data?.raw?.all_documents || [];
+        allDocs.forEach((doc: any) => {
+            const details = doc?.result?.details || [];
+            details.forEach((detail: any) => {
+                if (detail.original_frame) {
+                    images.push(detail.original_frame);
+                }
+            });
+        });
+
+        // Also get from related_documents if available
+        const relatedDocs = data?.raw?.related_documents || [];
+        relatedDocs.forEach((doc: any) => {
+            const details = doc?.result?.details || [];
+            details.forEach((detail: any) => {
+                if (detail.original_frame) {
+                    images.push(detail.original_frame);
+                }
+            });
+        });
+
+        return images;
+    };
+
+    const availableImages = getAvailableImages();
+
+    const handlePrevImage = () => {
+        setCurrentImageIndex((prev) => (prev === 0 ? availableImages.length - 1 : prev - 1));
+    };
+
+    const handleNextImage = () => {
+        setCurrentImageIndex((prev) => (prev === availableImages.length - 1 ? 0 : prev + 1));
+    };
 
     // Helper: Get forensic verdict info from data
     const getForensicVerdictInfo = () => {
@@ -323,7 +365,14 @@ export function UnifiedAnalysisView({
     // Get visual URL for preview
     const getVisualUrl = () => {
         if (contentType === 'text') return data?.source_data?.screenshot || screenshot;
-        if (contentType === 'image') return data?.local_image_url || data?.file_info?.url;
+        if (contentType === 'image') {
+            // Try to get from forensic structure first (all_documents)
+            if (availableImages.length > 0) {
+                return availableImages[currentImageIndex];
+            }
+            // Fallback to old structure
+            return data?.local_image_url || data?.file_info?.url;
+        }
         if (contentType === 'audio') return data?.local_audio_url || data?.file_info?.url;
         return null;
     };
@@ -334,11 +383,11 @@ export function UnifiedAnalysisView({
             {/* ========== BOTILITO BANNER ========== */}
             <div className="bg-[#ffe97a] border-2 border-[#ffda00] rounded-lg p-4 shadow-lg mb-6">
                 <div className="flex items-center space-x-4">
-                    <img
+                    {/* <img
                         src={botilitoMascot}
                         alt="Botilito"
                         className="w-24 h-24 object-contain"
-                    />
+                    /> */}
                     <div className="flex-1">
                         <p className="text-xl">
                             ¡Qué más parce! Este es el análisis AMI completo 📰🎓
@@ -364,36 +413,63 @@ export function UnifiedAnalysisView({
 
                     {/* IMAGE/AUDIO PREVIEW - Figma: Dark card with rounded-full badge */}
                     {visualUrl && (
-                        <Card className="border-2 border-black bg-[#0a0e1a] overflow-hidden rounded-[12px]">
+                        <Card className="border-2 border-black bg-[#0a0e1a] rounded-md relative overflow-hidden">
+
                             {contentType === 'audio' ? (
                                 <div className="relative w-full bg-gray-900 p-8 flex flex-col items-center justify-center">
+                                    {/* Badge for audio */}
+                                    <div className="absolute top-4 left-6 bg-black/80 text-white px-3 py-1.5 rounded-full text-sm flex items-center gap-2 backdrop-blur-sm z-30">
+                                        <FileText className="h-4 w-4" />
+                                        Audio Original
+                                    </div>
                                     <div className="w-20 h-20 rounded-full bg-[#ffda00] flex items-center justify-center mb-4">
                                         <Volume2 className="h-10 w-10 text-black" />
                                     </div>
                                     <audio controls className="w-full max-w-md" src={visualUrl} />
-                                    <div className="absolute top-4 left-4 bg-black/70 text-white px-3 py-1.5 rounded-full text-sm flex items-center gap-2 backdrop-blur-sm">
-                                        <Volume2 className="h-4 w-4" />
-                                        Audio Original
-                                    </div>
                                 </div>
                             ) : (
-                                <div className="relative w-full bg-gray-900">
+                                <div className="relative w-full bg-gray-900 h-[500px] flex items-end justify-center py-12 px-8">
+                                    {/* Badge for image */}
+                                    <div className="absolute top-4 left-2 bg-black/80 text-white px-3 py-1.5 rounded-full text-sm flex items-center gap-2 backdrop-blur-sm z-30">
+                                        <FileText className="h-4 w-4" />
+                                        Imagen Original
+                                    </div>
+
                                     <img
                                         src={visualUrl}
                                         alt="Captura Original"
-                                        className="w-full h-[400px] object-cover"
+                                        className="max-w-full max-h-[500px] w-auto h-auto object-contain"
                                     />
-                                    <div className="absolute top-4 left-4 bg-black/70 text-white px-3 py-1.5 rounded-full text-sm flex items-center gap-2 backdrop-blur-sm">
-                                        <FileText className="h-4 w-4" />
-                                        Captura Original
-                                    </div>
+
+                                    {/* Navigation arrows for multiple images */}
+                                    {availableImages.length > 1 && (
+                                        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex items-center gap-4 mb-2">
+                                            <button
+                                                className="text-white bg-black/80 hover:bg-black/95 rounded-full h-12 w-12 flex items-center justify-center transition-colors shadow-lg backdrop-blur-sm"
+                                                onClick={handlePrevImage}
+                                                type="button"
+                                            >
+                                                <ChevronLeft className="h-7 w-7" />
+                                            </button>
+                                            <div className="bg-black/80 text-white px-4 py-2 rounded-full text-sm backdrop-blur-sm font-medium shadow-lg">
+                                                {currentImageIndex + 1} / {availableImages.length}
+                                            </div>
+                                            <button
+                                                className="text-white bg-black/80 hover:bg-black/95 rounded-full h-12 w-12 flex items-center justify-center transition-colors shadow-lg backdrop-blur-sm"
+                                                onClick={handleNextImage}
+                                                type="button"
+                                            >
+                                                <ChevronRight className="h-7 w-7" />
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </Card>
                     )}
 
                     {/* CONTENT INFO SECTION - Figma: Card with explicit font sizes */}
-                    <Card className="border border-[#e5e7eb] bg-white rounded-[12px]">
+                    <Card className="border border-[#e5e7eb] bg-white rounded-md">
                         <CardContent className="p-6">
                             {/* Titular */}
                             <div className="mb-4 pb-4 border-b border-gray-200">
@@ -435,7 +511,7 @@ export function UnifiedAnalysisView({
                     {/* TWO DIAGNOSIS CARDS - Figma: 36px percentage, font-normal */}
                     <div className="grid md:grid-cols-2 gap-6">
                         {/* Card 1: AI Diagnosis (Diagnóstico Infodémico) */}
-                        <Card className={`border-2 ${verdictColors.border} ${verdictColors.bg} rounded-[12px]`}>
+                        <Card className={`border-2 ${verdictColors.border} ${verdictColors.bg} rounded-md`}>
                             <CardContent className="p-6">
                                 <div className="flex items-start justify-between mb-4">
                                     <div className="flex items-center gap-3">
@@ -470,7 +546,7 @@ export function UnifiedAnalysisView({
                         </Card>
 
                         {/* Card 2: Human Consensus (Análisis Humano) */}
-                        <Card className={`border-2 ${verdictColors.border} ${verdictColors.bg} rounded-[12px]`}>
+                        <Card className={`border-2 ${verdictColors.border} ${verdictColors.bg} rounded-md`}>
                             <CardContent className="p-6">
                                 <div className="flex items-start justify-between mb-4">
                                     <div className="flex items-center gap-3">
@@ -506,10 +582,10 @@ export function UnifiedAnalysisView({
                     </div>
 
                     {/* AMI ANALYSIS SECTION - Figma: Full card with colored sub-sections */}
-                    <Card className="border border-[#e5e7eb] bg-white rounded-[12px]">
+                    <Card className="border border-[#e5e7eb] bg-white rounded-md">
                         <CardHeader className="pb-3">
                             <CardTitle className="flex items-center gap-2">
-                                <Zap className="h-5 w-5 text-[#ffda00]" />
+                                <Zap className="h-5 w-5 text-primary" />
                                 <span className="text-[18px] leading-[24px] font-normal text-black">
                                     Análisis con enfoque en Alfabetización Mediática e Informacional (AMI)
                                 </span>
@@ -626,10 +702,6 @@ export function UnifiedAnalysisView({
 
             {/* ========== VALIDATION PANEL (Full Width) ========== */}
             <div className="mt-8">
-                <div className="flex items-center gap-2 mb-4">
-                    <Users className="h-5 w-5 text-amber-600" />
-                    <h3 className="text-lg font-bold text-gray-900">Validación Humana</h3>
-                </div>
                 <CaseDiagnosisForm
                     caseId={caseInfoProps.caseNumber || caseNumber || 'new'}
                     aiAnalysis={data?.ai_analysis || data}

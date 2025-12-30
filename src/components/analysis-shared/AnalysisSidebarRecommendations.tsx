@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import botilitoMascot from '@/assets/botilito-mascot.png';
+// import botilitoMascot from '@/assets/botilito-mascot.png';
 
 interface AnalysisSidebarRecommendationsProps {
     recommendations: string[];
@@ -12,14 +12,14 @@ export function AnalysisSidebarRecommendations({
     if (!recommendations || recommendations.length === 0) return null;
 
     return (
-        <Card className="border-2 border-[#ffda00] bg-[#fffbeb] rounded-[12px]">
+        <Card className="border-2 border-[#ffda00] bg-[#fffbeb] rounded-md">
             <CardHeader className="pb-4">
                 <div className="flex items-center gap-3">
-                    <img
+                    {/* <img
                         src={botilitoMascot}
                         alt="Botilito"
                         className="h-[48px] w-[48px] object-contain"
-                    />
+                    /> */}
                     <CardTitle className="text-[16px] leading-[24px] font-medium text-black">
                         Recomendaciones
                     </CardTitle>

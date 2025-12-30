@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Button } from './ui/button';
 import { Textarea } from './ui/textarea';
 import { Label } from './ui/label';
-import { Bot, User, AlertTriangle, Send, Trash2 } from 'lucide-react';
+import { Bot, AlertTriangle, Send, Users } from 'lucide-react';
 import { Badge } from './ui/badge';
 // Using standard inputs for Radio to avoid missing component issues
 // import { RadioGroup, RadioGroupItem } from './ui/radio-group';
@@ -53,140 +53,132 @@ export function CaseDiagnosisForm({ caseId, aiAnalysis, onBack, onSubmit, isSubm
     };
 
     return (
-        <div className="w-full border-2 border-[#FFD740] rounded-xl overflow-hidden bg-white shadow-sm transition-all duration-300">
+        <div className="w-full border-2 border-primary rounded-lg overflow-hidden bg-[#fffbeb] shadow-sm">
             {/* Header */}
-            <div className="bg-[#FFF9C4] px-6 py-4 flex items-center gap-3 border-b border-[#FFD740]/30">
-                <User className="h-5 w-5 text-amber-900" />
-                <h2 className="text-lg font-bold text-amber-950">Validación Humana</h2>
+            <div className="px-6 py-4 flex items-center gap-3">
+                <Users className="h-5 w-5 text-primary" />
+                <h2 className="text-lg font-semibold text-black">Validación Humana</h2>
             </div>
 
-            <div className="p-6 md:p-8">
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            <div className="p-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
 
                     {/* Left Column: AI Diagnosis Recap */}
-                    <div className="lg:col-span-5">
-                        <div className="border border-slate-200 rounded-2xl p-8 flex flex-col items-center text-center space-y-6 bg-slate-50/50">
-                            <div className="flex items-center gap-2 text-slate-700 font-bold mb-2">
-                                <Bot className="h-6 w-6" />
-                                <h3>Diagnóstico de IA</h3>
+                    <div className="lg:col-span-1">
+                        <div className="border border-gray-200 rounded-lg p-6 flex flex-col items-center text-center space-y-4 bg-white">
+                            <div className="flex items-center gap-2 text-black font-semibold mb-2">
+                                <Bot className="h-5 w-5" />
+                                <h3 className="text-base">Diagnóstico de IA</h3>
                             </div>
 
                             <Badge
-                                variant={isAiWarning ? "default" : "secondary"}
-                                className={`
-                                    text-base px-6 py-3 rounded-xl font-bold tracking-wide shadow-none
-                                    ${isAiWarning ? 'bg-[#FFD740] text-amber-900 hover:bg-[#FFC107]' : 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'}
-                                `}
+                                className="text-sm px-4 py-2 rounded-md font-medium bg-primary text-black hover:bg-primary"
                             >
                                 {aiVerdict}
                             </Badge>
 
-                            <p className="font-bold text-slate-500">
-                                Confianza: <span className="text-slate-900">{aiScore}%</span>
+                            <p className="text-sm text-gray-600">
+                                Confianza: <span className="text-black font-medium">{aiScore}%</span>
                             </p>
                         </div>
                     </div>
 
                     {/* Right Column: Human Input */}
-                    <div className="lg:col-span-7 space-y-8">
-                        <div className="space-y-4">
-                            <Label className="text-base font-bold text-slate-800">
-                                ¿Estás de acuerdo con el diagnóstico de IA?
-                            </Label>
+                    <div className="lg:col-span-1 space-y-4">
+                        <Label className="text-sm font-semibold text-black">
+                            ¿Cuál es tu consideración como especialista sobre este caso?
+                        </Label>
 
-                            <div className="space-y-3">
-                                {/* Option 1: Desarrolla */}
-                                <label className={`
-                                    flex items-start gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all hover:bg-slate-50
-                                    ${selectedVerdict === 'desarrolla' ? 'border-primary bg-primary/5' : 'border-slate-200'}
-                                `}>
-                                    <input
-                                        type="radio"
-                                        name="verdict"
-                                        value="desarrolla"
-                                        checked={selectedVerdict === 'desarrolla'}
-                                        onChange={() => { setSelectedVerdict('desarrolla'); setError(null); }}
-                                        className="mt-1 w-4 h-4 text-primary border-gray-300 focus:ring-primary"
-                                    />
-                                    <div className="space-y-1">
-                                        <span className="font-bold text-slate-900 block">Desarrolla las premisas AMI</span>
-                                        <p className="text-xs text-slate-500 font-medium leading-normal">
-                                            El contenido cumple con los criterios de Alfabetización Mediática e Informacional
-                                        </p>
-                                    </div>
-                                </label>
+                        <div className="space-y-3">
+                            {/* Option 1: Desarrolla */}
+                            <label className={`
+                                flex items-center gap-3 p-4 rounded-lg border-2 cursor-pointer transition-all hover:bg-white
+                                ${selectedVerdict === 'desarrolla' ? 'border-primary bg-white' : 'border-gray-200 bg-white'}
+                            `}>
+                                <input
+                                    type="radio"
+                                    name="verdict"
+                                    value="desarrolla"
+                                    checked={selectedVerdict === 'desarrolla'}
+                                    onChange={() => { setSelectedVerdict('desarrolla'); setError(null); }}
+                                    className="w-4 h-4 text-primary border-gray-300 focus:ring-primary flex-shrink-0"
+                                />
+                                <div className="space-y-1">
+                                    <span className="font-medium text-black block">Desarrolla las premisas AMI</span>
+                                    <p className="text-xs text-gray-600 leading-relaxed">
+                                        El contenido cumple con los criterios de Alfabetización Mediática e Informacional
+                                    </p>
+                                </div>
+                            </label>
 
-                                {/* Option 2: Requiere */}
-                                <label className={`
-                                    flex items-start gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all hover:bg-slate-50
-                                    ${selectedVerdict === 'requiere' ? 'border-primary bg-primary/5' : 'border-slate-200'}
-                                `}>
-                                    <input
-                                        type="radio"
-                                        name="verdict"
-                                        value="requiere"
-                                        checked={selectedVerdict === 'requiere'}
-                                        onChange={() => { setSelectedVerdict('requiere'); setError(null); }}
-                                        className="mt-1 w-4 h-4 text-primary border-gray-300 focus:ring-primary"
-                                    />
-                                    <div className="space-y-1">
-                                        <span className="font-bold text-slate-900 block">Requiere un enfoque AMI</span>
-                                        <p className="text-xs text-slate-500 font-medium leading-normal">
-                                            El contenido necesita ser analizado bajo el enfoque de Alfabetización Mediática
-                                        </p>
-                                    </div>
-                                </label>
-                            </div>
+                            {/* Option 2: Requiere */}
+                            <label className={`
+                                flex items-center gap-3 p-4 rounded-lg border-2 cursor-pointer transition-all hover:bg-white
+                                ${selectedVerdict === 'requiere' ? 'border-primary bg-white' : 'border-gray-200 bg-white'}
+                            `}>
+                                <input
+                                    type="radio"
+                                    name="verdict"
+                                    value="requiere"
+                                    checked={selectedVerdict === 'requiere'}
+                                    onChange={() => { setSelectedVerdict('requiere'); setError(null); }}
+                                    className="w-4 h-4 text-primary border-gray-300 focus:ring-primary flex-shrink-0"
+                                />
+                                <div className="space-y-1">
+                                    <span className="font-medium text-black block">Requiere un enfoque AMI</span>
+                                    <p className="text-xs text-gray-600 leading-relaxed">
+                                        El contenido necesita ser analizado bajo el enfoque de Alfabetización Mediática
+                                    </p>
+                                </div>
+                            </label>
                         </div>
                     </div>
                 </div>
 
-                <div className="mt-8 space-y-8">
+                <div className="mt-6 space-y-6">
                     {/* Comments */}
                     <div className="space-y-2">
-                        <Label className="text-sm font-bold text-slate-800">Comentarios adicionales (opcional)</Label>
+                        <Label className="text-sm font-semibold text-black">Comentarios adicionales</Label>
                         <Textarea
                             placeholder="Añade cualquier observación relevante sobre tu validación..."
                             value={comments}
                             onChange={(e) => setComments(e.target.value)}
-                            className="min-h-[100px] resize-none text-sm"
+                            className="min-h-[100px] resize-none text-sm bg-white border-gray-300"
                             maxLength={500}
                         />
-                        <div className="text-[10px] text-right text-slate-400 font-mono">
+                        <div className="text-xs text-left text-gray-500">
                             {comments.length}/500 caracteres
                         </div>
                     </div>
 
                     {/* Footer Actions */}
-                    <div className="flex flex-col md:flex-row items-center justify-between gap-4 pt-4 border-t border-slate-100">
-                        <div className="w-full md:w-auto">
-                            {error && (
-                                <div className="bg-orange-50 text-orange-800 border-2 border-orange-200/50 py-2 px-4 rounded-lg flex items-center gap-2">
-                                    <AlertTriangle className="h-4 w-4" />
-                                    <span className="text-xs font-bold">
-                                        {error}
-                                    </span>
-                                </div>
-                            )}
-                        </div>
-
-                        <div className="flex items-center gap-3 w-full md:w-auto">
-                            <Button
-                                variant="outline"
-                                onClick={handleClear}
-                                className="border-slate-200 text-slate-600 hover:text-slate-900"
-                            >
-                                Limpiar
-                            </Button>
+                    <div className="flex flex-col gap-4">
+                        <div className="flex items-center gap-3 justify-center">
                             <Button
                                 onClick={handleSubmit}
                                 disabled={isSubmitting}
-                                className="bg-[#FFD740] hover:bg-[#FFC107] text-amber-950 font-bold px-8"
+                                className="bg-primary hover:bg-[#ffd000] text-black font-medium px-8 border-0"
                             >
-                                <Send className="mr-2 h-4 w-4 opacity-50" />
+                                <Send className="mr-2 h-4 w-4" />
                                 {isSubmitting ? 'Enviando...' : 'Enviar Validación'}
                             </Button>
+                            <Button
+                                variant="outline"
+                                onClick={handleClear}
+                                className="border-gray-300 bg-white text-black hover:bg-gray-50"
+                            >
+                                Limpiar
+                            </Button>
                         </div>
+
+                        {error && (
+                            <div className="bg-[#fffbeb] text-amber-900 border border-primary py-3 px-4 rounded-lg flex items-center gap-2">
+                                <AlertTriangle className="h-4 w-4" />
+                                <span className="text-sm font-medium">
+                                    {error}
+                                </span>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>

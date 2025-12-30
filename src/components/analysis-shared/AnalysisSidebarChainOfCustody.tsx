@@ -31,10 +31,10 @@ export function AnalysisSidebarChainOfCustody({ events }: AnalysisSidebarChainOf
     };
 
     return (
-        <Card className="border-2 border-[#ffda00] bg-white rounded-[12px]">
+        <Card className="border-2 border-[#ffda00] bg-white rounded-md">
             <CardHeader className="pb-4">
                 <CardTitle className="flex items-center gap-3">
-                    <Shield className="h-5 w-5 text-[#ffda00] flex-shrink-0" />
+                    <Shield className="h-5 w-5 text-primary flex-shrink-0" />
                     <span className="text-[16px] leading-[24px] font-normal text-black">
                         Cadena de Custodia
                     </span>
@@ -44,14 +44,14 @@ export function AnalysisSidebarChainOfCustody({ events }: AnalysisSidebarChainOf
                 <div className="space-y-0">
                     {events.map((event, idx) => (
                         <React.Fragment key={event.id || idx}>
-                            {idx > 0 && <div className="border-t border-gray-200" />}
+                            {idx > 0 && <div className="border-t border-muted-foreground" />}
                             <div className={`flex items-start gap-3 ${idx === 0 ? 'pb-4' : idx === events.length - 1 ? 'pt-4' : 'py-4'}`}>
                                 <div className="w-2 h-2 rounded-full bg-[#ffda00] mt-1.5 flex-shrink-0" />
                                 <div className="flex-1">
                                     <p className="text-[14px] leading-[20px] text-black font-medium mb-0.5">
                                         {event.title}
                                     </p>
-                                    <p className="text-[12px] leading-[18px] text-[#6b7280]">
+                                    <p className="text-[12px] leading-[18px] text-muted-foreground">
                                         {event.description}
                                     </p>
                                 </div>

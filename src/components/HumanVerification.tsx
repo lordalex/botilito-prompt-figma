@@ -93,9 +93,31 @@ export function HumanVerification() {
     }
 
     if (selectedCase && unifiedCaseData) {
+        // Determine content type from forensic metadata
+        const getContentType = (): 'text' | 'image' | 'audio' => {
+            // Check if it's forensic analysis with image data
+            const isForensic = unifiedCaseData?.raw?.metadata?.is_forensic || selectedCase.metadata?.is_forensic;
+            if (isForensic) {
+                const hasImageDetails = unifiedCaseData?.raw?.all_documents?.[0]?.result?.details?.[0]?.original_frame;
+                if (hasImageDetails) return 'image';
+            }
+
+            // Check submission_type from raw.metadata or case metadata
+            const submissionType = (
+                unifiedCaseData?.raw?.metadata?.submission_type ||
+                selectedCase.metadata?.submission_type ||
+                ''
+            ).toLowerCase();
+
+            if (submissionType.includes('image') || submissionType === 'media') return 'image';
+            if (submissionType.includes('audio')) return 'audio';
+
+            return 'text';
+        };
+
         return <UnifiedAnalysisView
             data={unifiedCaseData}
-            contentType="text" // Default to text, but should arguably come from caseData.submission_type
+            contentType={getContentType()}
             mode="human"
             title={selectedCase.title}
             caseNumber={selectedCase.displayId || selectedCase.id.slice(0, 8)}
