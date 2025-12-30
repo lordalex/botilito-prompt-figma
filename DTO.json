@@ -1,0 +1,249 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "Unified Media Analysis DTO",
+    "description": "A generic structure to represent analysis results from Text, Image, Audio, or Video pipelines uniformly, including lifecycle tracking.",
+    "type": "object",
+    "properties": {
+        "standardized_case": {
+            "$ref": "#/definitions/StandardizedCase"
+        }
+    },
+    "required": [
+        "standardized_case"
+    ],
+    "definitions": {
+        "StandardizedCase": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "created_at": {
+                    "type": "string",
+                    "format": "date-time"
+                },
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "text",
+                        "image",
+                        "video",
+                        "audio"
+                    ]
+                },
+                "lifecycle": {
+                    "$ref": "#/definitions/Lifecycle"
+                },
+                "overview": {
+                    "$ref": "#/definitions/Overview"
+                },
+                "insights": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/GenericInsight"
+                    }
+                },
+                "reporter": {
+                    "$ref": "#/definitions/Reporter"
+                },
+                "community": {
+                    "$ref": "#/definitions/Community"
+                }
+            },
+            "required": [
+                "id",
+                "type",
+                "lifecycle",
+                "overview",
+                "insights"
+            ]
+        },
+        "Lifecycle": {
+            "type": "object",
+            "description": "Tracking for Technical Job execution and Business Logic Chain of Custody.",
+            "properties": {
+                "job_status": {
+                    "type": "string",
+                    "enum": [
+                        "queued",
+                        "processing",
+                        "completed",
+                        "failed"
+                    ],
+                    "description": "Technical execution status of the analysis pipeline."
+                },
+                "custody_status": {
+                    "type": "string",
+                    "enum": [
+                        "registered",
+                        "analyzing",
+                        "ai_processed",
+                        "human_review",
+                        "finalized"
+                    ],
+                    "description": "Business logic status mapping to 'ingestion_status' in the database."
+                },
+                "last_update": {
+                    "type": "string",
+                    "format": "date-time"
+                }
+            },
+            "required": [
+                "job_status",
+                "custody_status"
+            ]
+        },
+        "Overview": {
+            "type": "object",
+            "properties": {
+                "title": {
+                    "type": "string"
+                },
+                "summary": {
+                    "type": "string"
+                },
+                "verdict_label": {
+                    "type": "string",
+                    "description": "Final assessment text (e.g. 'Desarrolla las estrategias AMI')."
+                },
+                "risk_score": {
+                    "type": "number",
+                    "description": "Global 0-100 compliance/risk score."
+                },
+                "main_asset_url": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "source_domain": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "required": [
+                "title",
+                "risk_score",
+                "verdict_label"
+            ]
+        },
+        "GenericInsight": {
+            "type": "object",
+            "description": "A single unit of analysis result (e.g., one algorithm output, one fact check, one metadata field).",
+            "properties": {
+                "id": {
+                    "type": "string",
+                    "description": "Unique key for this specific insight (e.g. 'algo_ela', 'ami_crit_1')"
+                },
+                "category": {
+                    "type": "string",
+                    "enum": [
+                        "forensics",
+                        "content_quality",
+                        "fact_check",
+                        "metadata",
+                        "compliance"
+                    ]
+                },
+                "label": {
+                    "type": "string",
+                    "description": "Human readable title (e.g. 'Error Level Analysis', 'Claridad de Fuente')"
+                },
+                "value": {
+                    "type": [
+                        "string",
+                        "number",
+                        "boolean"
+                    ],
+                    "description": "The primary finding (e.g. 0.95, 'Refutado', 'High Risk')"
+                },
+                "score": {
+                    "type": [
+                        "number",
+                        "null"
+                    ],
+                    "description": "Normalized risk/quality score 0-100"
+                },
+                "description": {
+                    "type": "string",
+                    "description": "Detailed explanation of the finding"
+                },
+                "artifacts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/Artifact"
+                    },
+                    "description": "Visual or textual evidence supporting this insight"
+                },
+                "raw_data": {
+                    "type": "object",
+                    "description": "Any complex objects needed for advanced UI (bounding boxes, etc)"
+                }
+            },
+            "required": [
+                "id",
+                "category",
+                "label",
+                "value"
+            ]
+        },
+        "Artifact": {
+            "type": "object",
+            "properties": {
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "image_url",
+                        "text_snippet",
+                        "link_url"
+                    ]
+                },
+                "content": {
+                    "type": "string",
+                    "description": "The URL or the text content"
+                },
+                "label": {
+                    "type": "string",
+                    "description": "Caption for the artifact (e.g. 'ELA Heatmap', 'Source Citation')"
+                }
+            },
+            "required": [
+                "type",
+                "content"
+            ]
+        },
+        "Reporter": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "reputation": {
+                    "type": "number"
+                }
+            },
+            "required": [
+                "id",
+                "name"
+            ]
+        },
+        "Community": {
+            "type": "object",
+            "properties": {
+                "votes": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        }
+    }
+}

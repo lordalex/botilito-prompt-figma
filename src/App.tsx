@@ -5,9 +5,9 @@ import { ResetPassword } from './components/ResetPassword';
 import { CompleteDashboard } from './components/CompleteDashboard';
 import { ContentUpload } from './components/ContentUpload';
 import { ContentReview } from './components/ContentReview';
-import { ContentAnalysisView } from './components/ContentAnalysisView';
 import { UnifiedAnalysisView } from './components/UnifiedAnalysisView';
 import { HumanVerification } from './components/HumanVerification';
+import { CaseDetailView } from './components/CaseDetailView';
 import { UserProfile } from './components/UserProfile';
 import { Navigation } from './components/Navigation';
 import { ExtensionApp } from './components/extension/ExtensionApp';
@@ -19,7 +19,7 @@ import { useAnalysisPolling } from './hooks/useAnalysisPolling';
 import { transformTextAnalysisToUI } from './services/analysisPresentationService';
 import { useAuth } from './providers/AuthProvider'; // Import the hook
 
-type ViewState = 'upload' | 'verification' | 'review' | 'mapa' | 'docs' | 'profile' | 'extension' | 'admin';
+type ViewState = 'upload' | 'verification' | 'review' | 'caseDetail' | 'mapa' | 'docs' | 'profile' | 'extension' | 'admin';
 
 export default function App() {
   const { isAuthenticated, isLoading, signOut, profileComplete, profileChecked, checkUserProfile, isPasswordRecovery, clearPasswordRecovery } = useAuth();
@@ -121,6 +121,30 @@ export default function App() {
       case 'review':
         return <ContentReview onViewTask={handleViewTask} />;
 
+      case 'caseDetail':
+        // Case detail view from Historial - uses UnifiedAnalysisView via CaseDetailView
+        if (currentJobId) {
+          return (
+            <div className="container mx-auto px-4 py-8">
+              <CaseDetailView
+                caseId={currentJobId}
+                mode="ai"
+                onBackToList={() => {
+                  setCurrentJobId(undefined);
+                  setCurrentJobType(undefined);
+                  setActiveTab('review');
+                }}
+                onVerificationSuccess={() => {
+                  setCurrentJobId(undefined);
+                  setActiveTab('review');
+                }}
+              />
+            </div>
+          );
+        }
+        // Fallback to review if no case selected
+        return <ContentReview onViewTask={handleViewTask} />;
+
       case 'mapa':
         return <MapaDesinfodemico />;
 
@@ -145,8 +169,8 @@ export default function App() {
     setCurrentJobId(jobId);
     setCurrentJobType(type);
 
-    // Always navigate to upload (AI) first when clicking a notification
-    setActiveTab('upload');
+    // Navigate to caseDetail view to show existing case from Historial
+    setActiveTab('caseDetail');
   };
 
   return (

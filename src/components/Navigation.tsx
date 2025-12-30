@@ -2,7 +2,7 @@ import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
-import { Bot, Upload, Users, FileSearch, LogOut, User, Settings, Trophy, Activity, Puzzle, Map, BookOpen, Syringe, LayoutDashboard } from 'lucide-react';
+import { Bot, Upload, Users, FileSearch, LogOut, User, Settings, Trophy, Activity, Puzzle, Map, BookOpen, LayoutDashboard } from 'lucide-react';
 import { NotificationCenter } from './notifications/NotificationCenter';
 import botilitoLogo from 'figma:asset/8604399dafdf4284ef499af970e8af43ff13e21b.png';
 import { useState } from 'react';
@@ -40,8 +40,7 @@ export function Navigation({ activeTab, onTabChange, onLogout, onViewTask }: Nav
 
   const tabs = [
     { id: 'upload', label: 'Análisis IA', icon: Upload },
-    { id: 'verification', label: 'Diagnóstico Humano', icon: Users },
-    { id: 'immunization', label: 'Inmunización', icon: Syringe },
+    { id: 'verification', label: 'Validación Humana', icon: Users },
     { id: 'review', label: 'Historial', icon: Bot },
     { id: 'mapa', label: 'Mapa Desinfodémico', icon: Map },
     { id: 'profile', label: 'Mi Perfil', icon: User },

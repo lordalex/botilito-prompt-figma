@@ -60,7 +60,7 @@ async function fetchClient(session: Session | null, url: string, options: Reques
 export const api = {
     ingestion: {
         submit: (session: Session, payload: IngestPayload): Promise<JobAcceptedResponse | FullAnalysisResponse> =>
-            fetchClient(session, `${apiEndpoints.VECTOR_ASYNC_BASE_URL}/submit`, {
+            fetchClient(session, `${apiEndpoints.SEARCH_DTO_BASE_URL}/submit`, {
                 method: 'POST',
                 body: JSON.stringify(payload),
             }),
@@ -70,7 +70,7 @@ export const api = {
                 body: JSON.stringify({ query, page, pageSize }),
             }),
         getStatus: (session: Session, jobId: string): Promise<any> =>
-            fetchClient(session, `${apiEndpoints.VECTOR_ASYNC_BASE_URL}/status/${jobId}`),
+            fetchClient(session, `${apiEndpoints.SEARCH_DTO_BASE_URL}/status/${jobId}`),
     },
     profile: {
         get: async (session: Session): Promise<ProfileResponse> => {

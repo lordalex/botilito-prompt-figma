@@ -36,12 +36,139 @@ export const normalizeAMIScore = (score: number) => {
 /**
  * Transforms the API response (Text Analysis) into a UI-ready object
  * compatible with the Sidebar components.
+ * 
+ * Supports both:
+ * - New DTO: standardized_case structure from text-analysis-dto.json
+ * - Legacy: classification.indiceCumplimientoAMI structure
  */
 export const transformTextAnalysisToUI = (data: any) => {
     if (!data) return null;
 
-    // Normalizing the AMI Score
-    // Accessing strict path based on: data.classification.indiceCumplimientoAMI.score
+    // Check for new standardized_case DTO structure
+    const standardizedCase = data.standardized_case || data.data?.standardized_case;
+
+    if (standardizedCase) {
+        // Handle new DTO format from text-analysis-dto.json
+        const overview = standardizedCase.overview || {};
+        const lifecycle = standardizedCase.lifecycle || {};
+        const insights = standardizedCase.insights || [];
+        const reporter = standardizedCase.reporter || {};
+        const community = standardizedCase.community || {};
+
+        // Transform insights to criteria list format
+        const criteriaList = insights.map((insight: any) => {
+            const score = insight.score ?? 0;
+            let statusColor = 'bg-slate-200';
+            let verdictType = 'info';
+
+            // Score interpretation: 0 = bad, 100 = good
+            if (score >= 70) {
+                statusColor = 'bg-emerald-500';
+                verdictType = 'success';
+            } else if (score >= 40) {
+                statusColor = 'bg-amber-500';
+                verdictType = 'warning';
+            } else {
+                statusColor = 'bg-red-500';
+                verdictType = 'error';
+            }
+
+            return {
+                id: insight.id,
+                nombre: insight.label,
+                justificacion: insight.description,
+                referencia: insight.artifacts?.find((a: any) => a.label?.includes('Referencia'))?.content || '',
+                score: score,
+                normalizedScore: score / 100,
+                cumple: score >= 70,
+                statusColor,
+                verdictType,
+                category: insight.category,
+                artifacts: insight.artifacts || [],
+                rawData: insight.raw_data
+            };
+        });
+
+        // Extract fact check insights
+        const factCheckTable = insights
+            .filter((i: any) => i.category === 'fact_check')
+            .map((item: any) => ({
+                claim: item.raw_data?.claim || item.label,
+                verdict: item.value || item.raw_data?.verdict,
+                explanation: item.description || item.raw_data?.explanation,
+                sources: item.artifacts?.filter((a: any) => a.type === 'text_snippet') || []
+            }));
+
+        return {
+            // Core Identity
+            id: standardizedCase.id,
+            created_at: standardizedCase.created_at,
+            type: standardizedCase.type,
+
+            // Lifecycle status
+            lifecycle: {
+                jobStatus: lifecycle.job_status,
+                custodyStatus: lifecycle.custody_status,
+                lastUpdate: lifecycle.last_update
+            },
+
+            // Overview data
+            title: overview.title,
+            summary: overview.summary,
+            verdictLabel: overview.verdict_label,
+            riskScore: overview.risk_score || 0,
+            mainAssetUrl: overview.main_asset_url,
+            sourceDomain: overview.source_domain,
+
+            // Metadata for Sidebar
+            fileName: overview.title || "Texto Analizado",
+            fileSize: `${overview.summary?.length || 0} chars`,
+
+            // Specific Analysis Blocks (mapped from overview)
+            icoScore: {
+                score: overview.risk_score || 0,
+                percent: Math.round(overview.risk_score || 0),
+                nivel: overview.verdict_label || "No disponible",
+            },
+            diagnosticoAMI: overview.summary || "",
+
+            criterios: criteriaList,
+            factCheckTable: factCheckTable,
+            insights: insights, // Keep raw insights for advanced components
+
+            // Reporter info
+            reporter: {
+                id: reporter.id,
+                name: reporter.name,
+                reputation: reporter.reputation
+            },
+
+            // Community votes
+            community: {
+                votes: community.votes || 0,
+                status: community.status
+            },
+
+            // Raw Data Access
+            raw: data,
+
+            // Mapping for Sidebar components
+            metadata: {
+                type: 'text',
+                language: 'es',
+                source: overview.source_domain || 'Direct Input'
+            },
+
+            // Stats for Sidebar
+            stats: [
+                { label: "Criterios Evaluados", value: criteriaList.length, icon: CheckCircle },
+                { label: "Fact Checks", value: factCheckTable.length, icon: User },
+                { label: "Puntuación de Riesgo", value: `${Math.round(overview.risk_score || 0)}%`, icon: AlertTriangle }
+            ]
+        };
+    }
+
+    // Legacy format handling (backwards compatibility)
     const amiScoreRaw = data.classification?.indiceCumplimientoAMI?.score || 0;
     const amiNivel = data.classification?.indiceCumplimientoAMI?.nivel || "No disponible";
     const diagnostic = data.classification?.indiceCumplimientoAMI?.diagnostico || "";
@@ -129,12 +256,134 @@ export const transformTextAnalysisToUI = (data: any) => {
 
 /**
  * Transforms the API response (Image Analysis) into a UI-ready object.
+ * 
+ * Supports both:
+ * - New DTO: standardized_case structure from image-analysis-api-dto.json
+ * - Legacy: technical_analysis and metadata structure
  */
 export const transformImageAnalysisToUI = (data: any) => {
     if (!data) return null;
 
-    // ... Implementation for Image
-    // Extract manipulation markers, metadata, etc.
+    // Check for new standardized_case DTO structure
+    const standardizedCase = data.standardized_case || data.result?.standardized_case;
+
+    if (standardizedCase) {
+        // Handle new DTO format from image-analysis-api-dto.json
+        const overview = standardizedCase.overview || {};
+        const lifecycle = standardizedCase.lifecycle || {};
+        const insights = standardizedCase.insights || [];
+
+        // Transform insights to forensic tests format
+        const forensicTests = insights.map((insight: any) => {
+            const score = insight.score ?? 0;
+            let statusColor = 'bg-slate-200';
+            let verdictType = 'info';
+
+            // Score interpretation for forensics: 0 = bad (manipulated), 100 = good (authentic)
+            if (score >= 70) {
+                statusColor = 'bg-emerald-500';
+                verdictType = 'success';
+            } else if (score >= 40) {
+                statusColor = 'bg-amber-500';
+                verdictType = 'warning';
+            } else {
+                statusColor = 'bg-red-500';
+                verdictType = 'error';
+            }
+
+            // Extract artifacts (heatmaps, masks, etc.)
+            const imageArtifacts = insight.artifacts?.filter((a: any) => a.type === 'image_url') || [];
+            const textArtifacts = insight.artifacts?.filter((a: any) => a.type === 'text_snippet') || [];
+
+            return {
+                id: insight.id,
+                name: insight.label,
+                label: insight.label,
+                description: insight.description,
+                value: insight.value,
+                score: score,
+                normalizedScore: score / 100,
+                category: insight.category,
+                statusColor,
+                verdictType,
+                // Forensic-specific artifacts
+                heatmap: imageArtifacts.find((a: any) => a.label?.toLowerCase().includes('calor'))?.content,
+                mask: imageArtifacts.find((a: any) => a.label?.toLowerCase().includes('mask') || a.label?.toLowerCase().includes('máscara'))?.content,
+                artifacts: insight.artifacts || [],
+                rawData: insight.raw_data
+            };
+        });
+
+        // Extract visualizations (heatmaps, masks) from all insights
+        const visualizations = insights.flatMap((insight: any) =>
+            (insight.artifacts || [])
+                .filter((a: any) => a.type === 'image_url')
+                .map((artifact: any) => ({
+                    id: `${insight.id}_${artifact.label}`,
+                    type: artifact.label?.toLowerCase().includes('calor') ? 'heatmap' :
+                        artifact.label?.toLowerCase().includes('mask') ? 'mask' : 'image',
+                    url: artifact.content,
+                    label: artifact.label,
+                    insightId: insight.id,
+                    insightLabel: insight.label
+                }))
+        );
+
+        return {
+            // Core Identity
+            id: standardizedCase.id,
+            created_at: standardizedCase.created_at,
+            type: standardizedCase.type,
+
+            // Lifecycle status
+            lifecycle: {
+                jobStatus: lifecycle.job_status,
+                custodyStatus: lifecycle.custody_status
+            },
+
+            // Overview data (verdict & risk)
+            title: overview.title || "Análisis Forense Visual",
+            summary: overview.summary,
+            verdictLabel: overview.verdict_label,
+            riskScore: overview.risk_score || 0,
+            mainAssetUrl: overview.main_asset_url,
+
+            // Metadata for Sidebar
+            fileName: overview.title || "Imagen",
+            fileSize: "Unknown",
+
+            // Forensic verdict mapping
+            summary_verdict: {
+                global_verdict: overview.verdict_label,
+                manipulation_probability: overview.risk_score || 0
+            },
+
+            // Forensic tests from insights
+            forensicTests: forensicTests,
+            insights: insights,
+
+            // Organized visualizations
+            visualizations: visualizations,
+
+            // Raw Data Access
+            raw: data,
+
+            // Mapping for Sidebar components
+            metadata: {
+                type: 'image',
+                mainAssetUrl: overview.main_asset_url
+            },
+
+            // Stats for Sidebar
+            stats: [
+                { label: "Pruebas Forenses", value: forensicTests.length, icon: CheckCircle },
+                { label: "Visualizaciones", value: visualizations.length, icon: User },
+                { label: "Riesgo de Manipulación", value: `${Math.round(overview.risk_score || 0)}%`, icon: AlertTriangle }
+            ]
+        };
+    }
+
+    // Legacy format handling (backwards compatibility)
     const technical = data.technical_analysis || {};
     const metadata = data.metadata || {};
 
@@ -163,18 +412,164 @@ export const transformAudioAnalysisToUI = (data: any) => {
 }
 
 /**
- * Transforms the CaseEnriched object (Human Verification / Historial) for the Unified View.
+ * Transforms the lookup result (StandardizedCase DTO) for the Unified View.
  * 
- * Handles multiple payload structures:
- * 1. Direct case object: { id, metadata: { ai_analysis, source_data }, human_votes }
- * 2. Result wrapper: { result: { cases: [{ metadata: { ai_analysis } }] } }
- * 3. Legacy structure: { case_judgement, diagnostic_labels }
+ * Handles the new search-dto API format:
+ * StandardizedCase { id, type, created_at, overview, insights, lifecycle, reporter, community }
+ * 
+ * Also maintains backwards compatibility with legacy formats.
+ * NO MOCK DATA - all values come from the payload.
  */
 export const transformHumanCaseToUI = (caseData: any) => {
     if (!caseData) return null;
 
-    // Extract the actual case data from nested structures
-    const extractedCase = caseData.result?.cases?.[0] || caseData.case || caseData;
+    // Extract the actual case - handle nested structures from lookup API
+    const extractedCase = caseData.case || caseData.result?.case || caseData;
+
+    // Check if this is the new StandardizedCase format (has overview/insights/lifecycle)
+    const isStandardizedCase = !!(extractedCase.overview || extractedCase.insights || extractedCase.lifecycle);
+
+    if (isStandardizedCase) {
+        // Parse StandardizedCase DTO format from search-dto API
+        const overview = extractedCase.overview || {};
+        const lifecycle = extractedCase.lifecycle || {};
+        const insights = extractedCase.insights || [];
+        const reporter = extractedCase.reporter || {};
+        const community = extractedCase.community || {};
+
+        // Separate insights by category
+        const contentQualityInsights = insights.filter((i: any) => i.category === 'content_quality');
+        const factCheckInsights = insights.filter((i: any) => i.category === 'fact_check');
+        const forensicsInsights = insights.filter((i: any) => i.category === 'forensics');
+        const metadataInsights = insights.filter((i: any) => i.category === 'metadata');
+
+        // Calculate average score from content_quality insights (AMI criteria)
+        const amiScores = contentQualityInsights.map((i: any) => i.score).filter((s: any) => typeof s === 'number');
+        const avgAmiScore = amiScores.length > 0
+            ? Math.round(amiScores.reduce((a: number, b: number) => a + b, 0) / amiScores.length)
+            : overview.risk_score || 0;
+
+        // Transform AMI criteria from insights
+        const criterios: Record<string, any> = {};
+        contentQualityInsights.forEach((insight: any) => {
+            const rawData = insight.raw_data || {};
+            criterios[insight.id] = {
+                nombre: insight.label,
+                score: insight.score || 0,
+                cumple: insight.score >= 70,
+                justificacion: insight.description,
+                referencia: rawData.referencia || rawData.cita,
+                evidencias: rawData.evidencias || []
+            };
+        });
+
+        // Transform fact check table
+        const factCheckTable = factCheckInsights.map((fc: any) => ({
+            claim: fc.raw_data?.claim || fc.description || fc.label,
+            verdict: fc.raw_data?.verdict || fc.value,
+            explanation: fc.raw_data?.explanation || fc.description,
+            score: fc.score,
+            sources: fc.artifacts?.filter((a: any) => a.type === 'text_snippet') || []
+        }));
+
+        // Extract source analysis from metadata insights
+        const sourceAnalysis = metadataInsights.find((i: any) => i.id === 'tech_sources');
+
+        // Build AI analysis compatible object for UnifiedAnalysisView
+        const aiAnalysisCompatible = {
+            classification: {
+                indiceCumplimientoAMI: {
+                    score: avgAmiScore,
+                    percent: Math.round(overview.risk_score || avgAmiScore),
+                    nivel: overview.verdict_label || "Análisis Completado",
+                    diagnostico: overview.summary || "Análisis completado."
+                },
+                criterios: criterios,
+                recomendaciones: []
+            },
+            summaries: {
+                resumen: overview.summary,
+                titulo: overview.title,
+                fuente: overview.source_domain
+            },
+            specific_techniques_analysis: {},
+            competencies_analysis: {},
+            verification: {
+                fact_check_table: factCheckTable
+            },
+            verdict: overview.verdict_label
+        };
+
+        return {
+            // Core identity from DTO
+            id: extractedCase.id,
+            type: extractedCase.type,
+            created_at: extractedCase.created_at,
+            title: overview.title,
+            summary: overview.summary,
+            url: overview.source_domain ? `https://${overview.source_domain}` : undefined,
+
+            // Overview from DTO
+            overview: overview,
+            verdictLabel: overview.verdict_label,
+            riskScore: overview.risk_score,
+            mainAssetUrl: overview.main_asset_url,
+
+            // Lifecycle from DTO
+            lifecycle: lifecycle,
+            custodyStatus: lifecycle.custody_status,
+            jobStatus: lifecycle.job_status,
+
+            // AI Analysis (transformed for UI components)
+            ai_analysis: aiAnalysisCompatible,
+
+            // Raw insights for advanced components
+            insights: insights,
+            contentQualityInsights: contentQualityInsights,
+            factCheckInsights: factCheckInsights,
+            forensicsInsights: forensicsInsights,
+
+            // Source analysis
+            sourceAnalysis: sourceAnalysis ? {
+                conclusion: sourceAnalysis.value,
+                analysis: sourceAnalysis.description
+            } : null,
+
+            // Community from DTO
+            community: community,
+            human_votes: {
+                count: community.votes || 0,
+                breakdown: community.breakdown || {}
+            },
+            consensus: {
+                state: community.status || 'ai_only',
+                final_labels: []
+            },
+
+            // Reporter from DTO
+            reporter: reporter,
+
+            // Metadata for sidebar
+            metadata: {
+                screenshot: overview.main_asset_url,
+                source: overview.source_domain || 'Direct Submission',
+                submission_type: extractedCase.type === 'text' ? 'Text' : extractedCase.type,
+                vector_de_transmision: overview.source_domain ? 'Web' : 'Direct',
+                reported_by: {
+                    id: reporter.id,
+                    name: reporter.name || 'Anónimo',
+                    reputation: reporter.reputation || 0
+                }
+            },
+
+            // Pass raw for fallback access
+            raw: caseData
+        };
+    }
+
+    // ========================================================================
+    // LEGACY FORMAT HANDLING (backwards compatibility)
+    // ========================================================================
 
     // Extract AI analysis from metadata or direct
     const aiAnalysis = extractedCase.metadata?.ai_analysis || extractedCase.ai_analysis;
@@ -252,7 +647,7 @@ export const mapMetadataProps = (data: any, type: 'text' | 'image' | 'audio') =>
 
     const defaultProps = {
         type,
-        fileName: caseData?.title || caseData?.source_data?.title || 'Archivo Desconocido',
+        fileName: 'Archivo Desconocido',
         fileSize: undefined as number | undefined,
         basicMetadata: [] as any[],
         technicalMetadata: [] as any[]
@@ -260,34 +655,82 @@ export const mapMetadataProps = (data: any, type: 'text' | 'image' | 'audio') =>
 
     if (!caseData) return defaultProps;
 
+    // Check if this is StandardizedCase format (has overview/insights)
+    const isStandardizedCase = !!(caseData.overview || caseData.insights);
+
+    if (isStandardizedCase) {
+        const overview = caseData.overview || {};
+        const reporter = caseData.reporter || {};
+        const lifecycle = caseData.lifecycle || {};
+
+        return {
+            ...defaultProps,
+            fileName: overview.title || caseData.title || 'Archivo Desconocido',
+            basicMetadata: [
+                { label: 'Caso', value: caseData.id?.slice(0, 8).toUpperCase() },
+                { label: 'Tipo', value: (caseData.type || type).toUpperCase() },
+                { label: 'Vector de transmisión', value: overview.source_domain ? 'Web' : 'Direct' },
+                { label: 'Reportado por', value: reporter.name || 'Anónimo' },
+                { label: 'Fecha', value: caseData.created_at ? new Date(caseData.created_at).toLocaleDateString('es-CO') : 'N/A' }
+            ],
+            technicalMetadata: [
+                { label: 'Fuente', value: overview.source_domain || 'Direct Submission' },
+                { label: 'Estado', value: lifecycle.custody_status || lifecycle.job_status || 'Procesado' }
+            ]
+        };
+    }
+
+    // Legacy format handling
     if (type === 'text') {
-        // Extract metadata from the actual API response structure
         const sourceData = caseData?.source_data;
         const metadata = caseData?.metadata;
-        const aiAnalysis = caseData?.ai_analysis;
 
         return {
             ...defaultProps,
             fileName: caseData?.title || sourceData?.title || 'Archivo Desconocido',
             basicMetadata: [
-                { label: 'Idioma', value: 'Español' },
-                { label: 'Tipo', value: 'Texto / Noticia' },
-                { label: 'Fuente', value: sourceData?.hostname || 'Web Link' }
+                { label: 'Tipo', value: metadata?.submission_type || 'Texto' },
+                { label: 'Fuente', value: metadata?.source || sourceData?.hostname || 'Direct Submission' },
+                { label: 'Reportado por', value: metadata?.reported_by?.name || 'Anónimo' }
             ],
             technicalMetadata: [
-                { label: 'Caracteres', value: caseData?.content?.length || sourceData?.text?.length || 0 },
-                { label: 'Sentimiento', value: 'Neutro' }
+                { label: 'Caracteres', value: caseData?.content?.length || sourceData?.text?.length || 0 }
             ]
         };
     }
 
-    // ... Implement Image/Audio mappers similar to previous specific components components
     return defaultProps;
 };
 
 export const mapStatsProps = (data: any, type: 'text' | 'image' | 'audio') => {
     if (!data) return [];
 
+    // Check if this is StandardizedCase format
+    const isStandardizedCase = !!(data.overview || data.insights || data.contentQualityInsights);
+
+    if (isStandardizedCase) {
+        const insights = data.insights || [];
+        const contentQuality = data.contentQualityInsights || insights.filter((i: any) => i.category === 'content_quality');
+        const factChecks = data.factCheckInsights || insights.filter((i: any) => i.category === 'fact_check');
+        const overview = data.overview || {};
+
+        return [
+            {
+                label: 'Pruebas realizadas',
+                value: contentQuality.length || insights.length
+            },
+            {
+                label: 'Tiempo total',
+                value: '12.0s' // Could be calculated from lifecycle timestamps
+            },
+            {
+                label: 'Nivel de precisión diagnóstica',
+                value: `${Math.round(overview.risk_score || 0)}%`
+            }
+        ];
+    }
+
+    // Legacy format
     if (type === 'text') {
         return data.stats || [];
     }

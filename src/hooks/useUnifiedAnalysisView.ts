@@ -9,8 +9,10 @@ import {
 
 /**
  * Context types for the UnifiedAnalysisView
- * - 'text': Fresh text analysis results (from textAnalysisService)
- * - 'image': Fresh image analysis results (from imageAnalysisService)
+ * 
+ * Uses standardized_case DTOs:
+ * - 'text': Uses text-analysis-dto.json (standardized_case with insights, overview, lifecycle)
+ * - 'image': Uses image-analysis-api-dto.json (standardized_case with forensic insights & artifacts)
  * - 'audio': Fresh audio analysis results (from audioAnalysisService)
  * - 'case': Case lookup results (from vectorAsyncService - used for human diagnosis & historial)
  */

@@ -9,7 +9,7 @@ import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
-import { Loader2 } from 'lucide-react';
+import { Loader2, FileText, Image, Video, Music, Calendar, User, Users as UsersIcon } from 'lucide-react';
 import { LoadingView } from './LoadingView';
 import { generateDisplayId } from '../utils/humanVerification/api';
 
@@ -18,6 +18,77 @@ const levels = [
     { level: 2, title: 'EPIDEMIÓLOGO DIGITAL VOLUNTARIO', subtitle: 'Analista de Contagio', minXP: 500, maxXP: 2000, badge: '🔬' },
     { level: 3, title: 'ESPECIALISTA EN INMUNOLOGÍA INFORMATIVA', subtitle: 'Educomunicador Estratégico', minXP: 2000, maxXP: 999999, badge: '💉' }
 ];
+
+/**
+ * Get content type info for display
+ */
+const getContentTypeInfo = (submissionType: string | undefined): {
+    icon: React.ReactNode;
+    label: string;
+    color: string;
+    bgColor: string;
+    borderColor: string;
+} => {
+    const type = (submissionType || 'text').toLowerCase();
+
+    if (type.includes('image') || type === 'media') {
+        return {
+            icon: <Image className="h-5 w-5" />,
+            label: 'Forense',
+            color: 'text-purple-600',
+            bgColor: 'bg-purple-50',
+            borderColor: 'border-l-purple-500'
+        };
+    }
+    if (type.includes('video')) {
+        return {
+            icon: <Video className="h-5 w-5" />,
+            label: 'Forense',
+            color: 'text-blue-600',
+            bgColor: 'bg-blue-50',
+            borderColor: 'border-l-blue-500'
+        };
+    }
+    if (type.includes('audio')) {
+        return {
+            icon: <Music className="h-5 w-5" />,
+            label: 'Forense',
+            color: 'text-green-600',
+            bgColor: 'bg-green-50',
+            borderColor: 'border-l-green-500'
+        };
+    }
+    // Default: text
+    return {
+        icon: <FileText className="h-5 w-5" />,
+        label: 'Desinfodémico',
+        color: 'text-amber-600',
+        bgColor: 'bg-amber-50',
+        borderColor: 'border-l-amber-500'
+    };
+};
+
+/**
+ * Get verdict badge styling based on case data
+ */
+const getVerdictBadge = (caseData: any): { label: string; className: string } | null => {
+    const labels = caseData.diagnostic_labels || [];
+    const consensus = caseData.consensus?.state;
+
+    // Check for specific verdicts
+    if (labels.includes('falso') || labels.includes('desinformacion')) {
+        return { label: 'Requiere un enfoque AMI', className: 'bg-red-100 text-red-700 border-red-200' };
+    }
+    if (labels.includes('manipulado')) {
+        return { label: 'Manipulado Digitalmente', className: 'bg-amber-100 text-amber-700 border-amber-200' };
+    }
+    if (labels.includes('verdadero')) {
+        return { label: '✓ Sin alteraciones', className: 'bg-green-100 text-green-700 border-green-200' };
+    }
+
+    // If no specific verdict, return null
+    return null;
+};
 
 export function HumanVerification() {
     const {
@@ -164,32 +235,87 @@ export function HumanVerification() {
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Casos Pendientes de Verificación Humana</CardTitle>
+                    <CardTitle>Casos Pendientes de Validación Humana</CardTitle>
                     <CardDescription>Tu análisis es crucial para determinar la veracidad de estos contenidos.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <div className="space-y-4">
-                        {cases.map((c, index) => (
-                            <Card key={index} className="hover:shadow-md transition-shadow">
-                                <CardHeader>
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <Badge variant="outline" className="font-mono text-xs bg-gray-50">
-                                            {c.displayId || generateDisplayId(c)}
-                                        </Badge>
+                    <div className="space-y-3">
+                        {cases.length === 0 ? (
+                            <p className="text-center text-muted-foreground py-8">
+                                No hay casos pendientes de verificación en este momento.
+                            </p>
+                        ) : cases.map((c) => {
+                            const typeInfo = getContentTypeInfo(c.submission_type);
+                            const verdictBadge = getVerdictBadge(c);
+                            const displayId = c.displayId || generateDisplayId(c);
+                            const createdDate = new Date(c.created_at);
+
+                            return (
+                                <div
+                                    key={c.id}
+                                    onClick={() => c.id && handleSelectCase(c.id)}
+                                    className={`flex items-stretch rounded-lg border-l-4 ${typeInfo.borderColor} bg-gradient-to-r from-amber-50 to-white hover:from-amber-100 hover:to-amber-50 transition-all cursor-pointer shadow-sm hover:shadow-md`}
+                                >
+                                    {/* Content Type Icon */}
+                                    <div className={`flex items-center justify-center px-4 ${typeInfo.bgColor}`}>
+                                        <div className={typeInfo.color}>
+                                            {typeInfo.icon}
+                                        </div>
                                     </div>
-                                    <CardTitle className="text-lg">{c.title || 'Sin título'}</CardTitle>
-                                    <div className="text-xs text-muted-foreground">
-                                        <span>{new Date(c.created_at).toLocaleDateString()}</span> | <span>Votos: {c.human_votes?.count || 0}</span>
+
+                                    {/* Main Content */}
+                                    <div className="flex-1 p-4">
+                                        {/* Header Row: Case ID + Type Badge + Title */}
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <span className="font-mono text-xs text-gray-500">
+                                                Caso: {displayId}
+                                            </span>
+                                            <Badge variant="outline" className={`text-xs ${typeInfo.bgColor} ${typeInfo.color} border-current`}>
+                                                ⚡ {typeInfo.label}
+                                            </Badge>
+                                            <span className="font-medium text-gray-900 truncate">
+                                                {c.title || 'Sin título'}
+                                            </span>
+                                        </div>
+
+                                        {/* Metadata Row */}
+                                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                                            <span className="flex items-center gap-1">
+                                                <Calendar className="h-3 w-3" />
+                                                {createdDate.toLocaleDateString('es-CO', {
+                                                    day: '2-digit',
+                                                    month: 'short',
+                                                    year: 'numeric',
+                                                    hour: '2-digit',
+                                                    minute: '2-digit'
+                                                })}
+                                            </span>
+                                            <span className="flex items-center gap-1">
+                                                <User className="h-3 w-3" />
+                                                Reportado por: {c.metadata?.reported_by?.name || 'usuario'}
+                                            </span>
+                                            <span className="flex items-center gap-1">
+                                                <UsersIcon className="h-3 w-3" />
+                                                {c.human_votes?.count || 0} validadores humanos
+                                            </span>
+                                        </div>
                                     </div>
-                                </CardHeader>
-                                <CardContent>
-                                    <p className="text-sm mb-4 line-clamp-2">{c.summary || 'No hay resumen disponible.'}</p>
-                                    <div className="flex justify-between items-center">
-                                        <Button onClick={() => handleSelectCase(c.id)} disabled={!c.id}>Verificar Ahora</Button>
+
+                                    {/* Verdict Badge (right side) */}
+                                    <div className="flex items-center px-4">
+                                        {verdictBadge ? (
+                                            <Badge className={`${verdictBadge.className} border`}>
+                                                {verdictBadge.label}
+                                            </Badge>
+                                        ) : (
+                                            <Button size="sm" variant="outline">
+                                                Verificar
+                                            </Button>
+                                        )}
                                     </div>
-                                </CardContent>
-                            </Card>
-                        ))}
+                                </div>
+                            );
+                        })}
                     </div>
                 </CardContent>
             </Card>
