@@ -92,6 +92,12 @@ export function VisualizationsTab({ data }: VisualizationsTabProps) {
                         </div>
                     </CardHeader>
                     <CardContent className="p-0 relative bg-black flex items-center justify-center min-h-[400px]">
+                        <button
+                            className="absolute left-4 z-10 text-white bg-black/50 hover:bg-black/70 rounded-full h-10 w-10 flex items-center justify-center transition-colors"
+                            onClick={handlePrev}
+                        >
+                            <ChevronLeft className="h-6 w-6" />
+                        </button>
 
                         <img
                             src={currentViz.isBase64 && !currentViz.image.startsWith('http') ? `data:image/jpeg;base64,${currentViz.image}` : currentViz.image}
@@ -99,21 +105,12 @@ export function VisualizationsTab({ data }: VisualizationsTabProps) {
                             className="max-h-[600px] w-full h-full object-contain"
                         />
 
-                        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 z-10 flex items-center gap-6 pb-2">
-                            <button
-                                className="text-white bg-black/50 hover:bg-black/70 rounded-full h-10 w-10 flex items-center justify-center transition-colors"
-                                onClick={handlePrev}
-                            >
-                                <ChevronLeft className="h-6 w-6" />
-                            </button>
-                            <button
-                                className="text-white bg-black/50 hover:bg-black/70 rounded-full h-10 w-10 flex items-center justify-center transition-colors"
-                                onClick={handleNext}
-                            >
-                                <ChevronRight className="h-6 w-6" />
-                            </button>
-                        </div>
-
+                        <button
+                            className="absolute right-4 z-10 text-white bg-black/50 hover:bg-black/70 rounded-full h-10 w-10 flex items-center justify-center transition-colors"
+                            onClick={handleNext}
+                        >
+                            <ChevronRight className="h-6 w-6" />
+                        </button>
                     </CardContent>
                 </Card>
 

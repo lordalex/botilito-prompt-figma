@@ -32,33 +32,33 @@ export function CaseDetailDialog({ caseId, onClose }: CaseDetailDialogProps) {
 
   return (
     <Dialog open={!!caseId} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="!w-[90vw] !min-w-[320px] sm:!w-[88vw] md:!w-[80vw] lg:!w-[900px] xl:!w-[1000px] !max-w-[1200px] !max-h-[90vh] overflow-hidden flex flex-col p-0 gap-0">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col p-0 gap-0">
         
         {/* Header */}
-        <DialogHeader className="p-3 sm:p-4 md:p-6 border-b border-gray-100 bg-gray-50/80 backdrop-blur-sm z-10 flex-shrink-0">
-          <div className="flex flex-col gap-1.5 sm:gap-2">
-            <div className="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs text-muted-foreground font-mono flex-wrap">
-              <span className="bg-yellow-100 text-yellow-800 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded font-semibold text-[10px] sm:text-xs">
+        <DialogHeader className="p-6 border-b border-gray-100 bg-gray-50/80 backdrop-blur-sm z-10 shrink-0">
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground font-mono">
+              <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded font-semibold">
                 {caseDetail ? (caseDetail.displayId || generateDisplayId(caseDetail)) : "..."}
               </span>
               <span>•</span>
-              <span className="text-[10px] sm:text-xs truncate max-w-[200px] sm:max-w-none">{caseDetail ? new Date(caseDetail.created_at).toLocaleString() : 'Cargando...'}</span>
+              <span>{caseDetail ? new Date(caseDetail.created_at).toLocaleString() : 'Cargando...'}</span>
             </div>
-            <DialogTitle className="text-base sm:text-lg md:text-xl lg:text-2xl font-bold text-gray-900 leading-tight line-clamp-2">
+            <DialogTitle className="text-xl md:text-2xl font-bold text-gray-900 leading-tight">
               {loading ? <Skeleton className="h-8 w-3/4" /> : (caseDetail?.title || "Detalle del Documento")}
             </DialogTitle>
             
             {!loading && caseDetail && (
-              <div className="flex items-center gap-1.5 sm:gap-2 mt-0.5 sm:mt-1 flex-wrap">
-                <Badge variant="outline" className="text-[10px] sm:text-xs md:text-sm bg-white shadow-sm px-1.5 sm:px-2 py-0.5">
+              <div className="flex items-center gap-2 mt-1">
+                <Badge variant="outline" className="text-sm bg-white shadow-sm">
                   {caseDetail.submission_type}
                 </Badge>
                 <Badge className={
                   caseDetail.consensus?.state === 'human_consensus' 
-                    ? 'bg-green-100 text-green-800 border-green-200 text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5' 
-                    : 'bg-blue-100 text-blue-800 border-blue-200 text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5'
+                    ? 'bg-green-100 text-green-800 border-green-200' 
+                    : 'bg-blue-100 text-blue-800 border-blue-200'
                 }>
-                  {caseDetail.consensus?.state === 'human_consensus' ? 'Verificado' : 'Solo IA'}
+                  {caseDetail.consensus?.state === 'human_consensus' ? 'Verificado por Humanos' : 'Solo IA'}
                 </Badge>
               </div>
             )}
@@ -67,47 +67,45 @@ export function CaseDetailDialog({ caseId, onClose }: CaseDetailDialogProps) {
         </DialogHeader>
         
         {/* Content */}
-        <div className="flex-1 min-h-0 overflow-y-auto">
-          <div className="p-3 sm:p-4 md:p-6 lg:p-8 space-y-4 sm:space-y-5 md:space-y-6">
+        <ScrollArea className="flex-1">
+          <div className="p-6 md:p-8 space-y-8">
             {loading ? (
               <DetailSkeleton />
             ) : error ? (
-              <div className="text-center py-12 text-red-500">
-                <AlertTriangle className="h-10 w-10 mx-auto mb-4 opacity-50" />
+              <div className="text-center py-20 text-red-500">
+                <AlertTriangle className="h-12 w-12 mx-auto mb-4 opacity-50" />
                 <p>{error}</p>
               </div>
             ) : caseDetail ? (
               <>
                 {/* Summary */}
-                <section className="bg-yellow-50/50 border border-yellow-100 rounded-lg sm:rounded-xl p-3 sm:p-4 md:p-5 shadow-sm">
-                  <h3 className="text-sm sm:text-base md:text-lg font-bold text-yellow-800 mb-2 sm:mb-3 flex items-center gap-1.5 sm:gap-2">
-                    <FileText className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
-                    <span>Resumen Analítico</span>
+                <section className="bg-yellow-50/50 border border-yellow-100 rounded-xl p-5 shadow-sm">
+                  <h3 className="text-lg font-bold text-yellow-800 mb-3 flex items-center gap-2">
+                    <FileText className="h-5 w-5" />
+                    Resumen Analítico
                   </h3>
-                  <div className="h-32 md:h-36 overflow-y-auto rounded-md border border-yellow-200 bg-white p-3 md:p-4 text-sm text-gray-800">
-                    <p className="leading-relaxed text-xs sm:text-sm md:text-base whitespace-pre-wrap break-words">
-                      La imagen presenta un veredicto general de 'AUTÉNTICO' por parte del sistema. Sin embargo, el valor de 'Análisis de Nivel de Error (Compresión)' es de 0.68, lo cual sugiere una manipulación de compresión significativa o re-guardado que podría afectar la calidad de la imagen, pero no necesariamente la autenticidad del contenido. Visualmente, el color dominante azul/cyan en la piel de la persona y en la mayoría de los objetos (sombrero, poncho, taza, bolso, cafetera, cesta) es una inconsistencia lógica visual notoria y antinatural, especialmente en comparación con el fondo que mantiene tonos más realistas para un paisaje. Esta inconsistencia de color es un indicativo claro de que la imagen ha sido alterada o procesada artificialmente para aplicar un filtro de color o una técnica de inversión de color/tono a los elementos en primer plano sin afectar el fondo de la misma manera. El texto en el paquete de café es ilegible debido a la baja resolución o al procesamiento de color. Aunque el sistema la etiqueta como auténtica, las severas inconsistencias de color apuntan a una alteración visual significativa, no inherente a la captura original. La imagen presenta un veredicto general de 'AUTÉNTICO' por parte del sistema. Sin embargo, el valor de 'Análisis de Nivel de Error (Compresión)' es de 0.68, lo cual sugiere una manipulación de compresión significativa o re-guardado que podría afectar la calidad de la imagen, pero no necesariamente la autenticidad del contenido. Visualmente, el color dominante azul/cyan en la piel de la persona y en la mayoría de los objetos (sombrero, poncho, taza, bolso, cafetera, cesta) es una inconsistencia lógica visual notoria y antinatural, especialmente en comparación con el fondo que mantiene tonos más realistas para un paisaje. Esta inconsistencia de color es un indicativo claro de que la imagen ha sido alterada o procesada artificialmente para aplicar un filtro de color o una técnica de inversión de color/tono a los elementos en primer plano sin afectar el fondo de la misma manera. El texto en el paquete de café es ilegible debido a la baja resolución o al procesamiento de color. Aunque el sistema la etiqueta como auténtica, las severas inconsistencias de color apuntan a una alteración visual significativa, no inherente a la captura original.
-                    </p>
-                  </div>
+                  <p className="text-gray-800 leading-relaxed">
+                    {caseDetail.summary || "No hay resumen disponible."}
+                  </p>
                 </section>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 md:gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   {/* Left Column */}
-                  <div className="space-y-3 sm:space-y-4">
+                  <div className="space-y-6">
                     {/* AI Analysis */}
                     <section>
-                      <h3 className="text-sm sm:text-base md:text-lg font-bold text-gray-900 mb-2 sm:mb-3 flex items-center gap-1.5 sm:gap-2 border-b pb-1.5 sm:pb-2">
-                        <Bot className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 flex-shrink-0" />
-                        <span>Análisis de IA</span>
+                      <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2 border-b pb-2">
+                        <Bot className="h-5 w-5 text-blue-600" />
+                        Análisis de IA
                       </h3>
                       <Card>
-                        <CardContent className="p-3 sm:p-4 space-y-3 sm:space-y-4">
+                        <CardContent className="p-5 space-y-6">
                           <div className="space-y-2">
                             <div className="flex justify-between items-center">
                               <span className="text-sm font-medium text-gray-500">Veredicto Global</span>
                               <Badge 
                                 variant={caseDetail.metadata?.global_verdict === 'TAMPERED' ? "destructive" : "secondary"}
-                                className="text-sm md:text-base px-2 md:px-3 py-1"
+                                className="text-base px-3 py-1"
                               >
                                 {caseDetail.metadata?.global_verdict || 'N/A'}
                               </Badge>
@@ -142,11 +140,11 @@ export function CaseDetailDialog({ caseId, onClose }: CaseDetailDialogProps) {
 
                     {/* Tech Data */}
                     <section>
-                      <h3 className="text-base md:text-lg font-bold text-gray-900 mb-3 flex items-center gap-2 border-b pb-2">
-                        <Activity className="h-5 w-5 text-purple-600 flex-shrink-0" />
+                      <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2 border-b pb-2">
+                        <Activity className="h-5 w-5 text-purple-600" />
                         Datos Técnicos
                       </h3>
-                      <div className="bg-gray-50 rounded-xl p-3 md:p-4 text-sm space-y-2 font-mono text-gray-600 border border-gray-200">
+                      <div className="bg-gray-50 rounded-xl p-4 text-sm space-y-2 font-mono text-gray-600 border border-gray-200">
                         <div className="flex justify-between">
                           <span>Latencia:</span>
                           <span className="text-gray-900">{caseDetail.metadata?.duration_ms || 0} ms</span>
@@ -160,14 +158,14 @@ export function CaseDetailDialog({ caseId, onClose }: CaseDetailDialogProps) {
                   </div>
 
                   {/* Right Column */}
-                  <div className="space-y-4">
+                  <div className="space-y-6">
                     <section>
-                      <h3 className="text-base md:text-lg font-bold text-gray-900 mb-3 flex items-center gap-2 border-b pb-2">
-                        <Users className="h-5 w-5 text-green-600 flex-shrink-0" />
+                      <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2 border-b pb-2">
+                        <Users className="h-5 w-5 text-green-600" />
                         Verificación Comunitaria
                       </h3>
                       <Card className="bg-green-50/30 border-green-100">
-                        <CardContent className="p-4">
+                        <CardContent className="p-5">
                           <div className="flex items-center justify-between mb-4">
                             <span className="text-sm font-medium text-gray-600">Total Votos</span>
                             <span className="text-2xl font-bold text-green-700">
@@ -180,17 +178,15 @@ export function CaseDetailDialog({ caseId, onClose }: CaseDetailDialogProps) {
                     </section>
 
                     <section>
-                      <h3 className="text-base md:text-lg font-bold text-gray-900 mb-3 flex items-center gap-2 border-b pb-2">
-                        <Database className="h-5 w-5 text-gray-600 flex-shrink-0" />
+                      <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2 border-b pb-2">
+                        <Database className="h-5 w-5 text-gray-600" />
                         Contenido Original
                       </h3>
                       <Card className="bg-gray-50">
-                        <CardContent className="p-3 md:p-4">
-                          <div className="h-32 md:h-36 overflow-y-auto rounded-md border border-gray-200 bg-white p-3 md:p-4 text-sm text-gray-600">
-                            <p className="whitespace-pre-wrap break-words">
-                              {caseDetail.content || "Contenido no disponible."}
-                            </p>
-                          </div>
+                        <CardContent className="p-4">
+                          <ScrollArea className="h-48 rounded-md border border-gray-200 bg-white p-4 text-sm text-gray-600">
+                            {caseDetail.content || "Contenido no disponible."}
+                          </ScrollArea>
                           {caseDetail.url && (
                             <div className="mt-4">
                               <Button variant="outline" className="w-full gap-2" onClick={() => window.open(caseDetail.url!, '_blank')}>
@@ -207,9 +203,9 @@ export function CaseDetailDialog({ caseId, onClose }: CaseDetailDialogProps) {
               </>
             ) : null}
           </div>
-        </div>
-        <DialogFooter className="p-2.5 sm:p-3 md:p-4 border-t border-gray-100 bg-gray-50/50 flex-shrink-0 p-3">
-          <Button variant="ghost" onClick={onClose} className="text-sm">Cerrar</Button>
+        </ScrollArea>
+        <DialogFooter className="p-4 border-t border-gray-100 bg-gray-50/50">
+          <Button variant="ghost" onClick={onClose}>Cerrar</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -6,8 +6,8 @@ import { Textarea } from './ui/textarea';
 import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { 
-  Send, X, Link2, Image as ImageIcon, Video, Volume2, Share2,
-  Twitter, Facebook, MessageCircle, Instagram, Music, Youtube, Smartphone, Mail, FileText, Paperclip
+  Send, X, Link2, Image as ImageIcon, Video, Volume2, Plus, Share2,
+  Twitter, Facebook, MessageCircle, Instagram, Music, Youtube, Smartphone, Mail, FileText
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 import type { ContentType, TransmissionVector } from '../utils/caseCodeGenerator';
@@ -33,7 +33,6 @@ export function ContentUploadForm({ onSubmit, isSubmitting }: ContentUploadFormP
   const [transmissionMedium, setTransmissionMedium] = useState<TransmissionVector>('Otro');
   const [isDragging, setIsDragging] = useState(false);
   const [textareaRows, setTextareaRows] = useState(1);
-  const [fileError, setFileError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
 
@@ -71,38 +70,16 @@ export function ContentUploadForm({ onSubmit, isSubmitting }: ContentUploadFormP
   };
   
   const handleFileUpload = (files: FileList | null) => {
-    if (!files || files.length === 0) return;
-    const file = files[0];
-    if (!file) return;
-    setFileError(null);
-    
-    // Validar límites de tamaño según tipo de archivo
-    const fileSizeMB = file.size / 1024 / 1024;
-    let maxSizeMB = 0;
-    let fileTypeLabel = '';
-    
-    if (file.type.startsWith('image/')) {
-      maxSizeMB = 2;
-      fileTypeLabel = 'imagen';
-    } else if (file.type.startsWith('audio/')) {
-      maxSizeMB = 25;
-      fileTypeLabel = 'audio';
-    } else if (file.type.startsWith('video/')) {
-      maxSizeMB = 50;
-      fileTypeLabel = 'video';
+    if (!files) return;
+    const newFiles = Array.from(files);
+    setUploadedFiles(prev => [...prev, ...newFiles]);
+    if (files.length > 0) {
+      const file = files[0];
+      if (file.type.startsWith('image/')) setContentType('imagen');
+      else if (file.type.startsWith('video/')) setContentType('video');
+      else if (file.type.startsWith('audio/')) setContentType('audio');
+      else setContentType('texto');
     }
-    
-    if (maxSizeMB > 0 && fileSizeMB > maxSizeMB) {
-      setFileError(`El archivo de ${fileTypeLabel} excede el tamaño máximo permitido de ${maxSizeMB} MB`);
-      if (fileInputRef.current) fileInputRef.current.value = '';
-      return;
-    }
-    
-    setUploadedFiles([file]);
-    if (file.type.startsWith('image/')) setContentType('imagen');
-    else if (file.type.startsWith('video/')) setContentType('video');
-    else if (file.type.startsWith('audio/')) setContentType('audio');
-    else setContentType('texto');
   };
 
   const handleDragEnter = (e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); setIsDragging(true); };
@@ -172,11 +149,11 @@ export function ContentUploadForm({ onSubmit, isSubmitting }: ContentUploadFormP
                       </TooltipProvider>
                     </div>
                   </div>
-                  <div className="text-center"><p>Carga, pega o suelta tu contenido aquí</p></div>
+                  <div className="text-center"><p>Arrastra y suelta o pega tu contenido aquí</p></div>
                   <div className="space-y-2">
                     <div className="relative flex items-start bg-white border-2 border-secondary/60 rounded-[8px] shadow-sm min-h-11">
-                      <button type="button" onClick={() => fileInputRef.current?.click()} className="flex-shrink-0 ml-2 p-1.5 rounded-full bg-transparent hover:bg-primary no-hover-effect group transition-colors mt-1 cursor-pointer" title="Adjuntar archivo">
-                        <Paperclip className="h-4 w-4 text-black/60" />
+                      <button type="button" onClick={() => fileInputRef.current?.click()} className="flex-shrink-0 ml-2 p-1.5 rounded-full bg-transparent hover:bg-primary no-hover-effect group transition-colors" title="Adjuntar archivo">
+                        <Plus className="h-4 w-4 text-black/60" />
                       </button>
                       <Textarea placeholder="Pega aquí una URL, texto sospechoso, o escribe lo que quieras analizar..." value={content} onChange={handleContentChange} rows={textareaRows} className="flex-1 resize-none border-0 bg-transparent px-3 min-h-11 focus:outline-none focus:ring-0 focus-visible:ring-0 focus-visible:border-0 placeholder:text-muted-foreground text-sm leading-relaxed transition-all duration-200"/>
                     </div>
@@ -184,12 +161,7 @@ export function ContentUploadForm({ onSubmit, isSubmitting }: ContentUploadFormP
                   </div>
                 </div>
               </div>
-              <input ref={fileInputRef} type="file" className="hidden" accept=".jpg,.jpeg,.wav,.mp3,.mp4" onChange={(e) => handleFileUpload(e.target.files)}/>
-              {fileError && (
-                <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-                  <p className="text-sm text-red-600">{fileError}</p>
-                </div>
-              )}
+              <input ref={fileInputRef} type="file" multiple className="hidden" accept="image/*,video/*,audio/*" onChange={(e) => handleFileUpload(e.target.files)}/>
               {uploadedFiles.length > 0 && (
                 <div className="space-y-2 pt-6 mt-6 border-t border-secondary/40">
                   <Label>Archivos seleccionados:</Label>
@@ -202,7 +174,7 @@ export function ContentUploadForm({ onSubmit, isSubmitting }: ContentUploadFormP
                           <p className="text-xs text-muted-foreground">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
                         </div>
                       </div>
-                      <Button type="button" variant="ghost" size="sm" onClick={() => removeFile(index)} className="h-8 w-8 p-0 hover:bg-secondary/40"><X className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="sm" onClick={() => removeFile(index)} className="h-8 w-8 p-0 hover:bg-secondary/40"><X className="h-4 w-4" /></Button>
                     </div>
                   ))}
                 </div>
@@ -230,7 +202,7 @@ export function ContentUploadForm({ onSubmit, isSubmitting }: ContentUploadFormP
           </CardContent>
         </Card>
         <div className="flex justify-end">
-          <Button type="submit" disabled={(!content && uploadedFiles.length === 0) || !transmissionMedium || isSubmitting} className="flex items-center space-x-2 mt-2">
+          <Button type="submit" disabled={(!content && uploadedFiles.length === 0) || !transmissionMedium || isSubmitting} className="flex items-center space-x-2">
             <Send className="h-4 w-4" />
             <span>{isSubmitting ? 'Analizando...' : 'Iniciar Diagnóstico'}</span>
           </Button>
