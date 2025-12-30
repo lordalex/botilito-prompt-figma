@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Progress } from './ui/progress';
 import { Loader2, Bot, Users, CheckCircle, AlertTriangle, XCircle, ArrowLeft, Image as ImageIcon, Video, Volume2, FileText, Link2, Tag, Clock, MapPin, User, Zap, Search, Shield, Flame, ChevronLeft, ChevronRight } from 'lucide-react';
-// import botilitoMascot from '@/assets/botilito-mascot.png';
+import botilitoMascot from '@/assets/botilito-mascot.png';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { TextAIAnalysis } from './TextAIAnalysis';
@@ -383,11 +383,11 @@ export function UnifiedAnalysisView({
             {/* ========== BOTILITO BANNER ========== */}
             <div className="bg-[#ffe97a] border-2 border-[#ffda00] rounded-lg p-4 shadow-lg mb-6">
                 <div className="flex items-center space-x-4">
-                    {/* <img
+                    <img
                         src={botilitoMascot}
                         alt="Botilito"
                         className="w-24 h-24 object-contain"
-                    /> */}
+                    />
                     <div className="flex-1">
                         <p className="text-xl">
                             ¡Qué más parce! Este es el análisis AMI completo 📰🎓
