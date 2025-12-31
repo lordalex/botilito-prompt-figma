@@ -13,7 +13,6 @@ import { Navigation } from './components/Navigation';
 import { ExtensionApp } from './components/extension/ExtensionApp';
 import { MapaDesinfodemico } from './components/MapaDesinfodemico';
 import { DocumentacionIndicadores } from './components/DocumentacionIndicadores';
-import { ImmunizationStudio } from './components/ImmunizationStudio';
 import AdminDashboard from './components/AdminDashboard'; // Default export
 import { useAnalysisPolling } from './hooks/useAnalysisPolling';
 import { transformTextAnalysisToUI } from './services/analysisPresentationService';
