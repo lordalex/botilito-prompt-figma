@@ -181,6 +181,68 @@ async function pollJobStatus(jobId: string): Promise<any> {
   throw new Error('Tiempo de espera agotado para el trabajo de la API.');
 }
 
+/**
+ * Transform StandardizedCase to CaseEnriched for backward compatibility
+ */
+function transformStandardizedToEnriched(std: any): CaseEnriched {
+  // Extract diagnostic labels from insights
+  const diagnostic_labels = (std.insights || [])
+    .map((i: any) => i.label || i.value)
+    .filter((l: any) => typeof l === 'string');
+
+  // [Refinement] Map categories to UI Themes (Forense, Desinformódico)
+  // This ensures Historial.tsx picks up the correct theme
+  const categories = new Set((std.insights || []).map((i: any) => i.category));
+  if (categories.has('forensics') || categories.has('technical_analysis')) {
+    if (!diagnostic_labels.includes('Forense')) diagnostic_labels.push('Forense');
+  }
+  if (categories.has('fact_check') || categories.has('content_analysis')) {
+    if (!diagnostic_labels.includes('Desinformódico')) diagnostic_labels.push('Desinformódico');
+  }
+
+  // Map community data to human_votes
+  const human_votes = {
+    count: std.community?.votes || 0,
+    statistics: [], // DTO simplified
+    entries: [] // DTO simplified
+  };
+
+  // Map consent/consensus
+  const consensusState = std.community?.status || 'ai_only';
+
+  // Map priority (default to medium if not found)
+  const priority = std.overview?.risk_score > 80 ? 'critical' :
+    std.overview?.risk_score > 60 ? 'high' :
+      std.overview?.risk_score > 40 ? 'medium' : 'low';
+
+  return {
+    id: std.id,
+    displayId: generateDisplayId(std),
+    title: std.overview?.title || 'Sin Título',
+    status: std.lifecycle?.job_status || 'completed',
+    summary: std.overview?.summary || '',
+    content: std.overview?.summary || '', // Fallback
+    url: std.overview?.source_domain || '',
+    created_at: std.created_at,
+    submission_type: std.type?.toUpperCase() || 'TEXT',
+    human_votes,
+    diagnostic_labels,
+    metadata: {
+      screenshotUrl: std.overview?.main_asset_url,
+      ...std.metadata
+    },
+    state: consensusState === 'consensus' || consensusState === 'human_only' ? 'human_consensus' : 'ai_only',
+    final_labels: [std.overview?.verdict_label].filter(Boolean),
+    priority,
+    consensus: {
+      state: consensusState,
+      final_labels: [std.overview?.verdict_label].filter(Boolean)
+    },
+    // Keep raw DTO just in case we migrated UI to use it
+    standardized_case: std
+  } as CaseEnriched & { standardized_case?: any };
+}
+
 export async function fetchVerificationSummary(page: number, pageSize: number): Promise<VerificationSummaryResult> {
   try {
     const { data: { session } } = await supabase.auth.getSession();
@@ -192,7 +254,12 @@ export async function fetchVerificationSummary(page: number, pageSize: number): 
 
     const result = await pollJobStatus(job_id);
     if ('cases' in result) {
-      return result;
+      // Map cases to enriched format
+      const enrichedCases = result.cases.map(transformStandardizedToEnriched);
+      return {
+        ...result,
+        cases: enrichedCases
+      };
     }
     throw new Error("API response did not contain 'cases'");
 
@@ -216,7 +283,12 @@ export async function fetchVerifiedCasesForImmunization(page: number, pageSize: 
 
     const result = await pollJobStatus(job_id);
     if ('cases' in result) {
-      return result;
+      // Map cases to enriched format
+      const enrichedCases = result.cases.map(transformStandardizedToEnriched);
+      return {
+        ...result,
+        cases: enrichedCases
+      };
     }
     throw new Error("API response did not contain 'cases'");
 
@@ -229,13 +301,34 @@ export async function fetchVerifiedCasesForImmunization(page: number, pageSize: 
 export async function fetchCaseDetails(caseId: string): Promise<CaseEnriched> {
   try {
     const { data: { session } } = await supabase.auth.getSession();
+    // Use the lookup endpoint which returns the DTO
     const { job_id } = await api.humanVerification.getCaseDetails(session, caseId);
 
     const result = await pollJobStatus(job_id);
+
+    // Result might be inside 'case' or just the object if using standard search-dto/lookup? 
+    // The previous code checked for 'case'. 
+    // If the new API returns { case: StandardizedCase } or just StandardizedCase?
+    // User response for search-dto/status was { cases: [...] }.
+    // Lookup usually returns a single item. Let's assume it wraps in 'case' or is the item.
+
+    let rawCase = null;
     if ('case' in result) {
-      return result.case;
+      rawCase = result.case;
+    } else if ('cases' in result && result.cases.length > 0) {
+      rawCase = result.cases[0];
+    } else {
+      // Fallback: maybe result IS the case if it has 'id' and 'overview'
+      if (result.id && result.overview) {
+        rawCase = result;
+      }
     }
-    throw new Error("API response did not contain a 'case' object");
+
+    if (rawCase) {
+      return transformStandardizedToEnriched(rawCase);
+    }
+
+    throw new Error("API response did not contain a valid case object");
 
   } catch (error) {
     console.error('Error fetching case details:', error);

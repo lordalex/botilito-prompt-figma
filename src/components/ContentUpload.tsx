@@ -42,26 +42,26 @@ export function ContentUpload({ jobId, jobType, onReset }: ContentUploadProps) {
     );
   }
 
-  // Mostrar vista de caso registrado automáticamente cuando el análisis está completo
-  if (status === 'complete' && result) {
-    // Extraer datos del resultado para el CaseRegisteredView
-    // Helper: try several places where backend may put filename/size
+  // Mostrar vista de caso registrado automáticamente cuando el análisis está completo o en progreso (polling)
+  // User requested to skip the loader/polling view and show success immediately after submission
+  if ((status === 'complete' && result) || status === 'polling' || status === 'uploading') {
+    // Determine info from result OR local state if result is pending
     const extractedFilename =
       fileName ||
-      result.file_info?.name ||
-      result.fullResult?.metadata?.file_name ||
-      result.fullResult?.metadata?.filename ||
-      result.fullResult?.details?.[0]?.insights?.[0]?.data?.filename ||
-      result.fullResult?.details?.[0]?.original ||
+      result?.file_info?.name ||
+      result?.fullResult?.metadata?.file_name ||
+      result?.fullResult?.metadata?.filename ||
+      result?.fullResult?.details?.[0]?.insights?.[0]?.data?.filename ||
+      result?.fullResult?.details?.[0]?.original ||
       undefined;
 
     // Use fileSize from hook (original File.size) as primary source
     const rawSize =
       fileSize ??
-      result.file_info?.size_bytes ??
-      result.fullResult?.metadata?.file_size ??
-      result.fullResult?.metadata?.size ??
-      result.fullResult?.details?.[0]?.insights?.[0]?.data?.size ??
+      result?.file_info?.size_bytes ??
+      result?.fullResult?.metadata?.file_size ??
+      result?.fullResult?.metadata?.size ??
+      result?.fullResult?.details?.[0]?.insights?.[0]?.data?.size ??
       undefined;
 
     const extractedFileSize =
@@ -69,8 +69,18 @@ export function ContentUpload({ jobId, jobType, onReset }: ContentUploadProps) {
         ? `${(Number(rawSize) / 1024).toFixed(2)} KB`
         : undefined;
 
-    // Detect content type from various response structures
+    // Detect content type from various response structures or fallback to file extension
     const detectContentType = (): 'texto' | 'imagen' | 'video' | 'audio' | 'url' => {
+      // If we are polling or uploading, we might not have result type yet, so guess from filename
+      if ((status === 'polling' || status === 'uploading') && fileName) {
+        const lowerName = fileName.toLowerCase();
+        if (lowerName.endsWith('.mp4') || lowerName.endsWith('.mov') || lowerName.endsWith('.avi')) return 'video';
+        if (lowerName.endsWith('.mp3') || lowerName.endsWith('.wav') || lowerName.endsWith('.m4a') || lowerName.endsWith('.ogg')) return 'audio';
+        if (lowerName.endsWith('.jpg') || lowerName.endsWith('.jpeg') || lowerName.endsWith('.png')) return 'imagen';
+      }
+
+      if (!result) return 'texto'; // Default fallback if no result and no filename (text)
+
       // Audio response structure: result.type === "audio_analysis" or "audio"
       if (result.type === 'audio_analysis' || result.type === 'audio') return 'audio';
 
@@ -99,35 +109,33 @@ export function ContentUpload({ jobId, jobType, onReset }: ContentUploadProps) {
       return 'imagen';
     };
 
+    const detectedType = detectContentType();
+
     const caseData = {
       caseCode:
-        result.caseNumber ||
-        result.fullResult?.displayId ||
-        `I-TL-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Math.random()
-          .toString(36)
-          .substring(2, 5)
-          .toUpperCase()}`,
-      createdAt: result.fullResult?.created_at || result.meta?.timestamp || new Date().toISOString(),
-      contentType: detectContentType(),
-      analysisType: result.theme || 'Forense',
+        result?.caseNumber ||
+        result?.fullResult?.displayId ||
+        `PENDING-${new Date().toISOString().slice(11, 19).replace(/:/g, '')}`, // Temp ID if polling
+      createdAt: result?.fullResult?.created_at || result?.meta?.timestamp || new Date().toISOString(),
+      contentType: detectedType,
+      analysisType: result?.theme || (detectedType === 'texto' ? 'Desinformódico' : 'Forense'),
       fileName: extractedFilename,
       fileSize: extractedFileSize,
-      vector: transmissionVector || result.vectores?.[0] || result.fullResult?.metadata?.vector || 'Telegram',
+      vector: transmissionVector || result?.vectores?.[0] || result?.fullResult?.metadata?.vector || 'Telegram',
     };
 
     return <CaseRegisteredView caseData={caseData} onReportAnother={handleReset} />;
   }
 
+  // Loader view is now effectively bypassed by the logic above. 
+  // We keep this block only as a theoretical fallback or for states not covered (though currently covered).
+  // If we wanted to remove it completely:
+  /* 
   if (status === 'uploading' || status === 'polling') {
-    return (
-      <ContentUploadProgress
-        progress={progress}
-        step="Procesando"
-        status="Extrayendo metadatos y características..."
-        fileName={fileName}
-      />
-    );
-  }
+    return <ContentUploadProgress ... />;
+  } 
+  */
+
 
   return <ContentUploadForm onSubmit={submitContent} isSubmitting={status !== 'idle'} />;
 }

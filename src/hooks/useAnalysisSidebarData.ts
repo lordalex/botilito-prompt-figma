@@ -18,6 +18,7 @@ export function useAnalysisSidebarData({ data, contentType, mode }: UseAnalysisS
     const {
         caseData,
         caseId,
+        displayId,
         caseTitle,
         createdAt,
         reportedBy,
@@ -48,7 +49,7 @@ export function useAnalysisSidebarData({ data, contentType, mode }: UseAnalysisS
 
     // Case Info Props for new sidebar section
     const caseInfoProps = useMemo(() => ({
-        caseNumber: caseId?.slice(0, 8)?.toUpperCase() || 'N/A',
+        caseNumber: displayId || caseId?.slice(0, 8)?.toUpperCase() || 'N/A',
         contentType: contentType?.toUpperCase() || 'TEXT',
         transmissionVector: sourceData?.vector_de_transmision || 'Web',
         reportedBy: reportedBy?.name || reportedBy?.email || 'Anónimo',

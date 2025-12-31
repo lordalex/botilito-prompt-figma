@@ -1,7 +1,6 @@
-import { fetchVerificationSummary } from '../humanVerification/api';
+import { fetchVerificationSummary, fetchCaseDetails as fetchEnrichedCaseDetails } from '../humanVerification/api';
 import { supabase } from '../supabase/client';
-import type { HistorialSummaryResult, HistorialCaseUI, HistorialCaseDetail } from './types';
-import type { RecentCase } from '../humanVerification/types';
+import type { HistorialSummaryResult, HistorialCaseUI, HistorialCaseDetail, RecentCase } from './types';
 import { DIAGNOSTIC_LABELS } from '../humanVerification/types';
 
 /**
@@ -13,55 +12,49 @@ export async function fetchHistorialData(page: number, pageSize: number): Promis
 }
 
 /**
- * Fetch complete case details from /vector-async/case-detail/{caseId}
- * This endpoint provides pre-processed data specifically for the detail view
- * Requires authentication
+ * Fetch complete case details
+ * Reuses the logic from Human Verification which uses the standardized endpoint
  *
  * @param caseId - The UUID or display ID of the case
  * @returns Complete case details with merged AI + human analysis
  */
 export async function fetchCaseDetails(caseId: string) {
   try {
-    // Get current session for auth token
-    const { data: { session } } = await supabase.auth.getSession();
-
-    if (!session) {
-      throw new Error('Usuario no autenticado');
-    }
-
     console.log('🔍 Fetching case details for caseId:', caseId);
 
-    const response = await fetch(
-      `https://mdkswlgcqsmgfmcuorxq.supabase.co/functions/v1/vector-async/case-detail/${caseId}`,
-      {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
-        }
-      }
-    );
+    // Fetch enriched case using the shared logic
+    const enrichedCase = await fetchEnrichedCaseDetails(caseId);
 
-    console.log('📡 Response status:', response.status, response.statusText);
+    // Check if we need to transform it further to match specific Historial expectations
+    // HistorialCaseDetail expects 'relatedDocuments', 'webSearchResults' which are in CaseEnriched
+    // So enrichedCase should be sufficient or need minimal transformation
 
-    if (!response.ok) {
-      // Try to get error details from response body
-      let errorMessage = `Error ${response.status}: ${response.statusText}`;
-      try {
-        const errorData = await response.json();
-        console.error('❌ Server error details:', errorData);
-        errorMessage = errorData.error || errorData.message || errorMessage;
-      } catch (e) {
-        // Response body might not be JSON
-        const errorText = await response.text();
-        console.error('❌ Server error text:', errorText);
-      }
-      throw new Error(errorMessage);
-    }
+    // Returning the enriched case directly as it matches the structure expected by transformCaseToDetail
+    // or we can apply transformCaseToDetail here if the caller expects the UI object directly?
+    // useHistorialData calls fetchCaseDetails and then sets caseDetail.
+    // Wait, useCaseDetail hook calls fetchCaseDetails.
+    // The previous implementation returned `data` (JSON).
+    // useCaseDetail received it at line 110: `const detail = await fetchCaseDetails(...)`
+    // And set it to `setCaseDetail(detail)`.
+    // The previous `fetchCaseDetails` returned raw JSON.
+    // But `useCaseDetail` expects `HistorialCaseDetail`.
+    // `HistorialCaseDetail` is an interface extending `HistorialCaseUI`.
+    // The previous `fetchCaseDetails` returned the raw JSON from backend?
+    // And `useCaseDetail` just used it?
+    // Wait, `HistorialDetailView` uses `HistorialCaseDetail`.
 
-    const data = await response.json();
-    console.log('✅ Case details received:', data);
-    return data;
+    // Let's verify if I should transform it here.
+    // `useCaseDetail` hook (lines 106-121 in useHistorialData.ts):
+    // const detail = await fetchCaseDetails(caseId);
+    // setCaseDetail(detail);
+
+    // So fetchCaseDetails MUST return `HistorialCaseDetail`.
+
+    // So I need to use `transformCaseToDetail`.
+
+    const uiDetail = transformCaseToDetail(enrichedCase);
+    return uiDetail;
+
   } catch (error) {
     console.error('❌ Error fetching case details:', error);
     throw error;
@@ -278,18 +271,20 @@ export function transformCaseToUI(caseData: RecentCase): HistorialCaseUI {
     displayId: generateDisplayId(caseData),
     title: caseData.title,
     url: caseData.url,
-    submissionType: caseData.submission_type,
-    submissionTypeIcon: getSubmissionTypeIcon(caseData.submission_type),
+    submissionType: (caseData.submission_type?.toUpperCase() || 'TEXT') as 'URL' | 'TEXT' | 'IMAGE' | 'VIDEO' | 'AUDIO',
+    submissionTypeIcon: getSubmissionTypeIcon(caseData.submission_type?.toUpperCase() || 'TEXT'),
     createdAt: caseData.created_at,
     createdAtFormatted: formatDate(caseData.created_at),
-    humanVotesCount: caseData.human_votes_count,
+    humanVotesCount: caseData.human_votes?.count || 0,
     diagnosticLabels,
-    finalVerdict: getFinalVerdict(caseData.consensus.final_labels),
-    verificationMethod: getVerificationMethodLabel(caseData.consensus.state),
-    consensusState: caseData.consensus.state,
-    priority: caseData.priority,
-    relatedDocumentsCount: caseData.related_documents.length,
-    webSearchResultsCount: caseData.web_search_results.length
+    finalVerdict: getFinalVerdict(caseData.consensus?.final_labels || []),
+    verificationMethod: getVerificationMethodLabel(caseData.consensus?.state || 'ai_only'),
+    consensusState: (caseData.consensus?.state as 'ai_only' | 'human_only' | 'consensus' | 'disagreement') || 'ai_only',
+    priority: caseData.priority || 'low',
+    relatedDocumentsCount: caseData.related_documents?.length || 0,
+    webSearchResultsCount: caseData.web_search_results?.length || 0,
+    summary: caseData.summary || caseData.related_documents?.[0]?.summary || 'Sin resumen disponible',
+    riskScore: caseData.standardized_case?.overview?.risk_score || 0
   };
 }
 

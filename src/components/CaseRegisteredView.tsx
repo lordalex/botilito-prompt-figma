@@ -14,7 +14,8 @@ import {
   Info,
   CircleCheck,
   FileSearchIcon,
-  Search
+  Search,
+  Loader2
 } from 'lucide-react';
 
 interface CaseRegisteredViewProps {
@@ -71,8 +72,8 @@ export function CaseRegisteredView({ caseData, onReportAnother }: CaseRegistered
       {/* Main card with yellow background */}
       <Card
         className="w-full max-w-4xl border-2 shadow-2xl overflow-hidden"
-        style={{ 
-          backgroundColor: 'var(--accent)', 
+        style={{
+          backgroundColor: 'var(--accent)',
           borderColor: 'var(--primary)',
           borderRadius: '0.5rem 0.5rem 0 0'
         }}
@@ -93,8 +94,12 @@ export function CaseRegisteredView({ caseData, onReportAnother }: CaseRegistered
               {/* Case code and date */}
               <div className="flex items-center justify-between mt-4">
                 <div>
-                  <p className="text-xs text-gray-600">Código del caso:</p>
-                  <p className="text-lg font-bold font-mono text-gray-900">{caseData.caseCode}</p>
+                  {/* XP Award Replacement */}
+                  <p className="text-xs text-gray-600">Recompensa:</p>
+                  <div className="flex items-center gap-2">
+                    <span className="text-2xl">🏆</span>
+                    <p className="text-lg font-bold font-mono text-gray-900">15 XP Ganados</p>
+                  </div>
                 </div>
                 <div className="text-right">
                   <p className="text-xs text-gray-600">📅 Fecha y hora:</p>
@@ -132,7 +137,7 @@ export function CaseRegisteredView({ caseData, onReportAnother }: CaseRegistered
                   <div className="bg-white rounded-md p-2 border" style={{ borderColor: 'var(--primary)' }}>
                     <p className="text-[10px] text-gray-500 mb-0.5">Tipo:</p>
                     <p className="text-xs font-medium text-gray-900 flex items-center gap-1">
-                      <ContentIcon className="h-3.5 w-3.5 text-gray-600" style={{ color: 'var(--primary)' }}/>
+                      <ContentIcon className="h-3.5 w-3.5 text-gray-600" style={{ color: 'var(--primary)' }} />
                       {contentTypeLabels[caseData.contentType]}
                     </p>
                   </div>
@@ -197,7 +202,7 @@ export function CaseRegisteredView({ caseData, onReportAnother }: CaseRegistered
                     <div className="flex items-start justify-center">
                       <div className="z-10">
                         <div className="w-6 h-6 rounded-full flex items-center justify-center">
-                          <CircleCheck className="h-5 w-5 text-white"  style={{ color: 'var(--color-green-500)' }}/>
+                          <CircleCheck className="h-5 w-5 text-white" style={{ color: 'var(--color-green-500)' }} />
                         </div>
                       </div>
                     </div>
@@ -210,7 +215,7 @@ export function CaseRegisteredView({ caseData, onReportAnother }: CaseRegistered
                     <div className="flex items-start justify-center">
                       <div className="z-10">
                         <div className="w-6 h-6 rounded-full flex items-center justify-center">
-                          <CircleCheck className="h-5 w-5 text-white" style={{ color: 'var(--color-green-500)' }}/>
+                          <Loader2 className="h-5 w-5 animate-spin" style={{ color: '#d97706' }} />
                         </div>
                       </div>
                     </div>
@@ -223,7 +228,7 @@ export function CaseRegisteredView({ caseData, onReportAnother }: CaseRegistered
                     <div className="flex items-start justify-center">
                       <div className="z-10">
                         <div className="w-6 h-6 rounded-full flex items-center justify-center">
-                          <FileSearchIcon className="h-5 w-5 text-white" style={{ color: 'var(--color-blue-500)' }}/>
+                          <FileSearchIcon className="h-5 w-5 text-white" style={{ color: 'var(--color-blue-500)' }} />
                         </div>
                       </div>
                     </div>

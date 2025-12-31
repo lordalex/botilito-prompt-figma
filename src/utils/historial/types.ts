@@ -43,7 +43,7 @@ export interface HistorialCaseUI {
   displayId: string; // Generated code like "T-WB-20241015-156"
   title: string;
   url: string;
-  submissionType: 'URL' | 'TEXT' | 'IMAGE' | 'VIDEO';
+  submissionType: 'URL' | 'TEXT' | 'IMAGE' | 'VIDEO' | 'AUDIO';
   submissionTypeIcon: string;
   createdAt: string;
   createdAtFormatted: string;
@@ -55,6 +55,8 @@ export interface HistorialCaseUI {
   priority: 'low' | 'medium' | 'high' | 'critical';
   relatedDocumentsCount: number;
   webSearchResultsCount: number;
+  summary: string;
+  riskScore?: number;
 }
 
 /**

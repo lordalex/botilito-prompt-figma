@@ -133,12 +133,14 @@ export function useTextAnalysisData(data: any) {
         competencies: aiAnalysis?.competencies_analysis,
 
         // Case metadata
+        // Case metadata
         caseId: caseData?.id,
+        displayId: caseData?.displayId || caseData?.display_id || caseData?.standardized_case?.display_id,
         caseTitle: caseData?.title,
         caseStatus: caseData?.status,
         caseSummary: caseData?.summary,
         createdAt: caseData?.created_at,
-        reportedBy: caseData?.metadata?.reported_by || caseData?.reported_by,
+        reportedBy: caseData?.reporter || caseData?.metadata?.reported_by || caseData?.reported_by || caseData?.standardized_case?.reporter,
         humanVotes: caseData?.human_votes,
         consensus: caseData?.consensus
     };

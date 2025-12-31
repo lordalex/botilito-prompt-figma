@@ -157,29 +157,65 @@ export function UnifiedAnalysisView({
 
     // Helper: Get forensic verdict info from data
     const getForensicVerdictInfo = () => {
+        // [NEW] Support for StandardizedCase
+        if (data?.standardized_case || data?.overview) {
+            const std = data?.standardized_case || data;
+            const confidence = std.overview?.risk_score || 0;
+            const verdict = std.overview?.verdict_label || 'PENDING';
+            // Logic for warning based on score or verdict
+            const isWarning = confidence < 60 || (verdict && (verdict.includes('Manipulado') || verdict.includes('Generado') || verdict.includes('Requiere')));
+
+            return {
+                verdict,
+                confidence,
+                isWarning,
+                description: isWarning ? 'Se detectaron posibles manipulaciones.' : 'No se detectaron alteraciones significativas.'
+            };
+        }
+
         if (contentType === 'image') {
             const verdict = data?.summary?.global_verdict || data?.human_report?.verdict || 'PENDING';
             const confidence = data?.summary?.manipulation_probability || data?.human_report?.manipulation_probability || 0;
-            return { verdict, confidence };
+            // Legacy warning logic
+            const isWarning = (confidence * 100) > 50 || (verdict && !verdict.includes('Authentic'));
+            return {
+                verdict,
+                confidence,
+                isWarning,
+                description: isWarning ? 'Posible manipulación detectada en la imagen.' : 'Imagen auténtica según análisis forense.'
+            };
         }
         if (contentType === 'audio') {
             const verdict = data?.human_report?.verdict || 'PENDING';
             const confidence = data?.human_report?.audio_forensics?.authenticity_score || 0;
-            return { verdict, confidence: confidence * 100 };
+            // Legacy warning logic
+            const isWarning = (confidence * 100) < 50 || (verdict && (verdict.includes('Fake') || verdict.includes('Cloned')));
+            return {
+                verdict,
+                confidence: confidence * 100,
+                isWarning,
+                description: isWarning ? 'Posible manipulación o clonación de voz detectada.' : 'Audio auténtico según análisis forense.'
+            };
         }
-        return { verdict: 'PENDING', confidence: 0 };
+        return {
+            verdict: 'PENDING',
+            confidence: 0,
+            isWarning: false,
+            description: 'Análisis pendiente.'
+        };
     };
 
     // Helper: Get colors based on verdict
     const getForensicColors = (verdict: string) => {
         const v = verdict?.toUpperCase() || '';
-        if (v.includes('AUTHENTIC') || v.includes('CLEAN') || v === 'ORIGINAL_VERIFICADO') {
+        // Add Spanish checks for standardized verdict labels
+        if (v.includes('AUTHENTIC') || v.includes('CLEAN') || v === 'ORIGINAL_VERIFICADO' || v.includes('SIN ALTERACIONES') || v.includes('CUMPLE')) {
             return { border: 'border-green-500', bg: 'bg-green-50', text: 'text-green-600', badgeBg: 'bg-green-100' };
         }
-        if (v.includes('MANIPULATED') || v.includes('MANIPULADO')) {
+        if (v.includes('MANIPULATED') || v.includes('MANIPULADO') || v.includes('REQUIERE')) {
             return { border: 'border-orange-500', bg: 'bg-orange-50', text: 'text-orange-600', badgeBg: 'bg-orange-100' };
         }
-        if (v.includes('SYNTHETIC') || v.includes('SINTETICO') || v.includes('GENERADO')) {
+        if (v.includes('SYNTHETIC') || v.includes('SINTETICO') || v.includes('GENERADO') || v.includes('NO CUMPLE')) {
             return { border: 'border-red-500', bg: 'bg-red-50', text: 'text-red-600', badgeBg: 'bg-red-100' };
         }
         return { border: 'border-yellow-500', bg: 'bg-yellow-50', text: 'text-yellow-600', badgeBg: 'bg-yellow-100' };
@@ -188,14 +224,21 @@ export function UnifiedAnalysisView({
     // Helper: Get icon based on verdict
     const getVerdictIcon = (verdict: string) => {
         const v = verdict?.toUpperCase() || '';
-        if (v.includes('AUTHENTIC') || v.includes('CLEAN') || v === 'ORIGINAL_VERIFICADO') return CheckCircle;
-        if (v.includes('MANIPULATED') || v.includes('MANIPULADO')) return AlertTriangle;
-        if (v.includes('SYNTHETIC') || v.includes('SINTETICO') || v.includes('GENERADO')) return Bot;
+        if (v.includes('AUTHENTIC') || v.includes('CLEAN') || v === 'ORIGINAL_VERIFICADO' || v.includes('SIN ALTERACIONES')) return CheckCircle;
+        if (v.includes('MANIPULATED') || v.includes('MANIPULADO') || v.includes('REQUIERE')) return AlertTriangle;
+        if (v.includes('SYNTHETIC') || v.includes('SINTETICO') || v.includes('GENERADO') || v.includes('NO CUMPLE')) return Bot;
         return XCircle;
     };
 
     // Get forensic tests from data
     const getForensicTests = () => {
+        // [NEW] Support for StandardizedCase
+        if (data?.standardized_case?.insights || data?.insights) {
+            const insights = data?.standardized_case?.insights || data?.insights || [];
+            // Filter for forensic category if needed, or just return all for visual
+            return insights.filter((i: any) => i.category === 'forensics' || i.category === 'content_quality');
+        }
+
         if (contentType === 'image') {
             return data?.details || data?.level1_analysis || [];
         }
@@ -207,6 +250,20 @@ export function UnifiedAnalysisView({
 
     // Helper: Extract content info from data
     const getContentInfo = () => {
+        // [NEW] Support for StandardizedCase
+        if (data?.standardized_case || data?.overview) {
+            const std = data?.standardized_case || data;
+            return {
+                title: std.overview?.title || 'Contenido Analizado',
+                summary: std.overview?.summary || 'Sin resumen disponible',
+                tags: {
+                    source: std.overview?.source_domain || 'Fuente desconocida',
+                    type: std.type?.toUpperCase() || contentType.toUpperCase(),
+                    theme: 'Análisis Estandarizado' // Could fetch from insights
+                }
+            };
+        }
+
         // For text content
         if (contentType === 'text') {
             const classification = data?.classification || data?.ai_analysis?.classification || {};
@@ -222,7 +279,6 @@ export function UnifiedAnalysisView({
             };
         }
         // For image/audio
-        // For image/audio
         return {
             title: title || data?.file_info?.filename || 'Archivo multimedia',
             summary: data?.human_report?.summary || data?.summary?.description || 'Análisis forense del archivo.',
@@ -236,11 +292,27 @@ export function UnifiedAnalysisView({
 
     // Helper: Get infodemic verdict info
     const getInfodemicVerdictInfo = () => {
+        // [NEW] Support for StandardizedCase
+        if (data?.standardized_case || data?.overview) {
+            const std = data?.standardized_case || data;
+            const score = std.overview?.risk_score || 0;
+            const verdict = std.overview?.verdict_label || 'Requiere un enfoque AMI';
+            const isWarning = score < 60 || verdict.includes('Requiere') || verdict.includes('No cumple');
+            return {
+                verdict,
+                confidence: score,
+                isWarning,
+                description: isWarning
+                    ? 'El contenido presenta riesgos identificados por el análisis.'
+                    : 'El contenido cumple con los parámetros analizados.'
+            };
+        }
+
         const classification = data?.classification || data?.ai_analysis?.classification || {};
         const amiData = classification?.indiceCumplimientoAMI || {};
         const score = amiData?.score || classification?.score || 0;
         const nivel = amiData?.nivel || classification?.nivel || 'Requiere un enfoque AMI';
-        const isWarning = score < 70 || nivel?.toLowerCase().includes('requiere');
+        const isWarning = score < 70 || (typeof nivel === 'string' && nivel.toLowerCase().includes('requiere'));
         return {
             verdict: nivel,
             confidence: score,
@@ -254,6 +326,21 @@ export function UnifiedAnalysisView({
 
     // Helper: Get human consensus info
     const getHumanConsensusInfo = () => {
+        // [NEW] Support for StandardizedCase (community)
+        if (data?.standardized_case?.community || data?.community) {
+            const community = data?.standardized_case?.community || data?.community;
+            // Mock consensus derived from votes if only integer provided
+            // or check if 'status' field helps
+            return {
+                verdict: community?.status || 'Pendiente',
+                confidence: 0, // DTO simplified
+                hasVotes: (community?.votes || 0) > 0,
+                description: (community?.votes || 0) > 0
+                    ? `Validado por ${community.votes} miembros de la comunidad.`
+                    : 'Aún no hay suficientes votos de la comunidad.'
+            };
+        }
+
         const votes = communityVotes || [];
         const hasVotes = votes.length > 0;
 
@@ -287,6 +374,17 @@ export function UnifiedAnalysisView({
 
     // Helper: Get source details
     const getSourceDetails = () => {
+        // [NEW] Support StandardizedCase
+        if (data?.standardized_case || data?.overview) {
+            const std = data?.standardized_case || data;
+            return {
+                what: std.overview?.summary || 'Contenido analizado',
+                who: std.reporter?.name || std.overview?.source_domain || 'Fuente desconocida',
+                when: std.created_at ? new Date(std.created_at).toLocaleDateString('es-CO') : (timestamp ? new Date(timestamp).toLocaleDateString('es-CO') : 'Fecha desconocida'),
+                where: std.overview?.source_domain || 'Plataforma externa'
+            };
+        }
+
         const classification = data?.classification || data?.ai_analysis?.classification || {};
         const metadata = data?.metadata || {};
         return {
@@ -367,13 +465,33 @@ export function UnifiedAnalysisView({
 
     // Colors based on verdict
     const isWarning = aiVerdictInfo.isWarning || aiVerdictInfo.confidence < 70;
+
+    // Updated to match Figma (Rose/Red for warning, Emerald for success)
     const verdictColors = isWarning
-        ? { border: 'border-orange-400', bg: 'bg-orange-50', text: 'text-orange-600', badgeBg: 'bg-orange-500 text-white' }
-        : { border: 'border-green-400', bg: 'bg-green-50', text: 'text-green-600', badgeBg: 'bg-green-500 text-white' };
+        ? {
+            border: 'border-rose-200',
+            bg: 'bg-rose-50',
+            text: 'text-rose-600',
+            badgeBg: 'bg-rose-500 text-white',
+            progress: 'bg-rose-500'
+        }
+        : {
+            border: 'border-emerald-200',
+            bg: 'bg-emerald-50',
+            text: 'text-emerald-600',
+            badgeBg: 'bg-emerald-500 text-white',
+            progress: 'bg-emerald-500'
+        };
 
     // Get visual URL for preview
     const getVisualUrl = () => {
-        if (contentType === 'text') return data?.source_data?.screenshot || screenshot;
+        if (contentType === 'text') {
+            return data?.standardized_case?.overview?.main_asset_url ||
+                data?.overview?.main_asset_url ||
+                data?.metadata?.screenshotUrl ||
+                data?.source_data?.screenshot ||
+                screenshot;
+        }
         if (contentType === 'image') {
             // Try to get from forensic structure first (all_documents)
             if (availableImages.length > 0) {
@@ -522,72 +640,76 @@ export function UnifiedAnalysisView({
                     {/* TWO DIAGNOSIS CARDS - Figma: 36px percentage, font-normal */}
                     <div className="grid md:grid-cols-2 gap-6">
                         {/* Card 1: AI Diagnosis (Diagnóstico Infodémico) */}
-                        <Card className={`border-2 ${verdictColors.border} ${verdictColors.bg} rounded-md`}>
+                        <Card className={`border-2 ${verdictColors.border} ${verdictColors.bg} rounded-xl shadow-sm`}>
                             <CardContent className="p-6">
-                                <div className="flex items-start justify-between mb-4">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center">
-                                            <AlertTriangle className={`h-5 w-5 ${verdictColors.text}`} />
+                                <div className="flex items-start justify-between mb-2">
+                                    <div className="flex items-start gap-4">
+                                        <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center shrink-0 shadow-sm border border-gray-100">
+                                            <AlertTriangle className={`h-6 w-6 ${verdictColors.text}`} />
                                         </div>
                                         <div>
-                                            <h3 className="text-[20px] leading-[28px] text-black font-normal mb-1">
+                                            <h3 className="text-[18px] font-semibold text-gray-900 mb-2 leading-tight">
                                                 Diagnóstico Infodémico
                                             </h3>
-                                            <div className="flex items-center gap-2">
-                                                <Badge variant="outline" className="text-[12px]">
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <Badge variant="secondary" className="bg-gray-200/80 text-gray-700 text-[11px] font-medium border-0">
                                                     Análisis IA
                                                 </Badge>
-                                                <Badge className={`text-[12px] ${verdictColors.badgeBg}`}>
+                                                <Badge className={`text-[11px] font-medium border-0 ${verdictColors.badgeBg}`}>
                                                     {aiVerdictInfo.verdict}
                                                 </Badge>
                                             </div>
                                         </div>
                                     </div>
-                                    <div className="text-right">
-                                        <div className={`text-[36px] leading-[36px] font-normal ${verdictColors.text}`}>
+                                    <div className="text-right shrink-0 ml-2">
+                                        <div className={`text-[42px] leading-none font-bold tracking-tight ${verdictColors.text}`}>
                                             {Math.round(aiVerdictInfo.confidence)}%
                                         </div>
-                                        <div className="text-[12px] text-gray-600">Precisión diagnóstica</div>
+                                        <div className="text-[10px] uppercase tracking-wide text-gray-500 font-semibold mt-1">Precisión</div>
                                     </div>
                                 </div>
-                                <p className="text-[14px] leading-[21px] text-[#1f2937]">
-                                    {aiVerdictInfo.description}
-                                </p>
+                                <div className="mt-4 pt-4 border-t border-black/5">
+                                    <p className="text-[13px] leading-relaxed text-gray-700 font-medium">
+                                        {aiVerdictInfo.description}
+                                    </p>
+                                </div>
                             </CardContent>
                         </Card>
 
                         {/* Card 2: Human Consensus (Análisis Humano) */}
-                        <Card className={`border-2 ${verdictColors.border} ${verdictColors.bg} rounded-md`}>
+                        <Card className={`border-2 ${verdictColors.border} ${verdictColors.bg} rounded-xl shadow-sm`}>
                             <CardContent className="p-6">
-                                <div className="flex items-start justify-between mb-4">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center">
-                                            <Users className={`h-5 w-5 ${verdictColors.text}`} />
+                                <div className="flex items-start justify-between mb-2">
+                                    <div className="flex items-start gap-4">
+                                        <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center shrink-0 shadow-sm border border-gray-100">
+                                            <Users className={`h-6 w-6 ${verdictColors.text}`} />
                                         </div>
                                         <div>
-                                            <h3 className="text-[20px] leading-[28px] text-black font-normal mb-1">
+                                            <h3 className="text-[18px] font-semibold text-gray-900 mb-2 leading-tight">
                                                 Análisis Humano
                                             </h3>
-                                            <div className="flex items-center gap-2">
-                                                <Badge variant="outline" className="text-[12px]">
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <Badge variant="secondary" className="bg-gray-200/80 text-gray-700 text-[11px] font-medium border-0">
                                                     Análisis Humano
                                                 </Badge>
-                                                <Badge className={`text-[12px] ${humanConsensus.hasVotes ? verdictColors.badgeBg : 'bg-gray-400 text-white'}`}>
+                                                <Badge className={`text-[11px] font-medium border-0 ${humanConsensus.hasVotes ? verdictColors.badgeBg : 'bg-gray-300 text-gray-600'}`}>
                                                     {humanConsensus.verdict}
                                                 </Badge>
                                             </div>
                                         </div>
                                     </div>
-                                    <div className="text-right">
-                                        <div className={`text-[36px] leading-[36px] font-normal ${humanConsensus.hasVotes ? verdictColors.text : 'text-gray-400'}`}>
+                                    <div className="text-right shrink-0 ml-2">
+                                        <div className={`text-[42px] leading-none font-bold tracking-tight ${humanConsensus.hasVotes ? verdictColors.text : 'text-gray-400'}`}>
                                             {humanConsensus.hasVotes ? `${humanConsensus.confidence}%` : '--%'}
                                         </div>
-                                        <div className="text-[12px] text-gray-600">Consenso humano</div>
+                                        <div className="text-[10px] uppercase tracking-wide text-gray-500 font-semibold mt-1">Consenso</div>
                                     </div>
                                 </div>
-                                <p className="text-[14px] leading-[21px] text-[#1f2937]">
-                                    {humanConsensus.description}
-                                </p>
+                                <div className="mt-4 pt-4 border-t border-black/5">
+                                    <p className="text-[13px] leading-relaxed text-gray-700 font-medium">
+                                        {humanConsensus.description}
+                                    </p>
+                                </div>
                             </CardContent>
                         </Card>
                     </div>

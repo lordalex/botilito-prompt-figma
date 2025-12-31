@@ -3,6 +3,50 @@ import { useHistorialData, useCaseDetail } from '../utils/historial/useHistorial
 import type { HistorialCaseUI } from '../utils/historial/types';
 import { Search, Filter, ArrowUpDown, Calendar, FileText, Image, Video, Link, Users, AlertCircle, CheckCircle, XCircle, RefreshCw, ArrowLeft, ExternalLink, Clock, TrendingUp } from 'lucide-react';
 
+import { CaseListItem } from './CaseListItem';
+import type { ValidationCaseListItemDTO, AMIComplianceLevel, ConsensusState } from '@/types/validation';
+
+/**
+ * Helper to map Historial submission type to CaseListItem content type
+ */
+function mapHistorialType(type: string): ValidationCaseListItemDTO['contentType'] {
+  const t = type.toLowerCase();
+  if (t.includes('text')) return 'texto';
+  if (t.includes('image')) return 'imagen';
+  if (t.includes('video')) return 'video';
+  if (t.includes('audio')) return 'audio';
+  if (t.includes('url')) return 'url';
+  return 'texto';
+}
+
+/**
+ * Helper to map Historial verdict/labels to AMI Level
+ */
+function mapToAMILevel(caseData: HistorialCaseUI): AMIComplianceLevel {
+  // Try to find a label that matches AMI levels
+  const amiLabel = caseData.diagnosticLabels.find(l =>
+    l.label.includes('AMI') ||
+    l.label.includes('Alteraciones') ||
+    l.label.includes('Generado') ||
+    l.label.includes('Manipulado')
+  );
+
+  if (amiLabel) {
+    if (amiLabel.label.includes('Desarrolla')) return 'Desarrolla las estrategias AMI';
+    if (amiLabel.label.includes('Cumple')) return 'Cumple las premisas AMI';
+    if (amiLabel.label.includes('Requiere')) return 'Requiere un enfoque AMI';
+    if (amiLabel.label.includes('No cumple')) return 'No cumple las premisas AMI';
+    if (amiLabel.label.includes('Generado')) return 'No cumple las premisas AMI'; // Map AI gen to fail or warning
+  }
+
+  // Fallback map from finalVerdict if simplified
+  const v = caseData.finalVerdict.toLowerCase();
+  if (v.includes('desarrolla')) return 'Desarrolla las estrategias AMI';
+  if (v.includes('requiere')) return 'Requiere un enfoque AMI';
+
+  return 'Requiere un enfoque AMI'; // Default fallback
+}
+
 export function Historial() {
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
 
@@ -17,6 +61,24 @@ export function Historial() {
     totalPages,
     setCurrentPage,
   } = useHistorialData();
+
+  // Transform historial cases to validation list items
+  const listItems: ValidationCaseListItemDTO[] = cases.map(c => ({
+    id: c.id,
+    caseCode: c.displayId,
+    contentType: mapHistorialType(c.submissionType),
+    title: c.title,
+    summary: c.summary,
+    createdAt: c.createdAt,
+    reportedBy: 'Usuario Anónimo', // HistorialCaseUI might miss this, default
+    humanValidatorsCount: c.humanVotesCount,
+    consensusState: (c.consensusState as ConsensusState) || 'ai_only',
+    theme: c.diagnosticLabels.find(l => l.bg.includes('purple') || l.label === 'Forense')?.label ||
+      c.diagnosticLabels.find(l => l.bg.includes('red') || l.label === 'Desinformódico')?.label ||
+      'General',
+    amiScore: c.riskScore || 0,
+    amiLevel: mapToAMILevel(c),
+  }));
 
   // Show detail view when a case is selected
   if (selectedCaseId) {
@@ -62,7 +124,7 @@ export function Historial() {
                 </div>
                 <div>
                   <p className="text-sm text-gray-600">Total de Casos</p>
-                  <p className="text-2xl font-bold text-gray-800">{summaryData.cases?.length ?? totalCases}</p>
+                  <p className="text-2xl font-bold text-gray-800">{summaryData.cases?.length ?? 0}</p>
                 </div>
               </div>
             </div>
@@ -74,7 +136,7 @@ export function Historial() {
                 </div>
                 <div>
                   <p className="text-sm text-gray-600">Documentos</p>
-                  <p className="text-2xl font-bold text-gray-800">{summaryData.pagination?.returnedCount ?? totalCases}</p>
+                  <p className="text-2xl font-bold text-gray-800">{summaryData.pagination?.returnedCount ?? 0}</p>
                 </div>
               </div>
             </div>
@@ -141,12 +203,13 @@ export function Historial() {
 
       {!loading && !error && cases.length > 0 && (
         <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 gap-4">
-            {cases.map(caseItem => (
-              <CaseCard
+          <div className="space-y-4">
+            {listItems.map((caseItem) => (
+              <CaseListItem
                 key={caseItem.id}
-                caseData={caseItem}
+                caseItem={caseItem}
                 onClick={() => setSelectedCaseId(caseItem.id)}
+                className="hover:shadow-lg transition-shadow border-2 border-transparent hover:border-yellow-400"
               />
             ))}
           </div>
@@ -175,98 +238,6 @@ export function Historial() {
           </button>
         </div>
       )}
-    </div>
-  );
-}
-
-/**
- * Case Card Component
- */
-function CaseCard({ caseData, onClick }: { caseData: HistorialCaseUI; onClick: () => void }) {
-  const priorityColors = {
-    low: 'bg-gray-100 text-gray-700 border-gray-300',
-    medium: 'bg-yellow-100 text-yellow-700 border-yellow-300',
-    high: 'bg-orange-100 text-orange-700 border-orange-300',
-    critical: 'bg-red-100 text-red-700 border-red-300'
-  };
-
-  return (
-    <div
-      onClick={onClick}
-      className="bg-white rounded-xl p-6 shadow-md border-2 border-gray-200 hover:border-yellow-400 hover:shadow-lg transition-all cursor-pointer"
-    >
-      <div className="flex items-start gap-4">
-        {/* Icon */}
-        <div className="text-4xl">{caseData.submissionTypeIcon}</div>
-
-        {/* Content */}
-        <div className="flex-1">
-          {/* Header */}
-          <div className="flex items-start justify-between mb-3">
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-sm font-mono text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                  {caseData.displayId}
-                </span>
-                <span className={`text-xs px-2 py-1 rounded border-2 ${priorityColors[caseData.priority]}`}>
-                  {caseData.priority.toUpperCase()}
-                </span>
-              </div>
-              <h3 className="text-lg font-bold text-gray-800 mb-2 line-clamp-2">
-                {caseData.title}
-              </h3>
-              <p className="text-sm text-gray-600 truncate">{caseData.url}</p>
-            </div>
-          </div>
-
-          {/* Metadata */}
-          <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 mb-3">
-            <div className="flex items-center gap-1">
-              <Clock className="w-4 h-4" />
-              {caseData.createdAtFormatted}
-            </div>
-            <div className="flex items-center gap-1">
-              <Users className="w-4 h-4" />
-              {caseData.humanVotesCount} verificador{caseData.humanVotesCount !== 1 ? 'es' : ''}
-            </div>
-            <div className="flex items-center gap-1">
-              <FileText className="w-4 h-4" />
-              {caseData.relatedDocumentsCount} doc{caseData.relatedDocumentsCount !== 1 ? 's' : ''}
-            </div>
-          </div>
-
-          {/* Diagnostic Labels */}
-          {caseData.diagnosticLabels.length > 0 && (
-            <div className="flex flex-wrap gap-2 mb-3">
-              {caseData.diagnosticLabels.map((label, index) => (
-                <span
-                  key={index}
-                  className={`text-xs px-2 py-1 rounded border ${label.bg} ${label.color} ${label.border}`}
-                >
-                  {label.label} ({label.percentage}%)
-                </span>
-              ))}
-            </div>
-          )}
-
-          {/* Footer */}
-          <div className="flex items-center justify-between pt-3 border-t border-gray-200">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-gray-700">
-                {caseData.finalVerdict}
-              </span>
-              <span className="text-xs text-gray-500">•</span>
-              <span className="text-xs text-gray-500">
-                {caseData.verificationMethod}
-              </span>
-            </div>
-            <button className="flex items-center gap-1 text-sm text-yellow-600 hover:text-yellow-700 font-medium">
-              Ver Detalles
-              <ExternalLink className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

@@ -242,3 +242,92 @@ export function transformEnrichedToListItem(caseData: CaseEnrichedCompatible): V
 export function transformEnrichedCasesToListItems(cases: CaseEnrichedCompatible[]): ValidationCaseListItemDTO[] {
   return cases.map(transformEnrichedToListItem);
 }
+
+// --- STANDARD DTO SUPPORT (from DTO.json) ---
+
+export interface StandardizedCase {
+  id: string;
+  created_at: string;
+  type: 'text' | 'image' | 'video' | 'audio';
+  lifecycle: {
+    job_status: 'queued' | 'processing' | 'completed' | 'failed';
+    custody_status: 'registered' | 'analyzing' | 'ai_processed' | 'human_review' | 'finalized';
+    last_update?: string;
+  };
+  overview: {
+    title: string;
+    summary?: string;
+    verdict_label: string;
+    risk_score: number;
+    main_asset_url?: string | null;
+    source_domain?: string | null;
+  };
+  insights: Array<{
+    id: string;
+    category: 'forensics' | 'content_quality' | 'fact_check' | 'metadata' | 'compliance';
+    label: string;
+    value: string | number | boolean;
+    score?: number | null;
+    description?: string;
+  }>;
+  reporter?: {
+    id: string;
+    name: string;
+    reputation?: number;
+  };
+}
+
+/**
+ * Helper to map standard type to component content type
+ */
+function mapStandardType(type: StandardizedCase['type']): ValidationCaseListItemDTO['contentType'] {
+  const mapping: Record<StandardizedCase['type'], ValidationCaseListItemDTO['contentType']> = {
+    text: 'texto',
+    image: 'imagen',
+    video: 'video',
+    audio: 'audio'
+  };
+  return mapping[type] || 'texto';
+}
+
+/**
+ * Helper to map risk score to AMI Level
+ */
+function mapRiskToAMILevel(score: number): AMIComplianceLevel {
+  if (score >= 80) return 'Desarrolla las estrategias AMI';
+  if (score >= 60) return 'Cumple las premisas AMI';
+  if (score >= 40) return 'Requiere un enfoque AMI';
+  return 'No cumple las premisas AMI';
+}
+
+/**
+ * Transform StandardizedCase to ValidationCaseListItemDTO
+ */
+export function transformStandardizedCaseToListItem(stdCase: StandardizedCase): ValidationCaseListItemDTO {
+  // Generate a display code if not present (logic similar to others)
+  const date = new Date(stdCase.created_at);
+  const dateStr = date.toISOString().slice(0, 10).replace(/-/g, '');
+  const idSuffix = stdCase.id ? stdCase.id.slice(-3).toUpperCase() : '000';
+  const prefix = stdCase.type.charAt(0).toUpperCase();
+  const caseCode = `${prefix}-${dateStr}-${idSuffix}`;
+
+  return {
+    id: stdCase.id,
+    caseCode: caseCode,
+    contentType: mapStandardType(stdCase.type),
+    title: stdCase.overview.title || 'Sin Título',
+    summary: stdCase.overview.summary || '',
+    createdAt: stdCase.created_at,
+    reportedBy: stdCase.reporter?.name || 'Sistema',
+    humanValidatorsCount: 0, // DTO doesn't strictly have this yet, default to 0
+    consensusState: 'ai_only', // Default state
+    theme: 'General', // Could extract from insights if needed
+    amiScore: stdCase.overview.risk_score,
+    amiLevel: mapRiskToAMILevel(stdCase.overview.risk_score),
+    screenshotUrl: stdCase.overview.main_asset_url || undefined
+  };
+}
+
+export function transformStandardizedCasesToListItems(cases: StandardizedCase[]): ValidationCaseListItemDTO[] {
+  return cases.map(transformStandardizedCaseToListItem);
+}
