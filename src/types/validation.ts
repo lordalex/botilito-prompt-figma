@@ -1,0 +1,244 @@
+/**
+ * @file src/types/validation.ts
+ * @description DTOs para la lista de casos pendientes de validación humana.
+ * Basado en la estructura de datos del endpoint de documentos para verificación.
+ */
+
+// Tipo de contenido basado en submission_type del JSON
+export type SubmissionType = 'Text' | 'Image' | 'Video' | 'Audio' | 'URL';
+
+// Estado de consenso según el campo consensus.state
+export type ConsensusState = 'ai_only' | 'human_consensus' | 'conflicted';
+
+// Nivel de cumplimiento AMI
+export type AMIComplianceLevel =
+  | 'Desarrolla las estrategias AMI'
+  | 'Requiere un enfoque AMI'
+  | 'Cumple las premisas AMI'
+  | 'No cumple las premisas AMI';
+
+/**
+ * DTO para quien reportó el contenido
+ */
+export interface ReportedByDTO {
+  id: string;
+  name: string;
+}
+
+/**
+ * DTO para el índice de cumplimiento AMI
+ */
+export interface AMIComplianceDTO {
+  nivel: AMIComplianceLevel;
+  score: number;
+}
+
+/**
+ * DTO para estadísticas de votos humanos
+ */
+export interface HumanVotesDTO {
+  count: number;
+  entries: unknown[];
+  breakdown: Record<string, unknown>;
+  statistics: unknown[];
+}
+
+/**
+ * DTO para el consenso del caso
+ */
+export interface ConsensusDTO {
+  state: ConsensusState;
+  final_labels: string[];
+}
+
+/**
+ * DTO principal para un caso en la lista de validación
+ * Representa la estructura mínima necesaria para mostrar en el listado
+ */
+export interface ValidationCaseDTO {
+  id: string;
+  url: string | null;
+  title: string;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  summary: string;
+  created_at: string;
+  submission_type: SubmissionType;
+  consensus: ConsensusDTO;
+  human_votes: HumanVotesDTO;
+  metadata: {
+    screenshot?: string;
+    reported_by?: ReportedByDTO;
+    ai_analysis?: {
+      summaries?: {
+        theme?: string;
+        region?: string;
+      };
+      classification?: {
+        indiceCumplimientoAMI?: AMIComplianceDTO;
+      };
+    };
+  };
+}
+
+/**
+ * DTO para la vista de lista - proyección simplificada del caso
+ */
+export interface ValidationCaseListItemDTO {
+  id: string;
+  caseCode: string;
+  contentType: 'texto' | 'imagen' | 'video' | 'audio' | 'url';
+  title: string;
+  summary: string;
+  createdAt: string;
+  reportedBy: string;
+  humanValidatorsCount: number;
+  consensusState: ConsensusState;
+  theme?: string;
+  amiScore?: number;
+  amiLevel?: AMIComplianceLevel;
+  screenshotUrl?: string;
+}
+
+/**
+ * Función para mapear SubmissionType a contentType del componente
+ */
+export function mapSubmissionType(type: SubmissionType): ValidationCaseListItemDTO['contentType'] {
+  const mapping: Record<SubmissionType, ValidationCaseListItemDTO['contentType']> = {
+    Text: 'texto',
+    Image: 'imagen',
+    Video: 'video',
+    Audio: 'audio',
+    URL: 'url',
+  };
+  return mapping[type] || 'texto';
+}
+
+/**
+ * Función para generar código de caso basado en el tipo y fecha
+ * Formato: {T|I|V|A|U}-{YYYYMMDD}-{últimos 3 dígitos del ID}
+ */
+export function generateCaseCode(caseData: ValidationCaseDTO): string {
+  const typePrefix: Record<SubmissionType, string> = {
+    Text: 'T',
+    Image: 'I',
+    Video: 'V',
+    Audio: 'A',
+    URL: 'U',
+  };
+
+  const prefix = typePrefix[caseData.submission_type] || 'T';
+  const date = new Date(caseData.created_at);
+  const dateStr = date.toISOString().slice(0, 10).replace(/-/g, '');
+  const idSuffix = caseData.id.slice(-8, -5).toUpperCase();
+
+  return `${prefix}-${dateStr}-${idSuffix}`;
+}
+
+/**
+ * Función para transformar el DTO del backend al DTO de lista
+ */
+export function transformToListItem(caseData: ValidationCaseDTO): ValidationCaseListItemDTO {
+  return {
+    id: caseData.id,
+    caseCode: generateCaseCode(caseData),
+    contentType: mapSubmissionType(caseData.submission_type),
+    title: caseData.title,
+    summary: caseData.summary,
+    createdAt: caseData.created_at,
+    reportedBy: caseData.metadata?.reported_by?.name || 'Usuario anónimo',
+    humanValidatorsCount: caseData.human_votes?.count || 0,
+    consensusState: caseData.consensus?.state || 'ai_only',
+    theme: caseData.metadata?.ai_analysis?.summaries?.theme,
+    amiScore: caseData.metadata?.ai_analysis?.classification?.indiceCumplimientoAMI?.score,
+    amiLevel: caseData.metadata?.ai_analysis?.classification?.indiceCumplimientoAMI?.nivel,
+    screenshotUrl: caseData.metadata?.screenshot,
+  };
+}
+
+/**
+ * Función para transformar un array de casos ValidationCaseDTO
+ */
+export function transformCasesToListItems(cases: ValidationCaseDTO[]): ValidationCaseListItemDTO[] {
+  return cases.map(transformToListItem);
+}
+
+/**
+ * Interfaz simplificada compatible con CaseEnriched del hook useHumanVerification
+ */
+export interface CaseEnrichedCompatible {
+  id: string;
+  displayId?: string;
+  title: string;
+  status: string;
+  summary: string;
+  url?: string;
+  created_at: string;
+  submission_type: 'Text' | 'URL' | 'Image' | 'Video' | 'Audio';
+  human_votes?: {
+    count: number;
+    statistics?: unknown[];
+    entries?: unknown[];
+  };
+  consensus?: {
+    state: 'human_consensus' | 'ai_only';
+    final_labels: string[];
+  };
+  metadata?: {
+    screenshot?: string;
+    reported_by?: { id: string; name: string };
+    ai_analysis?: {
+      summaries?: { theme?: string; region?: string };
+      classification?: {
+        indiceCumplimientoAMI?: { nivel: AMIComplianceLevel; score: number };
+      };
+    };
+  };
+}
+
+/**
+ * Función para generar código de caso desde CaseEnriched
+ */
+export function generateCaseCodeFromEnriched(caseData: CaseEnrichedCompatible): string {
+  const typePrefix: Record<string, string> = {
+    Text: 'T',
+    Image: 'I',
+    Video: 'V',
+    Audio: 'A',
+    URL: 'U',
+  };
+
+  const prefix = typePrefix[caseData.submission_type] || 'T';
+  const date = new Date(caseData.created_at);
+  const dateStr = date.toISOString().slice(0, 10).replace(/-/g, '');
+  const idSuffix = caseData.id.slice(-8, -5).toUpperCase();
+
+  return `${prefix}-${dateStr}-${idSuffix}`;
+}
+
+/**
+ * Función para transformar CaseEnriched al DTO de lista
+ */
+export function transformEnrichedToListItem(caseData: CaseEnrichedCompatible): ValidationCaseListItemDTO {
+  return {
+    id: caseData.id,
+    caseCode: caseData.displayId || generateCaseCodeFromEnriched(caseData),
+    contentType: mapSubmissionType(caseData.submission_type as SubmissionType),
+    title: caseData.title || 'Sin título',
+    summary: caseData.summary || 'No hay resumen disponible.',
+    createdAt: caseData.created_at,
+    reportedBy: caseData.metadata?.reported_by?.name || 'Usuario anónimo',
+    humanValidatorsCount: caseData.human_votes?.count || 0,
+    consensusState: (caseData.consensus?.state as ConsensusState) || 'ai_only',
+    theme: caseData.metadata?.ai_analysis?.summaries?.theme,
+    amiScore: caseData.metadata?.ai_analysis?.classification?.indiceCumplimientoAMI?.score,
+    amiLevel: caseData.metadata?.ai_analysis?.classification?.indiceCumplimientoAMI?.nivel,
+    screenshotUrl: caseData.metadata?.screenshot,
+  };
+}
+
+/**
+ * Función para transformar un array de CaseEnriched
+ */
+export function transformEnrichedCasesToListItems(cases: CaseEnrichedCompatible[]): ValidationCaseListItemDTO[] {
+  return cases.map(transformEnrichedToListItem);
+}
