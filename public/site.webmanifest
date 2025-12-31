@@ -1,0 +1,17 @@
+{
+  "name": "Botilito",
+  "short_name": "Botilito",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "description": "Panel de inteligencia colaborativa para detectar y mitigar desinformación en tiempo real.",
+  "icons": [
+    {
+      "src": "/BotilitoError.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

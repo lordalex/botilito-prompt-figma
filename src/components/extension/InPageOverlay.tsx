@@ -16,7 +16,7 @@ export function InPageOverlay({ onClose, position = { x: 20, y: 20 } }: InPageOv
   const [isExpanded, setIsExpanded] = useState(true);
   const [analysisResult] = useState({
     status: 'warning',
-    title: 'Contenido sospechoso detectado',
+    title: 'Alerta de contenido detectada',
     markers: [
       { type: 'Sensacionalista', confidence: 0.82 },
       { type: 'Manipulado', confidence: 0.75 },

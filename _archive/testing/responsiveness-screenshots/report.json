@@ -1,0 +1,177 @@
+[
+  {
+    "viewport": "Desktop-Large",
+    "size": "1920x1080",
+    "screenshot": "/Volumes/FireDrive/Code/botilito_new/botilito/responsiveness-screenshots/Desktop-Large.png",
+    "hasHorizontalScroll": false,
+    "hasVerticalScroll": false,
+    "bodyScrollWidth": 1920,
+    "bodyScrollHeight": 1080,
+    "windowWidth": 1920,
+    "windowHeight": 1080,
+    "formVisible": true,
+    "formDimensions": {
+      "width": 576,
+      "height": 300,
+      "top": 116,
+      "left": 672
+    },
+    "buttonVisible": true,
+    "inputsCount": 2,
+    "logoVisible": true,
+    "logoDimensions": {
+      "width": 1920,
+      "height": 1080
+    }
+  },
+  {
+    "viewport": "Desktop",
+    "size": "1366x768",
+    "screenshot": "/Volumes/FireDrive/Code/botilito_new/botilito/responsiveness-screenshots/Desktop.png",
+    "hasHorizontalScroll": false,
+    "hasVerticalScroll": false,
+    "bodyScrollWidth": 1366,
+    "bodyScrollHeight": 768,
+    "windowWidth": 1366,
+    "windowHeight": 768,
+    "formVisible": true,
+    "formDimensions": {
+      "width": 576,
+      "height": 300,
+      "top": 116,
+      "left": 395
+    },
+    "buttonVisible": true,
+    "inputsCount": 2,
+    "logoVisible": true,
+    "logoDimensions": {
+      "width": 1366,
+      "height": 768
+    }
+  },
+  {
+    "viewport": "Tablet-Landscape",
+    "size": "1024x768",
+    "screenshot": "/Volumes/FireDrive/Code/botilito_new/botilito/responsiveness-screenshots/Tablet-Landscape.png",
+    "hasHorizontalScroll": false,
+    "hasVerticalScroll": false,
+    "bodyScrollWidth": 1024,
+    "bodyScrollHeight": 768,
+    "windowWidth": 1024,
+    "windowHeight": 768,
+    "formVisible": true,
+    "formDimensions": {
+      "width": 576,
+      "height": 300,
+      "top": 116,
+      "left": 224
+    },
+    "buttonVisible": true,
+    "inputsCount": 2,
+    "logoVisible": true,
+    "logoDimensions": {
+      "width": 1024,
+      "height": 768
+    }
+  },
+  {
+    "viewport": "Tablet-Portrait",
+    "size": "768x1024",
+    "screenshot": "/Volumes/FireDrive/Code/botilito_new/botilito/responsiveness-screenshots/Tablet-Portrait.png",
+    "hasHorizontalScroll": false,
+    "hasVerticalScroll": false,
+    "bodyScrollWidth": 768,
+    "bodyScrollHeight": 1024,
+    "windowWidth": 768,
+    "windowHeight": 1024,
+    "formVisible": true,
+    "formDimensions": {
+      "width": 576,
+      "height": 300,
+      "top": 116,
+      "left": 96
+    },
+    "buttonVisible": true,
+    "inputsCount": 2,
+    "logoVisible": true,
+    "logoDimensions": {
+      "width": 768,
+      "height": 1024
+    }
+  },
+  {
+    "viewport": "Mobile-Large",
+    "size": "414x896",
+    "screenshot": "/Volumes/FireDrive/Code/botilito_new/botilito/responsiveness-screenshots/Mobile-Large.png",
+    "hasHorizontalScroll": false,
+    "hasVerticalScroll": false,
+    "bodyScrollWidth": 414,
+    "bodyScrollHeight": 896,
+    "windowWidth": 414,
+    "windowHeight": 896,
+    "formVisible": true,
+    "formDimensions": {
+      "width": 366,
+      "height": 300,
+      "top": 116,
+      "left": 24
+    },
+    "buttonVisible": true,
+    "inputsCount": 2,
+    "logoVisible": true,
+    "logoDimensions": {
+      "width": 414,
+      "height": 896
+    }
+  },
+  {
+    "viewport": "Mobile",
+    "size": "375x667",
+    "screenshot": "/Volumes/FireDrive/Code/botilito_new/botilito/responsiveness-screenshots/Mobile.png",
+    "hasHorizontalScroll": false,
+    "hasVerticalScroll": false,
+    "bodyScrollWidth": 375,
+    "bodyScrollHeight": 667,
+    "windowWidth": 375,
+    "windowHeight": 667,
+    "formVisible": true,
+    "formDimensions": {
+      "width": 327,
+      "height": 300,
+      "top": 116,
+      "left": 24
+    },
+    "buttonVisible": true,
+    "inputsCount": 2,
+    "logoVisible": true,
+    "logoDimensions": {
+      "width": 375,
+      "height": 667
+    }
+  },
+  {
+    "viewport": "Mobile-Small",
+    "size": "320x568",
+    "screenshot": "/Volumes/FireDrive/Code/botilito_new/botilito/responsiveness-screenshots/Mobile-Small.png",
+    "hasHorizontalScroll": false,
+    "hasVerticalScroll": true,
+    "bodyScrollWidth": 320,
+    "bodyScrollHeight": 593,
+    "windowWidth": 320,
+    "windowHeight": 568,
+    "formVisible": true,
+    "formDimensions": {
+      "width": 272,
+      "height": 300,
+      "top": 116,
+      "left": 24
+    },
+    "buttonVisible": true,
+    "inputsCount": 2,
+    "logoVisible": true,
+    "logoDimensions": {
+      "width": 320,
+      "height": 593
+    }
+  }
+]

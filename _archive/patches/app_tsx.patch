@@ -1,0 +1,111 @@
+--- src/App.tsx
++++ src/App.tsx
+@@ -1,4 +1,4 @@
+-import React, { useState, useEffect } from 'react';
++import React, { useState } from 'react';
+ import { Login } from './components/Login';
+ import { Register } from './components/Register';
+ import { CompleteDashboard } from './components/CompleteDashboard';
+@@ -13,49 +13,38 @@
+ import { MapaDesinfodemico } from './components/MapaDesinfodemico';
+ import { DocumentacionIndicadores } from './components/DocumentacionIndicadores';
+ import { ImmunizationStudio } from './components/ImmunizationStudio';
+-import { getSession, onAuthStateChange, signOut } from './utils/supabase/auth';
++import { useAuth } from './providers/AuthProvider';
+ 
+ export default function App() {
+-  const [isAuthenticated, setIsAuthenticated] = useState(false);
++  // Get authentication state from the global AuthProvider.
++  const { isAuthenticated, isLoading, signOut } = useAuth();
++  
++  // Local UI state that is not related to auth remains here.
+   const [showRegister, setShowRegister] = useState(false);
+   const [activeTab, setActiveTab] = useState('upload');
+-  const [isLoading, setIsLoading] = useState(true);
+-
+-  // Check for existing session on mount
+-  useEffect(() => {
+-    const checkSession = async () => {
+-      try {
+-        const session = await getSession();
+-        setIsAuthenticated(!!session);
+-      } catch (error) {
+-        console.error('Error checking session:', error);
+-        setIsAuthenticated(false);
+-      } finally {
+-        setIsLoading(false);
+-      }
+-    };
+-
+-    checkSession();
+-
+-    // Listen for auth state changes
+-    const { data: { subscription } } = onAuthStateChange((user) => {
+-      setIsAuthenticated(!!user);
+-    });
+-
+-    // Cleanup subscription on unmount
+-    return () => {
+-      subscription?.unsubscribe();
+-    };
+-  }, []);
+ 
+   const handleLogin = () => {
+-    setIsAuthenticated(true);
++    // Auth state is now handled by the provider.
++    // This function just handles local UI state changes after login.
+     setShowRegister(false);
+   };
+ 
+   const handleRegister = () => {
+-    setIsAuthenticated(true);
++    // Auth state is now handled by the provider.
++    // This function just handles local UI state changes after registration.
+     setShowRegister(false);
+   };
+ 
++  // The logout function now calls the signOut method from our useAuth hook.
+   const handleLogout = async () => {
+     try {
+       await signOut();
+-      setIsAuthenticated(false);
+-      setShowRegister(false);
++      setShowRegister(false); // Reset local UI state on logout.
+     } catch (error) {
+       console.error('Error logging out:', error);
+     }
+@@ -71,7 +60,7 @@
+     setShowRegister(false);
+   };
+ 
+-  // Show loading spinner while checking session
++  // Show a global loading spinner while the AuthProvider is checking the initial session.
+   if (isLoading) {
+     return (
+       <div className="min-h-screen bg-primary flex items-center justify-center">
+@@ -83,7 +72,7 @@
+     );
+   }
+ 
+-  // Si no está autenticado, mostrar la pantalla de login o registro
++  // If not authenticated, show the login or register screen.
+   if (!isAuthenticated) {
+     if (showRegister) {
+       return (
+@@ -99,6 +88,7 @@
+     );
+   }
+ 
++  // This function renders the main content based on the active tab.
+   const renderContent = () => {
+     switch (activeTab) {
+       case 'upload':
+@@ -124,6 +114,7 @@
+     }
+   };
+ 
++  // If authenticated, show the main application layout.
+   return (
+     <div className="min-h-screen bg-background">
+       <Navigation 
+

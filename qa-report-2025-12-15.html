@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Botilito QA Report - 2025-12-15</title>
+    <style>
+        :root {
+            --primary: #f59e0b;
+            --primary-dark: #d97706;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --info: #3b82f6;
+            --bg: #0f172a;
+            --bg-card: #1e293b;
+            --text: #f1f5f9;
+            --text-muted: #94a3b8;
+            --border: #334155;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 3rem;
+            padding-bottom: 2rem;
+            border-bottom: 2px solid var(--primary);
+        }
+
+        header h1 {
+            font-size: 2.5rem;
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+        }
+
+        header .subtitle {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+        }
+
+        .meta-info {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin-top: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .meta-item {
+            background: var(--bg-card);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+
+        .meta-item span {
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 3rem;
+        }
+
+        .summary-card {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+            border: 1px solid var(--border);
+        }
+
+        .summary-card.success { border-left: 4px solid var(--success); }
+        .summary-card.warning { border-left: 4px solid var(--warning); }
+        .summary-card.danger { border-left: 4px solid var(--danger); }
+
+        .summary-card .number {
+            font-size: 2.5rem;
+            font-weight: 700;
+        }
+
+        .summary-card.success .number { color: var(--success); }
+        .summary-card.warning .number { color: var(--warning); }
+        .summary-card.danger .number { color: var(--danger); }
+
+        .summary-card .label {
+            color: var(--text-muted);
+            margin-top: 0.5rem;
+        }
+
+        section {
+            margin-bottom: 3rem;
+        }
+
+        section h2 {
+            color: var(--primary);
+            font-size: 1.5rem;
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .bug-card {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            border: 1px solid var(--border);
+        }
+
+        .bug-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .bug-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        .badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+
+        .badge-fixed { background: var(--success); color: white; }
+        .badge-pending { background: var(--warning); color: black; }
+        .badge-critical { background: var(--danger); color: white; }
+        .badge-medium { background: var(--info); color: white; }
+
+        .bug-section {
+            margin-top: 1rem;
+        }
+
+        .bug-section h4 {
+            color: var(--text-muted);
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.5rem;
+        }
+
+        .code-block {
+            background: #0d1117;
+            border-radius: 8px;
+            padding: 1rem;
+            overflow-x: auto;
+            font-family: 'Fira Code', 'Consolas', monospace;
+            font-size: 0.875rem;
+            border: 1px solid var(--border);
+        }
+
+        .code-block .filename {
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+
+        .code-block pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .code-block .line-old {
+            color: #f87171;
+            background: rgba(248, 113, 113, 0.1);
+            display: block;
+            margin: 0 -1rem;
+            padding: 0 1rem;
+        }
+
+        .code-block .line-new {
+            color: #4ade80;
+            background: rgba(74, 222, 128, 0.1);
+            display: block;
+            margin: 0 -1rem;
+            padding: 0 1rem;
+        }
+
+        .file-list {
+            list-style: none;
+        }
+
+        .file-list li {
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--border);
+            font-family: monospace;
+        }
+
+        .file-list li:last-child {
+            border-bottom: none;
+        }
+
+        .test-results {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .test-results th,
+        .test-results td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .test-results th {
+            background: var(--bg);
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            letter-spacing: 0.05em;
+        }
+
+        .test-results tr:hover {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .status-icon {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .status-icon.pass::before {
+            content: "✓";
+            color: var(--success);
+            font-weight: bold;
+        }
+
+        .status-icon.fail::before {
+            content: "✗";
+            color: var(--danger);
+            font-weight: bold;
+        }
+
+        .status-icon.warn::before {
+            content: "⚠";
+            color: var(--warning);
+        }
+
+        .conclusion {
+            background: linear-gradient(135deg, var(--bg-card) 0%, rgba(245, 158, 11, 0.1) 100%);
+            border-radius: 12px;
+            padding: 2rem;
+            border: 1px solid var(--primary);
+        }
+
+        .conclusion h2 {
+            border-bottom: none;
+            margin-bottom: 1rem;
+        }
+
+        .conclusion ul {
+            margin-left: 1.5rem;
+            margin-top: 1rem;
+        }
+
+        .conclusion li {
+            margin-bottom: 0.5rem;
+        }
+
+        .screenshots {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .screenshot {
+            background: var(--bg);
+            border-radius: 8px;
+            padding: 1rem;
+            border: 1px solid var(--border);
+        }
+
+        .screenshot img {
+            width: 100%;
+            border-radius: 4px;
+        }
+
+        .screenshot .caption {
+            color: var(--text-muted);
+            font-size: 0.875rem;
+            margin-top: 0.5rem;
+            text-align: center;
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 3rem;
+            padding-top: 2rem;
+            border-top: 1px solid var(--border);
+            color: var(--text-muted);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Botilito QA Report</h1>
+            <p class="subtitle">AI Analysis Feature (Análisis IA) - QA Testing Report</p>
+            <div class="meta-info">
+                <div class="meta-item">Feature: <span>Análisis IA</span></div>
+                <div class="meta-item">Date: <span>December 15, 2025</span></div>
+                <div class="meta-item">Branch: <span>new_design</span></div>
+                <div class="meta-item">Tester: <span>Claude Code</span></div>
+                <div class="meta-item">Environment: <span>localhost:3000</span></div>
+            </div>
+        </header>
+
+        <div class="summary-cards">
+            <div class="summary-card success">
+                <div class="number">2</div>
+                <div class="label">Bugs Fixed</div>
+            </div>
+            <div class="summary-card warning">
+                <div class="number">1</div>
+                <div class="label">Pending Investigation</div>
+            </div>
+            <div class="summary-card danger">
+                <div class="number">0</div>
+                <div class="label">Critical Blockers</div>
+            </div>
+        </div>
+
+        <section>
+            <h2>Bug #1: Invalid Session Handling (FIXED)</h2>
+            <div class="bug-card">
+                <div class="bug-header">
+                    <div class="bug-title">App stuck on "Cargando..." with invalid refresh token</div>
+                    <div>
+                        <span class="badge badge-fixed">FIXED</span>
+                        <span class="badge badge-critical">Critical</span>
+                    </div>
+                </div>
+
+                <div class="bug-section">
+                    <h4>Description</h4>
+                    <p>When a user has an expired or invalid refresh token stored in localStorage, the application would get stuck on the loading screen ("Cargando...") indefinitely instead of redirecting to the login page.</p>
+                </div>
+
+                <div class="bug-section">
+                    <h4>Root Cause</h4>
+                    <p>The <code>AuthProvider.tsx</code> component's <code>getInitialSession()</code> function lacked proper error handling. When <code>supabase.auth.getSession()</code> failed with an <code>AuthApiError: Invalid Refresh Token</code>, the error was thrown but <code>setIsLoading(false)</code> was never called, leaving the app in a perpetual loading state.</p>
+                </div>
+
+                <div class="bug-section">
+                    <h4>Console Error</h4>
+                    <div class="code-block">
+                        <pre>AuthApiError: Invalid Refresh Token: Refresh Token Not Found
+    at handleError2 (supabase-js.js:5075:9)
+    at async _handleRequest2 (supabase-js.js:5116:5)
+    at async _request (supabase-js.js:5100:16)</pre>
+                    </div>
+                </div>
+
+                <div class="bug-section">
+                    <h4>Files Modified</h4>
+                    <ul class="file-list">
+                        <li>src/providers/AuthProvider.tsx (lines 67-93)</li>
+                    </ul>
+                </div>
+
+                <div class="bug-section">
+                    <h4>Fix Applied</h4>
+                    <div class="code-block">
+                        <div class="filename">src/providers/AuthProvider.tsx</div>
+                        <pre><span class="line-old">- const getInitialSession = async () => {</span>
+<span class="line-old">-     const { data: { session } } = await supabase.auth.getSession();</span>
+<span class="line-old">-     setSession(session);</span>
+<span class="line-old">-     setUser(session?.user ?? null);</span>
+<span class="line-old">-     if (session?.user) {</span>
+<span class="line-old">-         await checkUserProfile();</span>
+<span class="line-old">-     }</span>
+<span class="line-old">-     setIsLoading(false);</span>
+<span class="line-old">- };</span>
+
+<span class="line-new">+ const getInitialSession = async () => {</span>
+<span class="line-new">+     try {</span>
+<span class="line-new">+         const { data: { session }, error } = await supabase.auth.getSession();</span>
+<span class="line-new">+         if (error) {</span>
+<span class="line-new">+             console.error('Session error:', error.message);</span>
+<span class="line-new">+             setSession(null);</span>
+<span class="line-new">+             setUser(null);</span>
+<span class="line-new">+             setIsLoading(false);</span>
+<span class="line-new">+             return;</span>
+<span class="line-new">+         }</span>
+<span class="line-new">+         setSession(session);</span>
+<span class="line-new">+         setUser(session?.user ?? null);</span>
+<span class="line-new">+         if (session?.user) {</span>
+<span class="line-new">+             await checkUserProfile();</span>
+<span class="line-new">+         }</span>
+<span class="line-new">+     } catch (error) {</span>
+<span class="line-new">+         console.error('Failed to get session:', error);</span>
+<span class="line-new">+         setSession(null);</span>
+<span class="line-new">+         setUser(null);</span>
+<span class="line-new">+     } finally {</span>
+<span class="line-new">+         setIsLoading(false);</span>
+<span class="line-new">+     }</span>
+<span class="line-new">+ };</span></pre>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <h2>Bug #2: Invalid Date Display (FIXED)</h2>
+            <div class="bug-card">
+                <div class="bug-header">
+                    <div class="bug-title">"Fecha de Análisis" showing "Invalid Date"</div>
+                    <div>
+                        <span class="badge badge-fixed">FIXED</span>
+                        <span class="badge badge-medium">Medium</span>
+                    </div>
+                </div>
+
+                <div class="bug-section">
+                    <h4>Description</h4>
+                    <p>After completing an AI analysis, the "Fecha de Análisis" field displayed "Invalid Date" instead of a properly formatted date.</p>
+                </div>
+
+                <div class="bug-section">
+                    <h4>Root Cause</h4>
+                    <p>The API response's <code>created_at</code> field was either undefined or contained an invalid date string. The code directly passed this value to <code>new Date()</code> without validation, resulting in an Invalid Date object when the value was missing or malformed.</p>
+                </div>
+
+                <div class="bug-section">
+                    <h4>Files Modified</h4>
+                    <ul class="file-list">
+                        <li>src/components/ContentAnalysisView.tsx (lines 128-131, 178)</li>
+                        <li>src/components/AnalysisResultDisplay.tsx (lines 43-46, 111)</li>
+                    </ul>
+                </div>
+
+                <div class="bug-section">
+                    <h4>Fix Applied</h4>
+                    <div class="code-block">
+                        <div class="filename">src/components/ContentAnalysisView.tsx</div>
+                        <pre><span class="line-new">+ // Safely parse the date with fallback to current date</span>
+<span class="line-new">+ const analysisDate = created_at && !isNaN(new Date(created_at).getTime())</span>
+<span class="line-new">+     ? new Date(created_at)</span>
+<span class="line-new">+     : new Date();</span>
+
+// In the JSX:
+<span class="line-old">- &lt;div&gt;{new Date(created_at).toLocaleString('es-CO')}&lt;/div&gt;</span>
+<span class="line-new">+ &lt;div&gt;{analysisDate.toLocaleString('es-CO')}&lt;/div&gt;</span></pre>
+                    </div>
+                </div>
+
+                <div class="bug-section">
+                    <h4>Verification</h4>
+                    <p>After applying the fix, dates now display correctly: <strong>"15/12/2025, 8:47:19 a. m."</strong></p>
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <h2>Issue #3: Web Search Returns No Results (PENDING)</h2>
+            <div class="bug-card">
+                <div class="bug-header">
+                    <div class="bug-title">"Evaluación de Búsqueda Web" always shows 0/100 credibility</div>
+                    <div>
+                        <span class="badge badge-pending">PENDING</span>
+                        <span class="badge badge-medium">Medium</span>
+                    </div>
+                </div>
+
+                <div class="bug-section">
+                    <h4>Description</h4>
+                    <p>The "Evaluación de Búsqueda Web" section consistently shows:</p>
+                    <ul style="margin-left: 1.5rem; margin-top: 0.5rem;">
+                        <li>Veredicto: "No se encontraron resultados."</li>
+                        <li>Puntaje de Credibilidad: 0/100</li>
+                    </ul>
+                </div>
+
+                <div class="bug-section">
+                    <h4>Observations</h4>
+                    <p>This behavior was observed across multiple test URLs:</p>
+                    <ul style="margin-left: 1.5rem; margin-top: 0.5rem;">
+                        <li>eltiempo.com article about extraditions</li>
+                        <li>cnnespanol.cnn.com video about Kristi Noem's visit</li>
+                    </ul>
+                </div>
+
+                <div class="bug-section">
+                    <h4>Possible Causes</h4>
+                    <ul style="margin-left: 1.5rem;">
+                        <li>Backend web search API may not be configured or is returning empty results</li>
+                        <li>API rate limiting or authentication issues</li>
+                        <li>Search query construction may be failing silently</li>
+                        <li>Response parsing may not be handling the data correctly</li>
+                    </ul>
+                </div>
+
+                <div class="bug-section">
+                    <h4>Recommended Investigation</h4>
+                    <ol style="margin-left: 1.5rem;">
+                        <li>Check Supabase Edge Function logs for web search endpoint</li>
+                        <li>Verify API keys for web search service (Google, Bing, etc.)</li>
+                        <li>Test web search endpoint directly via curl/Postman</li>
+                        <li>Add logging to frontend to capture full API response</li>
+                    </ol>
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <h2>Test Results Summary</h2>
+            <div class="bug-card">
+                <table class="test-results">
+                    <thead>
+                        <tr>
+                            <th>Test Case</th>
+                            <th>URL Tested</th>
+                            <th>Status</th>
+                            <th>Notes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Session with invalid token</td>
+                            <td>localhost:3000</td>
+                            <td><span class="status-icon pass">Pass</span></td>
+                            <td>Redirects to login correctly</td>
+                        </tr>
+                        <tr>
+                            <td>Login flow</td>
+                            <td>localhost:3000</td>
+                            <td><span class="status-icon pass">Pass</span></td>
+                            <td>Authentication works</td>
+                        </tr>
+                        <tr>
+                            <td>Analysis - El Tiempo</td>
+                            <td>eltiempo.com/justicia/...</td>
+                            <td><span class="status-icon pass">Pass</span></td>
+                            <td>Analysis completes, date displays correctly</td>
+                        </tr>
+                        <tr>
+                            <td>Analysis - CNN</td>
+                            <td>cnnespanol.cnn.com/video/...</td>
+                            <td><span class="status-icon pass">Pass</span></td>
+                            <td>Analysis completes, markers detected</td>
+                        </tr>
+                        <tr>
+                            <td>Date formatting</td>
+                            <td>All tests</td>
+                            <td><span class="status-icon pass">Pass</span></td>
+                            <td>Shows "15/12/2025, 8:47:19 a. m."</td>
+                        </tr>
+                        <tr>
+                            <td>Web search verification</td>
+                            <td>All tests</td>
+                            <td><span class="status-icon warn">Warning</span></td>
+                            <td>Always returns 0/100 - needs backend investigation</td>
+                        </tr>
+                        <tr>
+                            <td>Console errors</td>
+                            <td>All tests</td>
+                            <td><span class="status-icon pass">Pass</span></td>
+                            <td>Only favicon 404 (minor)</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section>
+            <h2>Additional Notes</h2>
+            <div class="bug-card" style="border-left: 4px solid var(--info);">
+                <div class="bug-header">
+                    <div class="bug-title">Note on AI Analysis Accuracy</div>
+                    <span class="badge" style="background: var(--info); color: white;">Observation</span>
+                </div>
+                <div class="bug-section">
+                    <h4>Context</h4>
+                    <p>During testing with the CNN article about Kristi Noem's visit to Colombia, the AI flagged the content as <strong>"Engañoso"</strong> (Misleading), claiming that Kristi Noem's title as "Secretaria de Seguridad Nacional" (Secretary of Homeland Security) was incorrect.</p>
+                </div>
+                <div class="bug-section">
+                    <h4>Finding</h4>
+                    <p>However, Kristi Noem <strong>IS</strong> the Secretary of Homeland Security, having been appointed in January 2025 under the Trump administration. The AI's assessment appears to be based on outdated knowledge from before her appointment.</p>
+                </div>
+                <div class="bug-section">
+                    <h4>Implication</h4>
+                    <p>This is <strong>not a frontend bug</strong> but rather an <strong>AI knowledge cutoff issue</strong>. The underlying AI model may have a training data cutoff date that predates Kristi Noem's appointment as Secretary of Homeland Security, causing it to incorrectly flag accurate information as misleading.</p>
+                </div>
+                <div class="bug-section">
+                    <h4>Recommendation</h4>
+                    <ul style="margin-left: 1.5rem;">
+                        <li>Consider implementing real-time fact-checking against current news sources</li>
+                        <li>Add disclaimers about AI knowledge cutoff dates in the analysis results</li>
+                        <li>Evaluate updating the AI model or implementing retrieval-augmented generation (RAG) for current events</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section class="conclusion">
+            <h2>Conclusion & Recommendations</h2>
+            <p>The QA session identified <strong>3 issues</strong>, of which <strong>2 have been fixed</strong> in this session:</p>
+
+            <ul>
+                <li><strong>Critical Fix:</strong> Session handling now properly catches authentication errors and redirects users to login instead of showing an infinite loading state.</li>
+                <li><strong>UX Fix:</strong> Date display is now resilient to missing or invalid data, falling back to the current date when necessary.</li>
+                <li><strong>Pending:</strong> The web search feature requires backend investigation to determine why it consistently returns no results.</li>
+            </ul>
+
+            <h4 style="margin-top: 1.5rem; color: var(--primary);">Next Steps</h4>
+            <ol style="margin-left: 1.5rem; margin-top: 0.5rem;">
+                <li>Merge fixes to appropriate branch after code review</li>
+                <li>Investigate web search backend functionality</li>
+                <li>Add favicon.ico to public folder to eliminate 404 error</li>
+                <li>Consider adding more comprehensive error logging for production debugging</li>
+            </ol>
+        </section>
+
+        <footer>
+            <p>Generated by Claude Code | Botilito Project | December 15, 2025</p>
+        </footer>
+    </div>
+</body>
+</html>

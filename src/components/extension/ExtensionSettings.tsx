@@ -102,7 +102,7 @@ export function ExtensionSettings() {
               <span>Notificaciones</span>
             </CardTitle>
             <CardDescription>
-              Controla cómo te notificamos sobre contenido sospechoso
+              Controla cómo te notificamos sobre contenido detectado
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -121,7 +121,7 @@ export function ExtensionSettings() {
 
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
-                <Label>Resaltar contenido sospechoso</Label>
+                <Label>Resaltar alertas de contenido</Label>
                 <p className="text-sm text-muted-foreground">
                   Destaca visualmente contenido con señales de alerta
                 </p>

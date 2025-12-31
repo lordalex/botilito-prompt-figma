@@ -15,7 +15,7 @@ export function MarkersList({ level1, level2 }: Props) {
     if (markers.length === 0 && level2.tampering_type === 'Inexistente') {
         return (
             <div className="text-center p-8 text-gray-500">
-                <p>No se encontraron marcadores sospechosos en el análisis forense.</p>
+                <p>No se encontraron marcadores de manipulación en el análisis forense.</p>
             </div>
         );
     }
