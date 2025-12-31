@@ -1,74 +1,133 @@
-import React, { useState } from 'react';
 import { useContentUpload } from '../hooks/useContentUpload';
 import { ContentUploadForm } from './ContentUploadForm';
 import { ContentUploadProgress } from './ContentUploadProgress';
 import { ContentUploadResult } from './ContentUploadResult';
+import { CaseRegisteredView } from './CaseRegisteredView';
 import { ErrorManager } from './ErrorManager';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card'; // Assuming these are available
-import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs'; // Assuming these are available
-import { Textarea } from './ui/textarea'; // Assuming these are available
-import { Button } from './ui/button'; // Assuming these are available
-import { Search } from 'lucide-react'; // Assuming lucide-react is installed
 
 interface ContentUploadProps {
   jobId?: string;
   jobType?: string;
-  onReset: () => void;
-  onAnalyze?: (content: string) => void;
-  mode?: 'ai' | 'human';
+  onReset?: () => void;
 }
 
-export function ContentUpload({ jobId, jobType, onReset, onAnalyze, mode = 'ai' }: ContentUploadProps) {
-  const [showResult, setShowResult] = useState(false);
-  const [activeTab, setActiveTab] = useState('text');
-  const [text, setText] = useState('');
-  const [isDragging, setIsDragging] = useState(false);
+export function ContentUpload({ jobId, jobType, onReset }: ContentUploadProps) {
   const {
     status,
     progress,
-    jobStep,
     result,
     error,
     fileName,
+    fileSize,
+    transmissionVector,
     submitContent,
     resetState: internalReset,
     retryLastSubmission,
-    retryCount
+    retryCount,
   } = useContentUpload(jobId, jobType);
-
-  const currentMode = mode || 'ai';
 
   const handleReset = () => {
     internalReset();
-    setShowResult(false);
     onReset?.();
   };
 
-  const handleViewResult = () => {
-    // Mostrar el resultado cuando el usuario hace clic
-    setShowResult(true);
-  };
-
   if (status === 'error' && error) {
-    return <ErrorManager error={error} onRetry={retryLastSubmission} onReset={handleReset} retryCount={retryCount} />;
-  }
-
-  if (status === 'uploading' || status === 'polling' || (status === 'complete' && !showResult)) {
     return (
-      <ContentUploadProgress
-        progress={progress}
-        step={jobStep || "Procesando"}
-        status={jobStep === 'Analyzing' ? "Botilito está analizando la veracidad..." : "Extrayendo metadatos y características..."}
-        fileName={fileName}
-        onViewResult={handleViewResult}
+      <ErrorManager
+        error={error}
+        onRetry={retryLastSubmission}
+        onReset={handleReset}
+        retryCount={retryCount}
       />
     );
   }
 
-  if (status === 'complete' && result && showResult) {
-    return <ContentUploadResult result={result} onReset={handleReset} mode={currentMode} />; // Pass handleReset to clear App state too
+  // Mostrar vista de caso registrado automáticamente cuando el análisis está completo
+  if (status === 'complete' && result) {
+    // Extraer datos del resultado para el CaseRegisteredView
+    // Helper: try several places where backend may put filename/size
+    const extractedFilename =
+      fileName ||
+      result.file_info?.name ||
+      result.fullResult?.metadata?.file_name ||
+      result.fullResult?.metadata?.filename ||
+      result.fullResult?.details?.[0]?.insights?.[0]?.data?.filename ||
+      result.fullResult?.details?.[0]?.original ||
+      undefined;
+
+    // Use fileSize from hook (original File.size) as primary source
+    const rawSize =
+      fileSize ??
+      result.file_info?.size_bytes ??
+      result.fullResult?.metadata?.file_size ??
+      result.fullResult?.metadata?.size ??
+      result.fullResult?.details?.[0]?.insights?.[0]?.data?.size ??
+      undefined;
+
+    const extractedFileSize =
+      rawSize !== undefined && rawSize !== null && rawSize > 0
+        ? `${(Number(rawSize) / 1024).toFixed(2)} KB`
+        : undefined;
+
+    // Detect content type from various response structures
+    const detectContentType = (): 'texto' | 'imagen' | 'video' | 'audio' | 'url' => {
+      // Audio response structure: result.type === "audio_analysis" or "audio"
+      if (result.type === 'audio_analysis' || result.type === 'audio') return 'audio';
+
+      // Video response structure: check for original_video in raw_forensics or file_info
+      if (
+        result.file_info?.original_video_url ||
+        result.raw_forensics?.[0]?.summary?.original_video ||
+        result.type === 'video'
+      ) {
+        return 'video';
+      }
+
+      // Image response structure: result.file_info exists and has data
+      if (result.file_info && result.file_info.name && result.file_info.name !== 'image.jpg') return 'imagen';
+
+      // Text analysis structure: result.fullResult.submission_type
+      const submissionType = result.fullResult?.submission_type?.toLowerCase();
+      if (submissionType) return submissionType as 'texto' | 'imagen' | 'video' | 'audio' | 'url';
+
+      // Fallback: check result.type directly
+      if (result.type && ['texto', 'imagen', 'video', 'audio', 'url'].includes(result.type)) {
+        return result.type as 'texto' | 'imagen' | 'video' | 'audio' | 'url';
+      }
+
+      // Default fallback
+      return 'imagen';
+    };
+
+    const caseData = {
+      caseCode:
+        result.caseNumber ||
+        result.fullResult?.displayId ||
+        `I-TL-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Math.random()
+          .toString(36)
+          .substring(2, 5)
+          .toUpperCase()}`,
+      createdAt: result.fullResult?.created_at || result.meta?.timestamp || new Date().toISOString(),
+      contentType: detectContentType(),
+      analysisType: result.theme || 'Forense',
+      fileName: extractedFilename,
+      fileSize: extractedFileSize,
+      vector: transmissionVector || result.vectores?.[0] || result.fullResult?.metadata?.vector || 'Telegram',
+    };
+
+    return <CaseRegisteredView caseData={caseData} onReportAnother={handleReset} />;
+  }
+
+  if (status === 'uploading' || status === 'polling') {
+    return (
+      <ContentUploadProgress
+        progress={progress}
+        step="Procesando"
+        status="Extrayendo metadatos y características..."
+        fileName={fileName}
+      />
+    );
   }
 
   return <ContentUploadForm onSubmit={submitContent} isSubmitting={status !== 'idle'} />;
 }
-

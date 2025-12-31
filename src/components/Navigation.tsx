@@ -94,7 +94,7 @@ export function Navigation({ activeTab, onTabChange, onLogout, onViewTask }: Nav
     <nav className="border-b bg-card">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-3 cursor-pointer" onClick={() => onTabChange('upload')}>
             <img
               src={botilitoLogo}
               alt="Botilito"
