@@ -1,404 +1,322 @@
-import { createClient } from "npm:@supabase/supabase-js@2.43.4";
-
-// -------------------------------------------------------------------------
-// 1. CONFIGURATION
-// -------------------------------------------------------------------------
-const CONFIG = {
-  PYTHON_API_BASE: "https://botilito.lordalexand.dev/textanalysis",
-  DTO_SCHEMA_URL: "https://mdkswlgcqsmgfmcuorxq.supabase.co/storage/v1/object/public/prompts/dto_schema.json",
-  LOG_LEVEL: Number.parseInt(Deno.env.get('LOG_LEVEL') || '4', 10),
-};
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization, apikey, x-client-info'
-};
-
-let _dtoSchemaCache: any = null;
-
-function log(jobId: string | null, level: number, message: string, data: any = null) {
-  if (CONFIG.LOG_LEVEL < level) return;
-  const timestamp = new Date().toISOString();
-  const jid = jobId ? `[JOB ${jobId}]` : '[SERVER]';
-  const levelStr = level <= 1 ? 'ERROR' : level === 2 ? 'WARN' : level === 3 ? 'INFO' : 'DEBUG';
-  const payload = data ? ` ${JSON.stringify(data)}` : '';
-  console.log(`[${timestamp}] ${jid} [${levelStr}] ${message}${payload}`);
-}
-
-const supabaseAdmin = createClient(
-  Deno.env.get('SUPABASE_URL')!,
-  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-  { auth: { autoRefreshToken: false, persistSession: false } }
-);
-
-// -------------------------------------------------------------------------
-// 2. DTO INTERFACES
-// -------------------------------------------------------------------------
-// (Interfaces remain the same as previously defined for StandardizedCase,
-// GenericInsight, etc., including the 'main_asset_url' in Overview)
-
-// Assume StandardizedCase, GenericInsight, and related interfaces are defined as before...
-interface StandardizedCase {
-  id: string;
-  created_at: string;
-  type: "text" | "image" | "video" | "audio";
-  lifecycle: {
-    job_status: "queued" | "processing" | "completed" | "failed";
-    custody_status: string;
-    last_update: string;
-  };
-  overview: {
-    title: string;
-    summary: string;
-    verdict_label: string;
-    risk_score: number;
-    main_asset_url: string | null;
-    source_domain: string | null;
-  };
-  insights: GenericInsight[];
-  reporter: { id: string; name: string; reputation?: number } | null;
-  community: { votes: number; status: string };
-}
-interface GenericInsight {
-  id: string;
-  category: "forensics" | "content_quality" | "fact_check" | "metadata" | "compliance";
-  label: string;
-  value: string | number | boolean;
-  score?: number | null;
-  description?: string;
-  artifacts?: Artifact[];
-  raw_data?: any;
-}
-// ... other interfaces like Artifact, Reporter, Community etc. are assumed to be defined as before ...
-
-// -------------------------------------------------------------------------
-// 3. MAPPING LOGIC (Updated for Screenshot URL)
-// -------------------------------------------------------------------------
-
-function mapTextToDto(dbRecord: any, pyResult: any, userProfile: any, jobStatus: string): StandardizedCase {
-  const { source_data, ai_analysis, evidence } = pyResult;
-  const { classification, summaries, competencies_analysis, specific_techniques_analysis } = ai_analysis || {};
-  
-  const insights: GenericInsight[] = [];
-
-  // 1. AMI Criteria
-  if (classification?.criterios) {
-    Object.entries(classification.criterios).forEach(([key, crit]: [string, any]) => {
-      insights.push({
-        id: `ami_${key}`, category: "content_quality", label: crit.nombre,
-        value: crit.score === 1 ? "Cumple" : crit.score === 0.5 ? "Parcial" : "No Cumple",
-        score: crit.score * 100,
-        description: crit.justificacion,
-        artifacts: [{ type: "text_snippet", content: crit.cita, label: "Cita del Texto" }, { type: "text_snippet", content: crit.referencia, label: "Referencia UNESCO" }],
-        raw_data: crit
-      });
-    });
-  }
-
-  // 2. Fact Checks
-  if (evidence?.fact_check_table) {
-    evidence.fact_check_table.forEach((fc: any, idx: number) => {
-      insights.push({
-        id: `fc_${idx}`, category: "fact_check", label: "Verificación de Afirmación",
-        value: fc.verdict,
-        score: fc.verdict === 'Verificado' ? 100 : fc.verdict === 'Refutado' ? 0 : 50,
-        description: fc.claim,
-        artifacts: [{ type: "text_snippet", content: fc.explanation, label: "Análisis Interno" }],
-        raw_data: fc
-      });
-    });
-  }
-
-  // 3. Competencies
-  if (competencies_analysis?.competencias_ami) {
-     Object.entries(competencies_analysis.competencias_ami).forEach(([key, val]: [string, any]) => {
-        insights.push({
-            id: `comp_${key}`, category: "compliance", label: key.replace(/_/g, ' ').toUpperCase(),
-            value: val.calificacion >= 0.7 ? "Alto" : "Bajo",
-            score: (val.calificacion || 0) * 100,
-            description: val.analisis,
-            raw_data: val
-        });
-     });
-  }
-
-  // 4. Techniques
-  if (specific_techniques_analysis) {
-      if (specific_techniques_analysis.analisis_fuentes_datos) {
-          const s = specific_techniques_analysis.analisis_fuentes_datos;
-          insights.push({
-              id: 'tech_sources', category: 'metadata', label: 'Análisis de Fuentes',
-              value: s.conclusion, description: s.analisis, raw_data: s
-          });
-      }
-      if (specific_techniques_analysis.titular_vs_contenido) {
-          const t = specific_techniques_analysis.titular_vs_contenido;
-          insights.push({
-              id: 'tech_clickbait', category: 'forensics', label: 'Detección de Clickbait',
-              value: t.es_clickbait ? "Detectado" : "Coherente",
-              score: t.es_clickbait ? 0 : 100,
-              description: t.analisis,
-              raw_data: t
-          });
-      }
-  }
-
-  return {
-    standardized_case: {
-      id: dbRecord.id,
-      created_at: dbRecord.created_at || new Date().toISOString(),
-      // Infer type (this might need more robust logic for non-text sources)
-      type: "text", 
-      
-      lifecycle: {
-        job_status: jobStatus,
-        // Map from Python's ingestion_status to a more general custody stage
-        custody_status: dbRecord.ingestion_status === 'completed' || dbRecord.ingestion_status === 'ai_processed' ? 'ai_processed' : dbRecord.ingestion_status || 'analyzing',
-        last_update: new Date().toISOString()
-      },
-
-      overview: {
-        title: source_data.title || "Sin Título",
-        summary: summaries?.summary || "Sin resumen disponible.",
-        verdict_label: classification?.indiceCumplimientoAMI?.nivel || "Pendiente",
-        risk_score: classification?.indiceCumplimientoAMI?.score || 0,
-        // --- CRITICAL FIX: Capture the screenshot URL ---
-        main_asset_url: source_data.screenshot || null, 
-        source_domain: source_data.url ? new URL(source_data.url).hostname : "Input Directo"
-      },
-      
-      insights: insights,
-
-      reporter: { 
-          id: userProfile.id, 
-          name: userProfile.name 
-      },
-
-      community: { 
-          votes: 0, 
-          status: "ai_only" 
-      }
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Botilito Text Analysis DTO API",
+    "description": "API for analyzing text/web content. It returns a **StandardizedCase DTO** populated with specific insights derived from the AMI/UNESCO framework, Internal Fact-Checking, and Forensic Text Analysis.\n\n**Server Endpoint:** `https://mdkswlgcqsmgfmcuorxq.supabase.co/functions/v1/text-analysis-DTO`",
+    "version": "2.5.0",
+    "contact": {
+      "name": "API Support",
+      "email": "dev@botilito.dev"
     }
-  };
-}
-
-async function saveToDocuments(finalResult: any, userProfile: any) {
-  const { source_data, ai_analysis, reported_by, evidence } = finalResult;
-  const { classification, summaries, judgement } = ai_analysis || {};
-  const userId = reported_by?.id || null;
-  if (!userId) return;
-
-  const contentUrl = source_data.url || null;
-  const contentTitle = source_data.title || "Texto Analizado";
-  const contentSummary = judgement?.final_verdict || summaries?.summary || "Sin resumen";
-  
-  const newMetadata = {
-    ...finalResult, 
-    is_text_analysis: true,
-    isTextSubmission: true,
-    reported_by_user_id: userId,
-    fact_check_table: evidence?.fact_check_table || [],
-    screenshot: source_data.screenshot || null, // Screenshot URL from Python
-    temporal_analysis: evidence?.temporal_analysis || {}
-  };
-
-  const caseMetadata = {
-    type: "text_analysis",
-    risk_level: classification?.nivel_confianza || 0,
-    verdict: judgement?.final_verdict || "Pendiente"
-  };
-
-  let existingDoc = null;
-  if (contentUrl) {
-    const { data } = await supabaseAdmin.from('documents_vectors').select('id, case_id').eq('url', contentUrl).maybeSingle();
-    existingDoc = data;
-  }
-
-  if (existingDoc) {
-      // Overwrite existing
-      await supabaseAdmin.from('cases').update({ summary: contentSummary, metadata: caseMetadata }).eq('id', existingDoc.case_id);
-      await supabaseAdmin.from('documents_vectors').update({
-          title: contentTitle, 
-          content: source_data.text, 
-          summary: contentSummary, 
-          metadata: newMetadata, 
-          result: finalResult, 
-          ingestion_status: "ai_processed", // Mark as AI Processed
-          reported_by: userId
-      }).eq('id', existingDoc.id);
-  } else {
-      // Insert new
-      const { data: newCase } = await supabaseAdmin.from('cases').insert({
-        summary: contentSummary, case_judgement: {}, reported_by: userId, metadata: caseMetadata
-      }).select('id').single();
-
-      if (newCase) {
-        await supabaseAdmin.from('documents_vectors').insert({
-            url: contentUrl || `text://${Date.now()}`, 
-            title: contentTitle, 
-            content: source_data.text, 
-            summary: contentSummary, 
-            metadata: newMetadata, 
-            result: finalResult, 
-            case_id: newCase.id, 
-            reported_by: userId, 
-            ingestion_status: "ai_processed" // Set initial Custody Status
-        });
-      }
-  }
-  await awardXP(userId);
-}
-
-// -------------------------------------------------------------------------
-// 5. SERVER
-// -------------------------------------------------------------------------
-Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response("ok", { headers: corsHeaders });
-  const url = new URL(req.url);
-
-  await loadDtoSchema(); // Ensure schema definition is available
-
-  try {
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) throw new Error("Missing Authorization");
-    const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
-    if (authError || !user) return new Response("Unauthorized", { status: 401, headers: corsHeaders });
-
-    // === POST /submit ===
-    if (req.method === 'POST' && url.pathname.endsWith('/submit')) {
-      const body = await req.json();
-      const { url: contentUrl, text, use_cache } = body;
-      
-      // 1. Cache Check
-      if (use_cache && contentUrl) {
-        const { data: cachedDoc } = await supabaseAdmin.from('documents_vectors').select('*').eq('url', contentUrl).maybeSingle();
-        const cachedRaw = cachedDoc?.result; // Fetch the raw Python result
-
-        if (cachedRaw) {
-            log(null, 3, `[Cache] HIT for ${contentUrl}`);
-            const cacheJobId = crypto.randomUUID();
-            const profile = await getUserProfile(user.id);
-            
-            // Map cached data to DTO
-            const dtoPayload = mapTextToDto(cachedDoc, cachedRaw, profile, "completed"); // Use stored status
-
-            return new Response(JSON.stringify({ 
-                job_id: cacheJobId, 
-                status: 'completed', 
-                data: dtoPayload, 
-                cached: true 
-            }), { headers: corsHeaders });
-        }
-      }
-
-      // 2. Construct Payload for Python API
-      const payload = {
-        url: contentUrl || null,
-        text: text || null,
-        user_id: user.id,
-        openrouter_api_key: Deno.env.get('OPENROUTER_API_KEY'),
-        screenshot_machine_key: Deno.env.get('SCREENSHOT_MACHINE_KEY'), 
-        r2_credentials: {
-            account_id: Deno.env.get('R2_ACCOUNT_ID'),
-            access_key_id: Deno.env.get('R2_ACCESS_KEY_ID'),
-            secret_access_key: Deno.env.get('R2_SECRET_ACCESS_KEY'),
-            bucket_name: Deno.env.get('R2_BUCKET_NAME'),
-            public_url: Deno.env.get('R2_PUBLIC_URL'),
-        },
-        vector_de_transmision: contentUrl ? 'Web' : 'Directo'
-      };
-      
-      // 3. Call Python API
-      log(null, 4, `[API] Submitting to Python Engine...`);
-      const pyRes = await fetch(`${CONFIG.PYTHON_API_BASE}/submit_text_job`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-
-      if (!pyRes.ok) {
-        log(null, 1, `[API] Python Engine Error`, { status: pyRes.status, body: await pyRes.text() });
-        return new Response(JSON.stringify({ error: "Python API Error", details: await pyRes.text() }), { status: pyRes.status, headers: corsHeaders });
-      }
-      
-      const data = await pyRes.json();
-      
-      // 4. Track Job Locally
-      await supabaseAdmin.from('analysis_jobs').insert({
-        id: data.job_id, 
-        user_id: user.id, 
-        status: 'processing', 
-        payload: body, 
-        current_step: 'Queued in Python'
-      });
-      
-      return new Response(JSON.JSON.stringify(data), { headers: corsHeaders });
+  },
+  "servers": [
+    {
+      "url": "https://mdkswlgcqsmgfmcuorxq.supabase.co/functions/v1/text-analysis-DTO",
+      "description": "Production Edge Function"
     }
-
-    // === GET /status/:jobId ===
-    if (req.method === 'GET' && url.pathname.includes('/status/')) {
-      const jobId = url.pathname.split('/status/')[1];
-      log(jobId, 4, `[API] GET /status Check`);
-      
-      // 1. Check local DB (Fast path for cached or already processed jobs)
-      const { data: localJob, error: localErr } = await supabaseAdmin.from('analysis_jobs').select('*').eq('id', jobId).single();
-      if (localErr) log(jobId, 2, `[DB] Local job lookup failed`, localErr);
-
-      if (localJob && localJob.status === 'completed' && localJob.result) {
-          log(jobId, 3, `[Cache] HIT or Locally Completed. Returning result.`);
-          const profile = await getUserProfile(user.id);
-          // Map the LOCAL job result to DTO
-          const dtoPayload = mapTextToDto(localJob, localJob.result, profile, "completed");
-          return new Response(JSON.stringify({ job_id: jobId, status: 'completed', data: dtoPayload }), { headers: corsHeaders });
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Supabase User Token"
       }
-
-      // 2. Check Python API for Fresh Status
-      const pyRes = await fetch(`${CONFIG.PYTHON_API_BASE}/status/${jobId}`);
-      if (pyRes.ok) {
-        const pyData = await pyRes.json();
-        log(jobId, 4, `[API] Python Status: ${pyData.status}`);
-        
-        // 3. IF COMPLETED: Finalize & Persist
-        if (pyData.status === 'completed') {
-          let rawResult = pyData.result;
-          let profile = await getUserProfile(user.id);
-          rawResult.reported_by = profile; // Enrich with profile
-          
-          // Save/Update in DB & Award XP
-          await saveToDocuments(rawResult);
-          
-          // Map Python result to DTO
-          let dbDoc = { id: jobId, created_at: new Date().toISOString(), ingestion_status: "ai_processed" };
-          if (rawResult.source_data?.url) {
-             const { data: existing } = await supabaseAdmin.from('documents_vectors').select('id, ingestion_status, created_at').eq('url', rawResult.source_data.url).maybeSingle();
-             if (existing) dbDoc = existing;
+    },
+    "schemas": {
+      "SubmitRequest": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "Target URL to scrape and analyze.",
+            "example": "https://www.bbc.com/mundo/noticias-america-latina-12345"
+          },
+          "text": {
+            "type": "string",
+            "description": "Direct text input (fallback if URL is not provided).",
+            "example": "Cadena de WhatsApp: El gobierno decretará estado de sitio mañana..."
+          },
+          "use_cache": {
+            "type": "boolean",
+            "default": false,
+            "description": "If `true`, returns existing DB result immediately. If `false`, forces fresh analysis."
           }
-          const dtoPayload = mapTextToDto(dbDoc, rawResult, profile, "completed");
-
-          // Update Job Record in DB
-          await supabaseAdmin.from('analysis_jobs').update({
-            status: 'completed', 
-            result: pyData, // Store the raw pyData here for potential debugging / re-processing later
-            completed_at: new Date().toISOString()
-          }).eq('id', jobId);
-          
-          return new Response(JSON.stringify({ job_id: jobId, status: 'completed', data: dtoPayload }), { headers: corsHeaders });
+        },
+        "required": ["user_id"]
+      },
+      "JobResponse": {
+        "type": "object",
+        "properties": {
+          "job_id": { "type": "string", "format": "uuid" },
+          "status": { "type": "string", "enum": ["queued", "processing", "completed", "failed"] },
+          "data": { "$ref": "#/components/schemas/DTOContainer" }
         }
-        
-        // If processing or failed, return Python's status
-        return new Response(JSON.stringify(pyData), { headers: corsHeaders });
-      } else {
-        log(jobId, 1, `[API] Python Status Check Failed`);
-        return new Response(JSON.stringify({ status: 'failed', error: 'Could not reach Python API' }), { status: 502, headers: corsHeaders });
+      },
+      "DTOContainer": {
+        "type": "object",
+        "properties": {
+          "standardized_case": { "$ref": "#/components/schemas/StandardizedCase" }
+        }
+      },
+      "StandardizedCase": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "created_at": { "type": "string", "format": "date-time" },
+          "type": { "type": "string", "enum": ["text"], "example": "text" },
+          "lifecycle": { "$ref": "#/components/schemas/Lifecycle" },
+          "overview": { "$ref": "#/components/schemas/Overview" },
+          "insights": {
+            "type": "array",
+            "description": "List of specific analysis findings. For Text Analysis, this includes AMI Criteria, Fact Checks, Competencies, and Forensics.",
+            "items": {
+              "oneOf": [
+                { "$ref": "#/components/schemas/Insight_AMICriterion" },
+                { "$ref": "#/components/schemas/Insight_FactCheck" },
+                { "$ref": "#/components/schemas/Insight_Competency" },
+                { "$ref": "#/components/schemas/Insight_Forensics" },
+                { "$ref": "#/components/schemas/Insight_Metadata" }
+              ]
+            }
+          },
+          "reporter": { "$ref": "#/components/schemas/Reporter" },
+          "community": { "$ref": "#/components/schemas/Community" }
+        }
+      },
+      "Lifecycle": {
+        "type": "object",
+        "properties": {
+          "job_status": { "type": "string", "example": "completed" },
+          "custody_status": { 
+            "type": "string", 
+            "enum": ["analyzing", "ai_processed", "human_review", "finalized"],
+            "description": "Current stage in the verification chain. 'ai_processed' means AI is done."
+          },
+          "last_update": { "type": "string", "format": "date-time" }
+        }
+      },
+      "Overview": {
+        "type": "object",
+        "properties": {
+          "title": { "type": "string" },
+          "summary": { "type": "string" },
+          "verdict_label": { "type": "string", "example": "Necesita Estrategias AMI" },
+          "risk_score": { "type": "number", "description": "Global AMI Compliance Score (0-100)." },
+          "main_asset_url": { "type": "string", "format": "uri", "nullable": true, "description": "URL to the screenshot of the analyzed content." },
+          "source_domain": { "type": "string" }
+        }
+      },
+      "Insight_AMICriterion": {
+        "type": "object",
+        "description": "Represents one of the 20 UNESCO AMI Criteria evaluations.",
+        "properties": {
+          "id": { "type": "string", "example": "ami_claridad_fuente" },
+          "category": { "type": "string", "enum": ["content_quality"] },
+          "label": { "type": "string", "example": "Claridad de la Fuente" },
+          "value": { "type": "string", "enum": ["Cumple", "Parcial", "No Cumple"] },
+          "score": { "type": "number", "enum": [0, 50, 100] },
+          "description": { "type": "string", "example": "El artículo no cita fuentes primarias, solo menciona 'fuentes cercanas'." },
+          "artifacts": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Artifact" }
+          },
+          "raw_data": {
+            "type": "object",
+            "properties": {
+              "nombre": { "type": "string" },
+              "score": { "type": "number", "example": 0.5 },
+              "justificacion": { "type": "string" },
+              "cita": { "type": "string" },
+              "referencia": { "type": "string" }
+            }
+          }
+        }
+      },
+      "Insight_FactCheck": {
+        "type": "object",
+        "description": "Verification of a specific factual claim found in the text.",
+        "properties": {
+          "id": { "type": "string", "example": "fc_0" },
+          "category": { "type": "string", "enum": ["fact_check"] },
+          "label": { "type": "string", "const": "Verificación de Afirmación" },
+          "value": { "type": "string", "enum": ["Verificado", "Refutado", "No Verificable"] },
+          "score": { "type": "number", "description": "100 (Verified), 50 (Unverifiable), 0 (Refuted)" },
+          "description": { "type": "string", "description": "The extracted claim." },
+          "artifacts": { "type": "array", "items": { "$ref": "#/components/schemas/Artifact" } },
+          "raw_data": {
+            "type": "object",
+            "properties": {
+              "claim": { "type": "string" },
+              "verdict": { "type": "string" },
+              "explanation": { "type": "string" }
+            }
+          }
+        }
+      },
+      "Insight_Competency": {
+        "type": "object",
+        "description": "Evaluation of the 4 Methodological Pillars (Access, Evaluation, Context, Production).",
+        "properties": {
+          "id": { "type": "string", "example": "comp_evaluacion_critica" },
+          "category": { "type": "string", "enum": ["compliance"] },
+          "label": { "type": "string", "example": "EVALUACION CRITICA" },
+          "value": { "type": "string", "enum": ["Fuerte", "Débil"] },
+          "score": { "type": "number", "example": 80 },
+          "description": { "type": "string", "example": "El texto permite contrastar datos..." },
+          "raw_data": {
+            "type": "object",
+            "properties": {
+              "analisis": { "type": "string" },
+              "calificacion": { "type": "number", "example": 0.8 }
+            }
+          }
+        }
+      },
+      "Insight_Forensics": {
+        "type": "object",
+        "description": "Technical analysis results (Clickbait detection, Headline coherence).",
+        "properties": {
+          "id": { "type": "string", "example": "tech_clickbait" },
+          "category": { "type": "string", "enum": ["forensics"] },
+          "label": { "type": "string", "const": "Detección de Clickbait" },
+          "value": { "type": "string", "example": "Clickbait Detectado" },
+          "score": { "type": "number", "description": "0 if clickbait, 100 if coherent." },
+          "description": { "type": "string" },
+          "raw_data": {
+            "type": "object",
+            "properties": {
+              "es_clickbait": { "type": "boolean" },
+              "concordancia": { "type": "string" },
+              "analisis": { "type": "string" }
+            }
+          }
+        }
+      },
+      "Insight_Metadata": {
+        "type": "object",
+        "description": "Source and Data analysis.",
+        "properties": {
+          "id": { "type": "string", "example": "tech_sources" },
+          "category": { "type": "string", "enum": ["metadata"] },
+          "label": { "type": "string", "const": "Análisis de Fuentes" },
+          "value": { "type": "string", "example": "Fuentes Sólidas" },
+          "score": { "type": "null" },
+          "description": { "type": "string" },
+          "raw_data": {
+            "type": "object",
+            "properties": {
+              "conclusion": { "type": "string" },
+              "analisis": { "type": "string" }
+            }
+          }
+        }
+      },
+      "Artifact": {
+        "type": "object",
+        "properties": {
+          "type": { "type": "string", "enum": ["text_snippet", "image_url"] },
+          "content": { "type": "string" },
+          "label": { "type": "string" }
+        }
+      },
+      "Reporter": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "reputation": { "type": "number" }
+        }
+      },
+      "Community": {
+        "type": "object",
+        "properties": {
+          "votes": { "type": "integer" },
+          "status": { "type": "string" }
+        }
       }
     }
-
-    return new Response("Not Found", { status: 404, headers: corsHeaders });
-  } catch (e: any) {
-    log(null, 1, `[SERVER] Unhandled Error`, e.message);
-    return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: corsHeaders });
+  },
+  "paths": {
+    "/submit": {
+      "post": {
+        "summary": "Submit Text Analysis Job",
+        "description": "Queues a new analysis. The backend scrapes the URL (if provided), takes a screenshot, and runs the AI pipeline.",
+        "requestBody": {
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SubmitRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "Job Queued", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/JobResponse" } } } }
+        }
+      }
+    },
+    "/status/{job_id}": {
+      "get": {
+        "summary": "Poll Analysis Results",
+        "description": "Returns the status. When `completed`, returns the `StandardizedCase` containing all Text Analysis insights.",
+        "parameters": [
+          { "name": "job_id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Completed Result",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/JobResponse" },
+                "example": {
+                  "job_id": "550e8400-...",
+                  "status": "completed",
+                  "data": {
+                    "standardized_case": {
+                      "id": "123",
+                      "created_at": "2025-12-30T10:00:00Z",
+                      "type": "text",
+                      "lifecycle": {
+                        "job_status": "completed",
+                        "custody_status": "ai_processed",
+                        "last_update": "2025-12-30T10:05:00Z"
+                      },
+                      "overview": {
+                        "title": "Avistamiento OVNI",
+                        "summary": "Noticia falsa sobre aliens.",
+                        "verdict_label": "Necesita Estrategias AMI",
+                        "risk_score": 45.0,
+                        "main_asset_url": "https://r2.dev/img.jpg",
+                        "source_domain": "fake.com"
+                      },
+                      "insights": [
+                        {
+                          "id": "ami_claridad_fuente",
+                          "category": "content_quality",
+                          "label": "Claridad de la Fuente",
+                          "value": "No Cumple",
+                          "score": 0,
+                          "description": "No se citan fuentes.",
+                          "raw_data": { "score": 0, "nombre": "Claridad..." }
+                        },
+                        {
+                          "id": "fc_0",
+                          "category": "fact_check",
+                          "label": "Verificación de Afirmación",
+                          "value": "Refutado",
+                          "score": 0,
+                          "description": "El evento no ocurrió.",
+                          "raw_data": { "claim": "Aliens...", "verdict": "Refutado" }
+                        }
+                      ],
+                      "reporter": { "id": "u1", "name": "User", "reputation": 10 },
+                      "community": { "votes": 0, "status": "ai_only" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
   }
-});
+}
 

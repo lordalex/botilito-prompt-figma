@@ -100,6 +100,33 @@ export const transformTextAnalysisToUI = (data: any) => {
                 sources: item.artifacts?.filter((a: any) => a.type === 'text_snippet') || []
             }));
 
+        // Derive competencies analysis for UI (AMI Framework Mapping)
+        const competenciesAnalysis: any = {};
+        const qualityInsights = insights.filter((i: any) => i.category === 'content_quality');
+        const failedQualities = qualityInsights.filter((i: any) =>
+            (i.score !== undefined && i.score < 70) ||
+            (i.value && i.value.toString().toLowerCase().includes('no cumple'))
+        );
+
+        // Competency Mapping (AMI IDs to UI Keys)
+        const compMap: Record<string, string[]> = {
+            'acceso_informacion': ['ami_1', 'ami_2', 'ami_15'],
+            'evaluacion_critica': ['ami_3', 'ami_6', 'ami_7', 'ami_8', 'ami_9', 'ami_13', 'ami_14'],
+            'comprension_contexto': ['ami_4', 'ami_5', 'ami_10', 'ami_16', 'ami_18'],
+            'produccion_responsable': ['ami_11', 'ami_12', 'ami_17', 'ami_19']
+        };
+
+        // Populate competencies based on failures
+        Object.entries(compMap).forEach(([compKey, insightIds]) => {
+            const groupFailures = failedQualities.filter((f: any) => insightIds.includes(f.id));
+            if (groupFailures.length > 0) {
+                competenciesAnalysis[compKey] = {
+                    score: 0,
+                    recommendations: groupFailures.map((f: any) => f.description)
+                };
+            }
+        });
+
         return {
             // Core Identity
             id: standardizedCase.id,
@@ -153,11 +180,40 @@ export const transformTextAnalysisToUI = (data: any) => {
             // Raw Data Access
             raw: data,
 
+            // Mapping for UnifiedAnalysisView compatibility
+            classification: {
+                tipoFuente: overview.source_domain || 'Fuente desconocida',
+                tipoContenido: overview.source_domain ? 'Noticia Web' : 'Texto Análisis',
+                tema: 'General',
+                titulo: overview.title,
+                resumen: overview.summary,
+                score: overview.risk_score,
+                nivel: overview.verdict_label,
+                explicacion: overview.verdict_label
+            },
+
+            // Mapping for Recommendations (TextAIAnalysis)
+            ai_analysis: {
+                competencies_analysis: competenciesAnalysis,
+                summaries: {
+                    summary: overview.summary,
+                    short: { text: overview.summary }
+                }
+            },
+
             // Mapping for Sidebar components
             metadata: {
                 type: 'text',
                 language: 'es',
-                source: overview.source_domain || 'Direct Input'
+                source: overview.source_domain || 'Direct Input',
+                screenshot: overview.main_asset_url,
+                vector_de_transmision: overview.source_domain ? 'Web' : 'Direct',
+                submission_type: 'text',
+                reported_by: {
+                    id: reporter.id,
+                    name: reporter.name,
+                    reputation: reporter.reputation
+                }
             },
 
             // Stats for Sidebar
@@ -405,12 +461,69 @@ export const transformImageAnalysisToUI = (data: any) => {
 export const transformAudioAnalysisToUI = (data: any) => {
     if (!data) return null;
 
-    // ... Implementation for Audio
+    // Check for StandardizedCase structure
+    const standardizedCase = data.data || data.standardized_case || data.result?.standardized_case;
+
+    if (standardizedCase) {
+        const overview = standardizedCase.overview || {};
+        const insights = standardizedCase.insights || [];
+
+        // Map Overview -> Verdict
+        const verdict = {
+            conclusion: overview.verdict_label || "Análisis completado",
+            risk_level: overview.risk_score > 70 ? 'high' : overview.risk_score > 30 ? 'medium' : 'low',
+            confidence: overview.risk_score / 100
+        };
+
+        // Map Insights -> Forensics & Anomalies
+        const anomalies = insights.filter((i: any) => i.score !== undefined && i.score < 50).map((i: any) => ({
+            type: i.label,
+            description: i.description,
+            start: 0, // Mock, no segment data provided in generic GenericInsight
+            end: 0
+        }));
+
+        const authenticityScore = 100 - (overview.risk_score || 0);
+
+        // Try to find transcription in insights (category: content_quality or specific label)
+        const transcriptionInsight = insights.find((i: any) => i.id === 'transcription' || i.label?.toLowerCase().includes('transcripci'));
+
+        const humanReport = {
+            verdict,
+            audio_forensics: {
+                authenticity_score: authenticityScore,
+                manipulation_detected: overview.risk_score > 50,
+                anomalies: anomalies,
+                spectral_analysis: "Análisis espectral completado."
+            },
+            transcription: {
+                text: transcriptionInsight?.value || transcriptionInsight?.description || "Transcripción no disponible en este nivel de análisis.",
+                language: "es",
+                confidence: transcriptionInsight?.score || 0
+            },
+            speaker_analysis: {
+                num_speakers: 1 // Default
+            }
+        };
+
+        return {
+            id: standardizedCase.id,
+            created_at: standardizedCase.created_at,
+            human_report: humanReport,
+            local_audio_url: overview.main_asset_url,
+            raw: data // Keep full data
+        };
+    }
+
+    // Legacy fallback
     return {
         id: data.id,
+        created_at: data.created_at,
+        human_report: data.human_report, // Pass through legacy structure
+        local_audio_url: data.local_audio_url,
         raw: data
     };
-}
+};
 
 /**
  * Transforms the lookup result (StandardizedCase DTO) for the Unified View.

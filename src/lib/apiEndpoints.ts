@@ -1,7 +1,7 @@
 const SUPABASE_URL = 'https://mdkswlgcqsmgfmcuorxq.supabase.co';
 
 // Text & Media Analysis API (v1.2.0 - AMI UNESCO)
-export const TEXT_ANALYSIS_BASE_URL = `${SUPABASE_URL}/functions/v1/text-analysis`;
+export const TEXT_ANALYSIS_BASE_URL = `${SUPABASE_URL}/functions/v1/text-analysis-DTO`;
 
 // Search DTO API (v2.3.0 - Unified Search, Lookup, Dashboard)
 // Replaces legacy vector-async API

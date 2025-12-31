@@ -108,6 +108,7 @@ export function UnifiedAnalysisView({
         chainOfCustodyEvents
     } = useAnalysisSidebarData({ data, contentType, mode });
 
+
     // Forensic mode detection and state
     const isForensic = contentType === 'image' || contentType === 'audio';
     const [forensicTab, setForensicTab] = useState<'pruebas' | 'evidencias'>('pruebas');
@@ -198,6 +199,9 @@ export function UnifiedAnalysisView({
         if (contentType === 'image') {
             return data?.details || data?.level1_analysis || [];
         }
+        if (contentType === 'audio') {
+            return data?.details || [];
+        }
         return [];
     };
 
@@ -217,6 +221,7 @@ export function UnifiedAnalysisView({
                 }
             };
         }
+        // For image/audio
         // For image/audio
         return {
             title: title || data?.file_info?.filename || 'Archivo multimedia',
@@ -295,7 +300,11 @@ export function UnifiedAnalysisView({
     const renderAIAnalysis = () => {
         switch (contentType) {
             case 'text':
-                return <TextAIAnalysis data={data} title={title} screenshot={screenshot} />;
+                return <TextAIAnalysis
+                    data={data}
+                    title={title}
+                    screenshot={screenshot || data?.metadata?.screenshot || data?.standardized_case?.overview?.main_asset_url || data?.overview?.main_asset_url || data?.mainAssetUrl}
+                />;
             case 'image':
                 return <ImageAIAnalysis data={data} />;
             case 'audio':
@@ -379,9 +388,9 @@ export function UnifiedAnalysisView({
     const visualUrl = getVisualUrl();
 
     return (
-        <div className="max-w-7xl mx-auto p-4 md:p-6 lg:pt-5 space-y-6">
+        <div className="max-w-7xl mx-auto p-4 md:p-6 lg:pt-5 space-y-6" >
             {/* ========== BOTILITO BANNER ========== */}
-            <div className="bg-[#ffe97a] border-2 border-[#ffda00] rounded-lg p-4 shadow-lg mb-6">
+            < div className="bg-[#ffe97a] border-2 border-[#ffda00] rounded-lg p-4 shadow-lg mb-6" >
                 <div className="flex items-center space-x-4">
                     <img
                         src={botilitoMascot}
@@ -397,76 +406,78 @@ export function UnifiedAnalysisView({
                         </p>
                     </div>
                 </div>
-            </div>
+            </div >
 
             {/* ========== BACK BUTTON ========== */}
-            <Button variant="ghost" onClick={onReset} className="text-gray-600 hover:text-black">
+            < Button variant="ghost" onClick={onReset} className="text-gray-600 hover:text-black" >
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Volver al listado
-            </Button>
+            </Button >
 
             {/* ========== MAIN GRID: 70% / 30% ========== */}
-            <div className="flex gap-6">
+            < div className="flex gap-6" >
 
                 {/* ========== LEFT COLUMN (70%) ========== */}
-                <div className="flex-1 min-w-0 space-y-6">
+                < div className="flex-1 min-w-0 space-y-6" >
 
                     {/* IMAGE/AUDIO PREVIEW - Figma: Dark card with rounded-full badge */}
-                    {visualUrl && (
-                        <Card className="border-2 border-black bg-[#0a0e1a] rounded-md relative overflow-hidden">
+                    {
+                        visualUrl && (
+                            <Card className="border-2 border-black bg-[#0a0e1a] rounded-md relative overflow-hidden">
 
-                            {contentType === 'audio' ? (
-                                <div className="relative w-full bg-gray-900 p-8 flex flex-col items-center justify-center">
-                                    {/* Badge for audio */}
-                                    <div className="absolute top-4 left-6 bg-black/80 text-white px-3 py-1.5 rounded-full text-sm flex items-center gap-2 backdrop-blur-sm z-30">
-                                        <FileText className="h-4 w-4" />
-                                        Audio Original
-                                    </div>
-                                    <div className="w-20 h-20 rounded-full bg-[#ffda00] flex items-center justify-center mb-4">
-                                        <Volume2 className="h-10 w-10 text-black" />
-                                    </div>
-                                    <audio controls className="w-full max-w-md" src={visualUrl} />
-                                </div>
-                            ) : (
-                                <div className="relative w-full bg-gray-900 h-[500px] flex items-end justify-center py-12 px-8">
-                                    {/* Badge for image */}
-                                    <div className="absolute top-4 left-2 bg-black/80 text-white px-3 py-1.5 rounded-full text-sm flex items-center gap-2 backdrop-blur-sm z-30">
-                                        <FileText className="h-4 w-4" />
-                                        Imagen Original
-                                    </div>
-
-                                    <img
-                                        src={visualUrl}
-                                        alt="Captura Original"
-                                        className="max-w-full max-h-[500px] w-auto h-auto object-contain"
-                                    />
-
-                                    {/* Navigation arrows for multiple images */}
-                                    {availableImages.length > 1 && (
-                                        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex items-center gap-4 mb-2">
-                                            <button
-                                                className="text-white bg-black/80 hover:bg-black/95 rounded-full h-12 w-12 flex items-center justify-center transition-colors shadow-lg backdrop-blur-sm"
-                                                onClick={handlePrevImage}
-                                                type="button"
-                                            >
-                                                <ChevronLeft className="h-7 w-7" />
-                                            </button>
-                                            <div className="bg-black/80 text-white px-4 py-2 rounded-full text-sm backdrop-blur-sm font-medium shadow-lg">
-                                                {currentImageIndex + 1} / {availableImages.length}
-                                            </div>
-                                            <button
-                                                className="text-white bg-black/80 hover:bg-black/95 rounded-full h-12 w-12 flex items-center justify-center transition-colors shadow-lg backdrop-blur-sm"
-                                                onClick={handleNextImage}
-                                                type="button"
-                                            >
-                                                <ChevronRight className="h-7 w-7" />
-                                            </button>
+                                {contentType === 'audio' ? (
+                                    <div className="relative w-full bg-gray-900 p-8 flex flex-col items-center justify-center">
+                                        {/* Badge for audio */}
+                                        <div className="absolute top-4 left-6 bg-black/80 text-white px-3 py-1.5 rounded-full text-sm flex items-center gap-2 backdrop-blur-sm z-30">
+                                            <FileText className="h-4 w-4" />
+                                            Audio Original
                                         </div>
-                                    )}
-                                </div>
-                            )}
-                        </Card>
-                    )}
+                                        <div className="w-20 h-20 rounded-full bg-[#ffda00] flex items-center justify-center mb-4">
+                                            <Volume2 className="h-10 w-10 text-black" />
+                                        </div>
+                                        <audio controls className="w-full max-w-md" src={visualUrl} />
+                                    </div>
+                                ) : (
+                                    <div className="relative w-full bg-gray-900 h-[500px] flex items-end justify-center py-12 px-8">
+                                        {/* Badge for image */}
+                                        <div className="absolute top-4 left-2 bg-black/80 text-white px-3 py-1.5 rounded-full text-sm flex items-center gap-2 backdrop-blur-sm z-30">
+                                            <FileText className="h-4 w-4" />
+                                            Imagen Original
+                                        </div>
+
+                                        <img
+                                            src={visualUrl}
+                                            alt="Captura Original"
+                                            className="max-w-full max-h-[500px] w-auto h-auto object-contain"
+                                        />
+
+                                        {/* Navigation arrows for multiple images */}
+                                        {availableImages.length > 1 && (
+                                            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex items-center gap-4 mb-2">
+                                                <button
+                                                    className="text-white bg-black/80 hover:bg-black/95 rounded-full h-12 w-12 flex items-center justify-center transition-colors shadow-lg backdrop-blur-sm"
+                                                    onClick={handlePrevImage}
+                                                    type="button"
+                                                >
+                                                    <ChevronLeft className="h-7 w-7" />
+                                                </button>
+                                                <div className="bg-black/80 text-white px-4 py-2 rounded-full text-sm backdrop-blur-sm font-medium shadow-lg">
+                                                    {currentImageIndex + 1} / {availableImages.length}
+                                                </div>
+                                                <button
+                                                    className="text-white bg-black/80 hover:bg-black/95 rounded-full h-12 w-12 flex items-center justify-center transition-colors shadow-lg backdrop-blur-sm"
+                                                    onClick={handleNextImage}
+                                                    type="button"
+                                                >
+                                                    <ChevronRight className="h-7 w-7" />
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </Card>
+                        )
+                    }
 
                     {/* CONTENT INFO SECTION - Figma: Card with explicit font sizes */}
                     <Card className="border border-[#e5e7eb] bg-white rounded-md">
@@ -685,10 +696,10 @@ export function UnifiedAnalysisView({
                             </div>
                         </CardContent>
                     </Card>
-                </div>
+                </div >
 
                 {/* ========== RIGHT COLUMN - SIDEBAR (30%) ========== */}
-                <div className="w-[320px] flex-shrink-0 space-y-4 sticky top-8">
+                < div className="w-[320px] flex-shrink-0 space-y-4 sticky top-8" >
                     <AnalysisSidebarCaseInfo {...caseInfoProps} />
                     <AnalysisSidebarStats stats={statsProps.length > 0 ? statsProps : [
                         { label: 'Pruebas realizadas', value: '1' },
@@ -697,11 +708,11 @@ export function UnifiedAnalysisView({
                     ]} />
                     <AnalysisSidebarChainOfCustody events={chainOfCustodyEvents} />
                     <AnalysisSidebarRecommendations recommendations={recommendations} />
-                </div>
-            </div>
+                </div >
+            </div >
 
             {/* ========== VALIDATION PANEL (Full Width) ========== */}
-            <div className="mt-8">
+            < div className="mt-8" >
                 <CaseDiagnosisForm
                     caseId={caseInfoProps.caseNumber || caseNumber || 'new'}
                     aiAnalysis={data?.ai_analysis || data}
@@ -710,15 +721,15 @@ export function UnifiedAnalysisView({
                     onSubmit={onSubmitDiagnosis}
                     isSubmitting={isSubmittingDiagnosis}
                 />
-            </div>
+            </div >
 
             {/* ========== FOOTER ========== */}
-            <div className="text-center pb-8 pt-4">
+            < div className="text-center pb-8 pt-4" >
                 <p className="text-[10px] text-slate-400 uppercase tracking-[0.2em] font-bold">
                     Botilito Intelligence Ecosystem • {new Date().getFullYear()}
                 </p>
-            </div>
-        </div>
+            </div >
+        </div >
     );
 }
 

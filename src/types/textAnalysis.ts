@@ -64,6 +64,7 @@ export interface JobResponse {
     status: 'queued' | 'processing' | 'completed' | 'failed';
     cached?: boolean;
     result?: AnalysisResult;
+    data?: any; // StandardizedCase DTO support
     progress?: {
         step: string;
         percent: number;

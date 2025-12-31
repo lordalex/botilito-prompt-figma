@@ -54,6 +54,17 @@ export function TextAIAnalysis({ data, title, screenshot, markersDetected }: Tex
                 </h3>
             </div>
 
+            {/* Screenshot / Main Visual */}
+            {screenshot && (
+                <div className="rounded-xl overflow-hidden border border-slate-200 shadow-sm mb-6 bg-slate-100 flex justify-center items-center p-2">
+                    <img
+                        src={screenshot}
+                        alt="Captura del contenido analizdo"
+                        className="max-h-[400px] w-auto object-contain rounded-lg"
+                    />
+                </div>
+            )}
+
             {/* 1. Resumen del Contenido */}
             <div className="bg-slate-50 border border-slate-100 rounded-xl p-6 space-y-4">
                 <div className="flex items-center gap-2 mb-2">

@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useCaseHistory } from '@/hooks/useCaseHistory';
+import { transformHumanCaseToUI } from '@/services/analysisPresentationService';
 import { CaseDetailDialog } from '@/components/CaseDetailDialog';
 import { generateDisplayId } from '@/utils/humanVerification/api';
 
@@ -112,40 +113,45 @@ export function ContentReview({ onViewTask }: ContentReviewProps) {
             </div>
           ) : (
             <div className="divide-y divide-gray-100">
-              {cases.map((item: any) => (
-                <div
-                  key={item.id}
-                  className="p-4 hover:bg-yellow-50/30 cursor-pointer group transition-colors"
-                  onClick={() => onViewTask(item.id, item.submission_type)}
-                >
-                  <div className="flex justify-between items-start gap-4">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2 text-xs text-gray-500">
-                        <span className="font-mono bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded font-semibold">{item.displayId || generateDisplayId(item)}</span>
-                        <span className="font-mono bg-gray-100 px-1 rounded">{new Date(item.created_at).toLocaleDateString()}</span>
-                        <span>•</span>
-                        <Badge variant="secondary" className="text-[10px] h-5">{item.submission_type}</Badge>
+              {cases.map((rawItem: any) => {
+                const item = transformHumanCaseToUI(rawItem);
+                if (!item) return null;
+
+                return (
+                  <div
+                    key={item.id}
+                    className="p-4 hover:bg-yellow-50/30 cursor-pointer group transition-colors"
+                    onClick={() => onViewTask(item.id, item.type || rawItem.submission_type || 'text')}
+                  >
+                    <div className="flex justify-between items-start gap-4">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2 text-xs text-gray-500">
+                          <span className="font-mono bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded font-semibold">{generateDisplayId(item)}</span>
+                          <span className="font-mono bg-gray-100 px-1 rounded">{new Date(item.created_at).toLocaleDateString()}</span>
+                          <span>•</span>
+                          <Badge variant="secondary" className="text-[10px] h-5">{item.type?.toUpperCase() || 'GENERAL'}</Badge>
+                        </div>
+                        <h4 className="font-semibold text-gray-900 line-clamp-1">{item.title || "Sin título"}</h4>
+                        <p className="text-sm text-gray-600 line-clamp-2">{item.summary || "..."}</p>
                       </div>
-                      <h4 className="font-semibold text-gray-900 line-clamp-1">{item.title || "Sin título"}</h4>
-                      <p className="text-sm text-gray-600 line-clamp-2">{item.summary || "..."}</p>
-                    </div>
-                    <div className="flex flex-col items-end gap-2">
-                      <Button variant="ghost" size="icon" className="shrink-0">
-                        <Eye className="h-5 w-5 text-gray-400 group-hover:text-yellow-600" />
-                      </Button>
-                      <Badge
-                        className={
-                          item.consensus?.state === 'human_consensus'
-                            ? 'bg-green-100 text-green-800 hover:bg-green-100'
-                            : 'bg-blue-100 text-blue-800 hover:bg-blue-100'
-                        }
-                      >
-                        {item.consensus?.state === 'human_consensus' ? 'Verificado' : 'IA'}
-                      </Badge>
+                      <div className="flex flex-col items-end gap-2">
+                        <Button variant="ghost" size="icon" className="shrink-0">
+                          <Eye className="h-5 w-5 text-gray-400 group-hover:text-yellow-600" />
+                        </Button>
+                        <Badge
+                          className={
+                            item.consensus?.state === 'human_consensus'
+                              ? 'bg-green-100 text-green-800 hover:bg-green-100'
+                              : 'bg-blue-100 text-blue-800 hover:bg-blue-100'
+                          }
+                        >
+                          {item.consensus?.state === 'human_consensus' ? 'Verificado' : 'IA'}
+                        </Badge>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
 

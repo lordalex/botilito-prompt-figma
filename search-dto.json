@@ -1,478 +1,305 @@
 {
-    "openapi": "3.0.3",
-    "info": {
-        "title": "Botilito Unified Search & DTO API",
-        "description": "The central retrieval API for Botilito. It unifies Text Search, ID/URL Lookup, and Dashboard Summaries into a single, asynchronous pipeline that returns data in the **StandardizedCase** DTO format. This ensures consistency across the frontend regardless of the data source.",
-        "version": "2.3.0",
-        "contact": {
-            "name": "API Support",
-            "email": "dev@botilito.dev"
-        }
-    },
-    "servers": [
-        {
-            "url": "https://mdkswlgcqsmgfmcuorxq.supabase.co/functions/v1/search-dto",
-            "description": "Production Edge Function"
-        }
-    ],
-    "components": {
-        "securitySchemes": {
-            "bearerAuth": {
-                "type": "http",
-                "scheme": "bearer",
-                "bearerFormat": "JWT",
-                "description": "Supabase User Token (Required for all requests)"
-            }
-        },
-        "schemas": {
-            "JobAccepted": {
-                "type": "object",
-                "properties": {
-                    "job_id": {
-                        "type": "string",
-                        "format": "uuid",
-                        "example": "550e8400-e29b-41d4-a716-446655440000"
-                    },
-                    "message": {
-                        "type": "string",
-                        "example": "Processing started"
-                    }
-                }
-            },
-            "StandardizedCase": {
-                "type": "object",
-                "description": "The unified payload representing any analyzed content (Text, Image, etc).",
-                "required": [
-                    "id",
-                    "type",
-                    "lifecycle",
-                    "overview",
-                    "insights"
-                ],
-                "properties": {
-                    "id": {
-                        "type": "string",
-                        "format": "uuid"
-                    },
-                    "created_at": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "type": {
-                        "type": "string",
-                        "enum": [
-                            "text",
-                            "image",
-                            "video",
-                            "audio"
-                        ],
-                        "example": "text"
-                    },
-                    "lifecycle": {
-                        "$ref": "#/components/schemas/Lifecycle"
-                    },
-                    "overview": {
-                        "$ref": "#/components/schemas/Overview"
-                    },
-                    "insights": {
-                        "type": "array",
-                        "items": {
-                            "$ref": "#/components/schemas/GenericInsight"
-                        }
-                    },
-                    "reporter": {
-                        "$ref": "#/components/schemas/Reporter"
-                    },
-                    "community": {
-                        "$ref": "#/components/schemas/Community"
-                    }
-                }
-            },
-            "Lifecycle": {
-                "type": "object",
-                "properties": {
-                    "job_status": {
-                        "type": "string",
-                        "enum": [
-                            "completed"
-                        ],
-                        "description": "Technical execution status. For search results, this is always completed."
-                    },
-                    "custody_status": {
-                        "type": "string",
-                        "enum": [
-                            "registered",
-                            "analyzing",
-                            "ai_processed",
-                            "human_review",
-                            "finalized"
-                        ],
-                        "description": "The verification stage. 'ai_processed' = Waiting for human. 'finalized' = Closed."
-                    },
-                    "last_update": {
-                        "type": "string",
-                        "format": "date-time"
-                    }
-                }
-            },
-            "Overview": {
-                "type": "object",
-                "properties": {
-                    "title": {
-                        "type": "string",
-                        "example": "Deepfake of President"
-                    },
-                    "summary": {
-                        "type": "string",
-                        "example": "Video analysis detected face swapping artifacts."
-                    },
-                    "verdict_label": {
-                        "type": "string",
-                        "example": "Necesita Estrategias AMI"
-                    },
-                    "risk_score": {
-                        "type": "number",
-                        "example": 15.5,
-                        "description": "0-100 score. Low score = High Risk/Poor Quality."
-                    },
-                    "main_asset_url": {
-                        "type": "string",
-                        "format": "uri",
-                        "nullable": true
-                    },
-                    "source_domain": {
-                        "type": "string",
-                        "nullable": true
-                    }
-                }
-            },
-            "GenericInsight": {
-                "type": "object",
-                "description": "A polymorphic finding. The frontend renders this based on 'category'.",
-                "properties": {
-                    "id": {
-                        "type": "string",
-                        "example": "algo_ela_01"
-                    },
-                    "category": {
-                        "type": "string",
-                        "enum": [
-                            "forensics",
-                            "content_quality",
-                            "fact_check",
-                            "metadata",
-                            "compliance"
-                        ]
-                    },
-                    "label": {
-                        "type": "string",
-                        "example": "Error Level Analysis"
-                    },
-                    "value": {
-                        "oneOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "number"
-                            },
-                            {
-                                "type": "boolean"
-                            }
-                        ],
-                        "example": 0.98
-                    },
-                    "score": {
-                        "type": "number",
-                        "nullable": true,
-                        "description": "Normalized 0-100 score for UI colors."
-                    },
-                    "description": {
-                        "type": "string"
-                    },
-                    "artifacts": {
-                        "type": "array",
-                        "items": {
-                            "$ref": "#/components/schemas/Artifact"
-                        }
-                    },
-                    "raw_data": {
-                        "type": "object",
-                        "description": "The full original data object for advanced components."
-                    }
-                }
-            },
-            "Artifact": {
-                "type": "object",
-                "properties": {
-                    "type": {
-                        "type": "string",
-                        "enum": [
-                            "image_url",
-                            "text_snippet",
-                            "link_url"
-                        ]
-                    },
-                    "content": {
-                        "type": "string"
-                    },
-                    "label": {
-                        "type": "string"
-                    }
-                }
-            },
-            "Reporter": {
-                "type": "object",
-                "properties": {
-                    "id": {
-                        "type": "string"
-                    },
-                    "name": {
-                        "type": "string"
-                    },
-                    "reputation": {
-                        "type": "number"
-                    }
-                }
-            },
-            "Community": {
-                "type": "object",
-                "properties": {
-                    "votes": {
-                        "type": "integer"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": [
-                            "ai_only",
-                            "human_consensus"
-                        ]
-                    },
-                    "breakdown": {
-                        "type": "object",
-                        "additionalProperties": {
-                            "type": "integer"
-                        }
-                    }
-                }
-            },
-            "PollResponse": {
-                "type": "object",
-                "properties": {
-                    "id": {
-                        "type": "string"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": [
-                            "processing",
-                            "completed",
-                            "failed"
-                        ]
-                    },
-                    "result": {
-                        "oneOf": [
-                            {
-                                "$ref": "#/components/schemas/SearchResultPayload"
-                            },
-                            {
-                                "$ref": "#/components/schemas/LookupPayload"
-                            }
-                        ]
-                    }
-                }
-            },
-            "SearchResultPayload": {
-                "type": "object",
-                "properties": {
-                    "cases": {
-                        "type": "array",
-                        "items": {
-                            "$ref": "#/components/schemas/StandardizedCase"
-                        }
-                    },
-                    "pagination": {
-                        "type": "object",
-                        "properties": {
-                            "page": {
-                                "type": "integer"
-                            },
-                            "pageSize": {
-                                "type": "integer"
-                            },
-                            "returnedCount": {
-                                "type": "integer"
-                            }
-                        }
-                    }
-                }
-            },
-            "LookupPayload": {
-                "type": "object",
-                "properties": {
-                    "case": {
-                        "$ref": "#/components/schemas/StandardizedCase"
-                    },
-                    "error": {
-                        "type": "string",
-                        "nullable": true
-                    }
-                }
-            }
-        }
-    },
-    "security": [
-        {
-            "bearerAuth": []
-        }
-    ],
-    "paths": {
-        "/search": {
-            "post": {
-                "summary": "Vector Text Search",
-                "description": "Submit a job to search for cases similar to the query string.",
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "type": "object",
-                                "required": [
-                                    "query"
-                                ],
-                                "properties": {
-                                    "query": {
-                                        "type": "string",
-                                        "example": "corruption allegations"
-                                    },
-                                    "page": {
-                                        "type": "integer",
-                                        "default": 1
-                                    },
-                                    "pageSize": {
-                                        "type": "integer",
-                                        "default": 10
-                                    }
-                                }
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "202": {
-                        "description": "Job Accepted",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/JobAccepted"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/lookup": {
-            "post": {
-                "summary": "Direct Case Lookup",
-                "description": "Submit a job to fetch a single case by UUID or URL.",
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "type": "object",
-                                "required": [
-                                    "identifier"
-                                ],
-                                "properties": {
-                                    "identifier": {
-                                        "type": "string",
-                                        "description": "Database UUID or Source URL"
-                                    }
-                                }
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "202": {
-                        "description": "Job Accepted",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/JobAccepted"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/summary": {
-            "post": {
-                "summary": "Dashboard Feed",
-                "description": "Submit a job to fetch the latest cases for the main feed.",
-                "parameters": [
-                    {
-                        "name": "page",
-                        "in": "query",
-                        "schema": {
-                            "type": "integer"
-                        }
-                    },
-                    {
-                        "name": "pageSize",
-                        "in": "query",
-                        "schema": {
-                            "type": "integer"
-                        }
-                    }
-                ],
-                "responses": {
-                    "202": {
-                        "description": "Job Accepted",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/JobAccepted"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/status/{job_id}": {
-            "get": {
-                "summary": "Poll Results",
-                "description": "Retrieve the results of any Search, Lookup, or Summary job. Results are standardized into the Unified DTO.",
-                "parameters": [
-                    {
-                        "name": "job_id",
-                        "in": "path",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Job Status & Result",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/PollResponse"
-                                }
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Job ID not found"
-                    }
-                }
-            }
-        }
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Botilito Unified Search & Analysis API",
+    "description": "Provides access to asynchronous analysis jobs (Text, Image, Audio, Video) and retrieves results in a unified DTO format.\n\n**Key Endpoints:**\n- `POST /submit`: Queues a new analysis job.\n- `GET /status/{job_id}`: Polls for job completion and returns the **StandardizedCase DTO**.\n\n**Data Model:**\nAll results are normalized into a **`StandardizedCase`** object, providing consistent access to:\n- `overview` (Title, Summary, Risk Score, Main Asset URL)\n- `lifecycle` (Job Status, Custody Stage)\n- `insights` (Detailed findings from various AI models: AMI, FactCheck, Forensics)\n- `reporter` (User details)\n- `community` (Voting & Consensus data)",
+    "version": "2.4.0",
+    "contact": {
+      "name": "API Support",
+      "email": "dev@botilito.dev"
     }
+  },
+  "servers": [
+    {
+      "url": "https://mdkswlgcqsmgfmcuorxq.supabase.co/functions/v1/search-dto",
+      "description": "Production Endpoint"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Supabase User JWT Token"
+      }
+    },
+    "schemas": {
+      "JobAccepted": {
+        "type": "object",
+        "properties": {
+          "job_id": { "type": "string", "format": "uuid", "example": "550e8400-e29b-41d4-a716-446655440000" },
+          "message": { "type": "string", "example": "Processing started" }
+        }
+      },
+      "StandardizedCase": {
+        "type": "object",
+        "description": "The unified DTO representing a fully processed analysis case.",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "created_at": { "type": "string", "format": "date-time" },
+          "type": { "type": "string", "enum": ["text", "image", "video", "audio"] },
+          "lifecycle": { "$ref": "#/components/schemas/Lifecycle" },
+          "overview": { "$ref": "#/components/schemas/Overview" },
+          "insights": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/GenericInsight" }
+          },
+          "reporter": { "$ref": "#/components/schemas/Reporter" },
+          "community": { "$ref": "#/components/schemas/Community" }
+        }
+      },
+      "Lifecycle": {
+        "type": "object",
+        "properties": {
+          "job_status": {
+            "type": "string",
+            "enum": ["queued", "processing", "completed", "failed"],
+            "description": "Technical status of the background job."
+          },
+          "custody_status": {
+            "type": "string",
+            "enum": ["registered", "analyzing", "ai_processed", "human_review", "finalized"],
+            "description": "Business logic status of the analysis workflow."
+          },
+          "last_update": { "type": "string", "format": "date-time" }
+        }
+      },
+      "Overview": {
+        "type": "object",
+        "properties": {
+          "title": { "type": "string", "example": "Avistamiento de OVNIs en Bogotá" },
+          "summary": { "type": "string", "example": "El artículo reporta supuestos avistamientos de luces..." },
+          "verdict_label": { "type": "string", "example": "Necesita Estrategias AMI" },
+          "risk_score": { "type": "number", "description": "0-100. Lower score indicates higher risk or poorer quality.", "example": 45.5 },
+          "main_asset_url": { "type": "string", "format": "uri", "nullable": true, "description": "URL to the primary visual artifact (screenshot, frame)." },
+          "source_domain": { "type": "string", "nullable": true, "example": "fake-news.com" }
+        }
+      },
+      "GenericInsight": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "description": "Unique identifier for the insight (e.g., 'ami_1', 'fc_0')." },
+          "category": { 
+            "type": "string", 
+            "enum": ["content_quality", "fact_check", "compliance", "metadata", "forensics"] 
+          },
+          "label": { "type": "string", "description": "Human-readable title (e.g., 'Claridad de la Fuente')" },
+          "value": { "oneOf": [{ "type": "string" }, { "type": "number" }, { "type": "boolean" }] },
+          "score": { "type": "number", "nullable": true, "description": "0-100 score, used for UI coloring/prioritization." },
+          "description": { "type": "string", "description": "Detailed explanation of the finding." },
+          "artifacts": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Artifact" },
+            "description": "Supporting visual or textual evidence."
+          },
+          "raw_data": { "type": "object", "description": "Original detailed data from the analysis tool." }
+        }
+      },
+      "Artifact": {
+        "type": "object",
+        "properties": {
+          "type": { "type": "string", "enum": ["text_snippet", "image_url", "link_url"] },
+          "content": { "type": "string", "description": "URL of image/link or textual content." },
+          "label": { "type": "string", "description": "Caption for the artifact." }
+        }
+      },
+      "Reporter": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "name": { "type": "string" },
+          "reputation": { "type": "number" }
+        }
+      },
+      "Community": {
+        "type": "object",
+        "properties": {
+          "votes": { "type": "integer", "description": "Total human votes cast." },
+          "status": { "type": "string", "enum": ["ai_only", "human_consensus"], "description": "Indicates if human consensus was reached." }
+        }
+      },
+      "JobStatusResponse": {
+        "type": "object",
+        "description": "Response from the /status/{job_id} endpoint.",
+        "properties": {
+          "job_id": { "type": "string", "format": "uuid" },
+          "status": { "type": "string", "enum": ["queued", "processing", "completed", "failed"] },
+          "data": { 
+            "oneOf": [
+              { "$ref": "#/components/schemas/SearchResultPayload" },
+              { "$ref": "#/components/schemas/LookupPayload" }
+            ],
+            "description": "The analysis results, mapped to the Unified DTO."
+          }
+        }
+      },
+      "SearchResultPayload": {
+        "type": "object",
+        "description": "Payload for search/summary jobs (list of cases).",
+        "properties": {
+          "cases": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/StandardizedCase" }
+          },
+          "pagination": { "$ref": "#/components/schemas/PaginationMeta" }
+        }
+      },
+      "LookupPayload": {
+        "type": "object",
+        "description": "Payload for lookup jobs (single case).",
+        "properties": {
+          "case": { "$ref": "#/components/schemas/StandardizedCase" },
+          "error": { "type": "string", "nullable": true }
+        }
+      },
+      "PaginationMeta": {
+        "type": "object",
+        "properties": {
+          "page": { "type": "integer" },
+          "pageSize": { "type": "integer" },
+          "returnedCount": { "type": "integer" },
+          "hasMore": { "type": "boolean" }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/search": {
+      "post": {
+        "summary": "Initiate Vector Text Search",
+        "description": "Queues an asynchronous job to search for cases semantically related to the provided text query. Requires authentication.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["query"],
+                "properties": {
+                  "query": { "type": "string", "description": "The natural language query to search for.", "example": "corruption in bogota" },
+                  "page": { "type": "integer", "default": 1, "description": "Page number for paginated results." },
+                  "pageSize": { "type": "integer", "default": 10, "description": "Number of results per page." }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Job Accepted. Returns a Job ID.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/JobAccepted" } } }
+          }
+        }
+      }
+    },
+    "/lookup": {
+      "post": {
+        "summary": "Initiate Case Lookup",
+        "description": "Queues a job to fetch a specific case by its database ID (UUID) or original source URL.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["identifier"],
+                "properties": {
+                  "identifier": { 
+                    "type": "string", 
+                    "description": "The UUID of the document/case OR the exact source URL.",
+                    "example": "https://twitter.com/fake_news/status/123"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Job Accepted",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/JobAccepted" } } }
+          }
+        }
+      }
+    },
+    "/summary": {
+      "post": {
+        "summary": "Initiate Dashboard Summary",
+        "description": "Queues a job to retrieve the latest cases for the main dashboard feed, with pagination support.",
+        "parameters": [
+          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } },
+          { "name": "pageSize", "in": "query", "schema": { "type": "integer", "default": 10 } }
+        ],
+        "responses": {
+          "202": {
+            "description": "Job Accepted",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/JobAccepted" } } }
+          }
+        }
+      }
+    },
+    "/status/{job_id}": {
+      "get": {
+        "summary": "Poll Job Status & Results",
+        "description": "Checks the status of an asynchronous job. If completed, returns the results mapped to the Unified DTO structure.",
+        "parameters": [
+          { "name": "job_id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Job Status and Results.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/JobStatusResponse" },
+                "example": {
+                  "job_id": "550e8400-e29b-41d4-a716-446655440000",
+                  "status": "completed",
+                  "result": {
+                    "cases": [
+                      {
+                        "id": "abc-123",
+                        "created_at": "2025-12-30T10:00:00Z",
+                        "type": "text",
+                        "lifecycle": {
+                          "job_status": "completed",
+                          "custody_status": "ai_processed",
+                          "last_update": "2025-12-30T10:05:00Z"
+                        },
+                        "overview": {
+                          "title": "Avistamiento de OVNIs en Bogotá",
+                          "summary": "El artículo reporta supuestos avistamientos de luces...",
+                          "verdict_label": "Necesita Estrategias AMI",
+                          "risk_score": 45.5,
+                          "main_asset_url": "https://pub.r2.dev/jobs/...",
+                          "source_domain": "example.com"
+                        },
+                        "insights": [
+                          {
+                            "id": "ami_1",
+                            "category": "content_quality",
+                            "label": "Claridad de la Fuente",
+                            "value": "No Cumple",
+                            "score": 0,
+                            "description": "Fuente desconocida o no verificable.",
+                            "artifacts": [
+                              { "type": "text_snippet", "content": "Fuentes anónimas afirman...", "label": "Cita del Texto" }
+                            ],
+                            "raw_data": { "score": 0, "justificacion": "..." }
+                          }
+                        ],
+                        "reporter": { "id": "user-uuid-123", "name": "Juan Perez", "reputation": 105.5 },
+                        "community": { "votes": 10, "status": "human_consensus" }
+                      }
+                    ],
+                    "pagination": { "page": 1, "pageSize": 10, "returnedCount": 1 }
+                  }
+                }
+              }
+            }
+          },
+          "404": { "description": "Job not found" }
+        }
+      }
+    }
+  }
 }
+
