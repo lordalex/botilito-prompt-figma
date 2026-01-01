@@ -6,7 +6,7 @@ import { Session } from '@supabase/supabase-js';
 import type { IngestPayload, JobAcceptedResponse, JobStatusResponse as IngestJobStatusResponse, FullAnalysisResponse } from '../types/botilito';
 import { Profile, ProfileUpdateInput, ConversionRequest, ConversionResponse, ProfileResponse } from '../types/profile';
 
-const INGEST_API_BASE_URL = 'https://mdkswlgcqsmgfmcuorxq.supabase.co/functions/v1/ingest-async-auth-enriched';
+const INGEST_API_BASE_URL = 'https://mdkswlgcqsmgfmcuorxq.supabase.co/functions/v1/text-analysis-DTO';
 const IMAGE_ANALYSIS_API_BASE_URL = 'https://mdkswlgcqsmgfmcuorxq.supabase.co/functions/v1/image-analysis';
 const PROFILE_API_BASE_URL = 'https://mdkswlgcqsmgfmcuorxq.supabase.co/functions/v1/profileCRUD';
 

@@ -15,11 +15,12 @@ import { MapaDesinfodemico } from './components/MapaDesinfodemico';
 import { DocumentacionIndicadores } from './components/DocumentacionIndicadores';
 import { ImmunizationStudio } from './components/ImmunizationStudio';
 import AdminDashboard from './components/AdminDashboard'; // Default export
+import { NotificationsView } from './components/NotificationsView';
 import { useAnalysisPolling } from './hooks/useAnalysisPolling';
 import { transformTextAnalysisToUI } from './services/analysisPresentationService';
 import { useAuth } from './providers/AuthProvider'; // Import the hook
 
-type ViewState = 'upload' | 'verification' | 'review' | 'caseDetail' | 'mapa' | 'docs' | 'profile' | 'extension' | 'admin';
+type ViewState = 'upload' | 'verification' | 'review' | 'caseDetail' | 'mapa' | 'docs' | 'profile' | 'extension' | 'admin' | 'notifications';
 
 export default function App() {
   const { isAuthenticated, isLoading, signOut, profileComplete, profileChecked, checkUserProfile, isPasswordRecovery, clearPasswordRecovery } = useAuth();
@@ -160,17 +161,25 @@ export default function App() {
       case 'admin':
         return <AdminDashboard />;
 
+      case 'notifications':
+        return <NotificationsView onViewTask={handleViewTask} />;
+
       default:
         return null;
     }
   };
 
-  const handleViewTask = (jobId: string, type: string) => {
+  const handleViewTask = (jobId: string, type: string, status?: string) => {
     setCurrentJobId(jobId);
     setCurrentJobType(type);
 
-    // Navigate to caseDetail view to show existing case from Historial
-    setActiveTab('caseDetail');
+    // If task is completed (status 'completed' or 'success'), go to Case Detail (Historial style)
+    if (status === 'completed' || status === 'success') {
+      setActiveTab('caseDetail');
+    } else {
+      // Otherwise (pending, processing, etc), go to Upload View (Tracking style)
+      setActiveTab('upload');
+    }
   };
 
   return (
@@ -187,6 +196,7 @@ export default function App() {
         }}
         onLogout={handleLogout}
         onViewTask={handleViewTask}
+        onViewAllNotifications={() => setActiveTab('notifications')}
       />
       <main className="max-w-[1600px] mx-auto px-4 py-6 relative min-h-[calc(100vh-80px)] bg-gradient-to-br from-background via-background to-muted/20">
         {/* Div separador superior */}

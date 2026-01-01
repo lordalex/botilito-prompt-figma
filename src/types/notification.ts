@@ -1,5 +1,5 @@
-export type NotificationType = 'info' | 'success' | 'warning' | 'error' | 'system';
-export type NotificationPriority = 'low' | 'normal' | 'high' | 'urgent';
+export type NotificationType = 'info' | 'success' | 'warning' | 'error';
+export type NotificationPriority = 'low' | 'normal' | 'high';
 
 export interface Notification {
     id: string;
@@ -11,6 +11,24 @@ export interface Notification {
     is_read: boolean;
     metadata?: Record<string, any>;
     created_at: string;
+}
+
+export interface NotificationTarget {
+    type: 'single' | 'multiple' | 'broadcast_role';
+    value: string | string[];
+}
+
+export interface NotificationContent {
+    title: string;
+    message?: string;
+    type?: NotificationType;
+    priority?: NotificationPriority;
+    metadata?: Record<string, any>;
+}
+
+export interface SendRequest {
+    target: NotificationTarget;
+    content: NotificationContent;
 }
 
 export interface AsyncTask {

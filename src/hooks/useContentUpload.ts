@@ -171,8 +171,15 @@ export function useContentUpload(initialJobId?: string, initialJobType?: string)
         const textResult = await performTextAnalysis(content, transmissionMedium, (p: number) => {
           setProgress(p);
         });
-        setResult(textResult);
-        setStatus('complete');
+
+        // Handling the new response type (Pending Job)
+        if (textResult && 'jobId' in textResult && textResult.status === 'pending') {
+          setResult(textResult);
+          setStatus('polling'); // Triggers success view (CaseRegisteredView) immediately as per logic
+        } else {
+          setResult(textResult);
+          setStatus('complete');
+        }
       }
     } catch (err: any) {
       console.error(err);
@@ -218,7 +225,7 @@ export function useContentUpload(initialJobId?: string, initialJobType?: string)
             }
           } else if (initialJobType === 'audio_analysis') {
             statusRes = await audioAnalysisService.getJobStatus(initialJobId);
-             if (statusRes.status === 'completed') {
+            if (statusRes.status === 'completed') {
               result = await audioAnalysisService.getAudioAnalysisResult(initialJobId);
             }
           } else {
@@ -228,7 +235,7 @@ export function useContentUpload(initialJobId?: string, initialJobType?: string)
             stopFakeProgress();
             return;
           }
-          
+
           if (statusRes.status === 'completed') {
             setResult(result);
             setStatus('complete');

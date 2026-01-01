@@ -2,7 +2,7 @@ import { supabase } from '@/utils/supabase/client';
 
 const NOTIFICATION_API_URL = 'https://mdkswlgcqsmgfmcuorxq.supabase.co/functions/v1/notifications';
 
-import { InboxResponse, Notification } from '@/types/notification';
+import { InboxResponse, Notification, SendRequest } from '@/types/notification';
 
 export const notificationService = {
     getInbox: async (limit = 20, unreadOnly = false): Promise<InboxResponse> => {
@@ -49,13 +49,13 @@ export const notificationService = {
         if (!session) throw new Error('No active session');
 
         // Transform to DispatchPayload format expected by the Edge Function
-        const payload = {
+        const payload: SendRequest = {
             target: {
                 type: 'single',
                 value: notification.user_id || session.user.id
             },
             content: {
-                title: notification.title,
+                title: notification.title || 'Notification',
                 message: notification.message,
                 type: notification.type || 'info',
                 priority: notification.priority || 'normal',

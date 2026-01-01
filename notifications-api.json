@@ -1,311 +1,135 @@
 {
     "openapi": "3.0.3",
     "info": {
-        "title": "API de Sistema de Notificaciones (Supabase Edge Functions)",
-        "description": "Esta API gestiona el ciclo de vida completo de las notificaciones del sistema.\n\n### Arquitectura Híbrida\n1. **Envío Asíncrono (`POST /send`)**: Utiliza un patrón de *Fire-and-Forget*. Las solicitudes de envío se ponen en cola en la tabla `analysis_jobs` para evitar tiempos de espera HTTP (Timeouts) durante envíos masivos (Broadcasts).\n2. **Lectura Síncrona (`GET /inbox`, `PATCH /read`)**: Acceso directo a la tabla `notifications` para una experiencia de usuario (UI) fluida y en tiempo real.\n\n### Seguridad\nRequiere autenticación mediante **JWT de Supabase** (Bearer Token).",
-        "version": "1.0.0",
+        "title": "Botilito Notifications API",
+        "description": "API for managing the user notification lifecycle. It supports asynchronous dispatching via a job queue (allowing broadcasts) and synchronous inbox management.\n\n**Key Features:**\n- **Async Dispatch:** `POST /send` creates a background job to deliver messages to one or thousands of users without blocking.\n- **Flexible Targeting:** Send to a single user, a specific list of UUIDs, or broadcast to all users with a specific role.\n- **Inbox Management:** Filtering, pagination, and read-status tracking.",
+        "version": "1.2.0",
         "contact": {
-            "name": "Equipo de Backend",
-            "email": "soporte@midominio.com"
+            "name": "API Support",
+            "email": "dev@botilito.dev"
         }
     },
     "servers": [
         {
             "url": "https://mdkswlgcqsmgfmcuorxq.supabase.co/functions/v1/notifications",
-            "description": "Servidor de Producción (Supabase Edge Function)"
+            "description": "Production Edge Function"
         }
     ],
-    "security": [
-        {
-            "bearerAuth": []
-        }
-    ],
-    "paths": {
-        "/send": {
-            "post": {
-                "summary": "Despachar Notificaciones (Cola Asíncrona)",
-                "description": "Encola una tarea de envío de notificaciones. Este endpoint **no envía la notificación inmediatamente**; en su lugar, crea un registro en la cola de trabajos (`analysis_jobs`) y devuelve un ID de trabajo. Un proceso en segundo plano se encarga de la entrega masiva o individual.",
-                "operationId": "sendNotification",
-                "requestBody": {
-                    "description": "Carga útil que define a quién enviar (target) y qué enviar (content).",
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/DispatchPayload"
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "202": {
-                        "description": "Aceptado. La tarea ha sido puesta en cola correctamente.",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/JobQueuedResponse"
-                                }
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Solicitud Incorrecta. Faltan campos obligatorios (`target` o `content.title`).",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ErrorResponse"
-                                }
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "No Autorizado. Token JWT faltante o inválido.",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ErrorResponse"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/inbox": {
-            "get": {
-                "summary": "Obtener Bandeja de Entrada",
-                "description": "Recupera las notificaciones pertenecientes al usuario autenticado (basado en el JWT). Incluye un conteo de mensajes no leídos en la cabecera.",
-                "operationId": "getInbox",
-                "parameters": [
-                    {
-                        "name": "unread",
-                        "in": "query",
-                        "description": "Si es `true`, filtra y devuelve solo las notificaciones que no han sido leídas (`is_read = false`).",
-                        "required": false,
-                        "schema": {
-                            "type": "boolean",
-                            "default": false
-                        }
-                    },
-                    {
-                        "name": "type",
-                        "in": "query",
-                        "description": "Filtra por categoría de notificación.",
-                        "required": false,
-                        "schema": {
-                            "type": "string",
-                            "enum": [
-                                "info",
-                                "success",
-                                "warning",
-                                "error",
-                                "system"
-                            ]
-                        }
-                    },
-                    {
-                        "name": "limit",
-                        "in": "query",
-                        "description": "Número máximo de notificaciones a recuperar (Paginación). Por defecto es 20.",
-                        "required": false,
-                        "schema": {
-                            "type": "integer",
-                            "default": 20
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Lista de notificaciones recuperada con éxito.",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/InboxResponse"
-                                }
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "No Autorizado.",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ErrorResponse"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/read": {
-            "patch": {
-                "summary": "Marcar como Leído",
-                "description": "Actualiza el estado `is_read` a `true` para una notificación específica o para todas las notificaciones del usuario.",
-                "operationId": "markAsRead",
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "type": "object",
-                                "properties": {
-                                    "notification_id": {
-                                        "type": "string",
-                                        "format": "uuid",
-                                        "description": "ID único de la notificación a marcar. Requerido si `mark_all` no está presente."
-                                    },
-                                    "mark_all": {
-                                        "type": "boolean",
-                                        "description": "Si es `true`, marca TODAS las notificaciones del usuario como leídas. Ignora `notification_id`."
-                                    }
-                                },
-                                "example": {
-                                    "notification_id": "550e8400-e29b-41d4-a716-446655440000"
-                                }
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "200": {
-                        "description": "Estado actualizado correctamente.",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "message": {
-                                            "type": "string",
-                                            "example": "Notification marked as read"
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Faltan parámetros (notification_id o mark_all).",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ErrorResponse"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    },
     "components": {
         "securitySchemes": {
             "bearerAuth": {
                 "type": "http",
                 "scheme": "bearer",
                 "bearerFormat": "JWT",
-                "description": "Token de acceso de Supabase (Auth Users)"
+                "description": "Supabase User Token. Required for all endpoints."
             }
         },
         "schemas": {
-            "DispatchPayload": {
+            "SendRequest": {
                 "type": "object",
+                "description": "Payload to dispatch notifications. This initiates a background job.",
                 "required": [
                     "target",
                     "content"
                 ],
                 "properties": {
                     "target": {
-                        "type": "object",
-                        "description": "Define los destinatarios de la notificación.",
-                        "required": [
-                            "type",
-                            "value"
-                        ],
-                        "properties": {
-                            "type": {
-                                "type": "string",
-                                "description": "Estrategia de envío:\n* `single`: Un solo usuario (UUID).\n* `multiple`: Lista de usuarios (Array de UUIDs).\n* `broadcast_role`: Todos los usuarios que tengan un rol específico en `perfiles_usuario`.",
-                                "enum": [
-                                    "single",
-                                    "multiple",
-                                    "broadcast_role"
-                                ]
-                            },
-                            "value": {
-                                "description": "El valor correspondiente al tipo. Un UUID, un array de UUIDs, o un string de rol (ej: 'admin').",
-                                "oneOf": [
-                                    {
-                                        "type": "string",
-                                        "format": "uuid"
-                                    },
-                                    {
-                                        "type": "array",
-                                        "items": {
-                                            "type": "string",
-                                            "format": "uuid"
-                                        }
-                                    },
-                                    {
-                                        "type": "string"
-                                    }
-                                ]
-                            }
-                        },
-                        "example": {
-                            "type": "broadcast_role",
-                            "value": "admin"
-                        }
+                        "$ref": "#/components/schemas/NotificationTarget"
                     },
                     "content": {
-                        "type": "object",
-                        "description": "El contenido visual y metadatos de la notificación.",
-                        "required": [
-                            "title"
+                        "$ref": "#/components/schemas/NotificationContent"
+                    }
+                }
+            },
+            "NotificationTarget": {
+                "type": "object",
+                "description": "Defines the recipients of the notification.",
+                "required": [
+                    "type",
+                    "value"
+                ],
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "single",
+                            "multiple",
+                            "broadcast_role"
                         ],
-                        "properties": {
-                            "title": {
+                        "description": "Delivery strategy:\n- `single`: One specific User UUID.\n- `multiple`: An array of User UUIDs.\n- `broadcast_role`: All users who have a specific role in `perfiles_usuario`."
+                    },
+                    "value": {
+                        "description": "The target identifier(s) corresponding to the type.",
+                        "oneOf": [
+                            {
                                 "type": "string",
-                                "example": "Mantenimiento Programado"
+                                "format": "uuid",
+                                "description": "For 'single'"
                             },
-                            "message": {
+                            {
                                 "type": "string",
-                                "example": "El sistema se reiniciará en 5 minutos."
+                                "description": "For 'broadcast_role' (e.g. 'admin', 'verified')"
                             },
-                            "priority": {
-                                "type": "string",
-                                "enum": [
-                                    "low",
-                                    "normal",
-                                    "high",
-                                    "urgent"
-                                ],
-                                "default": "normal"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": [
-                                    "info",
-                                    "success",
-                                    "warning",
-                                    "error",
-                                    "system"
-                                ],
-                                "default": "info"
-                            },
-                            "metadata": {
-                                "type": "object",
-                                "description": "Objeto JSON libre para acciones de UI (e.g., redirecciones).",
-                                "example": {
-                                    "link": "/settings/billing",
-                                    "action_id": "123"
-                                }
+                            {
+                                "type": "array",
+                                "items": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                },
+                                "description": "For 'multiple'"
                             }
+                        ]
+                    }
+                },
+                "example": {
+                    "type": "single",
+                    "value": "123e4567-e89b-12d3-a456-426614174000"
+                }
+            },
+            "NotificationContent": {
+                "type": "object",
+                "required": [
+                    "title"
+                ],
+                "properties": {
+                    "title": {
+                        "type": "string",
+                        "example": "Análisis Completado"
+                    },
+                    "message": {
+                        "type": "string",
+                        "example": "El caso #456 ha sido verificado exitosamente."
+                    },
+                    "priority": {
+                        "type": "string",
+                        "enum": [
+                            "low",
+                            "normal",
+                            "high"
+                        ],
+                        "default": "normal"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "info",
+                            "success",
+                            "warning",
+                            "error"
+                        ],
+                        "default": "info"
+                    },
+                    "metadata": {
+                        "type": "object",
+                        "description": "Arbitrary JSON data attached to the notification (e.g., links, job IDs).",
+                        "example": {
+                            "job_id": "550e8400...",
+                            "action_url": "/cases/123"
                         }
                     }
                 }
             },
-            "JobQueuedResponse": {
+            "JobAcceptedResponse": {
                 "type": "object",
                 "properties": {
                     "message": {
@@ -315,7 +139,7 @@
                     "job_id": {
                         "type": "string",
                         "format": "uuid",
-                        "description": "ID del trabajo en la tabla `analysis_jobs` para seguimiento."
+                        "description": "ID of the background job handling the dispatch."
                     }
                 }
             },
@@ -324,7 +148,8 @@
                 "properties": {
                     "unread_count": {
                         "type": "integer",
-                        "description": "Número total de notificaciones no leídas para este usuario."
+                        "description": "Total number of unread notifications for the user.",
+                        "example": 5
                     },
                     "notifications": {
                         "type": "array",
@@ -349,7 +174,8 @@
                         "type": "string"
                     },
                     "message": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "The body text of the notification."
                     },
                     "type": {
                         "type": "string",
@@ -357,28 +183,45 @@
                             "info",
                             "success",
                             "warning",
-                            "error",
-                            "system"
+                            "error"
                         ]
                     },
                     "priority": {
-                        "type": "string",
-                        "enum": [
-                            "low",
-                            "normal",
-                            "high",
-                            "urgent"
-                        ]
+                        "type": "string"
                     },
                     "is_read": {
                         "type": "boolean"
                     },
-                    "metadata": {
-                        "type": "object"
-                    },
                     "created_at": {
                         "type": "string",
                         "format": "date-time"
+                    },
+                    "metadata": {
+                        "type": "object"
+                    }
+                }
+            },
+            "MarkReadRequest": {
+                "type": "object",
+                "description": "Action to update read status. Provide either `notification_id` OR `mark_all: true`.",
+                "properties": {
+                    "notification_id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Mark a single specific notification as read."
+                    },
+                    "mark_all": {
+                        "type": "boolean",
+                        "description": "If true, marks ALL notifications for the calling user as read."
+                    }
+                }
+            },
+            "SuccessResponse": {
+                "type": "object",
+                "properties": {
+                    "message": {
+                        "type": "string",
+                        "example": "Updated status"
                     }
                 }
             },
@@ -386,8 +229,150 @@
                 "type": "object",
                 "properties": {
                     "error": {
-                        "type": "string",
-                        "example": "Missing required fields (target, content.title)"
+                        "type": "string"
+                    }
+                }
+            }
+        }
+    },
+    "security": [
+        {
+            "bearerAuth": []
+        }
+    ],
+    "paths": {
+        "/send": {
+            "post": {
+                "summary": "Dispatch Notifications",
+                "description": "Queues a background job to send notifications. This is an asynchronous operation; it returns 202 Accepted immediately.",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SendRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "202": {
+                        "description": "Job Queued Successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/JobAcceptedResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                }
+            }
+        },
+        "/inbox": {
+            "get": {
+                "summary": "Retrieve Inbox",
+                "description": "Fetches notifications for the authenticated user, ordered by creation date (newest first).",
+                "parameters": [
+                    {
+                        "name": "type",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "info",
+                                "success",
+                                "warning",
+                                "error"
+                            ]
+                        },
+                        "description": "Filter by notification category."
+                    },
+                    {
+                        "name": "unread",
+                        "in": "query",
+                        "schema": {
+                            "type": "boolean"
+                        },
+                        "description": "If `true`, returns only unread items."
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "default": 20
+                        },
+                        "description": "Maximum number of items to return."
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Inbox Data",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/InboxResponse"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                }
+            }
+        },
+        "/read": {
+            "patch": {
+                "summary": "Mark as Read",
+                "description": "Updates the `is_read` status of notifications to `true`.",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/MarkReadRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SuccessResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request (Missing ID or Flag)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
                     }
                 }
             }

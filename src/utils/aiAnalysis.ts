@@ -1,7 +1,7 @@
 import { supabase } from './supabase/client'
 
 // API Base URL for Supabase Functions
-const SUPABASE_FUNCTION_URL = 'https://mdkswlgcqsmgfmcuorxq.supabase.co/functions/v1/ingest-async-auth-enriched'
+const SUPABASE_FUNCTION_URL = 'https://mdkswlgcqsmgfmcuorxq.supabase.co/functions/v1/text-analysis-DTO'
 
 // Types based on OpenAPI spec
 export type TransmissionVector = 'WhatsApp' | 'Telegram' | 'Facebook' | 'Twitter' | 'Email' | 'Otro'
@@ -239,11 +239,15 @@ export function extractBotilitoSummary(jobStatus: JobStatusResponse): string | u
  * Main function to analyze content (URL or text)
  * Handles submission, polling, and progress updates
  */
+/**
+ * Main function to analyze content (URL or text)
+ * Handles submission, NO polling (fire and forget)
+ */
 export async function analyzeContent(
   content: { url?: string; text?: string },
   transmissionVector?: TransmissionVector,
   onProgress?: (progress: number, status: string) => void
-): Promise<FullAnalysisResponse> {
+): Promise<FullAnalysisResponse | { jobId: string; status: 'pending' | 'processing' }> {
   // Validate input
   if (!content.url && !content.text) {
     throw new Error('Debes proporcionar una URL o texto para analizar')
@@ -270,6 +274,12 @@ export async function analyzeContent(
     return submission.result
   }
 
-  // Otherwise, poll until complete
-  return await pollJobUntilComplete(submission.jobId, onProgress)
+  // If job accepted, return job ID immediately (FIRE AND FORGET)
+  // We do NOT poll here. UI will handle single-check.
+  if (onProgress) onProgress(20, 'queued');
+
+  return {
+    jobId: submission.jobId,
+    status: 'pending'
+  };
 }

@@ -29,6 +29,7 @@ interface CaseRegisteredViewProps {
     vector?: string;
   };
   onReportAnother: () => void;
+  jobId?: string;
 }
 
 // Configuración de iconos por tipo de contenido
@@ -64,8 +65,24 @@ function formatDate(dateString: string): string {
   );
 }
 
-export function CaseRegisteredView({ caseData, onReportAnother }: CaseRegisteredViewProps) {
+import { getJobStatus } from '../utils/aiAnalysis';
+
+export function CaseRegisteredView({ caseData, onReportAnother, jobId }: CaseRegisteredViewProps) {
   const ContentIcon = contentTypeIcons[caseData.contentType];
+  const [analysisStatus, setAnalysisStatus] = React.useState<'pending' | 'processing' | 'completed' | 'failed' | null>(null);
+
+  // Single GET check for status if jobId is provided
+  React.useEffect(() => {
+    if (jobId) {
+      getJobStatus(jobId)
+        .then(response => {
+          setAnalysisStatus(response.status);
+        })
+        .catch(err => console.error("Error checking job status", err));
+    }
+  }, [jobId]);
+
+  const isAnalysisComplete = analysisStatus === 'completed';
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] p-4">
@@ -211,36 +228,49 @@ export function CaseRegisteredView({ caseData, onReportAnother }: CaseRegistered
                       <p className="text-[10px] text-gray-500">{formatDate(caseData.createdAt).split(' - ')[1]}</p>
                     </div>
 
-                    {/* Step 2 */}
+                    {/* Step 2: Análisis automatizado */}
                     <div className="flex items-start justify-center">
                       <div className="z-10">
                         <div className="w-6 h-6 rounded-full flex items-center justify-center">
-                          <Loader2 className="h-5 w-5 animate-spin" style={{ color: '#d97706' }} />
+                          {isAnalysisComplete ? (
+                            <CircleCheck className="h-5 w-5 text-white" style={{ color: 'var(--color-green-500)' }} />
+                          ) : (
+                            <Loader2 className="h-5 w-5 animate-spin" style={{ color: '#d97706' }} />
+                          )}
                         </div>
                       </div>
                     </div>
                     <div className="pb-3">
-                      <p className="text-xs font-medium text-gray-900">Análisis automatizado iniciado</p>
+                      <p className="text-xs font-medium text-gray-900">
+                        {isAnalysisComplete ? 'Análisis automatizado completado' : 'Análisis automatizado iniciado'}
+                      </p>
                       <p className="text-[10px] text-gray-500">{formatDate(caseData.createdAt).split(' - ')[1]}</p>
                     </div>
 
                     {/* Step 3 */}
                     <div className="flex items-start justify-center">
                       <div className="z-10">
-                        <div className="w-6 h-6 rounded-full flex items-center justify-center">
-                          <FileSearchIcon className="h-5 w-5 text-white" style={{ color: 'var(--color-blue-500)' }} />
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center ${isAnalysisComplete ? '' : 'bg-gray-100'}`}>
+                          <FileSearchIcon
+                            className="h-5 w-5"
+                            style={{ color: isAnalysisComplete ? 'var(--color-blue-500)' : '#9ca3af' }}
+                          />
                         </div>
                       </div>
                     </div>
                     <div className="pb-3">
-                      <p className="text-xs font-medium text-gray-900">Validación por especialista humano</p>
-                      <p className="text-[10px]" style={{ color: '#2563eb' }}>En proceso - {formatDate(caseData.createdAt).split(' - ')[1]}</p>
+                      <p className={`text-xs font-medium ${isAnalysisComplete ? 'text-gray-900' : 'text-gray-400'}`}>
+                        Validación por especialista humano
+                      </p>
+                      <p className="text-[10px]" style={{ color: isAnalysisComplete ? '#2563eb' : '#9ca3af' }}>
+                        {isAnalysisComplete ? `En cola de revisión - ${formatDate(new Date().toISOString()).split(' - ')[1]}` : 'Pendiente'}
+                      </p>
                     </div>
 
                     {/* Step 4 */}
                     <div className="flex items-start justify-center">
                       <div className="z-10">
-                        <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center">
+                        <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center">
                           <div className="w-2.5 h-2.5 rounded-full bg-white border border-gray-300"></div>
                         </div>
                       </div>

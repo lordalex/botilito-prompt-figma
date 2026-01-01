@@ -16,10 +16,11 @@ interface NavigationProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
   onLogout?: () => void;
-  onViewTask: (jobId: string, type: string) => void;
+  onViewTask: (jobId: string, type: string, status?: string) => void;
+  onViewAllNotifications?: () => void;
 }
 
-export function Navigation({ activeTab, onTabChange, onLogout, onViewTask }: NavigationProps) {
+export function Navigation({ activeTab, onTabChange, onLogout, onViewTask, onViewAllNotifications }: NavigationProps) {
   const { user, profile, session } = useAuth(); // Get user, profile, and session from AuthProvider
   const [isAdmin, setIsAdmin] = useState<boolean>(() => {
     // Check cached admin status on mount
@@ -132,7 +133,7 @@ export function Navigation({ activeTab, onTabChange, onLogout, onViewTask }: Nav
             {onLogout && (
               <div className="ml-4 pl-4 border-l border-border flex items-center space-x-2">
                 {/* Botón de Notificaciones Globales */}
-                <NotificationCenter onViewTask={onViewTask} />
+                <NotificationCenter onViewTask={onViewTask} onViewAllNotifications={onViewAllNotifications} />
 
                 {/* Avatar y Menú de Usuario */}
                 <DropdownMenu onOpenChange={(open) => { if (open) checkAdminAccess(); }}>

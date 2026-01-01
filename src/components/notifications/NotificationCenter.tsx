@@ -7,7 +7,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 
-export function NotificationCenter({ onViewTask }: { onViewTask: (jobId: string, type: string) => void }) {
+export function NotificationCenter({ onViewTask, onViewAllNotifications }: {
+    onViewTask: (jobId: string, type: string, status?: string) => void;
+    onViewAllNotifications?: () => void;
+}) {
     const {
         notifications,
         unreadCount,
@@ -22,8 +25,10 @@ export function NotificationCenter({ onViewTask }: { onViewTask: (jobId: string,
             metadata?.source === 'audio-upload' ? 'audio_analysis' :
                 metadata?.source === 'ai-analysis' ? 'text_analysis' : 'unknown';
 
+        const status = metadata?.final_status || 'unknown';
+
         if (jobType !== 'unknown') {
-            onViewTask(jobId, jobType);
+            onViewTask(jobId, jobType, status);
         }
     };
 
@@ -32,10 +37,21 @@ export function NotificationCenter({ onViewTask }: { onViewTask: (jobId: string,
             case 'success': return <CheckCircle className="h-4 w-4 text-green-500" />;
             case 'warning': return <AlertTriangle className="h-4 w-4 text-yellow-500" />;
             case 'error': return <AlertCircle className="h-4 w-4 text-red-500" />;
-            case 'system': return <RefreshCw className="h-4 w-4 text-blue-500" />;
             default: return <Info className="h-4 w-4 text-gray-500" />;
         }
     };
+
+    const uniqueNotifications = React.useMemo(() => {
+        const seenJobs = new Set<string>();
+        return notifications.filter(n => {
+            const jobId = n.metadata?.job_id;
+            if (jobId) {
+                if (seenJobs.has(jobId)) return false;
+                seenJobs.add(jobId);
+            }
+            return true;
+        });
+    }, [notifications]);
 
     return (
         <Popover>
@@ -69,13 +85,13 @@ export function NotificationCenter({ onViewTask }: { onViewTask: (jobId: string,
 
                     <TabsContent value="inbox" className="m-0">
                         <ScrollArea className="h-[300px]">
-                            {notifications.filter(n => !n.is_read).length === 0 ? (
+                            {uniqueNotifications.filter(n => !n.is_read).length === 0 ? (
                                 <div className="p-8 text-center text-muted-foreground text-xs">
                                     No hay notificaciones nuevas
                                 </div>
                             ) : (
                                 <div className="divide-y">
-                                    {notifications
+                                    {uniqueNotifications
                                         .filter(n => !n.is_read)
                                         .map(n => (
                                             <div
@@ -162,7 +178,25 @@ export function NotificationCenter({ onViewTask }: { onViewTask: (jobId: string,
                         </ScrollArea>
                     </TabsContent>
                 </Tabs>
+
+                {onViewAllNotifications && (
+                    <div className="p-2 border-t bg-gray-50 flex justify-center">
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="w-full text-xs text-muted-foreground h-8"
+                            onClick={() => {
+                                onViewAllNotifications();
+                                // We might want to close the popover here, but PopoverPrimitive doesn't expose easy close control without controlled state.
+                                // Users usually click outside to close, or navigating might unmount/remount things in a way that closes it (not guaranteed with Popover).
+                                // For now, just firing the action is enough.
+                            }}
+                        >
+                            Ver todas las notificaciones
+                        </Button>
+                    </div>
+                )}
             </PopoverContent>
-        </Popover>
+        </Popover >
     );
 }

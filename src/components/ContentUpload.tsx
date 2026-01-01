@@ -124,7 +124,7 @@ export function ContentUpload({ jobId, jobType, onReset }: ContentUploadProps) {
       vector: transmissionVector || result?.vectores?.[0] || result?.fullResult?.metadata?.vector || 'Telegram',
     };
 
-    return <CaseRegisteredView caseData={caseData} onReportAnother={handleReset} />;
+    return <CaseRegisteredView caseData={caseData} onReportAnother={handleReset} jobId={result?.jobId} />;
   }
 
   // Loader view is now effectively bypassed by the logic above. 
