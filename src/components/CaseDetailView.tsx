@@ -132,6 +132,7 @@ export function CaseDetailView({
             onReset={onBackToList}
             onSubmitDiagnosis={handleSubmitDiagnosis}
             isSubmittingDiagnosis={isSubmitting}
+            hideVoting={true}
         />
     );
 }

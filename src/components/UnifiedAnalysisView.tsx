@@ -38,6 +38,7 @@ interface UnifiedAnalysisViewProps {
     title?: string;
     screenshot?: string;
     mode?: 'ai' | 'human';
+    hideVoting?: boolean;
     // Loading State
     isLoading?: boolean;
     progress?: { step: string; status: string; percent?: number };
@@ -55,6 +56,7 @@ export function UnifiedAnalysisView({
     title,
     screenshot,
     mode = 'ai',
+    hideVoting = false,
     isLoading,
     progress
 }: UnifiedAnalysisViewProps) {
@@ -834,16 +836,18 @@ export function UnifiedAnalysisView({
             </div >
 
             {/* ========== VALIDATION PANEL (Full Width) ========== */}
-            < div className="mt-8" >
-                <CaseDiagnosisForm
-                    caseId={caseInfoProps.caseNumber || caseNumber || 'new'}
-                    aiAnalysis={data?.ai_analysis || data}
-                    initialMarkers={[]}
-                    onBack={onReset}
-                    onSubmit={onSubmitDiagnosis}
-                    isSubmitting={isSubmittingDiagnosis}
-                />
-            </div >
+            {!hideVoting && (
+                <div className="mt-8">
+                    <CaseDiagnosisForm
+                        caseId={caseInfoProps.caseNumber || caseNumber || 'new'}
+                        aiAnalysis={data?.ai_analysis || data}
+                        initialMarkers={[]}
+                        onBack={onReset}
+                        onSubmit={onSubmitDiagnosis}
+                        isSubmitting={isSubmittingDiagnosis}
+                    />
+                </div>
+            )}
 
             {/* ========== FOOTER ========== */}
             < div className="text-center pb-8 pt-4" >

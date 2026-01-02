@@ -1,21 +1,20 @@
 import React, { useState } from 'react';
 import botilitoImage from 'figma:asset/e27a276e6ff0e187a67cf54678c265c1c38adbf7.png';
 import {
-  Briefcase, CheckCircle2, Bot, XCircle, Search, Filter,
-  ChevronLeft, ChevronRight, Eye, RefreshCcw
+  Briefcase, CheckCircle2, Bot, XCircle, RefreshCcw, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useCaseHistory } from '@/hooks/useCaseHistory';
 import { transformHumanCaseToUI } from '@/services/analysisPresentationService';
-import { CaseDetailDialog } from '@/components/CaseDetailDialog';
-import { generateDisplayId } from '@/utils/humanVerification/api';
+import { CaseDetailDialog } from '@/components/CaseDetailDialog'; // Maybe remove this if we navigate away?
+import { CaseListItem } from './CaseListItem';
+import { transformEnrichedToListItem, CaseEnrichedCompatible } from '@/types/validation';
 
 interface ContentReviewProps {
-  onViewTask: (jobId: string, type: string) => void;
+  onViewTask: (jobId: string, type: string, status?: string) => void;
 }
 
 export function ContentReview({ onViewTask }: ContentReviewProps) {
@@ -117,39 +116,16 @@ export function ContentReview({ onViewTask }: ContentReviewProps) {
                 const item = transformHumanCaseToUI(rawItem);
                 if (!item) return null;
 
+                // Transform to list item DTO
+                const listItem = transformEnrichedToListItem(item as unknown as CaseEnrichedCompatible);
+
                 return (
-                  <div
-                    key={item.id}
-                    className="p-4 hover:bg-yellow-50/30 cursor-pointer group transition-colors"
-                    onClick={() => onViewTask(item.id, item.type || rawItem.submission_type || 'text')}
-                  >
-                    <div className="flex justify-between items-start gap-4">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2 text-xs text-gray-500">
-                          <span className="font-mono bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded font-semibold">{generateDisplayId(item)}</span>
-                          <span className="font-mono bg-gray-100 px-1 rounded">{new Date(item.created_at).toLocaleDateString()}</span>
-                          <span>•</span>
-                          <Badge variant="secondary" className="text-[10px] h-5">{item.type?.toUpperCase() || 'GENERAL'}</Badge>
-                        </div>
-                        <h4 className="font-semibold text-gray-900 line-clamp-1">{item.title || "Sin título"}</h4>
-                        <p className="text-sm text-gray-600 line-clamp-2">{item.summary || "..."}</p>
-                      </div>
-                      <div className="flex flex-col items-end gap-2">
-                        <Button variant="ghost" size="icon" className="shrink-0">
-                          <Eye className="h-5 w-5 text-gray-400 group-hover:text-yellow-600" />
-                        </Button>
-                        <Badge
-                          className={
-                            item.consensus?.state === 'human_consensus'
-                              ? 'bg-green-100 text-green-800 hover:bg-green-100'
-                              : 'bg-blue-100 text-blue-800 hover:bg-blue-100'
-                          }
-                        >
-                          {item.consensus?.state === 'human_consensus' ? 'Verificado' : 'IA'}
-                        </Badge>
-                      </div>
-                    </div>
-                  </div>
+                  <CaseListItem
+                    key={listItem.id}
+                    caseItem={listItem}
+                    onClick={(id) => onViewTask(id, 'caseDetail', 'completed')}
+                    className="hover:shadow-lg transition-shadow border-2 border-transparent hover:border-yellow-400"
+                  />
                 );
               })}
             </div>
