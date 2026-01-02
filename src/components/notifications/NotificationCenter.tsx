@@ -102,28 +102,31 @@ export function NotificationCenter({ onViewTask, onViewAllNotifications }: {
                                                 <div className="flex gap-3 items-start">
                                                     <div className="mt-1">{getIcon(n.type)}</div>
                                                     <div className="flex-1 space-y-1">
-                                                        <p className="font-medium leading-none text-black">
-                                                            {n.title}
-                                                        </p>
+                                                        <div className="flex items-start justify-between">
+                                                            <p className="font-medium leading-none text-black pr-2 mt-0.5">
+                                                                {n.title}
+                                                            </p>
+                                                            <p className="text-[10px] text-gray-400 whitespace-nowrap flex-shrink-0">
+                                                                {new Date(n.created_at).toLocaleString()}
+                                                            </p>
+                                                        </div>
                                                         <p className="text-xs text-muted-foreground line-clamp-2">
                                                             {n.message}
                                                         </p>
-                                                        <div className="flex justify-between items-center">
-                                                            <p className="text-[10px] text-gray-400">
-                                                                {new Date(n.created_at).toLocaleString()}
-                                                            </p>
-                                                            {n.metadata?.actionable && n.metadata?.job_id && (
+                                                        <div className="flex justify-start items-center">
+
+                                                            {n.metadata?.job_id && (
                                                                 <Button
                                                                     variant="link"
                                                                     size="sm"
-                                                                    className="h-6 text-xs"
+                                                                    className="h-6 text-xs px-0"
                                                                     onClick={(e) => {
                                                                         e.stopPropagation();
                                                                         handleViewTask(n.metadata!.job_id, n.metadata);
                                                                         markAsRead(n.id);
                                                                     }}
                                                                 >
-                                                                    Ver
+                                                                    Ver detalles &rarr;
                                                                 </Button>
                                                             )}
                                                         </div>

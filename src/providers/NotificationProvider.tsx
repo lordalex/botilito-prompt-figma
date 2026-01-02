@@ -12,10 +12,12 @@ interface NotificationContextType {
     unreadCount: number;
     activeTasks: AsyncTask[];
     loadingDetails: { [jobId: string]: boolean };
+    pollingInterval: number;
     registerTask: (jobId: string, type: AsyncTask['type'], metadata?: any) => void;
     markAsRead: (id?: string, markAll?: boolean) => Promise<void>;
     refreshNotifications: () => Promise<void>;
     getTaskResult: (jobId: string) => Promise<any>;
+    setPollingInterval: (ms: number) => void;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
@@ -26,10 +28,22 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
     const [activeTasks, setActiveTasks] = useState<AsyncTask[]>([]);
     const [loadingDetails, setLoadingDetails] = useState<{ [jobId: string]: boolean }>({});
 
+    // Initialize polling interval from localStorage or default to 30s
+    const [pollingInterval, setPollingIntervalState] = useState<number>(() => {
+        if (typeof window !== 'undefined') {
+            const saved = localStorage.getItem('notificationPollingInterval');
+            return saved ? parseInt(saved, 10) : 30000;
+        }
+        return 30000;
+    });
+
+    const setPollingInterval = (ms: number) => {
+        setPollingIntervalState(ms);
+        localStorage.setItem('notificationPollingInterval', ms.toString());
+    };
+
     // Polling Interval for Tasks (5 seconds)
     const TASK_POLLING_INTERVAL = 5000;
-    // Polling Interval for Inbox (30 seconds)
-    const INBOX_POLLING_INTERVAL = 30000;
 
     const refreshNotifications = useCallback(async () => {
         try {
@@ -46,9 +60,9 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
     // Initial Fetch & Inbox Polling
     useEffect(() => {
         refreshNotifications();
-        const interval = setInterval(refreshNotifications, INBOX_POLLING_INTERVAL);
+        const interval = setInterval(refreshNotifications, pollingInterval);
         return () => clearInterval(interval);
-    }, [refreshNotifications]);
+    }, [refreshNotifications, pollingInterval]);
 
     const markAsRead = async (id?: string, markAll?: boolean) => {
         try {
@@ -200,10 +214,12 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
             unreadCount,
             activeTasks,
             loadingDetails,
+            pollingInterval,
             registerTask,
             markAsRead,
             refreshNotifications,
-            getTaskResult
+            getTaskResult,
+            setPollingInterval
         }}>
             {children}
         </NotificationContext.Provider>

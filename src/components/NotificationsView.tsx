@@ -52,7 +52,7 @@ export function NotificationsView({ onViewTask }: NotificationsViewProps) {
             markAsRead(notification.id);
         }
 
-        if (notification.metadata?.actionable && notification.metadata?.job_id) {
+        if (notification.metadata?.job_id) {
             // Map the metadata source to the job type expected by the App component
             const jobType = notification.metadata?.source === 'upload' ? 'image_analysis' :
                 notification.metadata?.source === 'audio-upload' ? 'audio_analysis' :

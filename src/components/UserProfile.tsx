@@ -10,12 +10,14 @@ import { Progress } from "./ui/progress";
 import { Separator } from "./ui/separator";
 import { motion, AnimatePresence } from 'motion/react';
 import botilitoImage from 'figma:asset/e27a276e6ff0e187a67cf54678c265c1c38adbf7.png';
-import { 
-    Shield, Zap, User, Edit, Save, Trophy, Edit3, Camera, CheckCircle, Lock, 
-    UserPlus, Copy, Share2, HeartPulse, Stethoscope, Crosshair, Siren, 
-    TrendingDown, BarChart3, FileText, Users, Globe, Bot, Coffee, Gift, 
-    Sparkles, Medal, Crown, Brain, Upload, Eye, Microscope, Syringe, Target, Flame, Clock
+import {
+    Shield, Zap, User, Edit, Save, Trophy, Edit3, Camera, CheckCircle, Lock,
+    UserPlus, Copy, Share2, HeartPulse, Stethoscope, Crosshair, Siren,
+    TrendingDown, BarChart3, FileText, Users, Globe, Bot, Coffee, Gift,
+    Sparkles, Medal, Crown, Brain, Upload, Eye, Microscope, Syringe, Target, Flame, Clock, Bell
 } from 'lucide-react';
+import { useNotifications } from '@/providers/NotificationProvider';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 
 // Define levels inside the component or import from a shared config
@@ -40,6 +42,7 @@ export function UserProfile() {
         handleSaveProfile,
         fileInputRef
     } = useUserProfile();
+    const { pollingInterval, setPollingInterval } = useNotifications();
     const [showLevelUp, setShowLevelUp] = useState(false);
     const [showAvatarModal, setShowAvatarModal] = useState(false);
     const [loadedAvatars, setLoadedAvatars] = useState<Array<{ avatar: DefaultAvatar, url: string }>>([]);
@@ -77,7 +80,7 @@ export function UserProfile() {
     if (error && !profile) {
         return <div className="text-red-500">Error: {error}</div>;
     }
-    
+
     if (!profile) {
         return <div>No profile data available.</div>;
     }
@@ -96,7 +99,7 @@ export function UserProfile() {
     const avatarSrc = profile.photo || profile.avatar;
 
     return (
-        <motion.div 
+        <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="space-y-8 relative"
@@ -127,9 +130,9 @@ export function UserProfile() {
 
             <div className="bg-[#ffe97a] border-2 border-[#ffda00] rounded-lg p-4 shadow-lg">
                 <div className="flex items-center space-x-4">
-                    <img 
-                        src={botilitoImage} 
-                        alt="Botilito" 
+                    <img
+                        src={botilitoImage}
+                        alt="Botilito"
                         className="w-24 h-24 object-contain mt-[0px] mr-[16px] mb-[-18px] ml-[0px]"
                     />
                     <div className="flex-1">
@@ -160,9 +163,9 @@ export function UserProfile() {
                                         </AvatarFallback>
                                     </Avatar>
                                     <div className="absolute -bottom-2 -right-2 bg-white rounded-full p-1 shadow-md">
-                                        <Button 
-                                            size="icon" 
-                                            variant="outline" 
+                                        <Button
+                                            size="icon"
+                                            variant="outline"
                                             className="h-8 w-8 hover:bg-primary hover:text-primary-foreground transition-all"
                                             onClick={() => setShowAvatarModal(true)}
                                             title="Cambiar foto de perfil"
@@ -171,8 +174,8 @@ export function UserProfile() {
                                         </Button>
                                     </div>
                                 </motion.div>
-                                
-                                <motion.div 
+
+                                <motion.div
                                     className="absolute -top-2 -left-2"
                                     whileHover={{ scale: 1.1 }}
                                 >
@@ -182,7 +185,7 @@ export function UserProfile() {
                                     </div>
                                 </motion.div>
                             </div>
-                            
+
                             <div className="space-y-3">
                                 <div>
                                     <h1 className="text-3xl">{profile.full_name}</h1>
@@ -195,7 +198,7 @@ export function UserProfile() {
                                     </div>
                                     <p className="text-xs text-muted-foreground mt-2 italic">"{currentLevel.subtitle}"</p>
                                 </div>
-                                
+
                                 <div className="w-80">
                                     <div className="flex justify-between text-sm mb-2">
                                         <span>Experiencia (XP)</span>
@@ -255,53 +258,53 @@ export function UserProfile() {
                             )}
                         </CardHeader>
                         <CardContent>
-                        {isEditing ? (
-                            <form onSubmit={handleSaveProfile} className="space-y-6">
-                                {error && <p className="text-red-500">{error}</p>}
-                                <div className="space-y-1">
-                                    <label htmlFor="full_name" className={`text-sm font-medium ${!profile.full_name ? 'text-red-600' : ''}`}>
-                                        Nombre Completo {!profile.full_name && <span className="text-red-600">* (Requerido)</span>}
-                                    </label>
-                                    <Input
-                                        id="full_name"
-                                        name="full_name"
-                                        placeholder="Nombre Completo"
-                                        value={profile.full_name || ''}
-                                        onChange={handleInputChange}
-                                        className={!profile.full_name ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}
-                                        autoFocus={!profile.full_name}
-                                    />
+                            {isEditing ? (
+                                <form onSubmit={handleSaveProfile} className="space-y-6">
+                                    {error && <p className="text-red-500">{error}</p>}
+                                    <div className="space-y-1">
+                                        <label htmlFor="full_name" className={`text-sm font-medium ${!profile.full_name ? 'text-red-600' : ''}`}>
+                                            Nombre Completo {!profile.full_name && <span className="text-red-600">* (Requerido)</span>}
+                                        </label>
+                                        <Input
+                                            id="full_name"
+                                            name="full_name"
+                                            placeholder="Nombre Completo"
+                                            value={profile.full_name || ''}
+                                            onChange={handleInputChange}
+                                            className={!profile.full_name ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}
+                                            autoFocus={!profile.full_name}
+                                        />
+                                    </div>
+                                    <Input id="phone_number" name="phone_number" placeholder="Número de Teléfono" value={profile.phone_number || ''} onChange={handleInputChange} />
+                                    <Input id="state_province" name="state_province" placeholder="Departamento" value={profile.state_province || ''} onChange={handleInputChange} />
+                                    <Input id="city" name="city" placeholder="Ciudad" value={profile.city || ''} onChange={handleInputChange} />
+                                    <Input id="birth_date" name="birth_date" type="date" value={profile.birth_date || ''} onChange={handleInputChange} />
+                                    <Input id="email" name="email" value={profile.email || ''} disabled />
+                                    <div className="flex gap-2">
+                                        <Button type="submit">Guardar Cambios</Button>
+                                        <Button variant="ghost" onClick={() => setIsEditing(false)}>Cancelar</Button>
+                                    </div>
+                                </form>
+                            ) : (
+                                <div className="space-y-4 text-sm">
+                                    <div className={`flex justify-between items-center ${!profile.full_name ? 'bg-red-50 p-2 rounded-md border border-red-200' : ''}`}>
+                                        <strong className={!profile.full_name ? 'text-red-600' : ''}>
+                                            Nombre: {!profile.full_name && <span className="text-red-600 text-xs">(Requerido)</span>}
+                                        </strong>
+                                        <span className={!profile.full_name ? 'text-red-600 font-medium' : ''}>
+                                            {profile.full_name || '⚠️ Falta completar'}
+                                        </span>
+                                    </div>
+                                    <Separator />
+                                    <div className="flex justify-between items-center"><strong>Email:</strong> <span>{profile.email}</span></div>
+                                    <Separator />
+                                    <div className="flex justify-between items-center"><strong>Teléfono:</strong> <span>{profile.phone_number || 'No especificado'}</span></div>
+                                    <Separator />
+                                    <div className="flex justify-between items-center"><strong>Ubicación:</strong> <span>{`${profile.city || ''}, ${profile.state_province || 'No especificado'}`}</span></div>
+                                    <Separator />
+                                    <div className="flex justify-between items-center"><strong>Fecha de Nacimiento:</strong> <span>{profile.birth_date || 'No especificado'}</span></div>
                                 </div>
-                                <Input id="phone_number" name="phone_number" placeholder="Número de Teléfono" value={profile.phone_number || ''} onChange={handleInputChange} />
-                                <Input id="state_province" name="state_province" placeholder="Departamento" value={profile.state_province || ''} onChange={handleInputChange} />
-                                <Input id="city" name="city" placeholder="Ciudad" value={profile.city || ''} onChange={handleInputChange} />
-                                <Input id="birth_date" name="birth_date" type="date" value={profile.birth_date || ''} onChange={handleInputChange} />
-                                <Input id="email" name="email" value={profile.email || ''} disabled />
-                                <div className="flex gap-2">
-                                    <Button type="submit">Guardar Cambios</Button>
-                                    <Button variant="ghost" onClick={() => setIsEditing(false)}>Cancelar</Button>
-                                </div>
-                            </form>
-                        ) : (
-                            <div className="space-y-4 text-sm">
-                                <div className={`flex justify-between items-center ${!profile.full_name ? 'bg-red-50 p-2 rounded-md border border-red-200' : ''}`}>
-                                    <strong className={!profile.full_name ? 'text-red-600' : ''}>
-                                        Nombre: {!profile.full_name && <span className="text-red-600 text-xs">(Requerido)</span>}
-                                    </strong>
-                                    <span className={!profile.full_name ? 'text-red-600 font-medium' : ''}>
-                                        {profile.full_name || '⚠️ Falta completar'}
-                                    </span>
-                                </div>
-                                <Separator />
-                                <div className="flex justify-between items-center"><strong>Email:</strong> <span>{profile.email}</span></div>
-                                <Separator />
-                                <div className="flex justify-between items-center"><strong>Teléfono:</strong> <span>{profile.phone_number || 'No especificado'}</span></div>
-                                <Separator />
-                                <div className="flex justify-between items-center"><strong>Ubicación:</strong> <span>{`${profile.city || ''}, ${profile.state_province || 'No especificado'}`}</span></div>
-                                <Separator />
-                                <div className="flex justify-between items-center"><strong>Fecha de Nacimiento:</strong> <span>{profile.birth_date || 'No especificado'}</span></div>
-                            </div>
-                        )}
+                            )}
                         </CardContent>
                     </Card>
                 </div>
@@ -324,6 +327,38 @@ export function UserProfile() {
                         <CardContent>
                             <div className="flex flex-wrap gap-2">
                                 {profile.badges.map(badge => <Badge key={badge} variant="secondary">{badge}</Badge>)}
+                            </div>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center space-x-2">
+                                <Bell className="h-5 w-5 text-primary" />
+                                <span>Configuración de Notificaciones</span>
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="flex items-center justify-between">
+                                <div className="space-y-0.5">
+                                    <label className="text-sm font-medium">Frecuencia de Actualización</label>
+                                    <p className="text-xs text-muted-foreground">
+                                        Cada cuánto buscamos nuevas alertas.
+                                    </p>
+                                </div>
+                                <Select
+                                    value={pollingInterval.toString()}
+                                    onValueChange={(val) => setPollingInterval(parseInt(val))}
+                                >
+                                    <SelectTrigger className="w-[140px]">
+                                        <SelectValue placeholder="Seleccionar" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="5000">Tiempo real (5s)</SelectItem>
+                                        <SelectItem value="10000">Rápido (10s)</SelectItem>
+                                        <SelectItem value="30000">Normal (30s)</SelectItem>
+                                        <SelectItem value="60000">Lento (1m)</SelectItem>
+                                    </SelectContent>
+                                </Select>
                             </div>
                         </CardContent>
                     </Card>
@@ -373,15 +408,15 @@ export function UserProfile() {
 
                                     {/* Opciones de Cambio */}
                                     <div className="space-y-4">
-                                        <Button 
-                                            className="w-full" 
+                                        <Button
+                                            className="w-full"
                                             variant="outline"
                                             onClick={handleUploadClick}
                                         >
                                             <Upload className="h-4 w-4 mr-2" />
                                             Subir nueva foto
                                         </Button>
-                                        
+
                                         {loadedAvatars.length === 0 ? (
                                             <div className="text-center text-sm text-muted-foreground py-4">
                                                 Cargando avatares...
@@ -424,8 +459,8 @@ export function UserProfile() {
 
                                     {/* Botones de Acción */}
                                     <div className="flex space-x-2">
-                                        <Button 
-                                            variant="outline" 
+                                        <Button
+                                            variant="outline"
                                             className="flex-1"
                                             onClick={() => {
                                                 setShowAvatarModal(false);
@@ -434,7 +469,7 @@ export function UserProfile() {
                                         >
                                             Cancelar
                                         </Button>
-                                        <Button 
+                                        <Button
                                             className="flex-1 bg-primary hover:bg-primary/90"
                                             onClick={async (e) => {
                                                 await handleSaveProfile(e);
