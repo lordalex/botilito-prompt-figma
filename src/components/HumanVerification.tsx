@@ -17,24 +17,18 @@ import { Button } from './ui/button';
 const levels = [
   {
     level: 1,
-    title: 'VIGILANTE CENTINELA',
-    subtitle: 'Primera Línea de Defensa',
     minXP: 0,
     maxXP: 500,
     badge: '👁️',
   },
   {
     level: 2,
-    title: 'EPIDEMIÓLOGO DIGITAL VOLUNTARIO',
-    subtitle: 'Analista de Contagio',
     minXP: 500,
     maxXP: 2000,
     badge: '🔬',
   },
   {
     level: 3,
-    title: 'ESPECIALISTA EN INMUNOLOGÍA INFORMATIVA',
-    subtitle: 'Educomunicador Estratégico',
     minXP: 2000,
     maxXP: 999999,
     badge: '💉',
@@ -84,7 +78,6 @@ export function HumanVerification() {
       setGamificationData({
         currentXP: currentXP,
         nextLevelXP: nextLevel?.minXP || currentLevel.maxXP,
-        levelTitle: currentLevel.title,
         progress: progressToNext,
       });
     }

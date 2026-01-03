@@ -192,7 +192,7 @@ export function UserProfile() {
                                     <p className="text-sm text-muted-foreground">{profile.email}</p>
                                     <div className="flex items-center space-x-2 mt-3">
                                         <Badge className={`${currentLevel.color} text-white`}>
-                                            {currentLevel.title}
+                                            {profile.role?.toUpperCase() || ''}
                                         </Badge>
                                         {profile.city && <Badge variant="outline" className="text-xs">{profile.city}</Badge>}
                                     </div>

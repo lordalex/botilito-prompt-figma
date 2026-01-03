@@ -87,7 +87,7 @@ export function Navigation({ activeTab, onTabChange, onLogout, onViewTask, onVie
     name: profile?.full_name || user?.email?.split('@')[0] || 'Usuario',
     email: user?.email || '',
     avatar: profile?.photo || profile?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.email || 'User'}&backgroundColor=ffda00`,
-    level: profile?.level || 'Vigilante Centinela', // Default per gamification types
+    level: profile?.role || 'Usuario', 
     totalBadges: profile?.reputation !== undefined ? Math.floor(profile.reputation / 10) : 0 // heuristic if badge count not direct
   };
 
