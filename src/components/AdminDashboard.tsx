@@ -3,28 +3,42 @@ import { useAdminDashboard } from '../hooks/useAdminDashboard';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
 import { Button } from './ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
-import { Loader2, Activity, Users, FileText, Vote, RefreshCw, Trophy } from 'lucide-react';
+import { Loader2, Activity, Users, FileText, Vote, RefreshCw, Trophy, UserCog } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import CreateChallengeForm from './CreateChallengeForm';
+import botilitoImage from 'figma:asset/e27a276e6ff0e187a67cf54678c265c1c38adbf7.png';
+import { RoleManagementTab } from './RoleManagementTab';
 
 export default function AdminDashboard() {
     const { overview, macros, activeTab, setActiveTab, isLoading, error, refresh } = useAdminDashboard();
 
     const handleTabChange = (value: string) => {
-        setActiveTab(value as 'overview' | 'macros' | 'challenges');
+        setActiveTab(value as 'overview' | 'macros' | 'challenges' | 'gestion-roles');
     };
 
     return (
         <div className="container mx-auto p-6 space-y-6">
-            <div className="flex justify-between items-center">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight text-slate-900">Dashboard Administrativo</h1>
-                    <p className="text-muted-foreground mt-1">Visión general y métricas del sistema.</p>
+            {/* Franja de Botilito - Admin Style */}
+            <div className="bg-[#e0e7ff] border-2 border-[#4f46e5] rounded-lg p-4 shadow-lg">
+                <div className="flex items-center space-x-4">
+                    <img
+                        src={botilitoImage}
+                        alt="Botilito Admin"
+                        className="w-24 h-24 object-contain mt-[0px] mr-[16px] mb-[-18px] ml-[0px]"
+                    />
+                    <div className="flex-1">
+                        <p className="text-xl text-[#312e81] font-bold">
+                            Panel de Control Maestro 🛠️
+                        </p>
+                        <p className="text-sm mt-1 opacity-80 text-[#4338ca]">
+                            Gestión centralizada de usuarios, análisis y métricas del sistema.
+                        </p>
+                    </div>
+                    <Button onClick={refresh} variant="ghost" disabled={isLoading} className="text-[#312e81] hover:bg-[#c7d2fe]">
+                        <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+                        Actualizar Datos
+                    </Button>
                 </div>
-                <Button onClick={refresh} variant="outline" disabled={isLoading}>
-                    <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-                    Actualizar
-                </Button>
             </div>
 
             {error && (
@@ -34,12 +48,16 @@ export default function AdminDashboard() {
             )}
 
             <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
-                <TabsList>
+                <TabsList className="bg-slate-100 p-1">
                     <TabsTrigger value="overview">Resumen General</TabsTrigger>
                     <TabsTrigger value="macros">Tendencias (Macros)</TabsTrigger>
                     <TabsTrigger value="challenges" className="flex items-center gap-2">
-                        <Trophy className="h-4 w-4" />
+                        <Trophy className="h-4 w-4 text-amber-500" />
                         Misiones
+                    </TabsTrigger>
+                    <TabsTrigger value="gestion-roles" className="flex items-center gap-2">
+                        <UserCog className="h-4 w-4 text-indigo-500" />
+                        Gestión de Roles
                     </TabsTrigger>
                 </TabsList>
 
@@ -179,6 +197,10 @@ export default function AdminDashboard() {
 
                 <TabsContent value="challenges" className="space-y-4">
                     <CreateChallengeForm />
+                </TabsContent>
+
+                <TabsContent value="gestion-roles" className="space-y-4">
+                    <RoleManagementTab />
                 </TabsContent>
             </Tabs>
         </div>

@@ -7,7 +7,7 @@ export function useAdminDashboard() {
     const [macros, setMacros] = useState<DashboardMacros | null>(null);
     const [isLoadingOverview, setIsLoadingOverview] = useState(false);
     const [isLoadingMacros, setIsLoadingMacros] = useState(false);
-    const [activeTab, setActiveTab] = useState<'overview' | 'macros' | 'challenges'>('overview');
+    const [activeTab, setActiveTab] = useState<'overview' | 'macros' | 'challenges' | 'gestion-roles'>('overview');
     const [error, setError] = useState<string | null>(null);
 
     const loadOverview = async () => {

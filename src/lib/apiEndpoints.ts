@@ -36,3 +36,6 @@ export const IMMUNIZATION_API_URL = `${SUPABASE_URL}/functions/v1/inmunizacion`;
 
 // Admin Dashboard API
 export const ADMIN_DASHBOARD_URL = `${SUPABASE_URL}/functions/v1/admin-dashboard`;
+
+// User Roles API
+export const UPDATE_USER_ROLE = `${SUPABASE_URL}/functions/v1/update-user-role`;
