@@ -1,11 +1,12 @@
 {
-  "openapi": "3.0.0",
+  "openapi": "3.0.3",
   "info": {
-    "title": "Vote Processor & Gamification Engine",
-    "description": "Deno Edge Function for processing user votes asynchronously. Features include ID auto-resolution (Document ID to Case ID), granular trace logging, and gamification/reputation triggers.",
-    "version": "1.0.0",
+    "title": "Botilito Vote & Consensus API",
+    "description": "API for processing human validation votes on analysis cases. This is an **asynchronous** engine that handles identity resolution, permission enforcement, and consensus recalculation.\n\n**Security & RBAC:**\n- Requires a valid User JWT.\n- The user's role must have the `validacion_humana: true` permission defined in the system's `roles_config.json`. If not, a `403 Forbidden` is returned.\n\n**Workflow:**\n1. **Submit (`POST /submit`)**: Queues a vote job. Returns `job_id`.\n2. **Process (Background)**: Resolves Document ID to Case ID -> Upserts Vote -> Recalculates Consensus -> Triggers Gamification.\n3. **Poll (`GET /status/{job_id}`)**: Returns the final consensus state and resolved IDs.",
+    "version": "1.2.0",
     "contact": {
-      "name": "API Support"
+      "name": "API Support",
+      "email": "dev@botilito.dev"
     }
   },
   "servers": [
@@ -20,11 +21,11 @@
         "type": "http",
         "scheme": "bearer",
         "bearerFormat": "JWT",
-        "description": "Supabase User JWT"
+        "description": "Supabase User Token. The user must have a role (e.g., 'epidemiologo') authorized to vote."
       }
     },
     "schemas": {
-      "VoteSubmission": {
+      "VoteRequest": {
         "type": "object",
         "required": [
           "case_id",
@@ -33,33 +34,50 @@
         "properties": {
           "case_id": {
             "type": "string",
-            "description": "The identifier for the item being voted on. The system automatically resolves this: if a Document ID is provided, it finds the associated Case ID.",
+            "description": "The unique identifier of the content. This can be the **Case UUID** OR a specific **Document/Vector UUID**. The system will automatically resolve the parent Case ID.",
             "example": "550e8400-e29b-41d4-a716-446655440000"
           },
           "classification": {
             "type": "string",
-            "description": "The label or vote category applied by the user.",
-            "example": "Approved"
+            "description": "The verdict provided by the human validator.",
+            "enum": [
+              "Verificado",
+              "Falso",
+              "Engañoso",
+              "No Verificable",
+              "Sátira"
+            ],
+            "example": "Falso"
           },
           "reason": {
             "type": "string",
-            "description": "Optional explanation for the vote.",
-            "example": "Evidence supports the claim."
+            "description": "Short justification for the vote.",
+            "example": "La imagen es un montaje de 2019."
+          },
+          "explanation": {
+            "type": "string",
+            "description": "Detailed explanation (alias for reason).",
+            "example": "El análisis forense muestra clonación en la zona izquierda..."
           },
           "evidence_url": {
             "type": "string",
             "format": "uri",
-            "description": "Optional link to external evidence."
+            "description": "Optional link to external proof (fact-check article, official source).",
+            "example": "https://factcheck.org/example"
           }
         }
       },
-      "JobCreatedResponse": {
+      "JobAcceptedResponse": {
         "type": "object",
         "properties": {
           "job_id": {
             "type": "string",
             "format": "uuid",
-            "description": "The unique identifier of the background processing job."
+            "description": "The ID to use for polling status."
+          },
+          "message": {
+            "type": "string",
+            "example": "Vote queued for processing"
           }
         }
       },
@@ -79,45 +97,8 @@
               "failed"
             ]
           },
-          "status_details": {
-            "type": "object",
-            "description": "Intermediate progress details (e.g. phases).",
-            "properties": {
-              "phase": {
-                "type": "string"
-              },
-              "progress": {
-                "type": "integer"
-              },
-              "resolved_id": {
-                "type": "string",
-                "format": "uuid"
-              }
-            }
-          },
           "result": {
-            "type": "object",
-            "properties": {
-              "resolved_case_id": {
-                "type": "string",
-                "format": "uuid"
-              },
-              "new_consensus": {
-                "type": "object",
-                "properties": {
-                  "state": {
-                    "type": "string",
-                    "enum": ["human_consensus", "ai_only", "conflicted"]
-                  },
-                  "final_labels": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    }
-                  }
-                }
-              }
-            }
+            "$ref": "#/components/schemas/VoteResult"
           },
           "error": {
             "type": "string",
@@ -126,23 +107,52 @@
           "trace_log": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/TraceLogEntry"
-            }
+              "type": "object"
+            },
+            "description": "Verbose execution logs for debugging."
           }
         }
       },
-      "TraceLogEntry": {
+      "VoteResult": {
+        "type": "object",
+        "description": "The output of a completed vote job.",
+        "properties": {
+          "resolved_case_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The actual Case ID where the vote was applied (after resolution)."
+          },
+          "vote_recorded": {
+            "type": "boolean",
+            "example": true
+          },
+          "consensus": {
+            "$ref": "#/components/schemas/ConsensusObject"
+          }
+        }
+      },
+      "ConsensusObject": {
         "type": "object",
         "properties": {
-          "t": {
+          "state": {
             "type": "string",
-            "format": "date-time"
+            "enum": [
+              "human_consensus",
+              "ai_only",
+              "conflicted"
+            ],
+            "description": "The source of the current verdict. 'human_consensus' means majority vote prevails."
           },
-          "msg": {
-            "type": "string"
+          "final_labels": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The winning verdict(s)."
           },
-          "meta": {
-            "type": "object"
+          "total_votes": {
+            "type": "integer",
+            "description": "Number of human votes counted."
           }
         }
       },
@@ -150,46 +160,50 @@
         "type": "object",
         "properties": {
           "error": {
-            "type": "string"
+            "type": "string",
+            "example": "Missing case_id or classification"
+          },
+          "details": {
+            "type": "string",
+            "nullable": true
           }
         }
       }
     }
   },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
   "paths": {
-    "/": {
+    "/submit": {
       "post": {
-        "summary": "Submit Vote",
-        "description": "Submits a vote for a case or document. The process is asynchronous; the response includes a Job ID to track progress.",
-        "operationId": "submitVote",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
+        "summary": "Submit Human Vote",
+        "description": "Queues a vote for processing. The system enforces RBAC checks: only users whose role (in `roles_config.json`) has `validacion_humana: true` can submit. \n\nThis endpoint is non-blocking (Async); it returns a `job_id`.",
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/VoteSubmission"
+                "$ref": "#/components/schemas/VoteRequest"
               }
             }
           }
         },
         "responses": {
           "202": {
-            "description": "Vote Accepted (Processing Started)",
+            "description": "Accepted",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobCreatedResponse"
+                  "$ref": "#/components/schemas/JobAcceptedResponse"
                 }
               }
             }
           },
           "400": {
-            "description": "Bad Request (Missing fields)",
+            "description": "Bad Request (Validation Error)",
             "content": {
               "application/json": {
                 "schema": {
@@ -199,21 +213,18 @@
             }
           },
           "401": {
-            "description": "Unauthorized (Missing or Invalid Token)",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
+            "description": "Unauthorized (Invalid Token)"
           },
-          "500": {
-            "description": "Server Error",
+          "403": {
+            "description": "Forbidden (Role does not have voting permissions)",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "Unauthorized",
+                  "details": "Tu rol actual no tiene permisos para 'Validación Humana'. Contacta al administrador."
                 }
               }
             }
@@ -221,17 +232,15 @@
         }
       }
     },
-    "/status/{jobId}": {
+    "/status/{job_id}": {
       "get": {
-        "summary": "Get Job Status",
-        "description": "Retrieves the status, resolved IDs, consensus results, and detailed trace logs of a vote processing job.",
-        "operationId": "getVoteJobStatus",
+        "summary": "Poll Vote Job Status",
+        "description": "Retrieves the status of the voting job. When `completed`, the `result` field contains the updated consensus of the Case.",
         "parameters": [
           {
-            "name": "jobId",
+            "name": "job_id",
             "in": "path",
             "required": true,
-            "description": "The UUID of the job to check.",
             "schema": {
               "type": "string",
               "format": "uuid"
@@ -240,7 +249,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Job details retrieved successfully",
+            "description": "Status Details",
             "content": {
               "application/json": {
                 "schema": {
@@ -249,35 +258,8 @@
               }
             }
           },
-          "400": {
-            "description": "Missing Job ID",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
           "404": {
-            "description": "Job not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Server Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
+            "description": "Job Not Found"
           }
         }
       }

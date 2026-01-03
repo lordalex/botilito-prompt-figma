@@ -299,13 +299,16 @@ export function UnifiedAnalysisView({
             const std = data?.standardized_case || data;
             const score = std.overview?.risk_score || 0;
             const verdict = std.overview?.verdict_label || 'Requiere un enfoque AMI';
-            const isWarning = score < 60 || verdict.includes('Requiere') || verdict.includes('No cumple');
+            // FIX: If it's a RISK score, High Score (e.g. 88) = High Risk = Warning.
+            // If it's a Confidence score, High Score = High Confidence = Mixed meaning depends on verdict.
+            // Assuming 'risk_score' means Risk of Infodemic/Misinformation.
+            const isWarning = score > 50 || verdict.includes('Requiere') || verdict.includes('No cumple');
             return {
                 verdict,
                 confidence: score,
                 isWarning,
                 description: isWarning
-                    ? 'El contenido presenta riesgos identificados por el análisis.'
+                    ? 'El contenido presenta altos riesgos identificados por el análisis.'
                     : 'El contenido cumple con los parámetros analizados.'
             };
         }
@@ -314,7 +317,10 @@ export function UnifiedAnalysisView({
         const amiData = classification?.indiceCumplimientoAMI || {};
         const score = amiData?.score || classification?.score || 0;
         const nivel = amiData?.nivel || classification?.nivel || 'Requiere un enfoque AMI';
-        const isWarning = score < 70 || (typeof nivel === 'string' && nivel.toLowerCase().includes('requiere'));
+        // Legacy: 'score' was often 'compliance'. So Low Score = Warning.
+        // But if we are moving to standard risk scores, we need to be careful.
+        // Checking verdict string is safer fallback.
+        const isWarning = (typeof nivel === 'string' && nivel.toLowerCase().includes('requiere')) || score < 50;
         return {
             verdict: nivel,
             confidence: score,
@@ -507,10 +513,33 @@ export function UnifiedAnalysisView({
     };
     const visualUrl = getVisualUrl();
 
+    // Helper: Find insight by ID
+    const getInsightById = (id: string, fallback: any = {}) => {
+        const insights = data?.standardized_case?.insights || data?.insights || [];
+        return insights.find((i: any) => i.id === id) || fallback;
+    };
+
+    // Specific Insights
+    const sourceInsight = getInsightById('tech_sources');
+    const clickbaitInsight = getInsightById('tech_clickbait');
+
+    // Get AMI Competencies from insights (category: 'content_quality' or id starts with 'ami_')
+    const amiCompetencies = (data?.standardized_case?.insights || data?.insights || [])
+        .filter((i: any) => i.id?.startsWith('ami_') || i.category === 'content_quality');
+
+    // Determine Source Analysis Status
+    const isSourceReliable = sourceInsight.value === 'Fuentes Sólidas' || sourceInsight.value?.includes('Confiable');
+
+    // Determine Clickbait Status
+    const isClickbait = clickbaitInsight.es_clickbait === true || clickbaitInsight.value === 'Clickbait' || clickbaitInsight.value?.includes('Sensacionalista');
+
+    // Use dynamic summary if available
+    const displaySummary = data?.standardized_case?.overview?.summary || contentInfo.summary;
+
     return (
-        <div className="max-w-7xl mx-auto p-4 md:p-6 lg:pt-5 space-y-6" >
+        <div className="max-w-7xl mx-auto p-4 md:p-6 lg:pt-5 space-y-6">
             {/* ========== BOTILITO BANNER ========== */}
-            < div className="bg-[#ffe97a] border-2 border-[#ffda00] rounded-lg p-4 shadow-lg mb-6" >
+            <div className="bg-[#ffe97a] border-2 border-[#ffda00] rounded-lg p-4 shadow-lg mb-6">
                 <div className="flex items-center space-x-4">
                     <img
                         src={botilitoMascot}
@@ -526,77 +555,76 @@ export function UnifiedAnalysisView({
                         </p>
                     </div>
                 </div>
-            </div >
+            </div>
 
             {/* ========== BACK BUTTON ========== */}
-            < Button variant="ghost" onClick={onReset} className="text-gray-600 hover:text-black" >
+            <Button variant="ghost" onClick={onReset} className="text-gray-600 hover:text-black">
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Volver al listado
-            </Button >
+            </Button>
 
-            {/* ========== MAIN GRID: 70% / 30% ========== */}
-            < div className="flex gap-6" >
+            {/* ========== MAIN GRID: Left Content / Right Sidebar ========== */}
+            <div className="grid grid-cols-1 md:grid-cols-[1fr_320px] gap-6">
 
-                {/* ========== LEFT COLUMN (70%) ========== */}
-                < div className="flex-1 min-w-0 space-y-6" >
+                {/* ========== LEFT COLUMN - MAIN CONTENT ========== */}
+                <div className="space-y-6 min-w-0">
 
                     {/* IMAGE/AUDIO PREVIEW - Figma: Dark card with rounded-full badge */}
-                    {
-                        visualUrl && (
-                            <Card className="border-2 border-black bg-[#0a0e1a] rounded-md relative overflow-hidden">
+                    {visualUrl && (
+                        <Card className="border-2 border-black bg-[#0a0e1a] rounded-md relative overflow-hidden">
 
-                                {contentType === 'audio' ? (
-                                    <div className="relative w-full bg-gray-900 p-8 flex flex-col items-center justify-center">
-                                        {/* Badge for audio */}
-                                        <div className="absolute top-4 left-6 bg-black/80 text-white px-3 py-1.5 rounded-full text-sm flex items-center gap-2 backdrop-blur-sm z-30">
-                                            <FileText className="h-4 w-4" />
-                                            Audio Original
-                                        </div>
-                                        <div className="w-20 h-20 rounded-full bg-[#ffda00] flex items-center justify-center mb-4">
-                                            <Volume2 className="h-10 w-10 text-black" />
-                                        </div>
-                                        <audio controls className="w-full max-w-md" src={visualUrl} />
+                            {contentType === 'audio' ? (
+                                <div className="relative w-full bg-gray-900 p-8 flex flex-col items-center justify-center">
+                                    {/* Badge for audio */}
+                                    <div className="absolute top-4 left-6 bg-black/80 text-white px-3 py-1.5 rounded-full text-sm flex items-center gap-2 backdrop-blur-sm z-30">
+                                        <FileText className="h-4 w-4" />
+                                        Audio Original
                                     </div>
-                                ) : (
-                                    <div className="relative w-full bg-gray-900 h-[500px] flex items-end justify-center py-12 px-8">
-                                        {/* Badge for image */}
-                                        <div className="absolute top-4 left-2 bg-black/80 text-white px-3 py-1.5 rounded-full text-sm flex items-center gap-2 backdrop-blur-sm z-30">
-                                            <FileText className="h-4 w-4" />
-                                            Imagen Original
-                                        </div>
+                                    <div className="w-20 h-20 rounded-full bg-[#ffda00] flex items-center justify-center mb-4">
+                                        <Volume2 className="h-10 w-10 text-black" />
+                                    </div>
+                                    <audio controls className="w-full max-w-md" src={visualUrl} />
+                                </div>
+                            ) : (
+                                <div className="relative w-full bg-gray-900 h-[500px] flex items-end justify-center py-12 px-8">
+                                    {/* Badge for image */}
+                                    <div className="absolute top-4 left-2 bg-black/80 text-white px-3 py-1.5 rounded-full text-sm flex items-center gap-2 backdrop-blur-sm z-30">
+                                        <FileText className="h-4 w-4" />
+                                        Imagen Original
+                                    </div>
 
-                                        <img
-                                            src={visualUrl}
-                                            alt="Captura Original"
-                                            className="max-w-full max-h-[500px] w-auto h-auto object-contain"
-                                        />
+                                    <img
+                                        src={visualUrl}
+                                        alt="Captura Original"
+                                        className="max-w-full max-h-[500px] w-auto h-auto object-contain"
+                                    />
 
-                                        {/* Navigation arrows for multiple images */}
-                                        {availableImages.length > 1 && (
-                                            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex items-center gap-4 mb-2">
-                                                <button
-                                                    className="text-white bg-black/80 hover:bg-black/95 rounded-full h-12 w-12 flex items-center justify-center transition-colors shadow-lg backdrop-blur-sm"
-                                                    onClick={handlePrevImage}
-                                                    type="button"
-                                                >
-                                                    <ChevronLeft className="h-7 w-7" />
-                                                </button>
-                                                <div className="bg-black/80 text-white px-4 py-2 rounded-full text-sm backdrop-blur-sm font-medium shadow-lg">
-                                                    {currentImageIndex + 1} / {availableImages.length}
-                                                </div>
-                                                <button
-                                                    className="text-white bg-black/80 hover:bg-black/95 rounded-full h-12 w-12 flex items-center justify-center transition-colors shadow-lg backdrop-blur-sm"
-                                                    onClick={handleNextImage}
-                                                    type="button"
-                                                >
-                                                    <ChevronRight className="h-7 w-7" />
-                                                </button>
+                                    {/* Navigation arrows for multiple images */}
+                                    {availableImages.length > 1 && (
+                                        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex items-center gap-4 mb-2">
+                                            <button
+                                                className="text-white bg-black/80 hover:bg-black/95 rounded-full h-12 w-12 flex items-center justify-center transition-colors shadow-lg backdrop-blur-sm"
+                                                onClick={handlePrevImage}
+                                                type="button"
+                                            >
+                                                <ChevronLeft className="h-7 w-7" />
+                                            </button>
+                                            <div className="bg-black/80 text-white px-4 py-2 rounded-full text-sm backdrop-blur-sm font-medium shadow-lg">
+                                                {currentImageIndex + 1} / {availableImages.length}
                                             </div>
-                                        )}
-                                    </div>
-                                )}
-                            </Card>
-                        )
+                                            <button
+                                                className="text-white bg-black/80 hover:bg-black/95 rounded-full h-12 w-12 flex items-center justify-center transition-colors shadow-lg backdrop-blur-sm"
+                                                onClick={handleNextImage}
+                                                type="button"
+                                            >
+                                                <ChevronRight className="h-7 w-7" />
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </Card>
+                    )
                     }
 
                     {/* CONTENT INFO SECTION - Figma: Card with explicit font sizes */}
@@ -619,7 +647,7 @@ export function UnifiedAnalysisView({
                                 <span className="text-[14px] leading-[20px] text-[#4a5565]">Contenido Analizado</span>
                             </div>
                             <p className="text-[14px] leading-[24px] text-[#1f2937]">
-                                {contentInfo.summary}
+                                {displaySummary}
                             </p>
 
                             {/* Tags */}
@@ -667,7 +695,9 @@ export function UnifiedAnalysisView({
                                         <div className={`text-[42px] leading-none font-bold tracking-tight ${verdictColors.text}`}>
                                             {Math.round(aiVerdictInfo.confidence)}%
                                         </div>
-                                        <div className="text-[10px] uppercase tracking-wide text-gray-500 font-semibold mt-1">Precisión</div>
+                                        <div className="text-[10px] uppercase tracking-wide text-gray-500 font-semibold mt-1">
+                                            {contentType === 'text' ? 'Nivel de Riesgo' : 'Probabilidad de Manipulación'}
+                                        </div>
                                     </div>
                                 </div>
                                 <div className="mt-4 pt-4 border-t border-black/5">
@@ -738,7 +768,7 @@ export function UnifiedAnalysisView({
                                         <div className="flex items-start gap-2">
                                             <span className="text-[12px] font-medium text-gray-600 min-w-[60px]">Qué:</span>
                                             <p className="text-[13px] leading-[20px] text-gray-700 flex-1">
-                                                {sourceDetails.what}
+                                                {displaySummary}
                                             </p>
                                         </div>
                                         <div className="flex items-start gap-2">
@@ -763,26 +793,27 @@ export function UnifiedAnalysisView({
                                 </div>
 
                                 {/* 2. Análisis de Fuentes y Datos */}
-                                <div className="bg-blue-50 border border-blue-200 rounded-[8px] p-4">
-                                    <h4 className="text-[14px] font-medium text-black mb-2 flex items-center gap-2">
-                                        <Shield className="h-4 w-4 text-blue-600" />
-                                        Análisis de Fuentes y Datos
+                                <div className={`border rounded-[8px] p-4 ${isSourceReliable ? 'bg-blue-50 border-blue-200' : 'bg-orange-50 border-orange-200'}`}>
+                                    <h4 className={`text-[14px] font-medium text-black mb-2 flex items-center gap-2`}>
+                                        <Shield className={`h-4 w-4 ${isSourceReliable ? 'text-blue-600' : 'text-orange-600'}`} />
+                                        {sourceInsight.label || 'Análisis de Fuentes y Datos'}
                                     </h4>
                                     <p className="text-[13px] leading-[20px] text-gray-700">
-                                        El contenido proviene de fuentes que requieren verificación adicional. Se recomienda contrastar con medios verificados y fuentes oficiales.
+                                        {sourceInsight.description || sourceInsight.raw_data?.analisis || 'El contenido proviene de fuentes que requieren verificación adicional. Se recomienda contrastar con medios verificados y fuentes oficiales.'}
                                     </p>
                                 </div>
 
                                 {/* 3. Alerta: Titular vs Contenido (Clickbait) */}
-                                <div className={`border-2 rounded-[8px] p-4 ${isWarning ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'}`}>
+                                <div className={`border-2 rounded-[8px] p-4 ${isClickbait ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'}`}>
                                     <h4 className="text-[14px] font-medium text-black mb-2 flex items-center gap-2">
-                                        <AlertTriangle className={`h-4 w-4 ${isWarning ? 'text-red-600' : 'text-green-600'}`} />
-                                        Alerta: Titular vs. Contenido
+                                        <AlertTriangle className={`h-4 w-4 ${isClickbait ? 'text-red-600' : 'text-green-600'}`} />
+                                        {clickbaitInsight.label || 'Alerta: Titular vs. Contenido'}
                                     </h4>
                                     <p className="text-[13px] leading-[20px] text-gray-700">
-                                        {isWarning
-                                            ? '⚠️ El titular presenta características de clickbait o sensacionalismo que no corresponden completamente con el contenido real.'
-                                            : '✓ El titular es coherente con el contenido presentado.'}
+                                        {clickbaitInsight.description || clickbaitInsight.raw_data?.analisis ||
+                                            (isClickbait
+                                                ? '⚠️ El titular presenta características de clickbait o sensacionalismo que no corresponden completamente con el contenido real.'
+                                                : '✓ El titular es coherente con el contenido presentado.')}
                                     </p>
                                 </div>
 
@@ -793,37 +824,28 @@ export function UnifiedAnalysisView({
                                         Competencias AMI Recomendadas:
                                     </h4>
                                     <div className="space-y-2">
-                                        {[
-                                            'Acceso a la información: Identificar y acceder a fuentes confiables y verificables',
-                                            'Evaluación crítica: Analizar la credibilidad de las fuentes y la veracidad del contenido',
-                                            'Comprensión del contexto: Entender el contexto histórico, social y político de la información',
-                                            'Producción responsable: Compartir información verificada y evitar la propagación de desinformación'
-                                        ].map((competencia, index) => {
-                                            const colonIndex = competencia.indexOf(':');
-                                            const beforeColon = colonIndex !== -1 ? competencia.substring(0, colonIndex) : competencia;
-                                            const afterColon = colonIndex !== -1 ? competencia.substring(colonIndex) : '';
-
-                                            return (
-                                                <div key={index} className="flex items-start gap-2 p-3 rounded-[6px]">
-                                                    <div className="w-5 h-5 rounded-full bg-[#ffda00] flex items-center justify-center flex-shrink-0 mt-0.5">
-                                                        <span className="text-[10px] text-black font-medium">{index + 1}</span>
-                                                    </div>
-                                                    <p className="text-[13px] leading-[20px] text-gray-700">
-                                                        <span className="font-semibold">{beforeColon}</span>{afterColon}
+                                        {amiCompetencies.length > 0 ? (
+                                            amiCompetencies.map((insight: any, idx: number) => (
+                                                <div key={idx} className="flex items-start gap-2">
+                                                    <span className="text-[12px] font-medium text-gray-600 min-w-[120px]">{insight.label}:</span>
+                                                    <p className="text-[13px] leading-[20px] text-gray-700 flex-1">
+                                                        {insight.description || insight.value}
                                                     </p>
                                                 </div>
-                                            );
-                                        })}
+                                            ))
+                                        ) : (
+                                            <p className="text-[13px] text-gray-500 italic">No se generaron recomendaciones específicas.</p>
+                                        )}
                                     </div>
                                 </div>
 
                             </div>
                         </CardContent>
                     </Card>
-                </div >
+                </div>
 
-                {/* ========== RIGHT COLUMN - SIDEBAR (30%) ========== */}
-                < div className="w-[320px] flex-shrink-0 space-y-4 sticky top-8" >
+                {/* ========== RIGHT COLUMN - SIDEBAR ========== */}
+                <div className="space-y-4 md:sticky md:top-8">
                     <AnalysisSidebarCaseInfo {...caseInfoProps} />
                     <AnalysisSidebarStats stats={statsProps.length > 0 ? statsProps : [
                         { label: 'Pruebas realizadas', value: '1' },
@@ -832,8 +854,8 @@ export function UnifiedAnalysisView({
                     ]} />
                     <AnalysisSidebarChainOfCustody events={chainOfCustodyEvents} />
                     <AnalysisSidebarRecommendations recommendations={recommendations} />
-                </div >
-            </div >
+                </div>
+            </div>
 
             {/* ========== VALIDATION PANEL (Full Width) ========== */}
             {!hideVoting && (
@@ -850,12 +872,11 @@ export function UnifiedAnalysisView({
             )}
 
             {/* ========== FOOTER ========== */}
-            < div className="text-center pb-8 pt-4" >
+            <div className="text-center pb-8 pt-4">
                 <p className="text-[10px] text-slate-400 uppercase tracking-[0.2em] font-bold">
                     Botilito Intelligence Ecosystem • {new Date().getFullYear()}
                 </p>
-            </div >
-        </div >
+            </div>
+        </div>
     );
 }
-

@@ -10,6 +10,49 @@ export type SubmissionType = 'Text' | 'Image' | 'Video' | 'Audio' | 'URL';
 // Estado de consenso según el campo consensus.state
 export type ConsensusState = 'ai_only' | 'human_consensus' | 'conflicted';
 
+// Vote Classification (v1.2.0 API)
+export type VoteClassification =
+  | 'Verificado'
+  | 'Falso'
+  | 'Engañoso'
+  | 'No Verificable'
+  | 'Sátira';
+
+// Vote API Request (v1.2.0)
+export interface VoteRequest {
+  case_id: string;
+  classification: VoteClassification;
+  reason?: string;
+  explanation?: string;
+  evidence_url?: string;
+}
+
+// Vote API Job Response
+export interface VoteJobAcceptedResponse {
+  job_id: string;
+  message?: string;
+}
+
+// Vote API Result
+export interface VoteResult {
+  resolved_case_id: string;
+  vote_recorded: boolean;
+  consensus: {
+    state: ConsensusState;
+    final_labels: string[];
+    total_votes: number;
+  };
+}
+
+// Vote API Status Response
+export interface VoteJobStatusResponse {
+  id: string;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  result?: VoteResult;
+  error?: string | null;
+  trace_log?: object[];
+}
+
 // Nivel de cumplimiento AMI
 export type AMIComplianceLevel =
   | 'Desarrolla las estrategias AMI'

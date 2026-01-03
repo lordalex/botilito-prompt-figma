@@ -5,7 +5,7 @@
 
 import type { Session } from '@supabase/supabase-js';
 import * as apiEndpoints from '../lib/apiEndpoints';
-import type { IngestPayload, JobAcceptedResponse, JobStatusResponse, FullAnalysisResponse, UserProfileData, DispatchResponse, AdminJobResult } from '../types';
+import type { IngestPayload, FullAnalysisResponse, UserProfileData, DispatchResponse, AdminJobResult, VoteJobAcceptedResponse as JobAcceptedResponse, VoteJobStatusResponse as JobStatusResponse } from '../types';
 
 /**
  * A generic and robust fetch client for making authenticated requests to Supabase functions.
@@ -144,12 +144,39 @@ export const api = {
             }),
     },
     voting: {
-        submit: (session: Session, payload: { case_id: string; classification: string; reason?: string; evidence_url?: string; metadata?: any; }): Promise<{ job_id: string }> =>
+        /**
+         * Submit a human vote for a case. (v1.2.0)
+         * Classification must be one of: Verificado, Falso, Engañoso, No Verificable, Sátira
+         */
+        submit: (session: Session, payload: {
+            case_id: string;
+            classification: string;
+            reason?: string;
+            explanation?: string;
+            evidence_url?: string;
+            metadata?: any;
+        }): Promise<{ job_id: string; message?: string }> =>
             fetchClient(session, `${apiEndpoints.VOTE_API_URL}/submit`, {
                 method: 'POST',
                 body: JSON.stringify(payload),
             }),
-        getStatus: (session: Session, jobId: string): Promise<any> =>
+        /**
+         * Poll the status of a vote job. Returns consensus state when completed.
+         */
+        getStatus: (session: Session, jobId: string): Promise<{
+            id: string;
+            status: 'pending' | 'processing' | 'completed' | 'failed';
+            result?: {
+                resolved_case_id: string;
+                vote_recorded: boolean;
+                consensus: {
+                    state: 'human_consensus' | 'ai_only' | 'conflicted';
+                    final_labels: string[];
+                    total_votes: number;
+                };
+            };
+            error?: string | null;
+        }> =>
             fetchClient(session, `${apiEndpoints.VOTE_API_URL}/status/${jobId}`),
     },
     humanVerification: {
@@ -166,13 +193,15 @@ export const api = {
                 method: 'POST',
                 body: JSON.stringify({ identifier: caseId }),
             }),
-        submitJob: (session: Session, submission: { caseId: string; labels: string[]; notes?: string; }): Promise<{ job_id: string }> => {
+        submitJob: (session: Session, submission: { caseId: string; labels: string[]; notes?: string; evidenceUrl?: string }): Promise<{ job_id: string; message?: string }> => {
             const payload = {
                 case_id: submission.caseId,
                 classification: submission.labels[0],
-                reason: submission.notes
+                reason: submission.notes,
+                explanation: submission.notes, // Full notes as explanation
+                evidence_url: submission.evidenceUrl || ''
             };
-            return fetchClient(session, apiEndpoints.VOTE_SUBMIT_ENDPOINT, {
+            return fetchClient(session, `${apiEndpoints.VOTE_API_URL}/submit`, {
                 method: 'POST',
                 body: JSON.stringify(payload),
             });

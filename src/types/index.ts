@@ -81,3 +81,4 @@ export interface UserProfileData {
 
 export * from './admin';
 export * from './imageAnalysis';
+export * from './validation';

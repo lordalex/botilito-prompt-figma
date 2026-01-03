@@ -2,11 +2,59 @@ import React, { useState } from 'react';
 import { Button } from './ui/button';
 import { Textarea } from './ui/textarea';
 import { Label } from './ui/label';
-import { Bot, AlertTriangle, Send, Users } from 'lucide-react';
+import { Bot, AlertTriangle, Send, Users, CheckCircle, XCircle, AlertOctagon, HelpCircle, Laugh } from 'lucide-react';
 import { Badge } from './ui/badge';
-// Using standard inputs for Radio to avoid missing component issues
-// import { RadioGroup, RadioGroupItem } from './ui/radio-group';
-// import { Alert, AlertDescription } from './ui/alert';
+
+// Vote classification options from API v1.2.0
+const VOTE_CLASSIFICATIONS = [
+    {
+        value: 'Verificado',
+        label: 'Verificado',
+        description: 'El contenido ha sido verificado como verdadero y preciso.',
+        icon: CheckCircle,
+        color: 'text-green-600',
+        borderColor: 'border-green-500',
+        bgColor: 'bg-green-50'
+    },
+    {
+        value: 'Falso',
+        label: 'Falso',
+        description: 'El contenido contiene información falsa o incorrecta.',
+        icon: XCircle,
+        color: 'text-red-600',
+        borderColor: 'border-red-500',
+        bgColor: 'bg-red-50'
+    },
+    {
+        value: 'Engañoso',
+        label: 'Engañoso',
+        description: 'El contenido es parcialmente cierto pero presentado de forma engañosa.',
+        icon: AlertTriangle,
+        color: 'text-orange-600',
+        borderColor: 'border-orange-500',
+        bgColor: 'bg-orange-50'
+    },
+    {
+        value: 'No Verificable',
+        label: 'No Verificable',
+        description: 'No es posible verificar la veracidad del contenido con las fuentes disponibles.',
+        icon: HelpCircle,
+        color: 'text-gray-600',
+        borderColor: 'border-gray-400',
+        bgColor: 'bg-gray-50'
+    },
+    {
+        value: 'Sátira',
+        label: 'Sátira',
+        description: 'El contenido es de naturaleza satírica o humorística, no busca desinformar.',
+        icon: Laugh,
+        color: 'text-blue-600',
+        borderColor: 'border-blue-500',
+        bgColor: 'bg-blue-50'
+    }
+] as const;
+
+type VoteClassification = typeof VOTE_CLASSIFICATIONS[number]['value'];
 
 interface CaseDiagnosisFormProps {
     caseId: string;
@@ -18,19 +66,15 @@ interface CaseDiagnosisFormProps {
 }
 
 export function CaseDiagnosisForm({ caseId, aiAnalysis, onBack, onSubmit, isSubmitting }: CaseDiagnosisFormProps) {
-    const [selectedVerdict, setSelectedVerdict] = useState<string | null>(null);
+    const [selectedVerdict, setSelectedVerdict] = useState<VoteClassification | null>(null);
     const [comments, setComments] = useState('');
+    const [evidenceUrl, setEvidenceUrl] = useState('');
     const [error, setError] = useState<string | null>(null);
 
     // AI Data
     const amiData = aiAnalysis?.classification?.indiceCumplimientoAMI;
-    const aiVerdict = amiData?.nivel || "Análisis no disponible";
-    const aiScore = amiData?.score || 0;
-
-    // Determine AI styling based on score/verdict
-    // Assuming < 70 is 'Requiere enfoque' (Warning/Yellow) and >= 70 is 'Desarrolla' (Success/Green/Blue)
-    // Actually the design shows "Requiere un enfoque AMI" in Yellow.
-    const isAiWarning = aiScore < 70;
+    const aiVerdict = amiData?.nivel || aiAnalysis?.overview?.verdict_label || "Análisis no disponible";
+    const aiScore = amiData?.score || aiAnalysis?.overview?.risk_score || 0;
 
     const handleSubmit = () => {
         if (!selectedVerdict) {
@@ -41,14 +85,23 @@ export function CaseDiagnosisForm({ caseId, aiAnalysis, onBack, onSubmit, isSubm
 
         onSubmit({
             caseId,
-            vote: selectedVerdict, // 'desarrolla' | 'requiere'
-            notas: comments
+            classification: selectedVerdict,
+            reason: comments,
+            explanation: comments,
+            evidence_url: evidenceUrl,
+            // Legacy compatibility fields
+            vote: selectedVerdict,
+            notas: comments,
+            marcadores: [selectedVerdict],
+            justificaciones: { [selectedVerdict]: comments },
+            enlaces: { [selectedVerdict]: evidenceUrl }
         });
     };
 
     const handleClear = () => {
         setSelectedVerdict(null);
         setComments('');
+        setEvidenceUrl('');
         setError(null);
     };
 
@@ -61,7 +114,7 @@ export function CaseDiagnosisForm({ caseId, aiAnalysis, onBack, onSubmit, isSubm
             </div>
 
             <div className="p-6">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
 
                     {/* Left Column: AI Diagnosis Recap */}
                     <div className="lg:col-span-1">
@@ -84,63 +137,64 @@ export function CaseDiagnosisForm({ caseId, aiAnalysis, onBack, onSubmit, isSubm
                     </div>
 
                     {/* Right Column: Human Input */}
-                    <div className="lg:col-span-1 space-y-4">
+                    <div className="lg:col-span-2 space-y-4">
                         <Label className="text-sm font-semibold text-black">
-                            ¿Cuál es tu consideración como especialista sobre este caso?
+                            ¿Cuál es tu clasificación para este contenido?
                         </Label>
 
-                        <div className="space-y-3">
-                            {/* Option 1: Desarrolla */}
-                            <label className={`
-                                flex items-center gap-3 p-4 rounded-lg border-2 cursor-pointer transition-all hover:bg-white
-                                ${selectedVerdict === 'desarrolla' ? 'border-primary bg-white' : 'border-gray-200 bg-white'}
-                            `}>
-                                <input
-                                    type="radio"
-                                    name="verdict"
-                                    value="desarrolla"
-                                    checked={selectedVerdict === 'desarrolla'}
-                                    onChange={() => { setSelectedVerdict('desarrolla'); setError(null); }}
-                                    className="w-4 h-4 text-primary border-gray-300 focus:ring-primary flex-shrink-0"
-                                />
-                                <div className="space-y-1">
-                                    <span className="font-medium text-black block">Desarrolla las premisas AMI</span>
-                                    <p className="text-xs text-gray-600 leading-relaxed">
-                                        El contenido cumple con los criterios de Alfabetización Mediática e Informacional
-                                    </p>
-                                </div>
-                            </label>
-
-                            {/* Option 2: Requiere */}
-                            <label className={`
-                                flex items-center gap-3 p-4 rounded-lg border-2 cursor-pointer transition-all hover:bg-white
-                                ${selectedVerdict === 'requiere' ? 'border-primary bg-white' : 'border-gray-200 bg-white'}
-                            `}>
-                                <input
-                                    type="radio"
-                                    name="verdict"
-                                    value="requiere"
-                                    checked={selectedVerdict === 'requiere'}
-                                    onChange={() => { setSelectedVerdict('requiere'); setError(null); }}
-                                    className="w-4 h-4 text-primary border-gray-300 focus:ring-primary flex-shrink-0"
-                                />
-                                <div className="space-y-1">
-                                    <span className="font-medium text-black block">Requiere un enfoque AMI</span>
-                                    <p className="text-xs text-gray-600 leading-relaxed">
-                                        El contenido necesita ser analizado bajo el enfoque de Alfabetización Mediática
-                                    </p>
-                                </div>
-                            </label>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                            {VOTE_CLASSIFICATIONS.map((option) => {
+                                const Icon = option.icon;
+                                const isSelected = selectedVerdict === option.value;
+                                return (
+                                    <label
+                                        key={option.value}
+                                        className={`
+                                            flex flex-col items-start gap-2 p-4 rounded-lg border-2 cursor-pointer transition-all hover:shadow-md
+                                            ${isSelected ? `${option.borderColor} ${option.bgColor}` : 'border-gray-200 bg-white hover:bg-gray-50'}
+                                        `}
+                                    >
+                                        <div className="flex items-center gap-2 w-full">
+                                            <input
+                                                type="radio"
+                                                name="verdict"
+                                                value={option.value}
+                                                checked={isSelected}
+                                                onChange={() => { setSelectedVerdict(option.value); setError(null); }}
+                                                className="w-4 h-4 text-primary border-gray-300 focus:ring-primary flex-shrink-0"
+                                            />
+                                            <Icon className={`h-5 w-5 ${option.color} flex-shrink-0`} />
+                                            <span className="font-medium text-black">{option.label}</span>
+                                        </div>
+                                        <p className="text-xs text-gray-600 leading-relaxed pl-6">
+                                            {option.description}
+                                        </p>
+                                    </label>
+                                );
+                            })}
                         </div>
                     </div>
                 </div>
 
                 <div className="mt-6 space-y-6">
+                    {/* Evidence URL */}
+                    <div className="space-y-2">
+                        <Label className="text-sm font-semibold text-black">Enlace de evidencia (opcional)</Label>
+                        <input
+                            type="url"
+                            placeholder="https://ejemplo.com/fuente-verificada"
+                            value={evidenceUrl}
+                            onChange={(e) => setEvidenceUrl(e.target.value)}
+                            className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
+                        />
+                        <p className="text-xs text-gray-500">Proporciona un enlace a la fuente que respalda tu clasificación</p>
+                    </div>
+
                     {/* Comments */}
                     <div className="space-y-2">
-                        <Label className="text-sm font-semibold text-black">Comentarios adicionales</Label>
+                        <Label className="text-sm font-semibold text-black">Justificación</Label>
                         <Textarea
-                            placeholder="Añade cualquier observación relevante sobre tu validación..."
+                            placeholder="Explica brevemente el razonamiento detrás de tu clasificación..."
                             value={comments}
                             onChange={(e) => setComments(e.target.value)}
                             className="min-h-[100px] resize-none text-sm bg-white border-gray-300"
@@ -173,7 +227,7 @@ export function CaseDiagnosisForm({ caseId, aiAnalysis, onBack, onSubmit, isSubm
 
                         {error && (
                             <div className="bg-[#fffbeb] text-amber-900 border border-primary py-3 px-4 rounded-lg flex items-center gap-2">
-                                <AlertTriangle className="h-4 w-4" />
+                                <AlertOctagon className="h-4 w-4" />
                                 <span className="text-sm font-medium">
                                     {error}
                                 </span>

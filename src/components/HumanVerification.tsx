@@ -6,10 +6,11 @@ import { CaseValidationList } from './CaseValidationList';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Progress } from './ui/progress';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ShieldAlert, Mail } from 'lucide-react';
 import { LoadingView } from './LoadingView';
 import { UnifiedAnalysisView } from './UnifiedAnalysisView';
 import type { CaseEnrichedCompatible } from '../types/validation';
+import { Button } from './ui/button';
 
 // MOCK_CASES removed to ensure real API data usage
 
@@ -101,6 +102,37 @@ export function HumanVerification() {
 
   if (isLoading && !selectedCase) {
     return <LoadingView message="Cargando casos para verificación..." />;
+  }
+
+  // Role Restriction Check
+  if (profile?.role === 'cibernauta') {
+    return (
+      <div className="container mx-auto p-4 flex items-center justify-center min-h-[60vh]">
+        <Card className="max-w-md w-full border-l-4 border-l-yellow-500 shadow-md">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-yellow-700">
+              <ShieldAlert className="h-6 w-6" />
+              Acceso Restringido
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-gray-600">
+              Disculpa parcero, pero solo los <strong>Epidemiólogos AMI</strong> tienen permisos para realizar validación humana de casos.
+            </p>
+            <p className="text-sm text-gray-500">
+              Tu rol actual es <strong>Cibernauta</strong>. Si deseas contribuir más activamente, puedes postularte para ascender.
+            </p>
+            <Button
+              className="w-full bg-yellow-600 hover:bg-yellow-700 text-white"
+              onClick={() => window.open('mailto:admin@botilito.dev?subject=Solicitud%20de%20Ascenso%20a%20Epidemiologo%20AMI&body=Hola%20Administradores,%0A%0AMe%20gustaria%20postularme%20para%20el%20rol%20de%20Epidemiologo%20AMI%20para%20ayudar%20en%20la%20validacion%20de%20casos.%0A%0AGracias.', '_blank')}
+            >
+              <Mail className="mr-2 h-4 w-4" />
+              Postularme como Epidemiólogo
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   if (error) {

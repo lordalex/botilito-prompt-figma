@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useCaseDetail } from '@/hooks/useCaseDetail';
 import { transformHumanCaseToUI } from '@/services/analysisPresentationService';
+import { generateDisplayId } from '@/utils/humanVerification/api';
 import { UnifiedAnalysisView } from './UnifiedAnalysisView';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from './ui/button';
@@ -100,18 +101,19 @@ export function CaseDetailView({
     // Determine content type from case data
     // The API might return different values for submission_type
     const getContentType = (): 'text' | 'image' | 'audio' => {
+        const detail = caseDetail as any;
         // Check if it's forensic analysis with image/audio data
-        const isForensic = transformedData?.raw?.metadata?.is_forensic || caseDetail.metadata?.is_forensic;
+        const isForensic = transformedData?.raw?.metadata?.is_forensic || detail.metadata?.is_forensic;
         if (isForensic) {
             const hasImageDetails = transformedData?.raw?.all_documents?.[0]?.result?.details?.[0]?.original_frame;
             if (hasImageDetails) return 'image';
 
             // Check for audio in submission_type when forensic
-            if (caseDetail.submission_type?.toLowerCase?.().includes('audio')) return 'audio';
+            if (detail.submission_type?.toLowerCase?.().includes('audio')) return 'audio';
         }
 
         // Check submission_type
-        const submissionType = caseDetail.submission_type?.toLowerCase?.() || '';
+        const submissionType = detail.submission_type?.toLowerCase?.() || '';
         if (submissionType.includes('image') || submissionType === 'media') return 'image';
         if (submissionType.includes('audio')) return 'audio';
 
@@ -119,16 +121,18 @@ export function CaseDetailView({
     };
     const contentType = getContentType();
 
+    const detail = caseDetail as any;
+
     return (
         <UnifiedAnalysisView
             data={transformedData}
             contentType={contentType}
             mode={mode}
-            title={caseDetail.title || 'Detalle del Caso'}
-            caseNumber={caseDetail.id?.slice(0, 8)}
-            timestamp={caseDetail.created_at}
-            reportedBy={caseDetail.metadata?.reported_by?.name || 'Comunidad'}
-            screenshot={caseDetail.metadata?.screenshot}
+            title={detail.title || 'Detalle del Caso'}
+            caseNumber={generateDisplayId(detail)}
+            timestamp={detail.created_at}
+            reportedBy={detail.metadata?.reported_by?.name || 'Comunidad'}
+            screenshot={detail.metadata?.screenshot}
             onReset={onBackToList}
             onSubmitDiagnosis={handleSubmitDiagnosis}
             isSubmittingDiagnosis={isSubmitting}

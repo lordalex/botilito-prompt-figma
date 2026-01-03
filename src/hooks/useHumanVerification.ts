@@ -9,7 +9,7 @@ import type { CaseEnriched, Profile } from '../types';
 export const useHumanVerification = () => {
     const { user, session } = useAuth();
     const { submitVote } = useVoteTracker();
-    
+
     const [profile, setProfile] = useState<Profile | null>(null);
     const [cases, setCases] = useState<CaseEnriched[]>([]);
     const [selectedCase, setSelectedCase] = useState<CaseEnriched | null>(null);
@@ -30,13 +30,24 @@ export const useHumanVerification = () => {
             if (!user) return;
             setIsLoading(true);
             try {
-                const [profileResponse, summary, stats] = await Promise.all([
-                    api.profile.get(session!),
+                // 1. Fetch Profile first to check permissions
+                const profileResponse = await api.profile.get(session!);
+                const userProfile = profileResponse.data;
+                setProfile(userProfile);
+                setInitialProfile(userProfile);
+
+                // 2. Check Role - Optimization: Don't fetch cases if user can't see them
+                if (userProfile?.role === 'cibernauta') {
+                    setIsLoading(false);
+                    return;
+                }
+
+                // 3. Fetch Case Data only if authorized
+                const [summary, stats] = await Promise.all([
                     fetchVerificationSummary(1, 10),
                     getUserVerificationStats(user.id)
                 ]);
-                setProfile(profileResponse.data);
-                setInitialProfile(profileResponse.data); // Store initial profile
+
                 setCases(summary.cases);
                 setUserStats(stats);
             } catch (e: any) {
