@@ -108,7 +108,7 @@ function formatDate(dateString: string): string {
 
 interface CaseListItemProps {
   caseItem: ValidationCaseListItemDTO;
-  onClick: (id: string) => void;
+  onClick: (id: string, contentType: ValidationCaseListItemDTO['contentType']) => void;
   className?: string; // Allow custom styles validation
 }
 
@@ -120,7 +120,7 @@ export function CaseListItem({ caseItem, onClick, className = '' }: CaseListItem
 
   return (
     <div
-      onClick={() => onClick(caseItem.id)}
+      onClick={() => onClick(caseItem.id, caseItem.contentType)}
       className={`case-card-hover flex items-center gap-4 p-4 rounded-2xl cursor-pointer bg-white border border-gray-200 ${className}`}
     >
       {/* Icono de tipo de contenido - fondo amarillo */}

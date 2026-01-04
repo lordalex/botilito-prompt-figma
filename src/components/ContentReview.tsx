@@ -123,7 +123,7 @@ export function ContentReview({ onViewTask }: ContentReviewProps) {
                   <CaseListItem
                     key={listItem.id}
                     caseItem={listItem}
-                    onClick={(id) => onViewTask(id, 'caseDetail', 'completed')}
+                    onClick={(id, contentType) => onViewTask(id, 'caseDetail', 'completed')}
                     className="hover:shadow-lg transition-shadow border-2 border-transparent hover:border-yellow-400"
                   />
                 );

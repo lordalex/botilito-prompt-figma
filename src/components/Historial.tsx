@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { useHistorialData, useCaseDetail } from '../utils/historial/useHistorialData';
+import { useHistorialData } from '../utils/historial/useHistorialData';
 import type { HistorialCaseUI } from '../utils/historial/types';
 import { Search, Filter, ArrowUpDown, Calendar, FileText, Image, Video, Link, Users, AlertCircle, CheckCircle, XCircle, RefreshCw, ArrowLeft, ExternalLink, Clock, TrendingUp } from 'lucide-react';
-
+import { CaseDetailView } from './CaseDetailView';
 import { CaseListItem } from './CaseListItem';
 import type { ValidationCaseListItemDTO, AMIComplianceLevel, ConsensusState } from '@/types/validation';
+
 
 /**
  * Helper to map Historial submission type to CaseListItem content type
@@ -83,9 +84,10 @@ export function Historial() {
   // Show detail view when a case is selected
   if (selectedCaseId) {
     return (
-      <HistorialDetailView
+      <CaseDetailView
         caseId={selectedCaseId}
-        onBack={() => setSelectedCaseId(null)}
+        onBackToList={() => setSelectedCaseId(null)}
+        mode="ai" 
       />
     );
   }
@@ -242,215 +244,3 @@ export function Historial() {
   );
 }
 
-/**
- * Detail View Component
- */
-function HistorialDetailView({ caseId, onBack }: { caseId: string; onBack: () => void }) {
-  const { loading, error, caseDetail } = useCaseDetail(caseId);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-yellow-50 via-white to-orange-50 p-6">
-        <div className="max-w-5xl mx-auto">
-          <button
-            onClick={onBack}
-            className="flex items-center gap-2 text-gray-600 hover:text-gray-800 mb-6"
-          >
-            <ArrowLeft className="w-5 h-5" />
-            Volver al historial
-          </button>
-          <div className="flex items-center justify-center py-20">
-            <div className="text-center">
-              <RefreshCw className="w-12 h-12 text-yellow-500 animate-spin mx-auto mb-4" />
-              <p className="text-gray-600">Cargando detalles del caso...</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (error || !caseDetail) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-yellow-50 via-white to-orange-50 p-6">
-        <div className="max-w-5xl mx-auto">
-          <button
-            onClick={onBack}
-            className="flex items-center gap-2 text-gray-600 hover:text-gray-800 mb-6"
-          >
-            <ArrowLeft className="w-5 h-5" />
-            Volver al historial
-          </button>
-          <div className="bg-red-50 border-2 border-red-200 rounded-xl p-6">
-            <div className="flex items-center gap-3 mb-2">
-              <AlertCircle className="w-6 h-6 text-red-600" />
-              <h3 className="text-lg font-bold text-red-800">Error al cargar el caso</h3>
-            </div>
-            <p className="text-red-700">{error || 'Caso no encontrado'}</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-yellow-50 via-white to-orange-50 p-6">
-      <div className="max-w-5xl mx-auto">
-        {/* Back Button */}
-        <button
-          onClick={onBack}
-          className="flex items-center gap-2 text-gray-600 hover:text-gray-800 mb-6"
-        >
-          <ArrowLeft className="w-5 h-5" />
-          Volver al historial
-        </button>
-
-        {/* Header */}
-        <div className="bg-white rounded-xl p-6 shadow-md border-2 border-yellow-200 mb-6">
-          <div className="flex items-start gap-4 mb-4">
-            <div className="text-5xl">{caseDetail.submissionTypeIcon}</div>
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-sm font-mono text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                  {caseDetail.displayId}
-                </span>
-                <span className="text-xs px-2 py-1 rounded bg-yellow-100 text-yellow-700 border-2 border-yellow-300">
-                  {caseDetail.priority.toUpperCase()}
-                </span>
-              </div>
-              <h1 className="text-3xl font-bold text-gray-800 mb-3">
-                {caseDetail.title}
-              </h1>
-              <div className="flex items-center gap-2 text-sm text-gray-600 mb-2">
-                <Clock className="w-4 h-4" />
-                {caseDetail.createdAtFormatted}
-              </div>
-              <a
-                href={caseDetail.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700"
-              >
-                <Link className="w-4 h-4" />
-                {caseDetail.url}
-                <ExternalLink className="w-3 h-3" />
-              </a>
-            </div>
-          </div>
-
-          {/* Summary */}
-          <div className="bg-gray-50 rounded-lg p-4">
-            <h3 className="font-bold text-gray-800 mb-2">Resumen</h3>
-            <p className="text-gray-700">{caseDetail.summary}</p>
-          </div>
-        </div>
-
-        {/* Verification Status */}
-        <div className="bg-white rounded-xl p-6 shadow-md border-2 border-gray-200 mb-6">
-          <h2 className="text-xl font-bold text-gray-800 mb-4">Estado de Verificación</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-blue-50 rounded-lg p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <CheckCircle className="w-5 h-5 text-blue-600" />
-                <span className="font-medium text-gray-800">Método</span>
-              </div>
-              <p className="text-sm text-gray-700">{caseDetail.verificationMethod}</p>
-            </div>
-            <div className="bg-green-50 rounded-lg p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Users className="w-5 h-5 text-green-600" />
-                <span className="font-medium text-gray-800">Verificadores</span>
-              </div>
-              <p className="text-sm text-gray-700">{caseDetail.humanVotesCount} humano{caseDetail.humanVotesCount !== 1 ? 's' : ''}</p>
-            </div>
-            <div className="bg-orange-50 rounded-lg p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <AlertCircle className="w-5 h-5 text-orange-600" />
-                <span className="font-medium text-gray-800">Veredicto</span>
-              </div>
-              <p className="text-sm font-bold text-gray-700">{caseDetail.finalVerdict}</p>
-            </div>
-          </div>
-
-          {/* Diagnostic Labels */}
-          {caseDetail.diagnosticLabels.length > 0 && (
-            <div className="mt-4">
-              <h3 className="font-medium text-gray-800 mb-2">Etiquetas de Diagnóstico</h3>
-              <div className="flex flex-wrap gap-2">
-                {caseDetail.diagnosticLabels.map((label, index) => (
-                  <span
-                    key={index}
-                    className={`px-3 py-1 rounded-lg border-2 ${label.bg} ${label.color} ${label.border}`}
-                  >
-                    {label.label} ({label.percentage}%)
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Related Documents */}
-        {caseDetail.relatedDocuments.length > 0 && (
-          <div className="bg-white rounded-xl p-6 shadow-md border-2 border-gray-200 mb-6">
-            <h2 className="text-xl font-bold text-gray-800 mb-4">
-              Documentos Relacionados ({caseDetail.relatedDocuments.length})
-            </h2>
-            <div className="space-y-4">
-              {caseDetail.relatedDocuments.map((doc, index) => (
-                <div key={doc.id} className="bg-gray-50 rounded-lg p-4 border-2 border-gray-200">
-                  <div className="flex items-start justify-between mb-2">
-                    <h3 className="font-bold text-gray-800">{doc.title}</h3>
-                    <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
-                      {Math.round(doc.similarity * 100)}% similar
-                    </span>
-                  </div>
-                  <p className="text-sm text-gray-700 mb-2">{doc.summary}</p>
-                  <a
-                    href={doc.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700"
-                  >
-                    <Link className="w-4 h-4" />
-                    Ver documento
-                    <ExternalLink className="w-3 h-3" />
-                  </a>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Web Search Results */}
-        {caseDetail.webSearchResults.length > 0 && (
-          <div className="bg-white rounded-xl p-6 shadow-md border-2 border-gray-200">
-            <h2 className="text-xl font-bold text-gray-800 mb-4">
-              Resultados de Búsqueda Web ({caseDetail.webSearchResults.length})
-            </h2>
-            <div className="space-y-3">
-              {caseDetail.webSearchResults.map((result, index) => (
-                <div key={index} className="bg-gray-50 rounded-lg p-4 border-2 border-gray-200">
-                  <h3 className="font-bold text-gray-800 mb-1">{result.title}</h3>
-                  <p className="text-sm text-gray-700 mb-2">{result.snippet}</p>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-gray-500">{result.source}</span>
-                    <a
-                      href={result.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700"
-                    >
-                      Ver fuente
-                      <ExternalLink className="w-3 h-3" />
-                    </a>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
