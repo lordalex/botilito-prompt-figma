@@ -35,8 +35,8 @@ const filterOptions: { value: FilterOption; label: string }[] = [
 export interface CaseValidationListProps {
   /** Casos en formato DTO del backend o CaseEnriched del hook */
   cases: ValidationCaseDTO[] | CaseEnrichedCompatible[] | StandardizedCase[];
-  /** Callback cuando se selecciona un caso */
-  onSelectCase: (caseId: string) => void;
+  /** Callback cuando se selecciona un caso para ver la tarea */
+  onViewTask: (caseId: string, type: string, status?: string) => void;
   /** Estado de carga */
   isLoading?: boolean;
   /** Indica si los casos vienen del formato CaseEnriched (useHumanVerification) */
@@ -47,7 +47,7 @@ export interface CaseValidationListProps {
 
 export function CaseValidationList({
   cases,
-  onSelectCase,
+  onViewTask,
   isLoading = false,
   isEnrichedFormat = false,
   isStandardizedFormat = false,
@@ -160,7 +160,7 @@ export function CaseValidationList({
             <CaseListItem
               key={caseItem.id}
               caseItem={caseItem}
-              onClick={onSelectCase}
+              onClick={(id, type) => onViewTask(id, type, 'pending')}
             />
           ))
         )}

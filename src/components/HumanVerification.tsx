@@ -200,7 +200,7 @@ export function HumanVerification() {
 
       <CaseValidationList
         cases={cases}
-        onSelectCase={handleSelectCase}
+        onViewTask={handleSelectCase}
         isLoading={isLoading}
         isEnrichedFormat={true}
       />

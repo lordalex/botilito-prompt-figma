@@ -1,15 +1,19 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { useAuth } from '@/providers/AuthProvider';
-import { api } from '@/services/api';
-import { AnalysisResultDisplay } from './AnalysisResultDisplay';
+import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Skeleton } from './ui/skeleton';
 import { Badge } from './ui/badge';
 import { Input } from './ui/input';
-import { Layers, Search, Eye, ArrowLeft, AlertTriangle, Hash, Calendar, Bot, CheckCircle, FileText, Image as ImageIcon, Video, Volume2 } from 'lucide-react';
+import { Layers, Search, Eye, AlertTriangle, Hash, Calendar, Bot, CheckCircle, FileText, Image as ImageIcon, Video, Volume2 } from 'lucide-react';
 
 type Case = any; // Simplificado
+
+interface CaseListViewProps {
+    onViewDetails: (caseId: string) => void;
+    cases: Case[];
+    isLoading: boolean;
+    error: string | null;
+}
 
 const getTypeVisuals = (type: string) => {
     switch (type) {
@@ -29,29 +33,8 @@ const getStatusBadge = (status: string) => {
 };
 
 
-export function CaseListView() {
-  const { session } = useAuth();
-  const [allCases, setAllCases] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [selectedCase, setSelectedCase] = useState<any | null>(null);
+export function CaseListView({ onViewDetails, cases: allCases, isLoading, error }: CaseListViewProps) {
   const [searchTerm, setSearchTerm] = useState('');
-  
-  useEffect(() => {
-    if (!session) return;
-    setIsLoading(true);
-    api.crud.search(session, { nombreTabla: 'cases', criteriosBusqueda: {} })
-      .then(response => {
-        setAllCases(response.resultados || []);
-      })
-      .catch((err) => {
-          console.error("Failed to fetch historical cases:", err);
-          setError('No se pudo cargar el historial de casos.');
-      })
-      .finally(() => {
-        setIsLoading(false);
-      });
-  }, [session]);
 
   const filteredCases = useMemo(() => {
     return allCases.filter(c => 
@@ -61,46 +44,6 @@ export function CaseListView() {
     );
   }, [allCases, searchTerm]);
 
-  if (selectedCase) {
-    // The transformation to FullAnalysisResponse must be robust and complete.
-    const responseForDisplay: FullAnalysisResponse = {
-        id: selectedCase.id,
-        user_id: selectedCase.user_id, // Pass the user_id
-        created_at: selectedCase.submittedAt || selectedCase.created_at,
-        title: selectedCase.title,
-        summary: selectedCase.aiAnalysis?.summary || "Resumen no disponible.",
-        metadata: {
-            submissionType: selectedCase.type,
-            ...(selectedCase.metadata || {})
-        },
-        case_study: {
-            id: selectedCase.case_study_id || selectedCase.id,
-            case_id: selectedCase.case_study_id || selectedCase.id,
-            summary: selectedCase.aiAnalysis?.summary || "Resumen no disponible.",
-            case_number: selectedCase.case_number, // Use the direct case_number field
-            metadata: {
-                ai_labels: selectedCase.aiAnalysis?.detectedMarkers.reduce((acc: any, marker: any) => {
-                    const type = typeof marker === 'string' ? marker : marker.type;
-                    acc[type] = "Justificación de IA simulada.";
-                    return acc;
-                }, {})
-            }
-        },
-        risk_analysis: {
-            risk_level: selectedCase.aiAnalysis?.riskLevel || 'Indeterminado',
-            final_risk_score: selectedCase.aiAnalysis?.riskScore || 0
-        }
-    };
-    return (
-        <div className="space-y-4">
-            <Button variant="outline" onClick={() => setSelectedCase(null)}>
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Volver al Historial
-            </Button>
-            <AnalysisResultDisplay response={responseForDisplay} />
-        </div>
-    );
-  }
   
   return (
       <div className="space-y-6">
@@ -121,7 +64,7 @@ export function CaseListView() {
                     filteredCases.map((caso) => {
                         const { icon: TypeIcon } = getTypeVisuals(caso.type);
                         return (
-                            <div key={caso.id} onClick={() => setSelectedCase(caso)} className="p-4 border rounded-lg bg-background hover:bg-muted/50 transition-colors cursor-pointer">
+                            <div key={caso.id} onClick={() => onViewDetails(caso.id)} className="p-4 border rounded-lg bg-background hover:bg-muted/50 transition-colors cursor-pointer">
                                 <div className="flex items-start justify-between space-x-4">
                                     <div className="flex items-center space-x-4 flex-1 min-w-0">
                                         <div className="p-2 bg-muted rounded-lg mt-1"><TypeIcon className="h-5 w-5 text-muted-foreground" /></div>

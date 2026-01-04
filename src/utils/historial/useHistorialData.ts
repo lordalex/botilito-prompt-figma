@@ -2,8 +2,6 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   fetchHistorialData,
   transformCasesToUI,
-  transformCaseToDetail,
-  fetchCaseDetails,
 } from './api';
 import type {
   HistorialSummaryResult,
@@ -58,16 +56,6 @@ export function useHistorialData() {
     loadData();
   }, [refreshKey, currentPage]);
 
-  // Get case detail
-  const getCaseDetail = useCallback((caseId: string): HistorialCaseDetail | null => {
-    if (!summaryData) return null;
-
-    const caseData = summaryData.cases.find(c => c.id === caseId);
-    if (!caseData) return null;
-
-    return transformCaseToDetail(caseData);
-  }, [summaryData]);
-
   // Refresh data
   const refresh = useCallback(() => {
     setRefreshKey(prev => prev + 1);
@@ -80,7 +68,6 @@ export function useHistorialData() {
     cases,
     totalCases: summaryData?.pagination.totalItems ?? 0,
     filteredCount: cases.length,
-    getCaseDetail,
     refresh,
     currentPage,
     setCurrentPage,
@@ -88,42 +75,3 @@ export function useHistorialData() {
   };
 }
 
-/**
- * Hook to fetch a single case detail
- */
-export function useCaseDetail(caseId: string | null) {
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [caseDetail, setCaseDetail] = useState<HistorialCaseDetail | null>(null);
-
-  useEffect(() => {
-    if (!caseId) {
-      setCaseDetail(null);
-      setLoading(false);
-      return;
-    }
-
-    async function loadCaseDetail() {
-      try {
-        setLoading(true);
-        setError(null);
-        const detail = await fetchCaseDetails(caseId as string);
-        setCaseDetail(detail);
-      } catch (err) {
-        console.error('Error loading case detail:', err);
-        setError(err instanceof Error ? err.message : 'Error al cargar el caso');
-        setCaseDetail(null);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    loadCaseDetail();
-  }, [caseId]);
-
-  return {
-    loading,
-    error,
-    caseDetail
-  };
-}
