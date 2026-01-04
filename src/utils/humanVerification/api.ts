@@ -224,7 +224,7 @@ function transformStandardizedToEnriched(std: any): CaseEnriched {
     content: std.overview?.summary || '', // Fallback
     url: std.overview?.source_domain || '',
     created_at: std.created_at,
-    submission_type: std.type?.toUpperCase() || 'TEXT',
+    submission_type: std.type ? (std.type.charAt(0).toUpperCase() + std.type.slice(1).toLowerCase()) : 'Text',
     human_votes,
     diagnostic_labels,
     metadata: {

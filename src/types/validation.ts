@@ -145,15 +145,16 @@ export interface ValidationCaseListItemDTO {
 /**
  * Función para mapear SubmissionType a contentType del componente
  */
-export function mapSubmissionType(type: SubmissionType): ValidationCaseListItemDTO['contentType'] {
-  const mapping: Record<SubmissionType, ValidationCaseListItemDTO['contentType']> = {
-    Text: 'texto',
-    Image: 'imagen',
-    Video: 'video',
-    Audio: 'audio',
-    URL: 'url',
+export function mapSubmissionType(type: SubmissionType | string): ValidationCaseListItemDTO['contentType'] {
+  const normalizedType = type?.toLowerCase();
+  const mapping: Record<string, ValidationCaseListItemDTO['contentType']> = {
+    text: 'texto',
+    image: 'imagen',
+    video: 'video',
+    audio: 'audio',
+    url: 'url',
   };
-  return mapping[type] || 'texto';
+  return mapping[normalizedType] || 'texto';
 }
 
 /**
