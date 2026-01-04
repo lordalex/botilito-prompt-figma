@@ -229,6 +229,7 @@ function transformStandardizedToEnriched(std: any): CaseEnriched {
     diagnostic_labels,
     metadata: {
       screenshotUrl: std.overview?.main_asset_url,
+      reported_by: std.reporter, // Map reporter to metadata.reported_by for list display
       ...std.metadata
     },
     state: consensusState === 'consensus' || consensusState === 'human_only' ? 'human_consensus' : 'ai_only',
