@@ -18,7 +18,7 @@ export function AnalysisSidebarStats({
     title = 'Estadísticas del Análisis'
 }: AnalysisSidebarStatsProps) {
     return (
-        <Card className="border-2 border-[#ffda00] bg-white rounded-md">
+        <Card className="border-2 border-[#ffda00] bg-white rounded-[12px]">
             <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2">
                     <Activity className="h-5 w-5 text-primary" />

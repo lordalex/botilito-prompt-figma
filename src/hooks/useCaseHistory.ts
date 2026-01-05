@@ -143,7 +143,15 @@ export function useCaseHistory() {
     total: cases.length,
     verified: cases.filter(c => c.consensus?.state === 'human_consensus').length,
     aiOnly: cases.filter(c => c.consensus?.state === 'ai_only').length,
-    misinformation: cases.filter(c => c.metadata?.global_verdict === 'TAMPERED').length
+    misinformation: cases.filter(c => c.metadata?.global_verdict === 'TAMPERED').length,
+    forensic: cases.filter(c =>
+      c.submission_type === 'IMAGE' ||
+      c.submission_type === 'VIDEO' ||
+      c.submission_type === 'AUDIO' ||
+      c.submission_type === 'Image' ||
+      c.submission_type === 'Video' ||
+      c.submission_type === 'Audio'
+    ).length
   };
 
   return {

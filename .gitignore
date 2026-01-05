@@ -31,3 +31,4 @@ yarn-error.log*
 .mcp.json
 vite.config*
 
+.playwright-mcp/

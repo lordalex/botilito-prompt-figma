@@ -491,24 +491,36 @@ export function UnifiedAnalysisView({
             progress: 'bg-emerald-500'
         };
 
-    // Get visual URL for preview
+    // Get visual URL for preview - supports StandardizedCase and legacy formats
     const getVisualUrl = () => {
+        // Common sources for all content types (StandardizedCase format)
+        const commonSources =
+            data?.standardized_case?.overview?.main_asset_url ||
+            data?.overview?.main_asset_url ||
+            data?.mainAssetUrl ||
+            screenshot;
+
         if (contentType === 'text') {
-            return data?.standardized_case?.overview?.main_asset_url ||
-                data?.overview?.main_asset_url ||
+            return commonSources ||
                 data?.metadata?.screenshotUrl ||
-                data?.source_data?.screenshot ||
-                screenshot;
+                data?.metadata?.screenshot ||
+                data?.source_data?.screenshot;
         }
         if (contentType === 'image') {
             // Try to get from forensic structure first (all_documents)
             if (availableImages.length > 0) {
                 return availableImages[currentImageIndex];
             }
-            // Fallback to old structure
+            // Try StandardizedCase format
+            if (commonSources) {
+                return commonSources;
+            }
+            // Fallback to legacy structure
             return data?.local_image_url || data?.file_info?.url;
         }
-        if (contentType === 'audio') return data?.local_audio_url || data?.file_info?.url;
+        if (contentType === 'audio') {
+            return commonSources || data?.local_audio_url || data?.file_info?.url;
+        }
         return null;
     };
     const visualUrl = getVisualUrl();
@@ -564,21 +576,21 @@ export function UnifiedAnalysisView({
             </Button>
 
             {/* ========== MAIN GRID: Left Content / Right Sidebar ========== */}
-            <div className="grid grid-cols-1 md:grid-cols-[1fr_320px] gap-6">
+            <div className="grid lg:grid-cols-[7fr_3fr] gap-6">
 
                 {/* ========== LEFT COLUMN - MAIN CONTENT ========== */}
                 <div className="space-y-6 min-w-0">
 
                     {/* IMAGE/AUDIO PREVIEW - Figma: Dark card with rounded-full badge */}
                     {visualUrl && (
-                        <Card className="border-2 border-black bg-[#0a0e1a] rounded-md relative overflow-hidden">
+                        <Card className="border-2 border-black bg-[#0a0e1a] overflow-hidden rounded-[12px]">
 
                             {contentType === 'audio' ? (
                                 <div className="relative w-full bg-gray-900 p-8 flex flex-col items-center justify-center">
                                     {/* Badge for audio */}
-                                    <div className="absolute top-4 left-6 bg-black/80 text-white px-3 py-1.5 rounded-full text-sm flex items-center gap-2 backdrop-blur-sm z-30">
-                                        <FileText className="h-4 w-4" />
-                                        Audio Original
+                                    <div className="absolute top-4 left-4 bg-black/70 text-white px-3 py-1.5 rounded-full text-sm flex items-center gap-2 backdrop-blur-sm z-30">
+                                        <Volume2 className="h-4 w-4" />
+                                        🎵 Audio Original
                                     </div>
                                     <div className="w-20 h-20 rounded-full bg-[#ffda00] flex items-center justify-center mb-4">
                                         <Volume2 className="h-10 w-10 text-black" />
@@ -586,17 +598,17 @@ export function UnifiedAnalysisView({
                                     <audio controls className="w-full max-w-md" src={visualUrl} />
                                 </div>
                             ) : (
-                                <div className="relative w-full bg-gray-900 h-[500px] flex items-end justify-center py-12 px-8">
+                                <div className="relative w-full bg-gray-900">
                                     {/* Badge for image */}
-                                    <div className="absolute top-4 left-2 bg-black/80 text-white px-3 py-1.5 rounded-full text-sm flex items-center gap-2 backdrop-blur-sm z-30">
+                                    <div className="absolute top-4 left-4 bg-black/70 text-white px-3 py-1.5 rounded-full text-sm flex items-center gap-2 backdrop-blur-sm z-30">
                                         <FileText className="h-4 w-4" />
-                                        Imagen Original
+                                        📷 Captura Original
                                     </div>
 
                                     <img
                                         src={visualUrl}
-                                        alt="Captura Original"
-                                        className="max-w-full max-h-[500px] w-auto h-auto object-contain"
+                                        alt="Captura de pantalla del sitio web"
+                                        className="w-full h-[400px] object-cover"
                                     />
 
                                     {/* Navigation arrows for multiple images */}
@@ -628,7 +640,7 @@ export function UnifiedAnalysisView({
                     }
 
                     {/* CONTENT INFO SECTION - Figma: Card with explicit font sizes */}
-                    <Card className="border border-[#e5e7eb] bg-white rounded-md">
+                    <Card className="border border-[#e5e7eb] bg-white rounded-[12px]">
                         <CardContent className="p-6">
                             {/* Titular */}
                             <div className="mb-4 pb-4 border-b border-gray-200">
@@ -747,7 +759,7 @@ export function UnifiedAnalysisView({
                     </div>
 
                     {/* AMI ANALYSIS SECTION - Figma: Full card with colored sub-sections */}
-                    <Card className="border border-[#e5e7eb] bg-white rounded-md">
+                    <Card className="border border-[#e5e7eb] bg-white rounded-[12px]">
                         <CardHeader className="pb-3">
                             <CardTitle className="flex items-center gap-2">
                                 <Zap className="h-5 w-5 text-primary" />

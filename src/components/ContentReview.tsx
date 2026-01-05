@@ -48,9 +48,9 @@
  */
 
 import React from 'react';
-import botilitoImage from 'figma:asset/e27a276e6ff0e187a67cf54678c265c1c38adbf7.png';
+import botilitoImage from '@/assets/botilito-mascot.png';
 import {
-  Briefcase, CheckCircle2, Bot, XCircle, RefreshCcw
+  Bot, CheckCircle, Clock, AlertTriangle, Fingerprint, RefreshCcw
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -80,9 +80,9 @@ export function ContentReview({ onViewTask }: ContentReviewProps) {
   };
 
   return (
-    <div className="w-full space-y-8 p-6 bg-gray-50 min-h-screen font-sans">
+    <div className="w-full space-y-6 px-6 pt-6">
 
-      {/* Franja de Botilito */}
+      {/* Mensaje de Botilito */}
       <div className="bg-[#ffe97a] border-2 border-[#ffda00] rounded-lg p-4 shadow-lg">
         <div className="flex items-center space-x-4">
           <img
@@ -92,19 +92,22 @@ export function ContentReview({ onViewTask }: ContentReviewProps) {
           />
           <div className="flex-1">
             <p className="text-xl">
-              ¡Ey parcero! Acá está el historial 📊🔍
+              ¡Qué más parce! Acá está el historial completo de casos
             </p>
             <p className="text-sm mt-1 opacity-80">
-              Puedes filtrar por tipo de contenido y buscar lo que necesites.
+              Todos los contenidos analizados, desde multimedia forense hasta desinformación. ¡Revisa, filtra y comparte!
             </p>
           </div>
         </div>
       </div>
 
-      <div className="flex justify-between items-center">
-        <div className="space-y-1">
-          <h2 className="text-2xl font-bold text-gray-900">Historial de Casos</h2>
-          <p className="text-muted-foreground">Registro completo de todos los contenidos analizados.</p>
+      {/* Título */}
+      <div className="flex justify-between items-start">
+        <div>
+          <h1 className="text-2xl font-bold">Historial de Casos</h1>
+          <p className="text-muted-foreground">
+            Registro completo de todos los contenidos analizados por Botilito
+          </p>
         </div>
         <Button variant="outline" size="sm" onClick={refresh} disabled={loading} className="gap-2">
           <RefreshCcw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
@@ -112,12 +115,77 @@ export function ContentReview({ onViewTask }: ContentReviewProps) {
         </Button>
       </div>
 
-      {/* Stats Cards (Based on current view) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatsCard icon={<Briefcase className="text-yellow-600" />} bg="bg-yellow-50" value={stats.total} label="Total Casos" />
-        <StatsCard icon={<CheckCircle2 className="text-green-600" />} bg="bg-green-50" value={stats.verified} label="Verificados" />
-        <StatsCard icon={<Bot className="text-blue-600" />} bg="bg-blue-50" value={stats.aiOnly} label="Solo IA" />
-        <StatsCard icon={<XCircle className="text-red-600" />} bg="bg-red-50" value={stats.misinformation} label="Desinformación" />
+      {/* Estadísticas rápidas */}
+      <div className="flex flex-wrap gap-4">
+        <Card className="flex-1 min-w-[180px]">
+          <CardContent className="p-4">
+            <div className="flex items-center space-x-2">
+              <div className="p-3 bg-primary/10 rounded">
+                <Bot className="h-6 w-6 text-primary" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{stats.total}</p>
+                <p className="text-sm text-muted-foreground">Total Casos</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="flex-1 min-w-[180px]">
+          <CardContent className="p-4">
+            <div className="flex items-center space-x-2">
+              <div className="p-3 bg-emerald-100 rounded">
+                <CheckCircle className="h-6 w-6 text-emerald-600" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{stats.verified}</p>
+                <p className="text-sm text-muted-foreground">Verificados</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="flex-1 min-w-[180px]">
+          <CardContent className="p-4">
+            <div className="flex items-center space-x-2">
+              <div className="p-3 bg-orange-100 rounded">
+                <Clock className="h-6 w-6 text-orange-600" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{stats.aiOnly}</p>
+                <p className="text-sm text-muted-foreground">Pendientes</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="flex-1 min-w-[180px]">
+          <CardContent className="p-4">
+            <div className="flex items-center space-x-2">
+              <div className="p-3 bg-red-100 rounded">
+                <AlertTriangle className="h-6 w-6 text-red-600" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{stats.misinformation}</p>
+                <p className="text-sm text-muted-foreground">Desinfodémico</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="flex-1 min-w-[180px]">
+          <CardContent className="p-4">
+            <div className="flex items-center space-x-2">
+              <div className="p-3 bg-blue-100 rounded">
+                <Fingerprint className="h-6 w-6 text-blue-600" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{stats.forensic || 0}</p>
+                <p className="text-sm text-muted-foreground">Forense</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Error State */}
@@ -135,8 +203,8 @@ export function ContentReview({ onViewTask }: ContentReviewProps) {
           onViewTask={handleSelectCase}
           isLoading={loading}
           isEnrichedFormat={true}
-          title="Historial de Casos"
-          description="Registro completo de todos los casos analizados por Botilito"
+          title="Listado de Casos Históricos"
+          description="Todos los contenidos procesados y su estado de validación"
           emptyMessage="No se encontraron casos en el historial"
           hasMore={hasMore}
           onLoadMore={loadMore}
@@ -147,16 +215,3 @@ export function ContentReview({ onViewTask }: ContentReviewProps) {
   );
 }
 
-function StatsCard({ icon, bg, value, label }: any) {
-  return (
-    <Card className="border-gray-200 shadow-sm hover:shadow-md transition-shadow">
-      <CardContent className="p-6 flex items-center gap-4">
-        <div className={`p-3 rounded-xl ${bg}`}>{icon}</div>
-        <div>
-          <p className="text-2xl font-bold text-gray-900">{value}</p>
-          <p className="text-sm text-gray-500">{label}</p>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}

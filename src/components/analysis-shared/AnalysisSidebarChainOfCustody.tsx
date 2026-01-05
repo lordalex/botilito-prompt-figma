@@ -31,7 +31,7 @@ export function AnalysisSidebarChainOfCustody({ events }: AnalysisSidebarChainOf
     };
 
     return (
-        <Card className="border-2 border-[#ffda00] bg-white rounded-md">
+        <Card className="border-2 border-[#ffda00] bg-white rounded-[12px]">
             <CardHeader className="pb-4">
                 <CardTitle className="flex items-center gap-3">
                     <Shield className="h-5 w-5 text-primary flex-shrink-0" />

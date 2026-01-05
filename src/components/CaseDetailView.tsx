@@ -123,16 +123,30 @@ export function CaseDetailView({
 
     const detail = caseDetail as any;
 
+    // Extract screenshot URL from either StandardizedCase or legacy format
+    const getScreenshotUrl = () => {
+        // StandardizedCase format: overview.main_asset_url
+        if (detail.overview?.main_asset_url) {
+            return detail.overview.main_asset_url;
+        }
+        // Legacy format: metadata.screenshot
+        if (detail.metadata?.screenshot) {
+            return detail.metadata.screenshot;
+        }
+        // Transformed data fallback
+        return transformedData?.mainAssetUrl || transformedData?.metadata?.screenshot;
+    };
+
     return (
         <UnifiedAnalysisView
             data={transformedData}
             contentType={contentType}
             mode={mode}
-            title={detail.title || 'Detalle del Caso'}
+            title={detail.title || detail.overview?.title || 'Detalle del Caso'}
             caseNumber={generateDisplayId(detail)}
             timestamp={detail.created_at}
-            reportedBy={detail.metadata?.reported_by?.name || 'Comunidad'}
-            screenshot={detail.metadata?.screenshot}
+            reportedBy={detail.metadata?.reported_by?.name || detail.reporter?.name || 'Comunidad'}
+            screenshot={getScreenshotUrl()}
             onReset={onBackToList}
             onSubmitDiagnosis={handleSubmitDiagnosis}
             isSubmittingDiagnosis={isSubmitting}
