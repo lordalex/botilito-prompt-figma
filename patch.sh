@@ -1,3 +1,15 @@
+#!/bin/bash
+
+# =================================================================
+# REFACTOR: ContentUploadResult.tsx
+# - Fix Asset Preview (Image vs Audio logic)
+# - Move Human Validation to full width (bottom)
+# - Strict color mapping
+# =================================================================
+
+echo "Refactoring src/components/ContentUploadResult.tsx..."
+
+cat << 'EOF' > src/components/ContentUploadResult.tsx
 import React, { useRef } from 'react';
 import botilitoImage from '@/assets/e27a276e6ff0e187a67cf54678c265c1c38adbf7.png';
 import { 
@@ -482,3 +494,7 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
     </div>
   );
 }
+EOF
+
+echo "✅ ContentUploadResult.tsx updated successfully."
+
