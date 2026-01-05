@@ -101,7 +101,7 @@ export function Navigation({ activeTab, onTabChange, onLogout, onViewTask, onVie
               alt="Botilito"
               className="h-10 object-contain"
             />
-            <Badge variant="secondary">Beta</Badge>
+            <Badge variant="secondary">Beta 1.1</Badge>
           </div>
 
           <div className="flex items-center space-x-1">
