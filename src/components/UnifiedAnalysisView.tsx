@@ -574,7 +574,8 @@ export function UnifiedAnalysisView({
                 {/* ========== LEFT COLUMN - MAIN CONTENT ========== */}
                 <div className="space-y-6 min-w-0">
 
-                    {/* IMAGE/AUDIO PREVIEW - Figma: Dark card with rounded-full badge */}
+                    {/* IMAGE/AUDIO PREVIEW + CASE INFO - Two column layout (stacks on phone only) */}
+                    <div className="grid md:grid-cols-[2fr_1fr] gap-4">
                     <Card className="border-2 border-black bg-[#0a0e1a] overflow-hidden rounded-[12px]">
                         {contentType === 'audio' ? (
                             visualUrl ? (
@@ -613,7 +614,7 @@ export function UnifiedAnalysisView({
                                 <img
                                     src={visualUrl}
                                     alt="Captura de pantalla del sitio web"
-                                    className="w-full h-[400px] object-cover"
+                                    className="w-full h-[200px] object-cover"
                                 />
 
                                 {/* Navigation arrows for multiple images */}
@@ -654,6 +655,10 @@ export function UnifiedAnalysisView({
                             </div>
                         )}
                     </Card>
+
+                    {/* Case Info - Right of image */}
+                    <AnalysisSidebarCaseInfo {...caseInfoProps} />
+                    </div>
 
                     {/* CONTENT INFO SECTION - Figma: Card with explicit font sizes */}
                     <Card className="border border-[#e5e7eb] bg-white rounded-[12px]">
@@ -874,7 +879,6 @@ export function UnifiedAnalysisView({
 
                 {/* ========== RIGHT COLUMN - SIDEBAR ========== */}
                 <div className="space-y-4 md:sticky md:top-8">
-                    <AnalysisSidebarCaseInfo {...caseInfoProps} />
                     <AnalysisSidebarStats stats={statsProps.length > 0 ? statsProps : [
                         { label: 'Pruebas realizadas', value: '1' },
                         { label: 'Tiempo total', value: '12.0s' },
