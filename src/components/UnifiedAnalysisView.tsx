@@ -491,35 +491,28 @@ export function UnifiedAnalysisView({
             progress: 'bg-emerald-500'
         };
 
-    // Get visual URL for preview - supports StandardizedCase and legacy formats
+    // Get visual URL for preview - uses only main_asset_url from API
     const getVisualUrl = () => {
-        // Common sources for all content types (StandardizedCase format)
-        const commonSources =
+        // Primary source: main_asset_url from StandardizedCase (overview.main_asset_url)
+        const mainAssetUrl =
             data?.standardized_case?.overview?.main_asset_url ||
             data?.overview?.main_asset_url ||
             data?.mainAssetUrl ||
             screenshot;
 
         if (contentType === 'text') {
-            return commonSources ||
-                data?.metadata?.screenshotUrl ||
-                data?.metadata?.screenshot ||
-                data?.source_data?.screenshot;
+            return mainAssetUrl;
         }
         if (contentType === 'image') {
             // Try to get from forensic structure first (all_documents)
             if (availableImages.length > 0) {
                 return availableImages[currentImageIndex];
             }
-            // Try StandardizedCase format
-            if (commonSources) {
-                return commonSources;
-            }
-            // Fallback to legacy structure
-            return data?.local_image_url || data?.file_info?.url;
+            // Use main_asset_url
+            return mainAssetUrl || data?.local_image_url || data?.file_info?.url;
         }
         if (contentType === 'audio') {
-            return commonSources || data?.local_audio_url || data?.file_info?.url;
+            return mainAssetUrl || data?.local_audio_url || data?.file_info?.url;
         }
         return null;
     };
@@ -582,10 +575,9 @@ export function UnifiedAnalysisView({
                 <div className="space-y-6 min-w-0">
 
                     {/* IMAGE/AUDIO PREVIEW - Figma: Dark card with rounded-full badge */}
-                    {visualUrl && (
-                        <Card className="border-2 border-black bg-[#0a0e1a] overflow-hidden rounded-[12px]">
-
-                            {contentType === 'audio' ? (
+                    <Card className="border-2 border-black bg-[#0a0e1a] overflow-hidden rounded-[12px]">
+                        {contentType === 'audio' ? (
+                            visualUrl ? (
                                 <div className="relative w-full bg-gray-900 p-8 flex flex-col items-center justify-center">
                                     {/* Badge for audio */}
                                     <div className="absolute top-4 left-4 bg-black/70 text-white px-3 py-1.5 rounded-full text-sm flex items-center gap-2 backdrop-blur-sm z-30">
@@ -598,46 +590,70 @@ export function UnifiedAnalysisView({
                                     <audio controls className="w-full max-w-md" src={visualUrl} />
                                 </div>
                             ) : (
-                                <div className="relative w-full bg-gray-900">
-                                    {/* Badge for image */}
+                                /* Placeholder for missing audio */
+                                <div className="relative w-full bg-gray-800 h-[200px] flex flex-col items-center justify-center">
                                     <div className="absolute top-4 left-4 bg-black/70 text-white px-3 py-1.5 rounded-full text-sm flex items-center gap-2 backdrop-blur-sm z-30">
-                                        <FileText className="h-4 w-4" />
-                                        📷 Captura Original
+                                        <Volume2 className="h-4 w-4" />
+                                        🎵 Audio
                                     </div>
-
-                                    <img
-                                        src={visualUrl}
-                                        alt="Captura de pantalla del sitio web"
-                                        className="w-full h-[400px] object-cover"
-                                    />
-
-                                    {/* Navigation arrows for multiple images */}
-                                    {availableImages.length > 1 && (
-                                        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex items-center gap-4 mb-2">
-                                            <button
-                                                className="text-white bg-black/80 hover:bg-black/95 rounded-full h-12 w-12 flex items-center justify-center transition-colors shadow-lg backdrop-blur-sm"
-                                                onClick={handlePrevImage}
-                                                type="button"
-                                            >
-                                                <ChevronLeft className="h-7 w-7" />
-                                            </button>
-                                            <div className="bg-black/80 text-white px-4 py-2 rounded-full text-sm backdrop-blur-sm font-medium shadow-lg">
-                                                {currentImageIndex + 1} / {availableImages.length}
-                                            </div>
-                                            <button
-                                                className="text-white bg-black/80 hover:bg-black/95 rounded-full h-12 w-12 flex items-center justify-center transition-colors shadow-lg backdrop-blur-sm"
-                                                onClick={handleNextImage}
-                                                type="button"
-                                            >
-                                                <ChevronRight className="h-7 w-7" />
-                                            </button>
-                                        </div>
-                                    )}
+                                    <div className="w-16 h-16 rounded-full bg-gray-700 flex items-center justify-center mb-3">
+                                        <Volume2 className="h-8 w-8 text-gray-500" />
+                                    </div>
+                                    <p className="text-gray-400 text-sm">Audio no disponible</p>
                                 </div>
-                            )}
-                        </Card>
-                    )
-                    }
+                            )
+                        ) : visualUrl ? (
+                            <div className="relative w-full bg-gray-900">
+                                {/* Badge for image */}
+                                <div className="absolute top-4 left-4 bg-black/70 text-white px-3 py-1.5 rounded-full text-sm flex items-center gap-2 backdrop-blur-sm z-30">
+                                    <FileText className="h-4 w-4" />
+                                    📷 Captura Original
+                                </div>
+
+                                <img
+                                    src={visualUrl}
+                                    alt="Captura de pantalla del sitio web"
+                                    className="w-full h-[400px] object-cover"
+                                />
+
+                                {/* Navigation arrows for multiple images */}
+                                {availableImages.length > 1 && (
+                                    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex items-center gap-4 mb-2">
+                                        <button
+                                            className="text-white bg-black/80 hover:bg-black/95 rounded-full h-12 w-12 flex items-center justify-center transition-colors shadow-lg backdrop-blur-sm"
+                                            onClick={handlePrevImage}
+                                            type="button"
+                                        >
+                                            <ChevronLeft className="h-7 w-7" />
+                                        </button>
+                                        <div className="bg-black/80 text-white px-4 py-2 rounded-full text-sm backdrop-blur-sm font-medium shadow-lg">
+                                            {currentImageIndex + 1} / {availableImages.length}
+                                        </div>
+                                        <button
+                                            className="text-white bg-black/80 hover:bg-black/95 rounded-full h-12 w-12 flex items-center justify-center transition-colors shadow-lg backdrop-blur-sm"
+                                            onClick={handleNextImage}
+                                            type="button"
+                                        >
+                                            <ChevronRight className="h-7 w-7" />
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        ) : (
+                            /* Placeholder for missing image/screenshot */
+                            <div className="relative w-full bg-gray-800 h-[250px] flex flex-col items-center justify-center">
+                                <div className="absolute top-4 left-4 bg-black/70 text-white px-3 py-1.5 rounded-full text-sm flex items-center gap-2 backdrop-blur-sm z-30">
+                                    <ImageIcon className="h-4 w-4" />
+                                    📷 Captura
+                                </div>
+                                <div className="w-20 h-20 rounded-full bg-gray-700 flex items-center justify-center mb-4">
+                                    <ImageIcon className="h-10 w-10 text-gray-500" />
+                                </div>
+                                <p className="text-gray-400 text-base font-medium">Imagen no disponible</p>
+                                <p className="text-gray-500 text-sm mt-1">No se proporcionó captura de pantalla</p>
+                            </div>
+                        )}
+                    </Card>
 
                     {/* CONTENT INFO SECTION - Figma: Card with explicit font sizes */}
                     <Card className="border border-[#e5e7eb] bg-white rounded-[12px]">

@@ -154,6 +154,14 @@ export function HumanVerification() {
     if (type?.includes('audio')) contentType = 'audio';
     // Video treated as image/visual for now or fallback
 
+    // Extract screenshot URL from various possible locations in the data
+    const screenshotUrl =
+      (selectedCase as any).standardized_case?.overview?.main_asset_url ||
+      (selectedCase as any).overview?.main_asset_url ||
+      selectedCase.metadata?.screenshotUrl ||
+      selectedCase.metadata?.screenshot ||
+      undefined;
+
     return (
       <UnifiedAnalysisView
         data={selectedCase}
@@ -162,6 +170,12 @@ export function HumanVerification() {
         onSubmitDiagnosis={handleUnifiedSubmit}
         isSubmittingDiagnosis={isSubmitting}
         isLoading={false}
+        title={selectedCase.title}
+        caseNumber={selectedCase.displayId}
+        timestamp={selectedCase.created_at}
+        reportedBy={selectedCase.metadata?.reported_by?.name || 'Comunidad'}
+        screenshot={screenshotUrl}
+        mode="human"
       />
     );
   }
