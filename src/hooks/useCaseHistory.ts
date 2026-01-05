@@ -40,13 +40,16 @@
  *
  * ### Usage Example:
  * ```tsx
- * const { cases, loading, error, stats, refresh } = useCaseHistory();
+ * const { cases, loading, error, stats, hasMore, loadMore, loadingMore, refresh } = useCaseHistory();
  *
  * return (
  *   <CaseList
  *     cases={cases}
  *     isLoading={loading}
  *     isEnrichedFormat={true}  // CRITICAL: Must be true for CaseEnriched[]
+ *     hasMore={hasMore}
+ *     onLoadMore={loadMore}
+ *     isLoadingMore={loadingMore}
  *   />
  * );
  * ```
@@ -65,6 +68,7 @@ export function useCaseHistory() {
   const [cases, setCases] = useState<CaseEnriched[]>([]);
   const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Filter & Pagination State
@@ -72,13 +76,15 @@ export function useCaseHistory() {
   const [pageSize] = useState(10);
   const [statusFilter, setStatusFilter] = useState('all');
 
+  // Initial fetch - replaces cases
   const fetchCases = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
+      setCurrentPage(1);
 
       // Use the same API function as HumanVerification for consistent transformations
-      const result = await fetchVerificationSummary(currentPage, pageSize);
+      const result = await fetchVerificationSummary(1, pageSize);
 
       setCases(result.cases || []);
       setHasMore(result.pagination.hasMore);
@@ -90,7 +96,30 @@ export function useCaseHistory() {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, pageSize]);
+  }, [pageSize]);
+
+  // Load more - appends to existing cases
+  const loadMore = useCallback(async () => {
+    if (loadingMore || !hasMore) return;
+
+    try {
+      setLoadingMore(true);
+      const nextPage = currentPage + 1;
+
+      const result = await fetchVerificationSummary(nextPage, pageSize);
+
+      // Append new cases to existing ones
+      setCases(prev => [...prev, ...(result.cases || [])]);
+      setHasMore(result.pagination.hasMore);
+      setCurrentPage(nextPage);
+
+    } catch (err: any) {
+      console.error('Error loading more cases:', err);
+      // Don't clear existing cases on load more error
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [currentPage, pageSize, loadingMore, hasMore]);
 
   // Trigger fetch on filter changes
   useEffect(() => {
@@ -120,8 +149,11 @@ export function useCaseHistory() {
   return {
     cases: filteredCases,
     loading,
+    loadingMore,
     error,
     stats,
+    hasMore,
+    loadMore,
     pagination: {
       currentPage,
       setCurrentPage,

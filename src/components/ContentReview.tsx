@@ -25,11 +25,11 @@
  * ```
  * useCaseHistory hook
  *     ↓
- * { cases, loading, error, stats, refresh }
+ * { cases, loading, loadingMore, error, stats, hasMore, loadMore, refresh }
  *     ↓
  * StatsCards use stats for counts
  *     ↓
- * CaseList receives cases with isEnrichedFormat=true
+ * CaseList receives cases + pagination props (hasMore, onLoadMore, isLoadingMore)
  *     ↓
  * onViewTask callback navigates to case detail
  * ```
@@ -66,8 +66,11 @@ export function ContentReview({ onViewTask }: ContentReviewProps) {
   const {
     cases,
     loading,
+    loadingMore,
     error,
     stats,
+    hasMore,
+    loadMore,
     refresh
   } = useCaseHistory();
 
@@ -135,6 +138,9 @@ export function ContentReview({ onViewTask }: ContentReviewProps) {
           title="Historial de Casos"
           description="Registro completo de todos los casos analizados por Botilito"
           emptyMessage="No se encontraron casos en el historial"
+          hasMore={hasMore}
+          onLoadMore={loadMore}
+          isLoadingMore={loadingMore}
         />
       )}
     </div>

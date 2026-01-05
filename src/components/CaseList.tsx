@@ -43,11 +43,14 @@ import { useState, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Search,
   Filter,
   Layers,
+  ChevronDown,
+  Loader2,
 } from 'lucide-react';
 import type {
   ValidationCaseDTO,
@@ -100,6 +103,11 @@ const filterOptions: { value: FilterOption; label: string }[] = [
  * - `title`: Header text (default: "Casos Pendientes de Validación")
  * - `description`: Subheader text
  * - `emptyMessage`: Shown when no cases match filters
+ *
+ * ### Pagination (Optional):
+ * - `hasMore`: Whether more cases are available (from API pagination.hasMore)
+ * - `onLoadMore`: Callback to load next page
+ * - `isLoadingMore`: Loading state for "Load More" button
  */
 export interface CaseListProps {
   /** Casos en formato DTO del backend o CaseEnriched del hook */
@@ -118,6 +126,12 @@ export interface CaseListProps {
   description?: string;
   /** Mensaje cuando no hay casos */
   emptyMessage?: string;
+  /** Whether more cases are available to load (pagination) */
+  hasMore?: boolean;
+  /** Callback to load more cases */
+  onLoadMore?: () => void;
+  /** Loading state for Load More button */
+  isLoadingMore?: boolean;
 }
 
 export function CaseList({
@@ -129,6 +143,9 @@ export function CaseList({
   title = 'Casos Pendientes de Validación',
   description = 'Revisa y valida los análisis realizados por la IA',
   emptyMessage = 'No hay casos pendientes de validación',
+  hasMore = false,
+  onLoadMore,
+  isLoadingMore = false,
 }: CaseListProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [filter, setFilter] = useState<FilterOption>('todos');
@@ -234,13 +251,40 @@ export function CaseList({
               : emptyMessage}
           </div>
         ) : (
-          filteredCases.map((caseItem) => (
-            <CaseListItem
-              key={caseItem.id}
-              caseItem={caseItem}
-              onClick={(id, type) => onViewTask(id, type, 'pending')}
-            />
-          ))
+          <>
+            {filteredCases.map((caseItem) => (
+              <CaseListItem
+                key={caseItem.id}
+                caseItem={caseItem}
+                onClick={(id, type) => onViewTask(id, type, 'pending')}
+              />
+            ))}
+
+            {/* Load More Button - Only shows when hasMore is true and onLoadMore is provided */}
+            {hasMore && onLoadMore && (
+              <div className="flex justify-center pt-4">
+                <Button
+                  variant="outline"
+                  onClick={onLoadMore}
+                  disabled={isLoadingMore}
+                  className="gap-2 px-6"
+                  style={{ borderColor: 'var(--primary)', color: 'var(--primary)' }}
+                >
+                  {isLoadingMore ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Cargando...
+                    </>
+                  ) : (
+                    <>
+                      <ChevronDown className="h-4 w-4" />
+                      Cargar más casos
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
+          </>
         )}
       </CardContent>
     </Card>
