@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Bot, UserCheck, AlertTriangle, Send, CheckCircle2 } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -74,14 +74,14 @@ export function HumanValidationForm({
   const confidence = aiRiskScore > 0 ? (100 - aiRiskScore) : 0;
 
   return (
-    <Card className="border-2 border-[#FFDA00] rounded-xl overflow-hidden shadow-sm bg-white mt-8">
-      {/* Header */}
-      <div className="bg-[#FFFCE8] px-6 py-4 border-b border-[#FFDA00]/30 flex items-center gap-2">
-        <UserCheck className="h-5 w-5 text-[#FFDA00]" />
-        <h3 className="font-bold text-gray-900">Validación Humana</h3>
-      </div>
+    <Card className="shadow-sm border-2 mt-8" style={{ borderColor: '#FFDA00' }}>
+      <CardHeader className="pb-2 pt-4 px-4">
+        <CardTitle className="text-sm font-bold flex items-center gap-2">
+          <UserCheck className="h-4 w-4 text-[#FFDA00]" /> Validación Humana
+        </CardTitle>
+      </CardHeader>
 
-      <CardContent className="p-6 space-y-8">
+      <CardContent className="px-4 pb-4 space-y-6">
         
         {/* Top Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -112,17 +112,15 @@ export function HumanValidationForm({
               {OPTIONS.map((option) => (
                 <div key={option.id}>
                   <RadioGroupItem value={option.id} id={option.id} className="peer sr-only" />
-                  <Label 
+                  <Label
                     htmlFor={option.id}
-                    className="flex flex-col p-4 rounded-lg border-2 border-gray-100 bg-white hover:border-[#FFE97A] hover:bg-[#FFFCE8]/50 peer-data-[state=checked]:border-[#FFDA00] peer-data-[state=checked]:bg-[#FFFCE8] cursor-pointer transition-all w-full"
+                    className="flex items-center gap-3 p-4 rounded-lg border-2 border-gray-200 bg-white hover:border-[#FFE97A] hover:bg-[#FFFCE8]/50 peer-data-[state=checked]:border-[#FFDA00] peer-data-[state=checked]:bg-[#FFFCE8] cursor-pointer transition-all w-full"
                   >
-                    <div className="flex items-center gap-3">
-                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${selectedOption === option.id ? 'border-[#FFDA00]' : 'border-gray-300'}`}>
-                        {selectedOption === option.id && <div className="w-2.5 h-2.5 rounded-full bg-[#FFDA00]" />}
-                      </div>
-                      <span className="font-bold text-gray-900">{option.label}</span>
+                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${selectedOption === option.id ? 'border-[#FFDA00]' : 'border-gray-300'}`}>
+                      {selectedOption === option.id && <div className="w-2.5 h-2.5 rounded-full bg-[#FFDA00]" />}
                     </div>
-                    <span className="text-xs text-gray-500 pl-8 mt-1 font-normal block">
+                    <span className="font-bold text-gray-900">{option.label}</span>
+                    <span className="text-sm text-gray-500 font-normal">
                       {option.description}
                     </span>
                   </Label>
@@ -142,18 +140,23 @@ export function HumanValidationForm({
             onChange={(e) => setJustification(e.target.value)}
             maxLength={500}
           />
-          <div className="text-right"><span className="text-xs text-gray-400">{justification.length}/500 caracteres</span></div>
+          <div className="text-left"><span className="text-xs text-gray-400">{justification.length}/500 caracteres</span></div>
         </div>
 
         {/* Actions */}
         <div className="space-y-4">
-          {error && <div className="bg-[#FFFCE8] border border-[#FFDA00] text-yellow-800 px-4 py-3 rounded-lg flex items-center gap-2 text-sm font-medium"><AlertTriangle className="h-4 w-4" />{error}</div>}
-          <div className="flex justify-end gap-3 pt-2">
-            <Button variant="outline" onClick={() => {setSelectedOption(''); setJustification('');}} disabled={isSubmitting} className="border-gray-200 text-gray-700 hover:bg-gray-50 h-10 px-6">Limpiar</Button>
-            <Button onClick={handleSubmit} disabled={isSubmitting} className="bg-[#FFDA00] hover:bg-[#E6C400] text-gray-900 font-bold h-10 px-6">
+          <div className="flex justify-center gap-3 pt-2">
+            <Button
+              onClick={handleSubmit}
+              disabled={isSubmitting}
+              className="text-gray-900 font-bold h-10 px-6 border border-[#E6C400]"
+              style={{ backgroundColor: '#FFDA00' }}
+            >
               {isSubmitting ? <>Enviando...</> : <><Send className="w-4 h-4 mr-2" />Enviar Validación</>}
             </Button>
+            <Button variant="outline" onClick={() => {setSelectedOption(''); setJustification('');}} disabled={isSubmitting} className="border-gray-200 text-gray-700 hover:bg-gray-50 h-10 px-6">Limpiar</Button>
           </div>
+          {error && <div className="bg-[#FFFCE8] border border-[#FFDA00] text-yellow-800 px-4 py-3 rounded-lg flex items-center gap-2 text-sm font-medium"><AlertTriangle className="h-4 w-4" />{error}</div>}
         </div>
       </CardContent>
     </Card>

@@ -1,7 +1,7 @@
-import React, { useRef } from 'react';
+import React, { useRef, useMemo } from 'react';
 import botilitoImage from '@/assets/e27a276e6ff0e187a67cf54678c265c1c38adbf7.png';
-import { 
-  Bot, User, FileText, Globe, AlertTriangle, Shield, Activity, 
+import {
+  Bot, User, FileText, Globe, AlertTriangle, Shield, Activity,
   Hash, Download, ArrowLeft, CheckCircle2, Camera, Mic, Info
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { HumanValidationForm } from '@/components/HumanValidationForm';
+import { generateCaseCode, ContentType, TransmissionVector } from '@/utils/caseCodeGenerator';
 
 // Import Specific Views
 import { ImageAnalysisResultView } from './image-analysis/ImageAnalysisResultView';
@@ -58,10 +59,49 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
     ? rawRecommendations.map(String) 
     : [];
 
+  // Helper to map case type to ContentType for code generation
+  const getContentType = (type: string): ContentType => {
+    const typeMap: Record<string, ContentType> = {
+      'TEXT': 'texto',
+      'IMAGE': 'imagen',
+      'VIDEO': 'video',
+      'AUDIO': 'audio',
+      'URL': 'url'
+    };
+    return typeMap[type.toUpperCase()] || 'texto';
+  };
+
+  // Helper to map vector to TransmissionVector
+  const getTransmissionVector = (vector?: string): TransmissionVector => {
+    if (!vector) return 'Web';
+    const vectorMap: Record<string, TransmissionVector> = {
+      'whatsapp': 'WhatsApp',
+      'facebook': 'Facebook',
+      'twitter': 'Twitter/X',
+      'x': 'Twitter/X',
+      'instagram': 'Instagram',
+      'tiktok': 'TikTok',
+      'youtube': 'YouTube',
+      'telegram': 'Telegram',
+      'web': 'Web',
+      'email': 'Email',
+      'sms': 'SMS'
+    };
+    return vectorMap[vector.toLowerCase()] || 'Web';
+  };
+
+  const caseType = (data.type || data.submission_type || 'TEXT').toUpperCase();
+  const caseVector = data.metadata?.vector || data.vector || 'Web';
+
+  // Get display_id from backend or generate one
+  const displayId = data.display_id || data.displayId || data.standardized_case?.display_id ||
+    generateCaseCode(getContentType(caseType), getTransmissionVector(caseVector));
+
   const caseData = {
     id: data.id || "Unknown",
+    display_id: displayId,
     created_at: data.created_at || new Date().toISOString(),
-    type: (data.type || data.submission_type || 'TEXT').toUpperCase(),
+    type: caseType,
     overview: {
       title: data.title || data.overview?.title || "Sin título",
       summary: data.summary || data.overview?.summary || "Sin resumen disponible.",
@@ -73,7 +113,7 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
     insights: Array.isArray(data.insights) ? data.insights : [],
     reporter: data.reporter,
     community: data.community || { votes: data.human_votes_count || 0, status: data.consensus?.state || 'pending' },
-    metadata: data.metadata || { theme: data.theme, region: data.region, vector: data.vector },
+    metadata: data.metadata || { theme: data.theme, region: data.region, vector: caseVector },
     recommendations: recommendations
   };
 
@@ -91,7 +131,7 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
     i.id?.includes('clickbait') || i.id?.includes('titular') || i.label?.toLowerCase().includes('titular')
   );
 
-  const amiCompetencies = caseData.insights.filter((i: any) => 
+  const amiCompetencies = caseData.insights.filter((i: any) =>
     i.category === 'competency' || i.category === 'compliance' || i.label?.toLowerCase().includes('competencia')
   );
 
@@ -137,138 +177,155 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
           </Button>
         </div>
 
-        {/* ASSET PREVIEW (Dynamic based on Type) */}
-        {caseData.overview.main_asset_url && (
-          <div className="mb-8 rounded-xl overflow-hidden border border-gray-200 shadow-sm bg-black relative group">
-            <div className="absolute top-4 left-4 z-10">
-              <Badge className="bg-black/70 hover:bg-black/90 text-white border-none backdrop-blur-sm gap-2 pl-2">
-                {isAudio ? <Mic className="h-3 w-3" /> : <Camera className="h-3 w-3" />}
-                {isAudio ? 'Audio Original' : 'Captura Original'}
-              </Badge>
-            </div>
-            
-            {isAudio ? (
-              <div className="h-32 flex items-center justify-center bg-gray-900 text-white w-full">
-                <audio controls src={caseData.overview.main_asset_url} className="w-full max-w-2xl px-4" />
+        {/* TWO-COLUMN LAYOUT (Stretchy Left | Fixed-width Right Sidebar) */}
+        <div className="flex flex-col lg:flex-row gap-8 mb-8">
+
+          {/* LEFT COLUMN - Stretches to fill available space */}
+          <div className="flex-1 min-w-0 space-y-8">
+
+            {/* ASSET PREVIEW (Dynamic based on Type) */}
+            {caseData.overview.main_asset_url ? (
+              <div className="rounded-xl overflow-hidden border border-black bg-white relative group">
+                <div className="absolute top-4 left-4 z-10">
+                  <Badge className="bg-black/70 hover:bg-black/90 text-white border-none backdrop-blur-sm gap-2 pl-2">
+                    {isAudio ? <Mic className="h-3 w-3" /> : <Camera className="h-3 w-3" />}
+                    {isAudio ? 'Audio Original' : 'Captura Original'}
+                  </Badge>
+                </div>
+
+                {isAudio ? (
+                  <div className="h-32 flex items-center justify-center bg-gray-900 text-white w-full">
+                    <audio controls src={caseData.overview.main_asset_url} className="w-full max-w-2xl px-4" />
+                  </div>
+                ) : (
+                  <div className="w-full">
+                    <img
+                      src={caseData.overview.main_asset_url}
+                      alt="Analyzed Media"
+                      className="w-full h-auto object-cover"
+                    />
+                  </div>
+                )}
               </div>
             ) : (
-              <div className="w-full bg-gray-100 flex justify-center">
-                <img 
-                  src={caseData.overview.main_asset_url} 
-                  alt="Analyzed Media" 
-                  className="max-h-[500px] w-auto object-contain"
-                />
+              <div className="rounded-xl overflow-hidden border border-black bg-gray-50 flex items-center justify-center h-[200px]">
+                <div className="text-center text-gray-400">
+                  <Camera className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">Sin imagen disponible</p>
+                </div>
               </div>
             )}
-          </div>
-        )}
 
-        {/* TITLE & SUMMARY BLOCK */}
-        <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm mb-8">
-          <div className="mb-6">
-            <div className="flex items-center gap-2 mb-2 text-gray-500">
-              <FileText className="h-4 w-4" />
-              <span className="text-xs font-bold uppercase tracking-wider">Titular</span>
+            {/* TITULAR */}
+            <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
+              <div className="flex items-center gap-2 mb-2 text-gray-500">
+                <FileText className="h-4 w-4" />
+                <span className="text-xs font-bold uppercase tracking-wider">Titular</span>
+              </div>
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 leading-tight">
+                {caseData.overview.title}
+              </h1>
             </div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 leading-tight">
-              {caseData.overview.title}
-            </h1>
-          </div>
 
-          <div className="mb-4">
-            <div className="flex items-center gap-2 mb-2 text-gray-500">
-              <Activity className="h-4 w-4" />
-              <span className="text-xs font-bold uppercase tracking-wider">Resumen del Análisis</span>
-            </div>
-            <div className="bg-gray-50 p-4 rounded-lg border-l-4 border-[#ffda00]">
-              <p className="text-gray-800 text-sm leading-relaxed whitespace-pre-wrap">
-                {caseData.overview.summary}
-              </p>
-            </div>
-          </div>
-          
-          <div className="flex flex-wrap gap-2 pt-2">
-            {caseData.overview.source_domain && (
-              <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 gap-1.5 py-1">
-                <Globe className="h-3 w-3" /> Fuente: <strong>{caseData.overview.source_domain}</strong>
-              </Badge>
-            )}
-            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 gap-1.5 py-1">
-              <Hash className="h-3 w-3" /> Tipo: <strong>{caseData.type}</strong>
-            </Badge>
-            {caseData.metadata?.theme && (
-              <Badge variant="outline" className="bg-gray-100 text-gray-700 border-gray-200 gap-1.5 py-1">
-                <Activity className="h-3 w-3" /> Tema: <strong>{caseData.metadata.theme}</strong>
-              </Badge>
-            )}
-          </div>
-        </div>
-
-        {/* TWO-COLUMN LAYOUT (Analysis | Sidebar) */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-          
-          {/* LEFT COLUMN (2/3) - MAIN ANALYSIS */}
-          <div className="lg:col-span-2 space-y-8">
-            
             {/* DIAGNOSTIC CARDS ROW */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Infodemic Diagnosis */}
-              <Card className="shadow-sm border-gray-200 overflow-hidden">
-                <CardContent className="p-0">
-                  <div className="p-5 flex justify-between items-start">
+              <Card className="shadow-sm border-2 border-red-400 bg-red-50 overflow-hidden">
+                <CardContent className="p-4">
                     <div className="flex gap-4">
-                      <div className="w-12 h-12 rounded-xl bg-gray-100 border border-gray-200 flex items-center justify-center shrink-0">
-                        <AlertTriangle className="h-6 w-6 text-gray-600" />
+                      <div className="shrink-0">
+                        <AlertTriangle className="h-8 w-8 text-red-500" />
                       </div>
-                      <div>
-                        <h3 className="font-bold text-gray-900">Diagnóstico Infodémico</h3>
-                        <div className="text-xs text-gray-500 font-medium mt-1">Análisis IA</div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <h3 className="text-xl font-bold text-gray-900">Diagnóstico Infodémico</h3>
+                            <div className="flex flex-wrap gap-2 mt-2">
+                              <Badge variant="secondary" className="bg-gray-200 text-gray-700 hover:bg-gray-200">Análisis IA</Badge>
+                              <Badge className="bg-red-100 text-red-700 hover:bg-red-100 border border-red-200">{caseData.overview.verdict_label || 'Pendiente'}</Badge>
+                            </div>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <div className="text-3xl font-black text-red-500">
+                              {caseData.overview.risk_score}%
+                            </div>
+                            <div className="text-xs text-red-400 font-medium">Precisión<br/>diagnóstica</div>
+                          </div>
+                        </div>
+                        <p className="text-sm text-gray-600 mt-4 leading-relaxed">
+                          {caseData.overview.risk_score >= 70
+                            ? "Contenido presenta características de desinformación. Alto riesgo de propagación por apelación emocional."
+                            : caseData.overview.risk_score >= 30
+                            ? "Contenido requiere verificación adicional. Se recomienda análisis crítico."
+                            : "Contenido dentro de parámetros normales. Bajo riesgo de desinformación detectado."}
+                        </p>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <div className={`text-3xl font-black ${getRiskColor(caseData.overview.risk_score)}`}>
-                        {caseData.overview.risk_score}%
-                      </div>
-                      <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Nivel de Riesgo</div>
-                    </div>
-                  </div>
-                  <div className="px-5 py-3 bg-gray-50 border-t border-gray-100">
-                    <p className="text-sm text-gray-900 font-medium">{caseData.overview.verdict_label}</p>
-                  </div>
                 </CardContent>
               </Card>
 
               {/* Human Analysis */}
-              <Card className="shadow-sm border-gray-200 overflow-hidden">
-                <CardContent className="p-0">
-                  <div className="p-5 flex justify-between items-start">
+              <Card className="shadow-sm border-2 border-red-400 bg-red-50 overflow-hidden">
+                <CardContent className="p-4">
                     <div className="flex gap-4">
-                      <div className="w-12 h-12 rounded-xl bg-white border border-gray-200 flex items-center justify-center shrink-0">
-                        <User className="h-6 w-6 text-gray-400" />
+                      <div className="shrink-0">
+                        <User className="h-8 w-8 text-red-500" />
                       </div>
-                      <div>
-                        <h3 className="font-bold text-gray-900">Análisis Humano</h3>
-                        <div className="text-xs text-gray-500 font-medium mt-1">
-                          {caseData.community?.status === 'ai_only' ? 'Sin consenso' : 'Consenso Humano'}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <h3 className="text-xl font-bold text-gray-900">Análisis Humano</h3>
+                            <div className="flex flex-wrap gap-2 mt-2">
+                              <Badge variant="secondary" className="bg-gray-200 text-gray-700 hover:bg-gray-200">Análisis Humano</Badge>
+                              <Badge className="bg-red-100 text-red-700 hover:bg-red-100 border border-red-200">
+                                {caseData.community?.status === 'human_consensus' ? 'Consenso alcanzado' : 'Requiere validación'}
+                              </Badge>
+                            </div>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <div className="text-3xl font-black text-red-500">
+                              {caseData.community?.votes > 0 ? `${Math.min(100, caseData.community.votes * 10)}%` : '--%'}
+                            </div>
+                            <div className="text-xs text-red-400 font-medium">Consenso<br/>humano</div>
+                          </div>
                         </div>
+                        <p className="text-sm text-gray-600 mt-4 leading-relaxed">
+                          {caseData.community?.votes > 0
+                            ? `Los especialistas en AMI confirman que este contenido presenta características de desinformación y requiere un análisis crítico profundo, coincidiendo con la evaluación automatizada.`
+                            : "Aún no hay suficientes validaciones humanas. Tu opinión como especialista es importante para alcanzar consenso."}
+                        </p>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <div className="text-3xl font-black text-gray-300">
-                        {caseData.community?.votes > 0 ? `${Math.min(100, caseData.community.votes * 10)}%` : '--%'}
-                      </div>
-                      <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Consenso</div>
-                    </div>
-                  </div>
-                  <div className="px-5 py-3 bg-gray-50 border-t border-gray-100">
-                    <p className="text-sm text-gray-500 font-medium">
-                      {caseData.community?.votes === 0 
-                        ? "Aún no hay suficientes votos." 
-                        : `${caseData.community?.votes} expertos han participado.`}
-                    </p>
-                  </div>
                 </CardContent>
               </Card>
+            </div>
+
+            {/* CONTENIDO ANALIZADO */}
+            <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
+              <div className="flex items-center gap-2 mb-2 text-gray-500">
+                <FileText className="h-4 w-4" />
+                <span className="text-xs font-bold uppercase tracking-wider">Contenido Analizado</span>
+              </div>
+              <div className="bg-gray-50 p-4 rounded-lg border-l-4 border-[#ffda00]">
+                <p className="text-gray-800 text-sm leading-relaxed whitespace-pre-wrap">
+                  {caseData.overview.summary}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2 pt-4">
+                {caseData.overview.source_domain && (
+                  <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 gap-1.5 py-1">
+                    <Globe className="h-3 w-3" /> Fuente: <strong>{caseData.overview.source_domain}</strong>
+                  </Badge>
+                )}
+                <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 gap-1.5 py-1">
+                  <Hash className="h-3 w-3" /> Tipo: <strong>{caseData.type}</strong>
+                </Badge>
+                {caseData.metadata?.theme && (
+                  <Badge variant="outline" className="bg-gray-100 text-gray-700 border-gray-200 gap-1.5 py-1">
+                    <Activity className="h-3 w-3" /> Tema: <strong>{caseData.metadata.theme}</strong>
+                  </Badge>
+                )}
+              </div>
             </div>
 
             {/* AMI SPECIFIC SECTION */}
@@ -325,16 +382,19 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
 
                 {/* 3. Alerta Titular */}
                 {clickbaitInsight && (
-                  <Card className="shadow-sm border-red-200 bg-red-50/50">
-                    <CardHeader className="pb-2 pt-4 px-4">
-                      <CardTitle className="text-sm font-bold flex items-center gap-2 text-red-800">
-                        <AlertTriangle className="h-4 w-4" /> Alerta: Titular vs. Contenido
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="px-4 pb-4">
-                      <p className="text-sm text-gray-700 leading-relaxed">
-                        {clickbaitInsight.description}
-                      </p>
+                  <Card className="shadow-sm border-2 border-red-400 bg-red-50 overflow-hidden">
+                    <CardContent className="p-4">
+                      <div className="flex gap-4">
+                        <div className="shrink-0">
+                          <AlertTriangle className="h-8 w-8 text-red-500" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-xl font-bold text-gray-900">Alerta: Titular vs. Contenido</h3>
+                          <p className="text-sm text-gray-600 mt-3 leading-relaxed">
+                            {clickbaitInsight.description}
+                          </p>
+                        </div>
+                      </div>
                     </CardContent>
                   </Card>
                 )}
@@ -369,18 +429,18 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
 
           </div>
 
-          {/* RIGHT COLUMN (1/3) - Sidebar */}
-          <div className="space-y-6">
+          {/* RIGHT COLUMN - Fixed width sidebar */}
+          <div className="lg:w-80 lg:flex-shrink-0 space-y-6">
             
             {/* Case Info */}
-            <Card className="shadow-sm border-t-4 border-t-[#FFDA00]">
+            <Card className="shadow-sm border-2" style={{ borderColor: '#FFDA00' }}>
               <CardHeader className="pb-2 pt-4 px-4">
                 <CardTitle className="text-sm font-bold flex items-center gap-2">
                   <FileText className="h-4 w-4 text-[#FFDA00]" /> Información del Caso
                 </CardTitle>
               </CardHeader>
               <CardContent className="px-4 pb-4 space-y-3">
-                <div className="flex justify-between text-sm"><span className="text-gray-500">ID</span><span className="font-mono font-medium text-gray-900 bg-gray-100 px-1.5 py-0.5 rounded text-xs">{caseData.id.substring(0,8).toUpperCase()}</span></div>
+                <div className="flex justify-between text-sm"><span className="text-gray-500">Caso</span><span className="font-mono font-medium text-gray-900 bg-gray-100 px-1.5 py-0.5 rounded text-xs">{caseData.display_id}</span></div>
                 <Separator />
                 <div className="flex justify-between text-sm"><span className="text-gray-500">Tipo</span><span className="font-bold text-gray-900">{caseData.type}</span></div>
                 <Separator />
@@ -393,7 +453,7 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
             </Card>
 
             {/* Statistics */}
-            <Card className="shadow-sm border-l-4 border-l-[#FFDA00]">
+            <Card className="shadow-sm border-2" style={{ borderColor: '#FFDA00' }}>
               <CardHeader className="pb-2 pt-4 px-4">
                 <CardTitle className="text-sm font-bold flex items-center gap-2">
                   <Activity className="h-4 w-4 text-[#FFDA00]" /> Estadísticas
@@ -409,7 +469,7 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
             </Card>
 
             {/* Chain of Custody */}
-            <Card className="shadow-sm">
+            <Card className="shadow-sm border-2" style={{ borderColor: '#FFDA00' }}>
               <CardHeader className="pb-2 pt-4 px-4">
                 <CardTitle className="text-sm font-bold flex items-center gap-2">
                   <Shield className="h-4 w-4 text-[#FFDA00]" /> Cadena de Custodia
@@ -435,13 +495,13 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
               </CardContent>
             </Card>
 
-            {/* Recommendations (Dynamic) */}
-            {caseData.recommendations.length > 0 && (
-              <div className="bg-[#FFFCE8] border border-[#FFDA00]/30 rounded-lg p-4 shadow-sm">
-                <div className="flex items-center gap-2 mb-3">
-                  <Bot className="h-4 w-4 text-[#FFDA00]" />
-                  <span className="font-bold text-gray-900 text-sm">Recomendaciones</span>
-                </div>
+            {/* Recommendations - Always show */}
+            <div className="bg-[#FFFCE8] border-2 rounded-lg p-4 shadow-sm" style={{ borderColor: '#FFDA00' }}>
+              <div className="flex items-center gap-2 mb-3">
+                <Bot className="h-4 w-4 text-[#FFDA00]" />
+                <span className="font-bold text-gray-900 text-sm">Recomendaciones</span>
+              </div>
+              {caseData.recommendations.length > 0 ? (
                 <ul className="space-y-2">
                   {caseData.recommendations.map((rec: string, idx: number) => (
                     <li key={idx} className="text-xs text-gray-700 flex gap-2 items-start">
@@ -450,8 +510,10 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
                     </li>
                   ))}
                 </ul>
-              </div>
-            )}
+              ) : (
+                <p className="text-xs text-gray-500 italic">Sin recomendaciones específicas para este caso.</p>
+              )}
+            </div>
 
             <Button className="w-full bg-[#FFDA00] text-gray-900 hover:bg-[#e6c400]" onClick={handleDownloadImage}>
               <Download className="mr-2 h-4 w-4" /> Descargar Imagen
