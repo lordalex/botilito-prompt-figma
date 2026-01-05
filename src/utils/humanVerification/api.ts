@@ -182,6 +182,58 @@ async function pollJobStatus(jobId: string): Promise<any> {
 }
 
 /**
+ * Determine theme based on case type
+ */
+function determineTheme(type: string): 'Forense' | 'Desinformódico' {
+  const forensicTypes = ['image', 'video', 'audio'];
+  return forensicTypes.includes(type?.toLowerCase()) ? 'Forense' : 'Desinformódico';
+}
+
+/**
+ * Determine AMI level based on case type and analysis results
+ */
+function determineAmiLevel(std: any): string | undefined {
+  const type = std.type?.toLowerCase();
+  const title = std.overview?.title || '';
+  const verdictLabel = std.overview?.verdict_label || '';
+
+  // For forensic cases (image/video/audio), derive from verdict
+  if (['image', 'video', 'audio'].includes(type)) {
+    const combinedText = `${title} ${verdictLabel}`.toUpperCase();
+
+    if (combinedText.includes('AUTÉNTICO') || combinedText.includes('AUTHENTIC')) {
+      return 'Cumple las premisas AMI'; // Shows "✓ Sin alteraciones"
+    }
+    if (combinedText.includes('MANIPULADO') || combinedText.includes('MANIPULATED')) {
+      return 'No cumple las premisas AMI'; // Shows "Manipulado Digitalmente"
+    }
+    if (combinedText.includes('SINTÉTICO') || combinedText.includes('SYNTHETIC') ||
+        combinedText.includes('GENERADO POR IA') || combinedText.includes('AI GENERATED')) {
+      return 'Generado por IA';
+    }
+    // Default for forensic with unclear verdict
+    return 'Requiere un enfoque AMI';
+  }
+
+  // For text/URL cases, calculate from AMI criteria insights
+  const amiInsights = (std.insights || []).filter((i: any) =>
+    i.id?.startsWith('ami_crit') || i.category === 'content_quality'
+  );
+
+  if (amiInsights.length > 0) {
+    const avgScore = amiInsights.reduce((sum: number, i: any) => sum + (i.score || 0), 0) / amiInsights.length;
+
+    if (avgScore >= 80) return 'Desarrolla las estrategias AMI';
+    if (avgScore >= 60) return 'Cumple las premisas AMI';
+    if (avgScore >= 40) return 'Requiere un enfoque AMI';
+    return 'No cumple las premisas AMI';
+  }
+
+  // Default if no AMI data available
+  return undefined;
+}
+
+/**
  * Transform StandardizedCase to CaseEnriched for backward compatibility
  */
 function transformStandardizedToEnriched(std: any): CaseEnriched {
@@ -230,6 +282,8 @@ function transformStandardizedToEnriched(std: any): CaseEnriched {
     metadata: {
       screenshotUrl: std.overview?.main_asset_url,
       reported_by: std.reporter, // Map reporter to metadata.reported_by for list display
+      theme: determineTheme(std.type), // Theme badge: "Forense" or "Desinformódico"
+      amiLevel: determineAmiLevel(std), // AMI compliance level badge
       ...std.metadata
     },
     state: consensusState === 'consensus' || consensusState === 'human_only' ? 'human_consensus' : 'ai_only',

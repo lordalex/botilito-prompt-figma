@@ -192,9 +192,9 @@ export function transformToListItem(caseData: ValidationCaseDTO): ValidationCase
     reportedBy: caseData.metadata?.reported_by?.name || 'Usuario anónimo',
     humanValidatorsCount: caseData.human_votes?.count || 0,
     consensusState: caseData.consensus?.state || 'ai_only',
-    theme: caseData.metadata?.ai_analysis?.summaries?.theme,
+    theme: caseData.metadata?.theme || caseData.metadata?.ai_analysis?.summaries?.theme,
     amiScore: caseData.metadata?.ai_analysis?.classification?.indiceCumplimientoAMI?.score,
-    amiLevel: caseData.metadata?.ai_analysis?.classification?.indiceCumplimientoAMI?.nivel,
+    amiLevel: caseData.metadata?.amiLevel || caseData.metadata?.ai_analysis?.classification?.indiceCumplimientoAMI?.nivel,
     screenshotUrl: caseData.metadata?.screenshot,
   };
 }
@@ -273,9 +273,9 @@ export function transformEnrichedToListItem(caseData: CaseEnrichedCompatible): V
     reportedBy: caseData.metadata?.reported_by?.name || 'Usuario anónimo',
     humanValidatorsCount: caseData.human_votes?.count || 0,
     consensusState: (caseData.consensus?.state as ConsensusState) || 'ai_only',
-    theme: caseData.metadata?.ai_analysis?.summaries?.theme,
+    theme: caseData.metadata?.theme || caseData.metadata?.ai_analysis?.summaries?.theme,
     amiScore: caseData.metadata?.ai_analysis?.classification?.indiceCumplimientoAMI?.score,
-    amiLevel: caseData.metadata?.ai_analysis?.classification?.indiceCumplimientoAMI?.nivel,
+    amiLevel: caseData.metadata?.amiLevel || caseData.metadata?.ai_analysis?.classification?.indiceCumplimientoAMI?.nivel,
     screenshotUrl: caseData.metadata?.screenshot,
   };
 }
