@@ -1,3 +1,52 @@
+/**
+ * @file ContentReview.tsx
+ * @description Historial (History) tab component showing all analyzed cases.
+ *
+ * ## LLM CONTEXT - PAGE COMPONENT
+ *
+ * This component renders the "Historial" tab in the main application.
+ * It displays a historical view of all cases analyzed by Botilito.
+ *
+ * ### Key Differences from HumanVerification.tsx:
+ * - HumanVerification: Shows pending cases awaiting human validation
+ * - ContentReview: Shows ALL cases (completed, verified, etc.) for historical review
+ *
+ * ### Component Structure:
+ * ```
+ * ContentReview
+ * ├── BotilitoBanner (yellow #ffe97a with mascot image)
+ * ├── HeaderSection (title + refresh button)
+ * ├── StatsCards (4 cards: Total, Verified, AI Only, Misinformation)
+ * ├── ErrorState (conditional - red banner if error)
+ * └── CaseList (shared component with custom title/description)
+ * ```
+ *
+ * ### Data Flow:
+ * ```
+ * useCaseHistory hook
+ *     ↓
+ * { cases, loading, error, stats, refresh }
+ *     ↓
+ * StatsCards use stats for counts
+ *     ↓
+ * CaseList receives cases with isEnrichedFormat=true
+ *     ↓
+ * onViewTask callback navigates to case detail
+ * ```
+ *
+ * ### Props:
+ * - onViewTask(caseId, 'caseDetail', 'completed'): Navigate to case detail view
+ *
+ * ### Reusable Patterns:
+ * 1. **CaseList Integration**: Pass isEnrichedFormat=true for CaseEnriched[] data
+ * 2. **Stats Derivation**: Stats come from hook, computed from cases array
+ * 3. **Botilito Banner**: Consistent yellow banner with mascot
+ *
+ * @see useCaseHistory.ts - Data fetching hook
+ * @see CaseList.tsx - Shared list component
+ * @see HumanVerification.tsx - Similar page for validation workflow
+ */
+
 import React from 'react';
 import botilitoImage from 'figma:asset/e27a276e6ff0e187a67cf54678c265c1c38adbf7.png';
 import {
@@ -9,6 +58,7 @@ import { useCaseHistory } from '@/hooks/useCaseHistory';
 import { CaseList } from './CaseList';
 
 interface ContentReviewProps {
+  /** Callback when a case is selected - navigates to detail view */
   onViewTask: (jobId: string, type: string, status?: string) => void;
 }
 

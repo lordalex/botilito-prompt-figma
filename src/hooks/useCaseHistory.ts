@@ -1,3 +1,61 @@
+/**
+ * @file useCaseHistory.ts
+ * @description React hook for fetching and managing case history data.
+ *
+ * ## LLM CONTEXT - HOOK ARCHITECTURE
+ *
+ * This hook powers the "Historial" (History) tab in ContentReview.tsx.
+ * It fetches the same data as useHumanVerification but is used for viewing
+ * completed/historical cases rather than pending validation cases.
+ *
+ * ### Why Use fetchVerificationSummary?
+ * Both Historial and Validación Humana need IDENTICAL data transformations:
+ * - Theme color mapping
+ * - AMI level badge generation
+ * - Reporter name extraction
+ * - Display ID formatting
+ *
+ * By using the same API function, we guarantee visual consistency across tabs.
+ *
+ * ### Data Flow:
+ * ```
+ * fetchVerificationSummary(page, pageSize)
+ *     ↓
+ * API: GET /functions/v1/get-verification-summary
+ *     ↓
+ * Response enrichment (theme, AMI levels, display IDs)
+ *     ↓
+ * CaseEnriched[] stored in state
+ *     ↓
+ * Passed to CaseList with isEnrichedFormat=true
+ * ```
+ *
+ * ### State Management:
+ * - `cases`: Array of enriched case objects
+ * - `loading`: Boolean for loading state
+ * - `error`: Error message string (null if no error)
+ * - `stats`: Derived statistics (total, verified, aiOnly, misinformation)
+ * - `pagination`: Page controls (currentPage, setCurrentPage, hasMore)
+ * - `filters`: Status filter controls (not fully implemented on backend yet)
+ *
+ * ### Usage Example:
+ * ```tsx
+ * const { cases, loading, error, stats, refresh } = useCaseHistory();
+ *
+ * return (
+ *   <CaseList
+ *     cases={cases}
+ *     isLoading={loading}
+ *     isEnrichedFormat={true}  // CRITICAL: Must be true for CaseEnriched[]
+ *   />
+ * );
+ * ```
+ *
+ * @see ContentReview.tsx - Consumer component
+ * @see @/utils/humanVerification/api.ts - API functions
+ * @see useHumanVerification.ts - Similar hook for validation tab
+ */
+
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { fetchVerificationSummary } from '@/utils/humanVerification/api';
 import type { CaseEnriched } from '@/utils/humanVerification/types';

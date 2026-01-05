@@ -1,3 +1,44 @@
+/**
+ * @file CaseList.tsx
+ * @description Unified list component for displaying cases across the application.
+ *
+ * ## LLM CONTEXT - ARCHITECTURE OVERVIEW
+ *
+ * This is the SINGLE SOURCE OF TRUTH for case listing in Botilito.
+ * It replaces all previous list implementations (CaseValidationList, Historial, CaseListView).
+ *
+ * ### Key Design Patterns:
+ * 1. **Configurable Props**: Title, description, emptyMessage allow reuse across different views
+ * 2. **Data Format Agnostic**: Accepts 3 different DTO formats via isEnrichedFormat/isStandardizedFormat flags
+ * 3. **Transformation Layer**: Uses transform functions from @/types/validation to normalize data
+ * 4. **Client-side Filtering**: Search and content type filters applied in useMemo
+ *
+ * ### Usage Contexts:
+ * - HumanVerification.tsx: Shows pending cases for validation (isEnrichedFormat=true)
+ * - ContentReview.tsx: Shows historical cases (isEnrichedFormat=true)
+ * - Future views can pass isStandardizedFormat=true for DTO.json format
+ *
+ * ### Data Flow:
+ * ```
+ * API Response → Hook (useCaseHistory/useHumanVerification)
+ *     ↓
+ * CaseEnriched[] or ValidationCaseDTO[] or StandardizedCase[]
+ *     ↓
+ * CaseList receives raw cases + format flag
+ *     ↓
+ * Transform functions normalize to ValidationCaseListItemDTO[]
+ *     ↓
+ * Client-side filters applied (search, contentType)
+ *     ↓
+ * CaseListItem renders each normalized item
+ * ```
+ *
+ * @see CaseListItem.tsx - Individual row rendering
+ * @see @/types/validation.ts - Type definitions and transform functions
+ * @see @/hooks/useCaseHistory.ts - Data fetching hook for Historial
+ * @see @/hooks/useHumanVerification.ts - Data fetching hook for Validación Humana
+ */
+
 import { useState, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -32,6 +73,34 @@ const filterOptions: { value: FilterOption; label: string }[] = [
   { value: 'url', label: 'Solo URLs' },
 ];
 
+/**
+ * Props for the CaseList component.
+ *
+ * ## LLM GUIDE - How to Use This Component
+ *
+ * ### Basic Usage (Enriched Format - Most Common):
+ * ```tsx
+ * <CaseList
+ *   cases={cases}                    // From useCaseHistory or useHumanVerification
+ *   onViewTask={handleSelectCase}    // (caseId, contentType, status?) => void
+ *   isLoading={loading}
+ *   isEnrichedFormat={true}          // IMPORTANT: Set this for CaseEnriched data
+ *   title="Mi Título"
+ *   description="Mi descripción"
+ *   emptyMessage="No hay casos"
+ * />
+ * ```
+ *
+ * ### Format Flags (mutually exclusive):
+ * - `isEnrichedFormat=true`: Data comes from useHumanVerification/useCaseHistory hooks
+ * - `isStandardizedFormat=true`: Data comes from new DTO.json format
+ * - Neither flag: Assumes raw ValidationCaseDTO[] from backend
+ *
+ * ### Customization Points:
+ * - `title`: Header text (default: "Casos Pendientes de Validación")
+ * - `description`: Subheader text
+ * - `emptyMessage`: Shown when no cases match filters
+ */
 export interface CaseListProps {
   /** Casos en formato DTO del backend o CaseEnriched del hook */
   cases: ValidationCaseDTO[] | CaseEnrichedCompatible[] | StandardizedCase[];

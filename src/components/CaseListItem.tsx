@@ -1,3 +1,36 @@
+/**
+ * @file CaseListItem.tsx
+ * @description Individual row component for rendering a case in the CaseList.
+ *
+ * ## LLM CONTEXT - COMPONENT OVERVIEW
+ *
+ * This component renders a single case row with:
+ * - Content type icon (text, image, video, audio, url)
+ * - Case code badge (e.g., "I-20240115-ABC")
+ * - Theme badge (Desinformódico/Forense) - if applicable
+ * - Title and metadata (date, reporter, validators count)
+ * - AMI compliance level badge with icon
+ *
+ * ### Design System Integration:
+ * - Uses brand colors from CLAUDE.md (--accent for yellow backgrounds)
+ * - AMI badge colors follow the compliance level styling guide
+ * - Theme badges use semantic colors (red for Desinformódico, purple for Forense)
+ *
+ * ### Data Flow:
+ * - Receives normalized `ValidationCaseListItemDTO` (already transformed from any source format)
+ * - onClick callback returns (id, contentType) for navigation
+ *
+ * ### AMI Compliance Levels (from CLAUDE.md):
+ * - "Desarrolla las estrategias AMI" → Green (best)
+ * - "Cumple las premisas AMI" → Green (good)
+ * - "Requiere un enfoque AMI" → Orange (warning)
+ * - "No cumple las premisas AMI" → Red (manipulated)
+ * - "Generado por IA" → Purple (synthetic content)
+ *
+ * @see CaseList.tsx - Parent component that renders multiple CaseListItems
+ * @see @/types/validation.ts - Type definitions (ValidationCaseListItemDTO)
+ */
+
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import {
