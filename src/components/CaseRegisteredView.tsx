@@ -294,7 +294,7 @@ export function CaseRegisteredView({ caseData, onReportAnother, jobId }: CaseReg
                   <h4 className="text-xs font-semibold text-orange-800">Advertencia sobre el uso de IA</h4>
                   <p className="text-xs text-gray-700 leading-relaxed">
                     El análisis automatizado utiliza IA para detectar posibles alteraciones en operaciones de{' '}
-                    <strong>forensica digital</strong> y aplicar análisis de noticias con un enfoque{' '}
+                    <strong>forensica digital</strong> y aplicar análisis de contenidos con un enfoque{' '}
                     <strong>estrictamente AMI</strong>.
                   </p>
                   <p className="text-xs text-gray-700 leading-relaxed">
