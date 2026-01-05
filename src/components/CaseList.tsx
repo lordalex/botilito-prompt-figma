@@ -32,7 +32,7 @@ const filterOptions: { value: FilterOption; label: string }[] = [
   { value: 'url', label: 'Solo URLs' },
 ];
 
-export interface CaseValidationListProps {
+export interface CaseListProps {
   /** Casos en formato DTO del backend o CaseEnriched del hook */
   cases: ValidationCaseDTO[] | CaseEnrichedCompatible[] | StandardizedCase[];
   /** Callback cuando se selecciona un caso para ver la tarea */
@@ -43,15 +43,24 @@ export interface CaseValidationListProps {
   isEnrichedFormat?: boolean;
   /** Indica si los casos vienen del formato StandardizedCase (DTO.json) */
   isStandardizedFormat?: boolean;
+  /** Título configurable del listado */
+  title?: string;
+  /** Descripción configurable del listado */
+  description?: string;
+  /** Mensaje cuando no hay casos */
+  emptyMessage?: string;
 }
 
-export function CaseValidationList({
+export function CaseList({
   cases,
   onViewTask,
   isLoading = false,
   isEnrichedFormat = false,
   isStandardizedFormat = false,
-}: CaseValidationListProps) {
+  title = 'Casos Pendientes de Validación',
+  description = 'Revisa y valida los análisis realizados por la IA',
+  emptyMessage = 'No hay casos pendientes de validación',
+}: CaseListProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [filter, setFilter] = useState<FilterOption>('todos');
 
@@ -98,7 +107,7 @@ export function CaseValidationList({
                 <Layers className="h-5 w-5 text-gray-800" />
               </div>
               <div>
-                <CardTitle className="text-xl font-bold">Casos Pendientes de Validación</CardTitle>
+                <CardTitle className="text-xl font-bold">{title}</CardTitle>
               </div>
             </div>
             <Badge
@@ -109,7 +118,7 @@ export function CaseValidationList({
               # {cases.length} casos
             </Badge>
           </div>
-          <CardDescription>Revisa y valida los análisis realizados por la IA</CardDescription>
+          <CardDescription>{description}</CardDescription>
         </div>
 
         {/* Barra de búsqueda y filtros */}
@@ -153,7 +162,7 @@ export function CaseValidationList({
           <div className="text-center py-12 text-muted-foreground">
             {searchQuery || filter !== 'todos'
               ? 'No se encontraron casos con los filtros aplicados'
-              : 'No hay casos pendientes de validación'}
+              : emptyMessage}
           </div>
         ) : (
           filteredCases.map((caseItem) => (
@@ -168,3 +177,9 @@ export function CaseValidationList({
     </Card>
   );
 }
+
+/** @deprecated Use CaseList instead - kept for backwards compatibility */
+export const CaseValidationList = CaseList;
+
+/** @deprecated Use CaseListProps instead */
+export type CaseValidationListProps = CaseListProps;

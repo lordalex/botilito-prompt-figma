@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { fetchHistorialSummary } from '@/services/vectorAsyncService';
-import type { EnrichedCase } from '@/types/vector-api';
+import { fetchVerificationSummary } from '@/utils/humanVerification/api';
+import type { CaseEnriched } from '@/utils/humanVerification/types';
 
 export function useCaseHistory() {
   // Data State
-  const [cases, setCases] = useState<EnrichedCase[]>([]);
+  const [cases, setCases] = useState<CaseEnriched[]>([]);
   const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -18,13 +18,13 @@ export function useCaseHistory() {
     try {
       setLoading(true);
       setError(null);
-      
-      const result = await fetchHistorialSummary(currentPage, pageSize);
-      
+
+      // Use the same API function as HumanVerification for consistent transformations
+      const result = await fetchVerificationSummary(currentPage, pageSize);
+
       setCases(result.cases || []);
-      // The API returns 'hasMore', not 'totalCount', so we can't calculate total pages perfectly
       setHasMore(result.pagination.hasMore);
-      
+
     } catch (err: any) {
       console.error('Error fetching history:', err);
       setError(String(err.message || err) || "Error desconocido al cargar historial");

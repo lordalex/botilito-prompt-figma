@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useHumanVerification } from '../hooks/useHumanVerification';
 import { VerificationSuccessDialog } from './VerificationSuccessDialog';
 import { VoteSubmittedDialog } from './VoteSubmittedDialog';
-import { CaseValidationList } from './CaseValidationList';
+import { CaseList } from './CaseList';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Progress } from './ui/progress';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
@@ -198,7 +198,7 @@ export function HumanVerification() {
         </p>
       </div>
 
-      <CaseValidationList
+      <CaseList
         cases={cases}
         onViewTask={handleSelectCase}
         isLoading={isLoading}
