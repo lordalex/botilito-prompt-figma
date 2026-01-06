@@ -1,0 +1,129 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "API de Análisis de Imagen Forense",
+    "version": "3.0.0",
+    "description": "API especializada en detección de manipulación visual. Devuelve un objeto 'StandardizedCase' completamente enriquecido con mapas de calor, máscaras binarias y recortes de objetos detectados.",
+    "contact": { "name": "Soporte Técnico" }
+  },
+  "servers": [
+    { "url": "https://mdkswlgcqsmgfmcuorxq.supabase.co/functions/v1/image-analysis-DTO" }
+  ],
+  "paths": {
+    "/submit": {
+      "post": {
+        "summary": "Iniciar Análisis",
+        "description": "Sube una imagen (Base64) para análisis asíncrono. Retorna un Job ID.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["image_base64"],
+                "properties": {
+                  "image_base64": { "type": "string", "description": "Imagen codificada en Base64." },
+                  "use_cache": { "type": "boolean", "default": true }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Aceptado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "job_id": { "type": "string", "format": "uuid" },
+                    "status": { "type": "string", "example": "processing" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/status/{jobId}": {
+      "get": {
+        "summary": "Obtener Resultado Completo",
+        "parameters": [{ "name": "jobId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": {
+            "description": "Resultado Exitoso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string", "example": "completed" },
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "standardized_case": {
+                          "type": "object",
+                          "properties": {
+                            "id": { "type": "string", "format": "uuid" },
+                            "type": { "type": "string", "enum": ["image", "video"] },
+                            "created_at": { "type": "string", "format": "date-time" },
+                            "lifecycle": {
+                              "type": "object",
+                              "properties": {
+                                "job_status": { "type": "string", "example": "completed" },
+                                "custody_status": { "type": "string", "example": "ai_processed" }
+                              }
+                            },
+                            "overview": {
+                              "type": "object",
+                              "properties": {
+                                "title": { "type": "string", "example": "Análisis Forense Visual" },
+                                "summary": { "type": "string", "example": "Riesgo detectado: 85%." },
+                                "verdict_label": { "type": "string", "example": "TAMPERED" },
+                                "risk_score": { "type": "number", "example": 85 },
+                                "main_asset_url": { "type": "string", "format": "uri" }
+                              }
+                            },
+                            "insights": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "id": { "type": "string", "example": "algo_ela" },
+                                  "category": { "type": "string", "enum": ["forensics", "metadata", "content_quality"] },
+                                  "label": { "type": "string", "example": "ELA" },
+                                  "value": { "type": "string", "example": "95%" },
+                                  "score": { "type": "number", "description": "0 (Malo) a 100 (Bueno)", "example": 5 },
+                                  "description": { "type": "string", "example": "Alta varianza en niveles de error." },
+                                  "artifacts": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "type": { "type": "string", "enum": ["image_url", "text_snippet"] },
+                                        "content": { "type": "string", "format": "uri", "description": "URL de la imagen visualizada (heatmap/mask)" },
+                                        "label": { "type": "string", "example": "Mapa de Calor" }
+                                      }
+                                    }
+                                  },
+                                  "raw_data": { "type": "object", "description": "Datos crudos (JSON libre) para uso avanzado." }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+

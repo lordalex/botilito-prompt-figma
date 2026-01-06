@@ -1,0 +1,322 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Botilito Text Analysis DTO API",
+    "description": "API for analyzing text/web content. It returns a **StandardizedCase DTO** populated with specific insights derived from the AMI/UNESCO framework, Internal Fact-Checking, and Forensic Text Analysis.\n\n**Server Endpoint:** `https://mdkswlgcqsmgfmcuorxq.supabase.co/functions/v1/text-analysis-DTO`",
+    "version": "2.5.0",
+    "contact": {
+      "name": "API Support",
+      "email": "dev@botilito.dev"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://mdkswlgcqsmgfmcuorxq.supabase.co/functions/v1/text-analysis-DTO",
+      "description": "Production Edge Function"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Supabase User Token"
+      }
+    },
+    "schemas": {
+      "SubmitRequest": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "Target URL to scrape and analyze.",
+            "example": "https://www.bbc.com/mundo/noticias-america-latina-12345"
+          },
+          "text": {
+            "type": "string",
+            "description": "Direct text input (fallback if URL is not provided).",
+            "example": "Cadena de WhatsApp: El gobierno decretará estado de sitio mañana..."
+          },
+          "use_cache": {
+            "type": "boolean",
+            "default": false,
+            "description": "If `true`, returns existing DB result immediately. If `false`, forces fresh analysis."
+          }
+        },
+        "required": ["user_id"]
+      },
+      "JobResponse": {
+        "type": "object",
+        "properties": {
+          "job_id": { "type": "string", "format": "uuid" },
+          "status": { "type": "string", "enum": ["queued", "processing", "completed", "failed"] },
+          "data": { "$ref": "#/components/schemas/DTOContainer" }
+        }
+      },
+      "DTOContainer": {
+        "type": "object",
+        "properties": {
+          "standardized_case": { "$ref": "#/components/schemas/StandardizedCase" }
+        }
+      },
+      "StandardizedCase": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "created_at": { "type": "string", "format": "date-time" },
+          "type": { "type": "string", "enum": ["text"], "example": "text" },
+          "lifecycle": { "$ref": "#/components/schemas/Lifecycle" },
+          "overview": { "$ref": "#/components/schemas/Overview" },
+          "insights": {
+            "type": "array",
+            "description": "List of specific analysis findings. For Text Analysis, this includes AMI Criteria, Fact Checks, Competencies, and Forensics.",
+            "items": {
+              "oneOf": [
+                { "$ref": "#/components/schemas/Insight_AMICriterion" },
+                { "$ref": "#/components/schemas/Insight_FactCheck" },
+                { "$ref": "#/components/schemas/Insight_Competency" },
+                { "$ref": "#/components/schemas/Insight_Forensics" },
+                { "$ref": "#/components/schemas/Insight_Metadata" }
+              ]
+            }
+          },
+          "reporter": { "$ref": "#/components/schemas/Reporter" },
+          "community": { "$ref": "#/components/schemas/Community" }
+        }
+      },
+      "Lifecycle": {
+        "type": "object",
+        "properties": {
+          "job_status": { "type": "string", "example": "completed" },
+          "custody_status": { 
+            "type": "string", 
+            "enum": ["analyzing", "ai_processed", "human_review", "finalized"],
+            "description": "Current stage in the verification chain. 'ai_processed' means AI is done."
+          },
+          "last_update": { "type": "string", "format": "date-time" }
+        }
+      },
+      "Overview": {
+        "type": "object",
+        "properties": {
+          "title": { "type": "string" },
+          "summary": { "type": "string" },
+          "verdict_label": { "type": "string", "example": "Necesita Estrategias AMI" },
+          "risk_score": { "type": "number", "description": "Global AMI Compliance Score (0-100)." },
+          "main_asset_url": { "type": "string", "format": "uri", "nullable": true, "description": "URL to the screenshot of the analyzed content." },
+          "source_domain": { "type": "string" }
+        }
+      },
+      "Insight_AMICriterion": {
+        "type": "object",
+        "description": "Represents one of the 20 UNESCO AMI Criteria evaluations.",
+        "properties": {
+          "id": { "type": "string", "example": "ami_claridad_fuente" },
+          "category": { "type": "string", "enum": ["content_quality"] },
+          "label": { "type": "string", "example": "Claridad de la Fuente" },
+          "value": { "type": "string", "enum": ["Cumple", "Parcial", "No Cumple"] },
+          "score": { "type": "number", "enum": [0, 50, 100] },
+          "description": { "type": "string", "example": "El artículo no cita fuentes primarias, solo menciona 'fuentes cercanas'." },
+          "artifacts": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Artifact" }
+          },
+          "raw_data": {
+            "type": "object",
+            "properties": {
+              "nombre": { "type": "string" },
+              "score": { "type": "number", "example": 0.5 },
+              "justificacion": { "type": "string" },
+              "cita": { "type": "string" },
+              "referencia": { "type": "string" }
+            }
+          }
+        }
+      },
+      "Insight_FactCheck": {
+        "type": "object",
+        "description": "Verification of a specific factual claim found in the text.",
+        "properties": {
+          "id": { "type": "string", "example": "fc_0" },
+          "category": { "type": "string", "enum": ["fact_check"] },
+          "label": { "type": "string", "const": "Verificación de Afirmación" },
+          "value": { "type": "string", "enum": ["Verificado", "Refutado", "No Verificable"] },
+          "score": { "type": "number", "description": "100 (Verified), 50 (Unverifiable), 0 (Refuted)" },
+          "description": { "type": "string", "description": "The extracted claim." },
+          "artifacts": { "type": "array", "items": { "$ref": "#/components/schemas/Artifact" } },
+          "raw_data": {
+            "type": "object",
+            "properties": {
+              "claim": { "type": "string" },
+              "verdict": { "type": "string" },
+              "explanation": { "type": "string" }
+            }
+          }
+        }
+      },
+      "Insight_Competency": {
+        "type": "object",
+        "description": "Evaluation of the 4 Methodological Pillars (Access, Evaluation, Context, Production).",
+        "properties": {
+          "id": { "type": "string", "example": "comp_evaluacion_critica" },
+          "category": { "type": "string", "enum": ["compliance"] },
+          "label": { "type": "string", "example": "EVALUACION CRITICA" },
+          "value": { "type": "string", "enum": ["Fuerte", "Débil"] },
+          "score": { "type": "number", "example": 80 },
+          "description": { "type": "string", "example": "El texto permite contrastar datos..." },
+          "raw_data": {
+            "type": "object",
+            "properties": {
+              "analisis": { "type": "string" },
+              "calificacion": { "type": "number", "example": 0.8 }
+            }
+          }
+        }
+      },
+      "Insight_Forensics": {
+        "type": "object",
+        "description": "Technical analysis results (Clickbait detection, Headline coherence).",
+        "properties": {
+          "id": { "type": "string", "example": "tech_clickbait" },
+          "category": { "type": "string", "enum": ["forensics"] },
+          "label": { "type": "string", "const": "Detección de Clickbait" },
+          "value": { "type": "string", "example": "Clickbait Detectado" },
+          "score": { "type": "number", "description": "0 if clickbait, 100 if coherent." },
+          "description": { "type": "string" },
+          "raw_data": {
+            "type": "object",
+            "properties": {
+              "es_clickbait": { "type": "boolean" },
+              "concordancia": { "type": "string" },
+              "analisis": { "type": "string" }
+            }
+          }
+        }
+      },
+      "Insight_Metadata": {
+        "type": "object",
+        "description": "Source and Data analysis.",
+        "properties": {
+          "id": { "type": "string", "example": "tech_sources" },
+          "category": { "type": "string", "enum": ["metadata"] },
+          "label": { "type": "string", "const": "Análisis de Fuentes" },
+          "value": { "type": "string", "example": "Fuentes Sólidas" },
+          "score": { "type": "null" },
+          "description": { "type": "string" },
+          "raw_data": {
+            "type": "object",
+            "properties": {
+              "conclusion": { "type": "string" },
+              "analisis": { "type": "string" }
+            }
+          }
+        }
+      },
+      "Artifact": {
+        "type": "object",
+        "properties": {
+          "type": { "type": "string", "enum": ["text_snippet", "image_url"] },
+          "content": { "type": "string" },
+          "label": { "type": "string" }
+        }
+      },
+      "Reporter": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "reputation": { "type": "number" }
+        }
+      },
+      "Community": {
+        "type": "object",
+        "properties": {
+          "votes": { "type": "integer" },
+          "status": { "type": "string" }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/submit": {
+      "post": {
+        "summary": "Submit Text Analysis Job",
+        "description": "Queues a new analysis. The backend scrapes the URL (if provided), takes a screenshot, and runs the AI pipeline.",
+        "requestBody": {
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SubmitRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "Job Queued", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/JobResponse" } } } }
+        }
+      }
+    },
+    "/status/{job_id}": {
+      "get": {
+        "summary": "Poll Analysis Results",
+        "description": "Returns the status. When `completed`, returns the `StandardizedCase` containing all Text Analysis insights.",
+        "parameters": [
+          { "name": "job_id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Completed Result",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/JobResponse" },
+                "example": {
+                  "job_id": "550e8400-...",
+                  "status": "completed",
+                  "data": {
+                    "standardized_case": {
+                      "id": "123",
+                      "created_at": "2025-12-30T10:00:00Z",
+                      "type": "text",
+                      "lifecycle": {
+                        "job_status": "completed",
+                        "custody_status": "ai_processed",
+                        "last_update": "2025-12-30T10:05:00Z"
+                      },
+                      "overview": {
+                        "title": "Avistamiento OVNI",
+                        "summary": "Noticia falsa sobre aliens.",
+                        "verdict_label": "Necesita Estrategias AMI",
+                        "risk_score": 45.0,
+                        "main_asset_url": "https://r2.dev/img.jpg",
+                        "source_domain": "fake.com"
+                      },
+                      "insights": [
+                        {
+                          "id": "ami_claridad_fuente",
+                          "category": "content_quality",
+                          "label": "Claridad de la Fuente",
+                          "value": "No Cumple",
+                          "score": 0,
+                          "description": "No se citan fuentes.",
+                          "raw_data": { "score": 0, "nombre": "Claridad..." }
+                        },
+                        {
+                          "id": "fc_0",
+                          "category": "fact_check",
+                          "label": "Verificación de Afirmación",
+                          "value": "Refutado",
+                          "score": 0,
+                          "description": "El evento no ocurrió.",
+                          "raw_data": { "claim": "Aliens...", "verdict": "Refutado" }
+                        }
+                      ],
+                      "reporter": { "id": "u1", "name": "User", "reputation": 10 },
+                      "community": { "votes": 0, "status": "ai_only" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+

@@ -7,7 +7,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 
-export function NotificationCenter({ onViewTask }: { onViewTask: (jobId: string, type: string) => void }) {
+export function NotificationCenter({ onViewTask, onViewAllNotifications }: {
+    onViewTask: (jobId: string, type: string, status?: string) => void;
+    onViewAllNotifications?: () => void;
+}) {
     const {
         notifications,
         unreadCount,
@@ -19,11 +22,13 @@ export function NotificationCenter({ onViewTask }: { onViewTask: (jobId: string,
     const handleViewTask = (jobId: string, metadata: any) => {
         // Map the metadata source to the job type expected by the App component
         const jobType = metadata?.source === 'upload' ? 'image_analysis' :
-                        metadata?.source === 'audio-upload' ? 'audio_analysis' :
-                        metadata?.source === 'ai-analysis' ? 'text_analysis' : 'unknown';
-        
+            metadata?.source === 'audio-upload' ? 'audio_analysis' :
+                metadata?.source === 'ai-analysis' ? 'text_analysis' : 'unknown';
+
+        const status = metadata?.final_status || 'unknown';
+
         if (jobType !== 'unknown') {
-            onViewTask(jobId, jobType);
+            onViewTask(jobId, jobType, status);
         }
     };
 
@@ -32,18 +37,35 @@ export function NotificationCenter({ onViewTask }: { onViewTask: (jobId: string,
             case 'success': return <CheckCircle className="h-4 w-4 text-green-500" />;
             case 'warning': return <AlertTriangle className="h-4 w-4 text-yellow-500" />;
             case 'error': return <AlertCircle className="h-4 w-4 text-red-500" />;
-            case 'system': return <RefreshCw className="h-4 w-4 text-blue-500" />;
             default: return <Info className="h-4 w-4 text-gray-500" />;
         }
     };
 
+    const uniqueNotifications = React.useMemo(() => {
+        const seenJobs = new Set<string>();
+        return notifications.filter(n => {
+            const jobId = n.metadata?.job_id;
+            if (jobId) {
+                if (seenJobs.has(jobId)) return false;
+                seenJobs.add(jobId);
+            }
+            return true;
+        });
+    }, [notifications]);
+
     return (
         <Popover>
             <PopoverTrigger asChild>
-                <Button variant="ghost" size="icon" className="relative">
-                    <Bell className="h-5 w-5" />
+                <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="relative h-12 w-12 rounded-full p-0 bg-white hover:bg-primary transition-colors"
+                >
+                    <Bell className="h-5 w-5 text-gray-800" />
                     {unreadCount > 0 && (
-                        <span className="absolute top-1 right-1 h-3 w-3 bg-red-500 rounded-full animate-pulse" />
+                        <span className="absolute -top-1 -right-1 h-5 w-5 bg-red-500 rounded-full flex items-center justify-center text-white text-xs font-bold border-2 border-white">
+                            {unreadCount > 9 ? '9+' : unreadCount}
+                        </span>
                     )}
                 </Button>
             </PopoverTrigger>
@@ -69,44 +91,59 @@ export function NotificationCenter({ onViewTask }: { onViewTask: (jobId: string,
 
                     <TabsContent value="inbox" className="m-0">
                         <ScrollArea className="h-[300px]">
-                            {notifications.length === 0 ? (
+                            {uniqueNotifications.filter(n => !n.is_read).length === 0 ? (
                                 <div className="p-8 text-center text-muted-foreground text-xs">
-                                    No hay notificaciones
+                                    No hay notificaciones nuevas
                                 </div>
                             ) : (
                                 <div className="divide-y">
-                                    {notifications.map(n => (
-                                        <div
-                                            key={n.id}
-                                            className={`p-3 text-sm hover:bg-gray-50 transition-colors ${!n.is_read ? 'bg-blue-50/50' : ''}`}
-                                            onClick={() => !n.is_read && markAsRead(n.id)}
-                                        >
-                                            <div className="flex gap-3 items-start">
-                                                <div className="mt-1">{getIcon(n.type)}</div>
-                                                <div className="flex-1 space-y-1">
-                                                    <p className={`font-medium leading-none ${!n.is_read ? 'text-black' : 'text-gray-600'}`}>
-                                                        {n.title}
-                                                    </p>
-                                                    <p className="text-xs text-muted-foreground line-clamp-2">
-                                                        {n.message}
-                                                    </p>
-                                                    <div className="flex justify-between items-center">
-                                                        <p className="text-[10px] text-gray-400">
-                                                            {new Date(n.created_at).toLocaleString()}
+                                    {uniqueNotifications
+                                        .filter(n => !n.is_read)
+                                        .map(n => (
+                                            <div
+                                                key={n.id}
+                                                className="p-3 text-sm hover:bg-gray-50 transition-colors bg-blue-50/50"
+                                                onClick={() => markAsRead(n.id)}
+                                            >
+                                                <div className="flex gap-3 items-start">
+                                                    <div className="mt-1">{getIcon(n.type)}</div>
+                                                    <div className="flex-1 space-y-1">
+                                                        <div className="flex items-start justify-between">
+                                                            <p className="font-medium leading-none text-black pr-2 mt-0.5">
+                                                                {n.title}
+                                                            </p>
+                                                            <p className="text-[10px] text-gray-400 whitespace-nowrap flex-shrink-0">
+                                                                {new Date(n.created_at).toLocaleString()}
+                                                            </p>
+                                                        </div>
+                                                        <p className="text-xs text-muted-foreground line-clamp-2">
+                                                            {n.message}
                                                         </p>
-                                                        {n.metadata?.actionable && n.metadata?.job_id && (
-                                                            <Button variant="link" size="sm" className="h-6 text-xs" onClick={() => handleViewTask(n.metadata!.job_id, n.metadata)}>
-                                                                Ver
-                                                            </Button>
-                                                        )}
+                                                        <div className="flex justify-start items-center">
+
+                                                            {n.metadata?.job_id && (
+                                                                <Button
+                                                                    variant="link"
+                                                                    size="sm"
+                                                                    className="h-6 text-xs px-0"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        handleViewTask(n.metadata!.job_id, n.metadata);
+                                                                        markAsRead(n.id);
+                                                                    }}
+                                                                >
+                                                                    Ver detalles &rarr;
+                                                                </Button>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    ))}
+                                        ))}
                                 </div>
                             )}
                         </ScrollArea>
+
                     </TabsContent>
 
                     <TabsContent value="tasks" className="m-0">
@@ -150,7 +187,25 @@ export function NotificationCenter({ onViewTask }: { onViewTask: (jobId: string,
                         </ScrollArea>
                     </TabsContent>
                 </Tabs>
+
+                {onViewAllNotifications && (
+                    <div className="p-2 border-t bg-gray-50 flex justify-center">
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="w-full text-xs text-muted-foreground h-8"
+                            onClick={() => {
+                                onViewAllNotifications();
+                                // We might want to close the popover here, but PopoverPrimitive doesn't expose easy close control without controlled state.
+                                // Users usually click outside to close, or navigating might unmount/remount things in a way that closes it (not guaranteed with Popover).
+                                // For now, just firing the action is enough.
+                            }}
+                        >
+                            Ver todas las notificaciones
+                        </Button>
+                    </div>
+                )}
             </PopoverContent>
-        </Popover>
+        </Popover >
     );
 }

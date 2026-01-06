@@ -4,26 +4,69 @@ import type { JobStatusResponse, VerificationSummaryResult, CaseEnriched } from 
 
 /**
  * Generate a display ID for a case
- * Format: VECTOR-TIPO-REGION-TEMA-HASH
- * Example: WE-TX-LA-PO-22D
+ * Format: TYPE-VECTOR-YYYYMMDD-SEQ
+ * Example: T-WB-20241015-156 (Text from Web, Oct 15 2024, sequence 156)
+ * 
+ * TYPE: T=Text, I=Image, V=Video, A=Audio
+ * VECTOR: WB=Web, WH=WhatsApp, FA=Facebook, XX=Twitter/X, IG=Instagram, etc.
+ * DATE: YYYYMMDD from created_at
+ * SEQ: First 3 digits from UUID converted to number
  */
-export function generateDisplayId(caseData: CaseEnriched): string {
-  // VECTOR: Detect from URL
-  const vector = detectVector(caseData.url || '');
+export function generateDisplayId(caseData: any): string {
+  // Handle both StandardizedCase and legacy formats
+  const id = caseData.id || '';
+  const createdAt = caseData.created_at;
+  const url = caseData.url || caseData.overview?.source_domain || '';
+  const type = caseData.type || caseData.submission_type || 'text';
 
-  // TIPO: From submission_type
-  const tipo = getTipoCode(caseData.submission_type);
+  // TYPE: Single letter based on content type
+  const typeCode = getTypeCode(type);
 
-  // REGION: Default to LA (LatAm) - can be enhanced later
-  const region = 'LA';
+  // VECTOR: Detect from URL or source_domain
+  const vector = detectVector(url);
 
-  // TEMA: Default to GE (General) - can be enhanced from diagnostic_labels
-  const tema = getTemaFromLabels(caseData.diagnostic_labels);
+  // DATE: Format YYYYMMDD from created_at
+  const dateStr = formatDateCode(createdAt);
 
-  // HASH: First 3 characters of UUID, uppercase
-  const hash = caseData.id.replace(/-/g, '').substring(0, 3).toUpperCase();
+  // SEQ: Convert first 3 chars of UUID to a 3-digit sequence
+  const seq = getSequenceNumber(id);
 
-  return `${vector}-${tipo}-${region}-${tema}-${hash}`;
+  return `${typeCode}-${vector}-${dateStr}-${seq}`;
+}
+
+/**
+ * Get single letter type code
+ */
+function getTypeCode(type: string): string {
+  const t = (type || 'text').toLowerCase();
+  if (t.includes('image') || t === 'media') return 'I';
+  if (t.includes('video')) return 'V';
+  if (t.includes('audio')) return 'A';
+  return 'T'; // Text default
+}
+
+/**
+ * Format date as YYYYMMDD
+ */
+function formatDateCode(createdAt: string | undefined): string {
+  if (!createdAt) return new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  try {
+    const date = new Date(createdAt);
+    return date.toISOString().slice(0, 10).replace(/-/g, '');
+  } catch {
+    return new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  }
+}
+
+/**
+ * Convert UUID prefix to sequence number
+ */
+function getSequenceNumber(id: string): string {
+  if (!id) return '000';
+  // Take first 3 hex chars and convert to number (0-4095), then pad to 3 digits
+  const hexPart = id.replace(/-/g, '').substring(0, 3);
+  const num = parseInt(hexPart, 16) % 1000;
+  return num.toString().padStart(3, '0');
 }
 
 /**
@@ -138,6 +181,123 @@ async function pollJobStatus(jobId: string): Promise<any> {
   throw new Error('Tiempo de espera agotado para el trabajo de la API.');
 }
 
+/**
+ * Determine theme based on case type
+ */
+function determineTheme(type: string): 'Forense' | 'Desinformódico' {
+  const forensicTypes = ['image', 'video', 'audio'];
+  return forensicTypes.includes(type?.toLowerCase()) ? 'Forense' : 'Desinformódico';
+}
+
+/**
+ * Determine AMI level based on case type and analysis results
+ */
+function determineAmiLevel(std: any): string | undefined {
+  const type = std.type?.toLowerCase();
+  const title = std.overview?.title || '';
+  const verdictLabel = std.overview?.verdict_label || '';
+
+  // For forensic cases (image/video/audio), derive from verdict
+  if (['image', 'video', 'audio'].includes(type)) {
+    const combinedText = `${title} ${verdictLabel}`.toUpperCase();
+
+    if (combinedText.includes('AUTÉNTICO') || combinedText.includes('AUTHENTIC')) {
+      return 'Cumple las premisas AMI'; // Shows "✓ Sin alteraciones"
+    }
+    if (combinedText.includes('MANIPULADO') || combinedText.includes('MANIPULATED')) {
+      return 'No cumple las premisas AMI'; // Shows "Manipulado Digitalmente"
+    }
+    if (combinedText.includes('SINTÉTICO') || combinedText.includes('SYNTHETIC') ||
+        combinedText.includes('GENERADO POR IA') || combinedText.includes('AI GENERATED')) {
+      return 'Generado por IA';
+    }
+    // Default for forensic with unclear verdict
+    return 'Requiere un enfoque AMI';
+  }
+
+  // For text/URL cases, calculate from AMI criteria insights
+  const amiInsights = (std.insights || []).filter((i: any) =>
+    i.id?.startsWith('ami_crit') || i.category === 'content_quality'
+  );
+
+  if (amiInsights.length > 0) {
+    const avgScore = amiInsights.reduce((sum: number, i: any) => sum + (i.score || 0), 0) / amiInsights.length;
+
+    if (avgScore >= 80) return 'Desarrolla las estrategias AMI';
+    if (avgScore >= 60) return 'Cumple las premisas AMI';
+    if (avgScore >= 40) return 'Requiere un enfoque AMI';
+    return 'No cumple las premisas AMI';
+  }
+
+  // Default if no AMI data available
+  return undefined;
+}
+
+/**
+ * Transform StandardizedCase to CaseEnriched for backward compatibility
+ */
+function transformStandardizedToEnriched(std: any): CaseEnriched {
+  // Extract diagnostic labels from insights
+  const diagnostic_labels = (std.insights || [])
+    .map((i: any) => i.label || i.value)
+    .filter((l: any) => typeof l === 'string');
+
+  // [Refinement] Map categories to UI Themes (Forense, Desinformódico)
+  // This ensures Historial.tsx picks up the correct theme
+  const categories = new Set((std.insights || []).map((i: any) => i.category));
+  if (categories.has('forensics') || categories.has('technical_analysis')) {
+    if (!diagnostic_labels.includes('Forense')) diagnostic_labels.push('Forense');
+  }
+  if (categories.has('fact_check') || categories.has('content_analysis')) {
+    if (!diagnostic_labels.includes('Desinformódico')) diagnostic_labels.push('Desinformódico');
+  }
+
+  // Map community data to human_votes
+  const human_votes = {
+    count: std.community?.votes || 0,
+    statistics: [], // DTO simplified
+    entries: [] // DTO simplified
+  };
+
+  // Map consent/consensus
+  const consensusState = std.community?.status || 'ai_only';
+
+  // Map priority (default to medium if not found)
+  const priority = std.overview?.risk_score > 80 ? 'critical' :
+    std.overview?.risk_score > 60 ? 'high' :
+      std.overview?.risk_score > 40 ? 'medium' : 'low';
+
+  return {
+    id: std.id,
+    displayId: generateDisplayId(std),
+    title: std.overview?.title || 'Sin Título',
+    status: std.lifecycle?.job_status || 'completed',
+    summary: std.overview?.summary || '',
+    content: std.overview?.summary || '', // Fallback
+    url: std.overview?.source_domain || '',
+    created_at: std.created_at,
+    submission_type: std.type ? (std.type.charAt(0).toUpperCase() + std.type.slice(1).toLowerCase()) : 'Text',
+    human_votes,
+    diagnostic_labels,
+    metadata: {
+      screenshotUrl: std.overview?.main_asset_url,
+      reported_by: std.reporter, // Map reporter to metadata.reported_by for list display
+      theme: determineTheme(std.type), // Theme badge: "Forense" or "Desinformódico"
+      amiLevel: determineAmiLevel(std), // AMI compliance level badge
+      ...std.metadata
+    },
+    state: consensusState === 'consensus' || consensusState === 'human_only' ? 'human_consensus' : 'ai_only',
+    final_labels: [std.overview?.verdict_label].filter(Boolean),
+    priority,
+    consensus: {
+      state: consensusState,
+      final_labels: [std.overview?.verdict_label].filter(Boolean)
+    },
+    // Keep raw DTO just in case we migrated UI to use it
+    standardized_case: std
+  } as CaseEnriched & { standardized_case?: any };
+}
+
 export async function fetchVerificationSummary(page: number, pageSize: number): Promise<VerificationSummaryResult> {
   try {
     const { data: { session } } = await supabase.auth.getSession();
@@ -149,7 +309,12 @@ export async function fetchVerificationSummary(page: number, pageSize: number): 
 
     const result = await pollJobStatus(job_id);
     if ('cases' in result) {
-      return result;
+      // Map cases to enriched format
+      const enrichedCases = result.cases.map(transformStandardizedToEnriched);
+      return {
+        ...result,
+        cases: enrichedCases
+      };
     }
     throw new Error("API response did not contain 'cases'");
 
@@ -173,7 +338,12 @@ export async function fetchVerifiedCasesForImmunization(page: number, pageSize: 
 
     const result = await pollJobStatus(job_id);
     if ('cases' in result) {
-      return result;
+      // Map cases to enriched format
+      const enrichedCases = result.cases.map(transformStandardizedToEnriched);
+      return {
+        ...result,
+        cases: enrichedCases
+      };
     }
     throw new Error("API response did not contain 'cases'");
 
@@ -186,13 +356,34 @@ export async function fetchVerifiedCasesForImmunization(page: number, pageSize: 
 export async function fetchCaseDetails(caseId: string): Promise<CaseEnriched> {
   try {
     const { data: { session } } = await supabase.auth.getSession();
+    // Use the lookup endpoint which returns the DTO
     const { job_id } = await api.humanVerification.getCaseDetails(session, caseId);
 
     const result = await pollJobStatus(job_id);
+
+    // Result might be inside 'case' or just the object if using standard search-dto/lookup? 
+    // The previous code checked for 'case'. 
+    // If the new API returns { case: StandardizedCase } or just StandardizedCase?
+    // User response for search-dto/status was { cases: [...] }.
+    // Lookup usually returns a single item. Let's assume it wraps in 'case' or is the item.
+
+    let rawCase = null;
     if ('case' in result) {
-      return result.case;
+      rawCase = result.case;
+    } else if ('cases' in result && result.cases.length > 0) {
+      rawCase = result.cases[0];
+    } else {
+      // Fallback: maybe result IS the case if it has 'id' and 'overview'
+      if (result.id && result.overview) {
+        rawCase = result;
+      }
     }
-    throw new Error("API response did not contain a 'case' object");
+
+    if (rawCase) {
+      return transformStandardizedToEnriched(rawCase);
+    }
+
+    throw new Error("API response did not contain a valid case object");
 
   } catch (error) {
     console.error('Error fetching case details:', error);

@@ -1,0 +1,184 @@
+{
+    "openapi": "3.0.3",
+    "info": {
+        "title": "Botilito Role Management API",
+        "description": "API endpoint for managing user roles. Includes capabilities to list available system roles and promote/demote users.",
+        "version": "1.1.0",
+        "contact": {
+            "name": "API Support",
+            "email": "dev@botilito.dev"
+        }
+    },
+    "servers": [
+        {
+            "url": "https://mdkswlgcqsmgfmcuorxq.supabase.co/functions/v1/update-user-role",
+            "description": "Production Edge Function"
+        }
+    ],
+    "components": {
+        "securitySchemes": {
+            "bearerAuth": {
+                "type": "http",
+                "scheme": "bearer",
+                "bearerFormat": "JWT",
+                "description": "Supabase User Token."
+            }
+        },
+        "schemas": {
+            "RoleDefinition": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "example": "Cibernauta Responsable"
+                    },
+                    "level": {
+                        "type": "string",
+                        "example": "Básico"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "permissions": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "boolean"
+                        },
+                        "description": "Map of permission flags (e.g., 'analisis_ia': true)"
+                    }
+                }
+            },
+            "RolesConfigResponse": {
+                "type": "object",
+                "properties": {
+                    "roles": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/RoleDefinition"
+                        },
+                        "description": "Map of role slugs to definitions."
+                    }
+                }
+            },
+            "UpdateRoleRequest": {
+                "type": "object",
+                "required": [
+                    "email",
+                    "new_role"
+                ],
+                "properties": {
+                    "email": {
+                        "type": "string",
+                        "format": "email"
+                    },
+                    "new_role": {
+                        "type": "string",
+                        "description": "Slug of the role (e.g. 'epidemiologo')"
+                    }
+                }
+            },
+            "SuccessResponse": {
+                "type": "object",
+                "properties": {
+                    "success": {
+                        "type": "boolean"
+                    },
+                    "message": {
+                        "type": "string"
+                    },
+                    "details": {
+                        "type": "object"
+                    }
+                }
+            },
+            "ErrorResponse": {
+                "type": "object",
+                "properties": {
+                    "error": {
+                        "type": "string"
+                    }
+                }
+            }
+        }
+    },
+    "security": [
+        {
+            "bearerAuth": []
+        }
+    ],
+    "paths": {
+        "/": {
+            "get": {
+                "summary": "List Available Roles",
+                "description": "Retrieves the current system configuration for user roles, including their names, descriptions, and permission sets. Useful for populating UI dropdowns.",
+                "responses": {
+                    "200": {
+                        "description": "Configuration retrieved successfully.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RolesConfigResponse"
+                                },
+                                "example": {
+                                    "roles": {
+                                        "cibernauta": {
+                                            "name": "Cibernauta Responsable",
+                                            "level": "Básico",
+                                            "description": "..."
+                                        },
+                                        "epidemiologo": {
+                                            "name": "Epidemiólogo AMI",
+                                            "level": "Avanzado",
+                                            "description": "..."
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Configuration file missing or error"
+                    }
+                }
+            },
+            "post": {
+                "summary": "Update User Role",
+                "description": "Updates the role of a specific user. Requires Admin or Director privileges.",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateRoleRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Role successfully updated.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SuccessResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid parameters or role slug."
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden (Insufficient privileges)"
+                    }
+                }
+            }
+        }
+    }
+}

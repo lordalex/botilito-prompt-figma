@@ -5,13 +5,13 @@ import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { ScrollArea } from './ui/scroll-area';
-import { 
-  Bell, 
-  AlertTriangle, 
-  CheckCircle, 
-  Info, 
-  Users, 
-  Bot, 
+import {
+  Bell,
+  AlertTriangle,
+  CheckCircle,
+  Info,
+  Users,
+  Bot,
   Brain,
   Shield,
   Clock,
@@ -24,27 +24,29 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { Notification } from '@/types/notification';
 
+// This replacement depends on NotificationCenter. 
+// I will first view NotificationCenter.tsx before replacing GlobalNotifications.tsx.
 // Helper to format time since notification
 const timeSince = (date: string) => {
-    const seconds = Math.floor((new Date().getTime() - new Date(date).getTime()) / 1000);
-    if (seconds < 0) return "ahora";
-    let interval = seconds / 31536000;
-    if (interval > 1) return `hace ${Math.floor(interval)} años`;
-    interval = seconds / 2592000;
-    if (interval > 1) return `hace ${Math.floor(interval)} meses`;
-    interval = seconds / 86400;
-    if (interval > 1) return `hace ${Math.floor(interval)} días`;
-    interval = seconds / 3600;
-    if (interval > 1) return `hace ${Math.floor(interval)} h`;
-    interval = seconds / 60;
-    if (interval > 1) return `hace ${Math.floor(interval)} min`;
-    return `hace ${Math.floor(seconds)} s`;
+  const seconds = Math.floor((new Date().getTime() - new Date(date).getTime()) / 1000);
+  if (seconds < 0) return "ahora";
+  let interval = seconds / 31536000;
+  if (interval > 1) return `hace ${Math.floor(interval)} años`;
+  interval = seconds / 2592000;
+  if (interval > 1) return `hace ${Math.floor(interval)} meses`;
+  interval = seconds / 86400;
+  if (interval > 1) return `hace ${Math.floor(interval)} días`;
+  interval = seconds / 3600;
+  if (interval > 1) return `hace ${Math.floor(interval)} h`;
+  interval = seconds / 60;
+  if (interval > 1) return `hace ${Math.floor(interval)} min`;
+  return `hace ${Math.floor(seconds)} s`;
 };
 
 export function GlobalNotifications() {
-  const { 
-    notifications, 
-    unreadCount, 
+  const {
+    notifications,
+    unreadCount,
     markAsRead
   } = useNotifications();
   const navigate = useNavigate();
@@ -55,7 +57,7 @@ export function GlobalNotifications() {
     }
     // If actionable, perform the action on main click as well
     if (notification.metadata?.actionable && notification.metadata?.job_id) {
-        navigate(`/upload/${notification.metadata.job_id}`);
+      navigate(`/upload/${notification.metadata.job_id}`);
     }
   };
 
@@ -64,7 +66,7 @@ export function GlobalNotifications() {
     if (!notification.is_read) {
       markAsRead(notification.id);
     }
-    
+
     const jobId = notification.metadata?.job_id;
     if (jobId) {
       navigate(`/upload/${jobId}`);
@@ -77,7 +79,6 @@ export function GlobalNotifications() {
       case 'warning': return <AlertTriangle className="h-4 w-4 text-orange-500" />;
       case 'success': return <CheckCircle className="h-4 w-4 text-green-500" />;
       case 'info': return <Info className="h-4 w-4 text-blue-500" />;
-      case 'system': return <Bot className="h-4 w-4 text-purple-500" />;
       default: return <Bell className="h-4 w-4" />;
     }
   };
@@ -121,8 +122,8 @@ export function GlobalNotifications() {
                 exit={{ scale: 0 }}
                 className="absolute -top-1 -right-1"
               >
-                <Badge 
-                  variant="destructive" 
+                <Badge
+                  variant="destructive"
                   className="h-5 w-5 rounded-full p-0 text-xs flex items-center justify-center"
                 >
                   {unreadCount > 9 ? '9+' : unreadCount}
@@ -145,19 +146,19 @@ export function GlobalNotifications() {
               )}
             </div>
             {unreadCount > 0 && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={markAllAsRead}
-                  className="h-6 px-2 text-xs"
-                >
-                  Marcar todas como leídas
-                </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={markAllAsRead}
+                className="h-6 px-2 text-xs"
+              >
+                Marcar todas como leídas
+              </Button>
             )}
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        
+
         <ScrollArea className="h-96">
           <div className="space-y-1 p-1">
             {notifications.length === 0 ? (
@@ -173,27 +174,26 @@ export function GlobalNotifications() {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
-                  className={`relative p-3 rounded-lg border transition-all duration-200 hover:bg-muted/50 cursor-pointer ${
-                    !notification.is_read 
-                      ? 'bg-blue-50/50 border-blue-200 hover:bg-blue-50' 
-                      : 'bg-background border-border'
-                  }`}
+                  className={`relative p-3 rounded-lg border transition-all duration-200 hover:bg-muted/50 cursor-pointer ${!notification.is_read
+                    ? 'bg-blue-50/50 border-blue-200 hover:bg-blue-50'
+                    : 'bg-background border-border'
+                    }`}
                   onClick={() => handleNotificationClick(notification)}
                 >
                   <div className="flex items-start space-x-3">
                     <div className="flex-shrink-0 mt-0.5">
                       {getNotificationIcon(notification.type)}
                     </div>
-                    
+
                     <div className="flex-1 min-w-0">
                       <p className={`text-sm ${!notification.is_read ? 'font-medium' : 'font-normal'}`}>
                         {notification.title}
                       </p>
-                      
+
                       <p className="text-xs text-muted-foreground mb-2 line-clamp-2">
                         {notification.message}
                       </p>
-                      
+
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-1 text-xs text-muted-foreground">
                           {getSourceIcon(notification.metadata)}
@@ -202,7 +202,7 @@ export function GlobalNotifications() {
                           <Clock className="h-3 w-3" />
                           <span>{timeSince(notification.created_at)}</span>
                         </div>
-                        
+
                         {notification.metadata?.actionable && (
                           <Button
                             variant="outline"

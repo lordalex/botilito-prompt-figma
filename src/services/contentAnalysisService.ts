@@ -58,8 +58,8 @@ function transformAPIResponse(apiResponse: FullAnalysisResponse) {
   // Extract source from various possible locations
   const extractSource = () => {
     const source = apiResponse.metadata?.source ||
-                   apiResponse.case_study?.metadata?.source ||
-                   apiResponse.source;
+      apiResponse.case_study?.metadata?.source ||
+      apiResponse.source;
 
     // Debug logging
     console.log('🔍 Source extraction debug:', {
@@ -112,7 +112,13 @@ export const performAnalysis = async (
     const apiVector = mapTransmissionVector(transmissionMedium);
 
     const result = await analyzeContent(analysisContent, apiVector, onProgress);
-    return transformAPIResponse(result);
+
+    // Check if result is a pending job
+    if ('jobId' in result && result.status === 'pending') {
+      return result;
+    }
+
+    return transformAPIResponse(result as FullAnalysisResponse);
   } catch (error) {
     console.error('Error en el servicio de análisis de contenido:', error);
     throw error;

@@ -1,92 +1,157 @@
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/providers/AuthProvider';
-import { api } from '@/services/api';
-import { jobManager } from '@/lib/JobManager';
+import React, { useState, useMemo } from 'react';
+import { useCaseDetail } from '@/hooks/useCaseDetail';
+import { transformHumanCaseToUI } from '@/services/analysisPresentationService';
+import { generateDisplayId } from '@/utils/humanVerification/api';
+import { UnifiedAnalysisView } from './UnifiedAnalysisView';
 import { useToast } from '@/hooks/use-toast';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
-import { Skeleton } from './ui/skeleton';
-import { Loader2, ArrowLeft, Send, AlertTriangle } from 'lucide-react';
+import { Loader2, ArrowLeft, AlertTriangle } from 'lucide-react';
+import { supabase } from '@/utils/supabase/client';
 
 interface CaseDetailViewProps {
-  caseId: string;
-  onBackToList: () => void;
-  onVerificationSuccess: (caseId: string) => void;
+    caseId: string;
+    onBackToList: () => void;
+    onVerificationSuccess?: (caseId: string) => void;
+    mode?: 'ai' | 'human';
 }
 
-export function CaseDetailView({ caseId, onBackToList, onVerificationSuccess }: CaseDetailViewProps) {
-    const { session } = useAuth();
-    const [caseData, setCaseData] = useState<any>(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [isSubmitting, setIsSubmitting] = useState(false);
+/**
+ * CaseDetailView - Entry point for viewing case details from Historial.
+ * 
+ * Uses:
+ * - useCaseDetail hook (behavior) for data fetching
+ * - transformHumanCaseToUI (service) for data transformation
+ * - UnifiedAnalysisView (UI) for presentation
+ */
+export function CaseDetailView({
+    caseId,
+    onBackToList,
+    onVerificationSuccess,
+    mode = 'ai'  // Default to AI view for historial
+}: CaseDetailViewProps) {
+    const { caseDetail, loading, error, reload } = useCaseDetail(caseId);
     const { toast } = useToast();
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
-    useEffect(() => {
-        if (!session) return;
-        setIsLoading(true);
-        api.crud.search(session, {
-            nombreTabla: 'cases',
-            criteriosBusqueda: { id: caseId }
-        }).then(response => {
-            if (response.resultados && response.resultados.length > 0) {
-                setCaseData(response.resultados[0]);
-            } else {
-                throw new Error("Caso no encontrado.");
-            }
-        }).catch(err => {
-            console.error(err);
-            toast({ variant: "destructive", title: "Error", description: "No se pudieron cargar los detalles del caso." });
-        }).finally(() => {
-            setIsLoading(false);
-        });
-    }, [caseId, session, toast]);
+    // Transform case data for UnifiedAnalysisView
+    const transformedData = useMemo(() => {
+        if (!caseDetail) return null;
+        return transformHumanCaseToUI(caseDetail);
+    }, [caseDetail]);
 
-    const handleSubmit = async () => {
-        if (!session) return;
+    // Handle diagnosis submission (if in human mode)
+    const handleSubmitDiagnosis = async (diagnosis: any) => {
         setIsSubmitting(true);
         try {
-            const diagnosisPayload = {
-                case_id: caseId,
-                classification: 'falso', // Datos del formulario irían aquí
-                reason: 'Justificación de prueba',
-            };
-            jobManager.addJob('voting', diagnosisPayload);
-            toast({ title: "✅ Diagnóstico Enviado", description: "Tu análisis se está procesando en segundo plano." });
-            onVerificationSuccess(caseId);
+            const { data: user } = await supabase.auth.getUser();
+            if (!user.user) throw new Error('No user found');
+
+            const { error } = await supabase.functions.invoke('human-diagnosis', {
+                body: {
+                    caseId: caseId,
+                    diagnosis: diagnosis,
+                    userId: user.user.id
+                }
+            });
+
+            if (error) throw error;
+
+            toast({
+                title: "Diagnóstico Enviado",
+                description: "Tu diagnóstico humano ha sido registrado exitosamente.",
+            });
+
+            onVerificationSuccess?.(caseId);
         } catch (error: any) {
-            toast({ variant: "destructive", title: "Error al Enviar", description: error.message });
-            setIsSubmitting(false); // Solo poner en false si hay error
+            console.error('Error submitting diagnosis:', error);
+            toast({
+                title: "Error",
+                description: error.message || "No se pudo enviar el diagnóstico.",
+                variant: "destructive"
+            });
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
-    if (isLoading) return <div className="flex justify-center items-center h-96"><Loader2 className="h-8 w-8 animate-spin" /></div>;
-    if (!caseData) return (
-        <div className="text-center p-8">
-            <AlertTriangle className="mx-auto h-8 w-8 text-destructive" />
-            <p className="mt-2">Caso no encontrado.</p>
-            <Button variant="outline" onClick={onBackToList} className="mt-4">Volver</Button>
-        </div>
-    );
-    
+    // Loading state
+    if (loading) {
+        return (
+            <div className="flex flex-col items-center justify-center h-96 gap-4">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <p className="text-sm text-muted-foreground">Cargando detalles del caso...</p>
+            </div>
+        );
+    }
+
+    // Error state
+    if (error || !caseDetail) {
+        return (
+            <div className="text-center p-8 space-y-4">
+                <AlertTriangle className="mx-auto h-12 w-12 text-destructive" />
+                <p className="text-lg font-medium">{error || 'Caso no encontrado.'}</p>
+                <Button variant="outline" onClick={onBackToList}>
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Volver a la lista
+                </Button>
+            </div>
+        );
+    }
+
+    // Determine content type from case data
+    // The API might return different values for submission_type
+    const getContentType = (): 'text' | 'image' | 'audio' => {
+        const detail = caseDetail as any;
+        // Check if it's forensic analysis with image/audio data
+        const isForensic = transformedData?.raw?.metadata?.is_forensic || detail.metadata?.is_forensic;
+        if (isForensic) {
+            const hasImageDetails = transformedData?.raw?.all_documents?.[0]?.result?.details?.[0]?.original_frame;
+            if (hasImageDetails) return 'image';
+
+            // Check for audio in submission_type when forensic
+            if (detail.submission_type?.toLowerCase?.().includes('audio')) return 'audio';
+        }
+
+        // Check submission_type
+        const submissionType = detail.submission_type?.toLowerCase?.() || '';
+        if (submissionType.includes('image') || submissionType === 'media') return 'image';
+        if (submissionType.includes('audio')) return 'audio';
+
+        return 'text';
+    };
+    const contentType = getContentType();
+
+    const detail = caseDetail as any;
+
+    // Extract screenshot URL from either StandardizedCase or legacy format
+    const getScreenshotUrl = () => {
+        // StandardizedCase format: overview.main_asset_url
+        if (detail.overview?.main_asset_url) {
+            return detail.overview.main_asset_url;
+        }
+        // Legacy format: metadata.screenshot
+        if (detail.metadata?.screenshot) {
+            return detail.metadata.screenshot;
+        }
+        // Transformed data fallback
+        return transformedData?.mainAssetUrl || transformedData?.metadata?.screenshot;
+    };
+
     return (
-        <div className="space-y-6">
-            <Button variant="outline" onClick={onBackToList}><ArrowLeft className="mr-2 h-4 w-4" />Volver a la lista</Button>
-            <Card>
-                <CardHeader>
-                    <CardTitle>{caseData.title || 'Detalle del Caso'}</CardTitle>
-                    <CardDescription>ID del Caso: {caseData.id}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <p className="text-sm">{caseData.content || "Contenido no disponible."}</p>
-                    {/* Aquí iría el formulario de diagnóstico completo */}
-                    <div className="flex justify-end mt-6">
-                        <Button onClick={handleSubmit} disabled={isSubmitting} size="lg">
-                            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            {isSubmitting ? 'Procesando...' : 'Enviar Diagnóstico'}
-                        </Button>
-                    </div>
-                </CardContent>
-            </Card>
-        </div>
+        <UnifiedAnalysisView
+            data={transformedData}
+            contentType={contentType}
+            mode={mode}
+            title={detail.title || detail.overview?.title || 'Detalle del Caso'}
+            caseNumber={generateDisplayId(detail)}
+            timestamp={detail.created_at}
+            reportedBy={detail.metadata?.reported_by?.name || detail.reporter?.name || 'Comunidad'}
+            screenshot={getScreenshotUrl()}
+            onReset={onBackToList}
+            onSubmitDiagnosis={handleSubmitDiagnosis}
+            isSubmittingDiagnosis={isSubmitting}
+            hideVoting={mode === 'ai'}
+        />
     );
 }
+

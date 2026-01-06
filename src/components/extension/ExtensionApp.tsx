@@ -85,7 +85,7 @@ export function ExtensionApp() {
               <p>
                 Este es un ejemplo de cómo se vería el overlay de Botilito sobre 
                 una página web real. El overlay aparece cuando se detecta contenido 
-                sospechoso y puede ser posicionado estratégicamente.
+                que requiere atención y puede ser posicionado estratégicamente.
               </p>
             </div>
             <InPageOverlay position={{ x: 50, y: 150 }} />

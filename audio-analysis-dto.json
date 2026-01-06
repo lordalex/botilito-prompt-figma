@@ -1,0 +1,182 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "API de Análisis Forense de Audio (Unificado)",
+    "version": "1.0.0",
+    "description": "API especializada en la detección de manipulación, clasificación y segmentación de audio. Actúa como orquestador para un backend de Python y devuelve resultados estandarizados (DTO Unificado).",
+    "contact": { "name": "Equipo de Desarrollo" }
+  },
+  "servers": [
+    { "url": "https://mdkswlgcqsmgfmcuorxq.supabase.co/functions/v1/audio-analysis-dto" }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": { "type": "http", "scheme": "bearer", "bearerFormat": "JWT" }
+    },
+    "schemas": {
+      "SubmitRequest": {
+        "type": "object",
+        "required": ["audio_base64"],
+        "properties": {
+          "audio_base64": { "type": "string", "description": "Contenido del archivo de audio codificado en Base64 (ej. `data:audio/wav;base64,...`)." },
+          "use_cache": { "type": "boolean", "default": true, "description": "Si es `true`, busca análisis previos por hash. `false` fuerza un nuevo análisis." }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": { "type": "string", "description": "Mensaje de error principal." },
+          "details": { "type": "string", "description": "Detalles técnicos adicionales del error." }
+        }
+      },
+      "Artifact": {
+        "type": "object",
+        "description": "Evidencia visual o textual para un Insight específico.",
+        "properties": {
+          "type": { "type": "string", "enum": ["image_url", "text_snippet", "link_url"], "example": "image_url" },
+          "content": { "type": "string", "description": "URL del recurso o contenido de texto.", "example": "https://pub.r2.dev/job_id/spectrogram.png" },
+          "label": { "type": "string", "description": "Etiqueta para la interfaz de usuario.", "example": "Espectrograma Forense" }
+        }
+      },
+      "GenericInsight": {
+        "type": "object",
+        "description": "Una unidad atómica de resultado de análisis, independientemente de la modalidad.",
+        "properties": {
+          "id": { "type": "string", "description": "Identificador único del insight (ej. `forensic_verdict`).", "example": "forensic_verdict" },
+          "category": { "type": "string", "enum": ["forensics", "content_quality", "metadata", "fact_check", "compliance"], "description": "Categoría para agrupar en la UI.", "example": "forensics" },
+          "label": { "type": "string", "description": "Título legible por humanos (ej. 'Veredicto Forense General').", "example": "Veredicto Forense General" },
+          "value": { "type": ["string", "number", "boolean"], "description": "Valor principal del hallazgo.", "example": "Posible Manipulación" },
+          "score": { "type": "number", "minimum": 0, "maximum": 100, "description": "Puntaje de calidad (100 = Bueno/Limpio, 0 = Malo/Manipulado).", "example": 20 },
+          "description": { "type": "string", "description": "Explicación detallada del hallazgo.", "example": "Indicadores de inconsistencia espectral." },
+          "artifacts": { "type": "array", "items": { "$ref": "#/components/schemas/Artifact" }, "description": "Evidencia visual o enlaces." },
+          "raw_data": { "type": "object", "description": "Datos crudos originales del algoritmo." }
+        },
+        "required": ["id", "category", "label", "value", "score"]
+      },
+      "ReporterProfile": {
+        "type": "object",
+        "description": "Información del usuario que reportó el caso.",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "name": { "type": "string", "example": "Usuario Ejemplo" },
+          "reputation": { "type": "number", "example": 75.5 }
+        },
+        "required": ["id", "name"]
+      },
+      "CommunityData": {
+        "type": "object",
+        "description": "Datos de interacción comunitaria (votos, consenso).",
+        "properties": {
+          "votes": { "type": "integer", "example": 0 },
+          "status": { "type": "string", "enum": ["pending_votes", "ai_only", "human_consensus"], "example": "ai_only" }
+        }
+      },
+      "LifecycleStatus": {
+        "type": "object",
+        "description": "Estado del ciclo de vida del trabajo.",
+        "properties": {
+          "job_status": { "type": "string", "enum": ["queued", "processing", "completed", "failed"], "example": "completed" },
+          "custody_status": { "type": "string", "enum": ["registered", "analyzing", "ai_processed", "human_review", "finalized"], "example": "ai_processed" },
+          "last_update": { "type": "string", "format": "date-time" }
+        },
+        "required": ["job_status", "custody_status"]
+      },
+      "OverviewSummary": {
+        "type": "object",
+        "description": "Resumen de alto nivel del análisis.",
+        "properties": {
+          "title": { "type": "string", "example": "Análisis Forense de Audio (45.3s)" },
+          "summary": { "type": "string", "example": "Se detectaron indicadores de manipulación en el audio, sugiriendo que podría ser sintético o editado." },
+          "verdict_label": { "type": "string", "example": "MANIPULADO" },
+          "risk_score": { "type": "number", "minimum": 0, "maximum": 100, "example": 70 },
+          "main_asset_url": { "type": "string", "format": "uri", "example": "https://pub.r2.dev/job_id/original_audio.wav" },
+          "source_domain": { "type": ["string", "null"], "example": "r2.cloudflarestorage.com" }
+        },
+        "required": ["title", "summary", "verdict_label", "risk_score"]
+      },
+      "StandardizedCase": {
+        "type": "object",
+        "description": "Objeto DTO unificado para todos los tipos de análisis de medios.",
+        "properties": {
+          "id": { "type": "string", "format": "uuid", "example": "d2c6e8e0-3e2f-4a1b-8c5d-9f0a8d7e6f5c" },
+          "created_at": { "type": "string", "format": "date-time", "example": "2025-01-01T12:00:00Z" },
+          "type": { "type": "string", "enum": ["text", "image", "video", "audio"], "example": "audio" },
+          "lifecycle": { "$ref": "#/components/schemas/LifecycleStatus" },
+          "overview": { "$ref": "#/components/schemas/OverviewSummary" },
+          "insights": { "type": "array", "items": { "$ref": "#/components/schemas/GenericInsight" }, "description": "Lista de todos los hallazgos analíticos." },
+          "reporter": { "$ref": "#/components/schemas/ReporterProfile" },
+          "community": { "$ref": "#/components/schemas/CommunityData" }
+        },
+        "required": ["id", "created_at", "type", "lifecycle", "overview", "insights"]
+      }
+    }
+  },
+  "security": [{ "bearerAuth": [] }],
+  "paths": {
+    "/submit": {
+      "post": {
+        "summary": "Enviar Audio para Análisis",
+        "description": "Sube un archivo de audio (Base64 o URL) para análisis forense, clasificación y segmentación. Devuelve un `job_id` para consultar el estado.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "audio_base64": { "type": "string", "description": "Contenido de audio en Base64." },
+                  "url": { "type": "string", "format": "uri", "description": "URL de audio a analizar (si no se envía Base64)." },
+                  "use_cache": { "type": "boolean", "default": true, "description": "Si es `true`, busca análisis previos por hash." }
+                },
+                "oneOf": [
+                  { "required": ["audio_base64"] },
+                  { "required": ["url"] }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": { "description": "Análisis en cola.", "content": { "application/json": { "schema": { "type": "object", "properties": { "job_id": { "type": "string" }, "status": { "type": "string", "example": "processing" } } } } } },
+          "200": { "description": "Resultado de caché.", "content": { "application/json": { "schema": { "type": "object", "properties": { "job_id": { "type": "string" }, "status": { "type": "string", "example": "completed" }, "cached": { "type": "boolean", "example": true }, "result": { "$ref": "#/components/schemas/StandardizedCase" } } } } } }
+        }
+      }
+    },
+    "/status/{jobId}": {
+      "get": {
+        "summary": "Obtener Estado y Resultado del Análisis",
+        "description": "Sondea este endpoint con el `job_id` para obtener el progreso o el `StandardizedCase` final cuando esté completado.",
+        "parameters": [
+          { "name": "jobId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Estado o Resultado del Trabajo",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "job_id": { "type": "string" }, "status": { "type": "string", "example": "processing" },
+                        "progress": { "type": "integer", "example": 50 }, "current_task": { "type": "string", "example": "Procesando Forensia" }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "job_id": { "type": "string" }, "status": { "type": "string", "example": "completed" },
+                        "data": { "$ref": "#/components/schemas/StandardizedCase" }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

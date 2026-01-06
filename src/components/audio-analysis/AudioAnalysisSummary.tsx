@@ -47,14 +47,14 @@ export function AudioAnalysisSummary({ verdict, authenticityScore, manipulationD
         if (manipulationDetected) return 'Manipulación Detectada';
         if (riskScore < 30) return 'Auténtico';
         if (riskScore < 50) return 'Posible Edición';
-        if (riskScore < 70) return 'Sospechoso';
+        if (riskScore < 70) return 'Cuestionable';
         return 'Sintético / Manipulado';
     };
 
     // Get verdict type for display
     const getVerdictType = () => {
         if (manipulationDetected || riskScore >= 70) return 'Sintético (IA)';
-        if (riskScore >= 50) return 'Sospechoso';
+        if (riskScore >= 50) return 'Cuestionable';
         if (riskScore >= 30) return 'Inconcluso';
         return 'Auténtico';
     };

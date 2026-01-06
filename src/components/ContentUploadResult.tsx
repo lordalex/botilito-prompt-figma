@@ -1,746 +1,546 @@
-import React, { useRef, useState, useEffect } from 'react';
-import botilitoImage from 'figma:asset/e27a276e6ff0e187a67cf54678c265c1c38adbf7.png';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { Button } from './ui/button';
-import { Label } from './ui/label';
-import { Badge } from './ui/badge';
+import React, { useRef, useMemo } from 'react';
+import botilitoImage from '@/assets/e27a276e6ff0e187a67cf54678c265c1c38adbf7.png';
 import {
-  Share2, Download, Twitter, Facebook, MessageCircle, Linkedin, Bot, User,
-  Newspaper, ExternalLink, Tag, XCircle, Skull, Ban, Flame, Target,
-  Music, Send, Youtube, Mail, Smartphone, Instagram
+  Bot, User, FileText, Globe, AlertTriangle, Shield, Activity,
+  Hash, Download, ArrowLeft, CheckCircle2, Camera, Mic, Info
 } from 'lucide-react';
-import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from './ui/tooltip';
-import * as TooltipPrimitive from "@radix-ui/react-tooltip";
-import { ScreenshotImage } from './ScreenshotImage';
-import { api } from '@/services/api';
-import { useAuth } from '../providers/AuthProvider';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
+import { HumanValidationForm } from '@/components/HumanValidationForm';
+import { generateCaseCode, ContentType, TransmissionVector } from '@/utils/caseCodeGenerator';
+
+// Import Specific Views
+import { ImageAnalysisResultView } from './image-analysis/ImageAnalysisResultView';
+import { AudioAnalysisResultView } from './audio-analysis/AudioAnalysisResultView';
 
 interface ContentUploadResultProps {
   result: any;
   onReset: () => void;
+  backLabel?: string;
 }
 
-import { ImageAnalysisResultView } from './image-analysis/ImageAnalysisResultView';
-import { AudioAnalysisResultView } from './audio-analysis/AudioAnalysisResultView';
+export function ContentUploadResult({ result, onReset, backLabel = "Volver al listado" }: ContentUploadResultProps) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
-export function ContentUploadResult({ result, onReset }: ContentUploadResultProps) {
-  // Comprehensive type detection for all payload formats
+  // --- GUARD CLAUSE ---
+  if (!result) return null;
+
+  // --- 1. TYPE DETECTION ---
   const resultType = result?.type || result?.meta?.type;
-
-  // IMAGE ANALYSIS DETECTION - Support all known formats:
-  // 1. New OpenAPI format: human_report + raw_forensics
-  // 2. Old/cached format: details[] + summary.global_verdict
-  // 3. Hybrid: meta.file_info with dimensions
+  
+  // Specific view routing can remain if needed, or we can unify everything.
+  // For now, keeping the routing for specialized views if they exist and match strict criteria.
   const isImageAnalysis =
-    // Explicit type
     resultType === 'image_analysis' ||
-    // New format from OpenAPI spec (multi-level hierarchical)
-    (result?.human_report && (result?.raw_forensics || result?.file_info?.dimensions)) ||
-    // Old cached format (details array + summary)
-    (result?.details && Array.isArray(result.details) && result?.summary?.global_verdict) ||
-    // Legacy format variations
-    (result?.summary && result?.summary.global_verdict !== undefined) ||
-    // File info with image dimensions (fallback)
-    (result?.file_info?.dimensions) ||
-    (result?.meta?.file_info?.dimensions);
+    (result?.human_report && (result?.raw_forensics || result?.file_info?.dimensions));
 
   if (isImageAnalysis) {
     return <ImageAnalysisResultView data={result} onReset={onReset} />;
   }
 
-  // AUDIO ANALYSIS DETECTION
   const isAudioAnalysis = resultType === 'audio_analysis';
-
   if (isAudioAnalysis) {
     return <AudioAnalysisResultView data={result} onReset={onReset} />;
   }
 
-  // Fallback to text analysis view
-  const { session } = useAuth();
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [imageLoaded, setImageLoaded] = useState(false);
-  const [selectedMarker, setSelectedMarker] = useState<any | null>(null);
-  const [newsScreenshot, setNewsScreenshot] = useState<string | null>(null);
-  const [reportedBy, setReportedBy] = useState<string | null>('Cargando...');
+  // --- 2. DATA NORMALIZATION ---
+  const data = result.fullResult || result; 
+  
+  // Extract recommendations
+  const rawRecommendations = 
+    data.recommendations || 
+    data.metadata?.recommendations || 
+    data.ai_analysis?.classification?.recomendaciones || 
+    [];
 
-  const {
-    title,
-    summaryBotilito,
-    theme,
-    region,
-    caseNumber,
-    consensusState,
-    markersDetected,
-    vectores,
-    finalVerdict,
-    fullResult
-  } = result;
+  const recommendations: string[] = Array.isArray(rawRecommendations) 
+    ? rawRecommendations.map(String) 
+    : [];
 
-  const createdAt = fullResult?.created_at;
-  const newsSource = fullResult?.metadata?.source || fullResult?.source || null;
-  const transmissionSources = vectores && vectores.length > 0 ? vectores : ['Web'];
-
-  useEffect(() => {
-    const fetchAuthor = async () => {
-      if (!fullResult?.user_id) {
-        setReportedBy('Desconocido');
-        return;
-      }
-      try {
-        const profile = await api.profile.getById(session, fullResult.user_id);
-        setReportedBy(profile.full_name || profile.email || 'Desconocido');
-      } catch (error) {
-        console.error("Error fetching author profile:", error);
-        setReportedBy('Desconocido');
-      }
+  // Helper to map case type to ContentType for code generation
+  const getContentType = (type: string): ContentType => {
+    const typeMap: Record<string, ContentType> = {
+      'TEXT': 'texto',
+      'IMAGE': 'imagen',
+      'VIDEO': 'video',
+      'AUDIO': 'audio',
+      'URL': 'url'
     };
-
-    fetchAuthor();
-  }, [fullResult?.user_id, session]);
-
-  useEffect(() => {
-    // Pre-fill the screenshot if it already exists in the initial data
-    const existingScreenshot = result?.fullResult?.metadata?.screenshot || result?.fullResult?.screenshot;
-    if (existingScreenshot) {
-      setNewsScreenshot(existingScreenshot);
-    }
-  }, [result]);
-
-  // Helper function for rounded rectangles in canvas
-  const drawRoundedRect = (ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius: number) => {
-    ctx.beginPath();
-    ctx.moveTo(x + radius, y);
-    ctx.lineTo(x + width - radius, y);
-    ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
-    ctx.lineTo(x + width, y + height - radius);
-    ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
-    ctx.lineTo(x + radius, y + height);
-    ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
-    ctx.lineTo(x, y + radius);
-    ctx.quadraticCurveTo(x, y, x + radius, y);
-    ctx.closePath();
+    return typeMap[type.toUpperCase()] || 'texto';
   };
 
-  // Generate summary image for social sharing
-  const generateSummaryImage = () => {
-    const canvas = canvasRef.current;
-    if (!canvas || !result) return;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    // Configure larger dimensions for better quality
-    canvas.width = 1200;
-    canvas.height = 1400;
-
-    // White background
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    // Yellow header with border
-    ctx.fillStyle = '#ffe97a';
-    ctx.fillRect(20, 20, canvas.width - 40, 140);
-    ctx.strokeStyle = '#ffda00';
-    ctx.lineWidth = 4;
-    ctx.strokeRect(20, 20, canvas.width - 40, 140);
-
-    // Logo/Title "BOTILITO"
-    ctx.fillStyle = '#000000';
-    ctx.font = 'bold 42px Lexend, sans-serif';
-    ctx.fillText('BOTILITO', 40, 70);
-
-    // Subtitle
-    ctx.font = '22px Lexend, sans-serif';
-    ctx.fillText('Diagnóstico Desinfodémico', 40, 105);
-
-    // Case number
-    ctx.font = 'bold 20px Lexend, sans-serif';
-    ctx.fillText(`Caso: ${caseNumber}`, 40, 140);
-
-    let yPosition = 200;
-
-    // News title with background
-    if (title) {
-      ctx.fillStyle = '#f8f8f8';
-      ctx.fillRect(40, yPosition, canvas.width - 80, 120);
-      ctx.strokeStyle = '#e5e5e5';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(40, yPosition, canvas.width - 80, 120);
-
-      ctx.fillStyle = '#000000';
-      ctx.font = 'bold 26px Lexend, sans-serif';
-      const maxWidth = canvas.width - 120;
-      const words = title.split(' ');
-      let line = '';
-      let y = yPosition + 40;
-      let lineCount = 0;
-
-      for (let i = 0; i < words.length; i++) {
-        const testLine = line + words[i] + ' ';
-        const metrics = ctx.measureText(testLine);
-        if (metrics.width > maxWidth && i > 0) {
-          ctx.fillText(line, 60, y);
-          line = words[i] + ' ';
-          y += 35;
-          lineCount++;
-          if (lineCount >= 2) break;
-        } else {
-          line = testLine;
-        }
-      }
-      ctx.fillText(line, 60, y);
-      yPosition += 140;
-    }
-
-    // Theme
-    if (theme) {
-      yPosition += 10;
-      ctx.fillStyle = '#666666';
-      ctx.font = 'bold 18px Lexend, sans-serif';
-      ctx.fillText('TEMA:', 40, yPosition);
-      ctx.fillStyle = '#000000';
-      ctx.font = '18px Lexend, sans-serif';
-      ctx.fillText(theme, 110, yPosition);
-      yPosition += 35;
-    }
-
-    // Source
-    if (newsSource) {
-      ctx.fillStyle = '#666666';
-      ctx.font = 'bold 18px Lexend, sans-serif';
-      ctx.fillText('FUENTE:', 40, yPosition);
-      ctx.fillStyle = '#000000';
-      ctx.font = '18px Lexend, sans-serif';
-      ctx.fillText(newsSource.name || newsSource, 130, yPosition);
-      yPosition += 45;
-    }
-
-    // Screenshot indicator
-    if (newsScreenshot) {
-      const imgWidth = canvas.width - 80;
-      const imgHeight = 300;
-
-      ctx.fillStyle = '#f0f0f0';
-      ctx.fillRect(40, yPosition, imgWidth, imgHeight);
-
-      ctx.strokeStyle = '#cccccc';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(40, yPosition, imgWidth, imgHeight);
-
-      ctx.fillStyle = '#999999';
-      ctx.font = '20px Lexend, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('📸 Captura de pantalla incluida', canvas.width / 2, yPosition + imgHeight / 2);
-      ctx.textAlign = 'left';
-
-      yPosition += 320;
-    } else {
-      yPosition += 20;
-    }
-
-    // Diagnostic markers
-    ctx.fillStyle = '#000000';
-    ctx.font = 'bold 24px Lexend, sans-serif';
-    ctx.fillText('Marcadores de Diagnóstico:', 40, yPosition);
-    yPosition += 20;
-
-    const topMarkers = markersDetected?.slice(0, 5) || [];
-
-    topMarkers.forEach((marker: any, index: number) => {
-      const markerColors: { [key: string]: string } = {
-        'Verdadero': '#10b981',
-        'Falso': '#ef4444',
-        'Engañoso': '#f97316',
-        'Satírico': '#3b82f6',
-        'Manipulado': '#a855f7',
-        'Discurso de odio': '#991b1b',
-        'Propaganda': '#6366f1',
-        'Spam': '#6b7280',
-        'Conspiración': '#8b5cf6',
-        'Sesgo Político': '#ec4899',
-        'Estafa': '#ef4444',
-        'Sensacionalista': '#fb923c',
-        'Incitación a la violencia': '#7f1d1d',
-        'Descontextualizado': '#f59e0b',
-        'Parcialmente Cierto': '#06b6d4',
-        'Sin Verificar': '#6b7280'
-      };
-
-      const color = markerColors[marker.type] || '#6b7280';
-
-      yPosition += 15;
-      ctx.shadowColor = 'rgba(0, 0, 0, 0.1)';
-      ctx.shadowBlur = 8;
-      ctx.shadowOffsetX = 0;
-      ctx.shadowOffsetY = 2;
-
-      ctx.fillStyle = color;
-      const badgeWidth = canvas.width - 80;
-      const badgeHeight = 70;
-      drawRoundedRect(ctx, 40, yPosition, badgeWidth, badgeHeight, 12);
-      ctx.fill();
-
-      ctx.shadowColor = 'transparent';
-      ctx.shadowBlur = 0;
-      ctx.shadowOffsetX = 0;
-      ctx.shadowOffsetY = 0;
-
-      ctx.fillStyle = '#ffffff';
-      ctx.font = `bold ${index === 0 ? '32' : '26'}px Lexend, sans-serif`;
-      ctx.fillText(`${marker.type}`, 60, yPosition + 30);
-
-      if (marker.confidence) {
-        const confidence = (marker.confidence * 100).toFixed(0);
-        ctx.font = `${index === 0 ? '24' : '20'}px Lexend, sans-serif`;
-        ctx.fillText(`Confianza: ${confidence}%`, 60, yPosition + 58);
-      }
-
-      yPosition += 70;
-    });
-
-    // Footer
-    yPosition += 30;
-    ctx.fillStyle = '#666666';
-    ctx.font = '16px Lexend, sans-serif';
-    if (createdAt) {
-      ctx.fillText(new Date(createdAt).toLocaleString('es-CO'), 40, yPosition);
-    }
-
-    yPosition += 30;
-    ctx.fillStyle = '#000000';
-    ctx.font = 'bold 18px Lexend, sans-serif';
-    ctx.fillText('Verificado por Botilito - Análisis desinfodémico con IA', 40, yPosition);
-  };
-
-  // Download image
-  const handleDownloadImage = () => {
-    generateSummaryImage();
-
-    setTimeout(() => {
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-
-      canvas.toBlob((blob) => {
-        if (!blob) return;
-
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.download = `botilito-diagnostico-${caseNumber}.png`;
-        link.href = url;
-        link.click();
-        URL.revokeObjectURL(url);
-      });
-    }, 100);
-  };
-
-  // Social sharing functions
-  const shareOnTwitter = () => {
-    const topMarker = markersDetected?.[0];
-    const markerText = topMarker ? `${topMarker.type}` : 'contenido analizado';
-    const text = `🔍 Botilito detectó: ${markerText}\n${title ? `\n"${title}"\n` : ''}\nCaso: ${caseNumber}\n#Botilito #VerificaciónDeHechos #Desinformación`;
-    const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
-    window.open(url, '_blank');
-  };
-
-  const shareOnFacebook = () => {
-    const url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}`;
-    window.open(url, '_blank');
-  };
-
-  const shareOnWhatsApp = () => {
-    const topMarker = markersDetected?.[0];
-    const markerText = topMarker ? `${topMarker.type}` : 'contenido analizado';
-    const text = `🔍 *Botilito* detectó: *${markerText}*\n${title ? `\n"${title}"\n` : ''}\nCaso: ${caseNumber}\n\nVerificación completa de desinformación con IA`;
-    const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
-    window.open(url, '_blank');
-  };
-
-  const shareOnLinkedIn = () => {
-    const url = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(window.location.href)}`;
-    window.open(url, '_blank');
-  };
-
-  // Get marker icon
-  const getMarkerIcon = (type: string, index: number) => {
-    const iconMap: { [key: string]: React.ReactNode } = {
-      'Falso': <XCircle className={index === 0 ? "h-6 w-6" : "h-5 w-5"} />,
-      'Discurso de odio': <Skull className={index === 0 ? "h-6 w-6" : "h-5 w-5"} />,
-      'Incitación a la violencia': <Ban className={index === 0 ? "h-6 w-6" : "h-5 w-5"} />,
-      'Sensacionalista': <Flame className={index === 0 ? "h-6 w-6" : "h-5 w-5"} />,
+  // Helper to map vector to TransmissionVector
+  const getTransmissionVector = (vector?: string): TransmissionVector => {
+    if (!vector) return 'Web';
+    const vectorMap: Record<string, TransmissionVector> = {
+      'whatsapp': 'WhatsApp',
+      'facebook': 'Facebook',
+      'twitter': 'Twitter/X',
+      'x': 'Twitter/X',
+      'instagram': 'Instagram',
+      'tiktok': 'TikTok',
+      'youtube': 'YouTube',
+      'telegram': 'Telegram',
+      'web': 'Web',
+      'email': 'Email',
+      'sms': 'SMS'
     };
-    return iconMap[type] || <Target className={index === 0 ? "h-6 w-6" : "h-5 w-5"} />;
+    return vectorMap[vector.toLowerCase()] || 'Web';
   };
 
-  // Get marker color
-  const getMarkerColor = (type: string) => {
-    const colorMap: { [key: string]: string } = {
-      'Verdadero': 'bg-emerald-500 hover:bg-emerald-600',
-      'Falso': 'bg-red-500 hover:bg-red-600',
-      'Engañoso': 'bg-orange-500 hover:bg-orange-600',
-      'Satírico': 'bg-blue-500 hover:bg-blue-600',
-      'Manipulado': 'bg-purple-500 hover:bg-purple-600',
-      'Discurso de odio': 'bg-red-700 hover:bg-red-800',
-      'Discurso de odio (Xenofobia)': 'bg-red-700 hover:bg-red-800',
-      'Racismo/Xenofobia': 'bg-red-700 hover:bg-red-800',
-      'Sexismo/LGBTQ+fobia': 'bg-red-700 hover:bg-red-800',
-      'Clasismo/Aporofobia': 'bg-red-600 hover:bg-red-700',
-      'Ableismo': 'bg-red-600 hover:bg-red-700',
-      'Propaganda': 'bg-indigo-600 hover:bg-indigo-700',
-      'Spam': 'bg-gray-500 hover:bg-gray-600',
-      'Conspiración': 'bg-violet-600 hover:bg-violet-700',
-      'Teoría conspirativa': 'bg-violet-600 hover:bg-violet-700',
-      'Sesgo Político': 'bg-yellow-600 hover:bg-yellow-700',
-      'Estafa': 'bg-purple-700 hover:bg-purple-800',
-      'Sensacionalista': 'bg-orange-400 hover:bg-orange-500',
-      'Incitación a la violencia': 'bg-red-900 hover:bg-red-950',
-      'Descontextualizado': 'bg-amber-500 hover:bg-amber-600',
-      'Sin contexto': 'bg-amber-500 hover:bg-amber-600',
-      'Parcialmente Cierto': 'bg-orange-500 hover:bg-orange-600',
-      'Contenido Patrocinado': 'bg-indigo-600 hover:bg-indigo-700',
-      'Opinión': 'bg-gray-500 hover:bg-gray-600',
-      'Rumor': 'bg-gray-500 hover:bg-gray-600',
-      'No verificable': 'bg-gray-500 hover:bg-gray-600',
-      'Deepfake': 'bg-purple-500 hover:bg-purple-600',
-      'Sin Verificar': 'bg-gray-500 hover:bg-gray-600',
-      'Bot/Coordinado': 'bg-indigo-600 hover:bg-indigo-700',
-      'Suplantación de identidad': 'bg-purple-700 hover:bg-purple-800',
-      'Acoso/Ciberbullying': 'bg-orange-700 hover:bg-orange-800',
-      'Contenido prejuicioso': 'bg-yellow-600 hover:bg-yellow-700',
-      'En revisión': 'bg-gray-400 hover:bg-gray-500',
-      'Satírico/Humorístico': 'bg-blue-500 hover:bg-blue-600'
-    };
-    return colorMap[type] || 'bg-gray-500 hover:bg-gray-600';
+  const caseType = (data.type || data.submission_type || 'TEXT').toUpperCase();
+  const caseVector = data.metadata?.vector || data.vector || 'Web';
+
+  // Get display_id from backend or generate one
+  const displayId = data.display_id || data.displayId || data.standardized_case?.display_id ||
+    generateCaseCode(getContentType(caseType), getTransmissionVector(caseVector));
+
+  const caseData = {
+    id: data.id || "Unknown",
+    display_id: displayId,
+    created_at: data.created_at || new Date().toISOString(),
+    type: caseType,
+    overview: {
+      title: data.title || data.overview?.title || "Sin título",
+      summary: data.summary || data.overview?.summary || "Sin resumen disponible.",
+      verdict_label: data.overview?.verdict_label || data.metadata?.global_verdict || "Pendiente",
+      risk_score: data.overview?.risk_score ?? data.metadata?.risk_score ?? 0,
+      main_asset_url: data.overview?.main_asset_url || data.main_asset_url || data.url,
+      source_domain: data.overview?.source_domain || data.source_domain
+    },
+    insights: Array.isArray(data.insights) ? data.insights : [],
+    reporter: data.reporter,
+    community: data.community || { votes: data.human_votes_count || 0, status: data.consensus?.state || 'pending' },
+    metadata: data.metadata || { theme: data.theme, region: data.region, vector: caseVector },
+    recommendations: recommendations
   };
 
-  // Get platform icon
-  const getPlatformIcon = (platform: string) => {
-    const lowerPlatform = platform.toLowerCase();
-    if (lowerPlatform.includes('whatsapp')) return <MessageCircle className="h-4 w-4" />;
-    if (lowerPlatform.includes('facebook')) return <Facebook className="h-4 w-4" />;
-    if (lowerPlatform.includes('twitter') || lowerPlatform.includes('x')) return <Twitter className="h-4 w-4" />;
-    if (lowerPlatform.includes('instagram')) return <Instagram className="h-4 w-4" />;
-    if (lowerPlatform.includes('tiktok')) return <Music className="h-4 w-4" />;
-    if (lowerPlatform.includes('youtube')) return <Youtube className="h-4 w-4" />;
-    if (lowerPlatform.includes('telegram')) return <Send className="h-4 w-4" />;
-    if (lowerPlatform.includes('linkedin')) return <Linkedin className="h-4 w-4" />;
-    if (lowerPlatform.includes('email') || lowerPlatform.includes('correo')) return <Mail className="h-4 w-4" />;
-    return <Share2 className="h-4 w-4" />;
+  // Logic to determine if we show an Image or Audio player
+  const isAudio = caseData.type === 'AUDIO';
+  // Text, Image, Video (thumbnail) are all visual for the preview block
+  const isVisual = !isAudio && !!caseData.overview.main_asset_url;
+
+  // --- 3. INSIGHT FILTERING ---
+  const sourceInsight = caseData.insights.find((i: any) => 
+    i.id?.includes('source') || i.category === 'metadata' || i.label?.toLowerCase().includes('fuente')
+  );
+
+  const clickbaitInsight = caseData.insights.find((i: any) => 
+    i.id?.includes('clickbait') || i.id?.includes('titular') || i.label?.toLowerCase().includes('titular')
+  );
+
+  const amiCompetencies = caseData.insights.filter((i: any) =>
+    i.category === 'competency' || i.category === 'compliance' || i.label?.toLowerCase().includes('competencia')
+  );
+
+  // --- HELPERS ---
+  const getRiskColor = (score: number) => {
+    if (score < 30) return 'text-green-600';
+    if (score < 70) return 'text-yellow-600';
+    return 'text-red-600';
   };
 
-  // Get platform color
-  const getPlatformColor = (platform: string) => {
-    const lowerPlatform = platform.toLowerCase();
-    if (lowerPlatform.includes('whatsapp')) return 'bg-[#25D366] text-white border border-[#1da851]';
-    if (lowerPlatform.includes('facebook')) return 'bg-[#1877F2] text-white border border-[#0c63d4]';
-    if (lowerPlatform.includes('twitter') || lowerPlatform.includes('x')) return 'bg-black text-white border border-gray-800';
-    if (lowerPlatform.includes('instagram')) return 'bg-gradient-to-tr from-[#F58529] via-[#DD2A7B] to-[#8134AF] text-white border border-[#C13584]';
-    if (lowerPlatform.includes('tiktok')) return 'bg-black text-white border border-[#00f2ea]';
-    if (lowerPlatform.includes('youtube')) return 'bg-[#FF0000] text-white border border-[#cc0000]';
-    if (lowerPlatform.includes('telegram')) return 'bg-[#0088cc] text-white border border-[#006ba1]';
-    if (lowerPlatform.includes('linkedin')) return 'bg-[#0A66C2] text-white border border-[#004182]';
-    if (lowerPlatform.includes('email') || lowerPlatform.includes('correo')) return 'bg-[#5f6368] text-white border border-[#4a4d50]';
-    return 'bg-gray-600 text-white border border-gray-700';
-  };
+  const handleDownloadImage = () => { alert("Descarga de imagen próximamente."); };
 
+  // --- 4. RENDER UI ---
   return (
-    <div className="max-w-5xl mx-auto p-4 md:p-6 lg:pt-5 space-y-6">
-      {/* Botilito completion banner */}
-      <div className="bg-[#ffe97a] border-2 border-[#ffda00] rounded-lg p-4 shadow-lg">
-        <div className="flex flex-col md:flex-row items-center space-y-4 md:space-y-0 md:space-x-4 text-center md:text-left">
-          <img
-            src={botilitoImage}
-            alt="Botilito"
-            className="w-20 h-20 md:w-24 md:h-24 object-contain mb-2 md:mb-[-18px] md:mr-[16px]"
-          />
-          <div className="flex-1">
-            <p className="text-lg md:text-xl font-semibold">
-              ¡Mis circuitos ya escanearon esto de arriba a abajo! 🔍⚡
-            </p>
-            <p className="text-sm mt-1 opacity-80">
-              Ya le pasé este caso a mis parceros de carne y hueso de <span className="font-medium">Digital-IA</span> para que hagan su diagnóstico humano! 🤝
+    <div className="w-full bg-gray-50 min-h-screen pb-12">
+      
+      {/* HEADER BANNER */}
+      <div className="bg-[#ffe97a] border-b-2 border-[#ffda00] px-6 py-4 shadow-sm mb-6 sticky top-0 z-10">
+        <div className="max-w-7xl mx-auto flex items-center gap-4">
+          <div className="bg-white p-1.5 rounded-full border-2 border-[#ffda00] shrink-0">
+             <img src={botilitoImage} alt="Botilito" className="w-10 h-10 object-contain" />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-gray-900 leading-tight">
+              ¡Qué más parce! Este es el análisis {caseData.type === 'TEXT' ? 'AMI' : 'Forense'} completo 🕵️‍♂️
+            </h2>
+            <p className="text-xs text-gray-800 hidden md:block">
+              {caseData.type === 'TEXT' 
+                ? 'Contenido analizado desde la perspectiva de Alfabetización Mediática e Informacional.' 
+                : `Análisis técnico de ${caseData.type.toLowerCase()} para detectar manipulación digital.`}
             </p>
           </div>
         </div>
       </div>
 
-      {/* Main results card */}
-      <Card>
-        <CardHeader>
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-            <CardTitle className="flex items-center space-x-2 text-xl md:text-2xl">
-              <Bot className="h-5 w-5 text-primary" />
-              <span className="font-bold">Diagnóstico Desinfodémico de Botilito</span>
-            </CardTitle>
-            <div className="flex flex-col items-start md:items-end space-y-1 w-full md:w-auto">
-              <div className="flex flex-wrap gap-2 justify-start md:justify-end">
-                <Badge variant="outline" className="text-sm bg-[#ffe97a]">
-                  Caso: {caseNumber}
+      <div className="max-w-7xl mx-auto px-4 md:px-6">
+        
+        {/* NAVIGATION */}
+        <div className="mb-6">
+          <Button variant="ghost" onClick={onReset} className="pl-0 hover:bg-transparent hover:text-[#ffda00] text-gray-600">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            {backLabel}
+          </Button>
+        </div>
+
+        {/* TWO-COLUMN LAYOUT (Stretchy Left | Fixed-width Right Sidebar) */}
+        <div className="flex flex-col lg:flex-row gap-8 mb-8">
+
+          {/* LEFT COLUMN - Stretches to fill available space */}
+          <div className="flex-1 min-w-0 space-y-8">
+
+            {/* ASSET PREVIEW (Dynamic based on Type) */}
+            {caseData.overview.main_asset_url ? (
+              <div className="rounded-xl overflow-hidden border border-black bg-white relative group">
+                <div className="absolute top-4 left-4 z-10">
+                  <Badge className="bg-black/70 hover:bg-black/90 text-white border-none backdrop-blur-sm gap-2 pl-2">
+                    {isAudio ? <Mic className="h-3 w-3" /> : <Camera className="h-3 w-3" />}
+                    {isAudio ? 'Audio Original' : 'Captura Original'}
+                  </Badge>
+                </div>
+
+                {isAudio ? (
+                  <div className="h-32 flex items-center justify-center bg-gray-900 text-white w-full">
+                    <audio controls src={caseData.overview.main_asset_url} className="w-full max-w-2xl px-4" />
+                  </div>
+                ) : (
+                  <div className="w-full">
+                    <img
+                      src={caseData.overview.main_asset_url}
+                      alt="Analyzed Media"
+                      className="w-full h-auto object-cover"
+                    />
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="rounded-xl overflow-hidden border border-black bg-gray-50 flex items-center justify-center h-[200px]">
+                <div className="text-center text-gray-400">
+                  <Camera className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">Sin imagen disponible</p>
+                </div>
+              </div>
+            )}
+
+            {/* TITULAR */}
+            <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
+              <div className="flex items-center gap-2 mb-2 text-gray-500">
+                <FileText className="h-4 w-4" />
+                <span className="text-xs font-bold uppercase tracking-wider">Titular</span>
+              </div>
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 leading-tight">
+                {caseData.overview.title}
+              </h1>
+            </div>
+
+            {/* DIAGNOSTIC CARDS ROW */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Infodemic Diagnosis */}
+              <Card className="shadow-sm border-2 border-red-400 bg-red-50 overflow-hidden">
+                <CardContent className="p-4">
+                    <div className="flex gap-4">
+                      <div className="shrink-0">
+                        <AlertTriangle className="h-8 w-8 text-red-500" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <h3 className="text-xl font-bold text-gray-900">Diagnóstico Infodémico</h3>
+                            <div className="flex flex-wrap gap-2 mt-2">
+                              <Badge variant="secondary" className="bg-gray-200 text-gray-700 hover:bg-gray-200">Análisis IA</Badge>
+                              <Badge className="bg-red-100 text-red-700 hover:bg-red-100 border border-red-200">{caseData.overview.verdict_label || 'Pendiente'}</Badge>
+                            </div>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <div className="text-3xl font-black text-red-500">
+                              {caseData.overview.risk_score}%
+                            </div>
+                            <div className="text-xs text-red-400 font-medium">Precisión<br/>diagnóstica</div>
+                          </div>
+                        </div>
+                        <p className="text-sm text-gray-600 mt-4 leading-relaxed">
+                          {caseData.overview.risk_score >= 70
+                            ? "Contenido presenta características de desinformación. Alto riesgo de propagación por apelación emocional."
+                            : caseData.overview.risk_score >= 30
+                            ? "Contenido requiere verificación adicional. Se recomienda análisis crítico."
+                            : "Contenido dentro de parámetros normales. Bajo riesgo de desinformación detectado."}
+                        </p>
+                      </div>
+                    </div>
+                </CardContent>
+              </Card>
+
+              {/* Human Analysis */}
+              <Card className="shadow-sm border-2 border-red-400 bg-red-50 overflow-hidden">
+                <CardContent className="p-4">
+                    <div className="flex gap-4">
+                      <div className="shrink-0">
+                        <User className="h-8 w-8 text-red-500" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <h3 className="text-xl font-bold text-gray-900">Análisis Humano</h3>
+                            <div className="flex flex-wrap gap-2 mt-2">
+                              <Badge variant="secondary" className="bg-gray-200 text-gray-700 hover:bg-gray-200">Análisis Humano</Badge>
+                              <Badge className="bg-red-100 text-red-700 hover:bg-red-100 border border-red-200">
+                                {caseData.community?.status === 'human_consensus' ? 'Consenso alcanzado' : 'Requiere validación'}
+                              </Badge>
+                            </div>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <div className="text-3xl font-black text-red-500">
+                              {caseData.community?.votes > 0 ? `${Math.min(100, caseData.community.votes * 10)}%` : '--%'}
+                            </div>
+                            <div className="text-xs text-red-400 font-medium">Consenso<br/>humano</div>
+                          </div>
+                        </div>
+                        <p className="text-sm text-gray-600 mt-4 leading-relaxed">
+                          {caseData.community?.votes > 0
+                            ? `Los especialistas en AMI confirman que este contenido presenta características de desinformación y requiere un análisis crítico profundo, coincidiendo con la evaluación automatizada.`
+                            : "Aún no hay suficientes validaciones humanas. Tu opinión como especialista es importante para alcanzar consenso."}
+                        </p>
+                      </div>
+                    </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* CONTENIDO ANALIZADO */}
+            <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
+              <div className="flex items-center gap-2 mb-2 text-gray-500">
+                <FileText className="h-4 w-4" />
+                <span className="text-xs font-bold uppercase tracking-wider">Contenido Analizado</span>
+              </div>
+              <div className="bg-gray-50 p-4 rounded-lg border-l-4 border-[#ffda00]">
+                <p className="text-gray-800 text-sm leading-relaxed whitespace-pre-wrap">
+                  {caseData.overview.summary}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2 pt-4">
+                {caseData.overview.source_domain && (
+                  <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 gap-1.5 py-1">
+                    <Globe className="h-3 w-3" /> Fuente: <strong>{caseData.overview.source_domain}</strong>
+                  </Badge>
+                )}
+                <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 gap-1.5 py-1">
+                  <Hash className="h-3 w-3" /> Tipo: <strong>{caseData.type}</strong>
                 </Badge>
-                {consensusState && (
-                  <Badge
-                    variant="outline"
-                    className={`text-sm ${consensusState === 'human_consensus'
-                      ? 'bg-emerald-100 border-emerald-500 text-emerald-700'
-                      : consensusState === 'conflicted'
-                        ? 'bg-orange-100 border-orange-500 text-orange-700'
-                        : 'bg-blue-100 border-blue-500 text-blue-700'
-                      }`}
-                  >
-                    {consensusState === 'human_consensus' && '✓ Verificado por Humanos'}
-                    {consensusState === 'conflicted' && '⚠ Opiniones Divididas'}
-                    {consensusState === 'ai_only' && '🤖 Análisis AI'}
+                {caseData.metadata?.theme && (
+                  <Badge variant="outline" className="bg-gray-100 text-gray-700 border-gray-200 gap-1.5 py-1">
+                    <Activity className="h-3 w-3" /> Tema: <strong>{caseData.metadata.theme}</strong>
                   </Badge>
                 )}
               </div>
-              {createdAt && (
-                <p className="text-xs text-muted-foreground">
-                  {new Date(createdAt).toLocaleString('es-CO')}
-                </p>
-              )}
-              {reportedBy && (
-                <div className="flex items-center space-x-1 text-xs text-muted-foreground">
-                  <User className="h-3 w-3" />
-                  <span className="font-bold">Reportado por: {reportedBy}</span>
-                </div>
-              )}
             </div>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Content section */}
-          {(title || summaryBotilito?.summary) && (
-            <div className="p-4 bg-secondary/30 border-2 border-secondary/60 rounded-lg space-y-3">
-              {/* Screenshot Fetching and Display */}
-              <ScreenshotImage
-                submittedUrl={fullResult?.url || null}
-                width={1200}
-                height={800}
-                onImageLoad={setNewsScreenshot}
-              />
 
-              {newsScreenshot && (
-                <div>
-                  <Label>Captura de la noticia:</Label>
-                  <div className="mt-2 rounded-lg overflow-hidden border-2 border-secondary/40 relative max-h-40 md:max-h-48">
-                    <img
-                      src={newsScreenshot}
-                      alt="Captura de la noticia"
-                      className="w-full h-40 md:h-48 object-cover object-top"
-                      onLoad={() => setImageLoaded(true)}
-                      onError={() => setImageLoaded(true)} // Handle image load error if needed
-                    />
-                    {/* Overlay with detected markers */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent flex items-end justify-center p-4">
-                      <div className="flex flex-wrap gap-2 justify-center">
-                        {markersDetected?.slice(0, 3).map((marker: any, index: number) => (
-                          <Badge
-                            key={index}
-                            onClick={() => setSelectedMarker(marker)}
-                            className={`${getMarkerColor(marker.type)} text-white shadow-lg cursor-pointer hover:opacity-90 transition-opacity px-3 py-1.5 text-sm`}
-                          >
-                            {getMarkerIcon(marker.type, index)}
-                            <span className="ml-1.5">{marker.type}</span>
-                          </Badge>
-                        ))}
+            {/* AMI SPECIFIC SECTION */}
+            <div>
+              <div className="flex items-center gap-2 mb-4">
+                <span className="text-[#FFDA00] text-xl">⚡</span>
+                <h3 className="text-lg font-bold text-gray-900">
+                  Análisis con enfoque en Alfabetización Mediática e Informacional (AMI)
+                </h3>
+              </div>
+              
+              <div className="space-y-4">
+                
+                {/* 1. Resumen */}
+                <Card className="shadow-sm border-gray-200">
+                  <CardHeader className="pb-2 pt-4 px-4">
+                    <CardTitle className="text-sm font-bold flex items-center gap-2 text-gray-700">
+                      <FileText className="h-4 w-4" /> Resumen del Contenido
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="px-4 pb-4">
+                    <div className="space-y-2 text-sm">
+                      <div className="grid grid-cols-[60px_1fr] gap-2">
+                        <span className="font-bold text-gray-900">Qué:</span>
+                        <span className="text-gray-600">{caseData.overview.summary}</span>
+                      </div>
+                      <div className="grid grid-cols-[60px_1fr] gap-2">
+                        <span className="font-bold text-gray-900">Quién:</span>
+                        <span className="text-gray-600">{caseData.overview.source_domain || "Fuente no identificada"}</span>
+                      </div>
+                      <div className="grid grid-cols-[60px_1fr] gap-2">
+                        <span className="font-bold text-gray-900">Cuándo:</span>
+                        <span className="text-gray-600">{new Date(caseData.created_at).toLocaleDateString()}</span>
                       </div>
                     </div>
-                  </div>
-                </div>
-              )}
+                  </CardContent>
+                </Card>
 
-              {/* Source, theme, region metadata */}
-              {(newsSource || theme || region) && (
-                <div className="flex flex-wrap items-center gap-4 pb-2">
-                  {newsSource && (
-                    <div className="flex items-center space-x-2">
-                      <Newspaper className="h-4 w-4 text-primary" />
-                      <Label className="text-sm">Fuente:</Label>
-                      <a
-                        href={newsSource.url || '#'}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-secondary/60 hover:bg-secondary text-secondary-foreground rounded-md transition-colors text-xs no-hover-effect"
-                      >
-                        <span>{newsSource.name || newsSource}</span>
-                        <ExternalLink className="h-3 w-3" />
-                      </a>
-                    </div>
-                  )}
+                {/* 2. Análisis de Fuentes */}
+                {sourceInsight && (
+                  <Card className="shadow-sm border-blue-200 bg-blue-50/50">
+                    <CardHeader className="pb-2 pt-4 px-4">
+                      <CardTitle className="text-sm font-bold flex items-center gap-2 text-blue-800">
+                        <Shield className="h-4 w-4" /> Análisis de Fuentes y Datos
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="px-4 pb-4">
+                      <p className="text-sm text-gray-700 leading-relaxed">
+                        {sourceInsight.description}
+                      </p>
+                    </CardContent>
+                  </Card>
+                )}
 
-                  {theme && (
-                    <div className="flex items-center space-x-2">
-                      <Tag className="h-4 w-4 text-primary" />
-                      <Label className="text-sm">Tema:</Label>
-                      <Badge variant="outline" className="text-xs border-primary/40 bg-primary/10">
-                        {theme}
-                      </Badge>
-                    </div>
-                  )}
+                {/* 3. Alerta Titular */}
+                {clickbaitInsight && (
+                  <Card className="shadow-sm border-2 border-red-400 bg-red-50 overflow-hidden">
+                    <CardContent className="p-4">
+                      <div className="flex gap-4">
+                        <div className="shrink-0">
+                          <AlertTriangle className="h-8 w-8 text-red-500" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-xl font-bold text-gray-900">Alerta: Titular vs. Contenido</h3>
+                          <p className="text-sm text-gray-600 mt-3 leading-relaxed">
+                            {clickbaitInsight.description}
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
 
-                  {region && (
-                    <div className="flex items-center space-x-2">
-                      <Tag className="h-4 w-4 text-primary" />
-                      <Label className="text-sm">Región:</Label>
-                      <Badge variant="outline" className="text-xs border-primary/40 bg-primary/10">
-                        {region}
-                      </Badge>
-                    </div>
-                  )}
-                </div>
-              )}
+                {/* 4. Competencias AMI */}
+                {amiCompetencies.length > 0 && (
+                  <Card className="shadow-sm border-green-200 bg-green-50/30">
+                    <CardHeader className="pb-2 pt-4 px-4">
+                      <CardTitle className="text-sm font-bold flex items-center gap-2 text-green-800">
+                        <CheckCircle2 className="h-4 w-4" /> Competencias AMI Recomendadas:
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="px-4 pb-4">
+                      <div className="space-y-3">
+                        {amiCompetencies.map((comp: any, idx: number) => (
+                          <div key={idx} className="flex gap-3 items-start">
+                            <div className="w-5 h-5 rounded-full bg-[#FFDA00] text-xs font-bold flex items-center justify-center shrink-0 mt-0.5 text-gray-900">
+                              {idx + 1}
+                            </div>
+                            <p className="text-sm text-gray-700">
+                              <span className="font-semibold">{comp.label}:</span> {comp.description}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
 
-              {title && (
-                <div>
-                  <Label>Titular de la noticia:</Label>
-                  <div className="mt-1 p-3 bg-primary/20 border border-primary/40 rounded-lg">
-                    <p className="font-medium">{title}</p>
-                  </div>
-                </div>
-              )}
-
-              {summaryBotilito?.summary && (
-                <div>
-                  <Label>Contenido analizado:</Label>
-                  <p className="text-sm text-muted-foreground mt-1 leading-relaxed whitespace-pre-line">
-                    {summaryBotilito.summary}
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Classification Markers - Always show if available */}
-          {markersDetected && markersDetected.length > 0 && (
-            <div className="p-4 bg-secondary/20 border border-secondary/40 rounded-lg">
-              <Label className="mb-3 block">Marcadores de clasificación detectados:</Label>
-              <div className="flex flex-wrap gap-2">
-                {markersDetected.map((marker: any, index: number) => (
-                  <Badge
-                    key={index}
-                    onClick={() => setSelectedMarker(marker)}
-                    className={`${getMarkerColor(marker.type)} text-white shadow-md cursor-pointer hover:opacity-90 transition-opacity px-3 py-1.5 text-sm`}
-                  >
-                    {getMarkerIcon(marker.type, index)}
-                    <span className="ml-1.5">{marker.type}</span>
-                  </Badge>
-                ))}
-              </div>
-
-              {/* Description Panel */}
-              {selectedMarker && (
-                <div className="mt-4 p-4 bg-gray-900 text-white rounded-lg border-2 border-primary">
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      {getMarkerIcon(selectedMarker.type, 0)}
-                      <h4 className="font-bold text-lg">{selectedMarker.type}</h4>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setSelectedMarker(null)}
-                      className="text-white hover:bg-white/20 -mt-1 -mr-1"
-                    >
-                      <XCircle className="h-5 w-5" />
-                    </Button>
-                  </div>
-                  <p className="text-sm leading-relaxed">
-                    {selectedMarker.explanation || 'No hay descripción disponible'}
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Epidemiological evaluation */}
-          <div>
-            <h4 className="text-lg md:text-xl font-semibold">Evaluación epidemiológica:</h4>
-            <p className="text-sm text-muted-foreground mt-1">{finalVerdict}</p>
-          </div>
-
-          {/* Transmission vectors */}
-          <div>
-            <Label className="flex items-center space-x-2">
-              <Share2 className="h-4 w-4 text-primary" />
-              <span>Vectores de transmisión identificados:</span>
-            </Label>
-            <div className="flex flex-wrap gap-2 mt-3">
-              {transmissionSources.map((source: string, index: number) => (
-                <Badge
-                  key={index}
-                  className={`${getPlatformColor(source)} px-3 py-2 flex items-center space-x-2 shadow-sm`}
-                >
-                  {getPlatformIcon(source)}
-                  <span>{source}</span>
-                </Badge>
-              ))}
-            </div>
-          </div>
-
-          {/* Social sharing and download */}
-          <div className="pt-6 border-t space-y-4">
-            <div>
-              <Label className="flex items-center space-x-2 mb-3">
-                <Share2 className="h-4 w-4 text-primary" />
-                <span>¡Vamos a inmunizar a todo el país! Comparte este diagnóstico.</span>
-              </Label>
-              <div className="flex flex-wrap items-center gap-3">
-                <Button
-                  onClick={shareOnTwitter}
-                  size="icon"
-                  title="Compartir en Twitter/X"
-                  className="h-9 w-9 rounded-full bg-black hover:bg-gray-800 text-white no-hover-effect"
-                >
-                  <Twitter className="h-4 w-4" />
-                </Button>
-                <Button
-                  onClick={shareOnFacebook}
-                  size="icon"
-                  title="Compartir en Facebook"
-                  className="h-9 w-9 rounded-full bg-[#1877F2] hover:bg-[#166fe5] text-white no-hover-effect"
-                >
-                  <Facebook className="h-4 w-4" />
-                </Button>
-                <Button
-                  onClick={shareOnWhatsApp}
-                  size="icon"
-                  title="Compartir en WhatsApp"
-                  className="h-9 w-9 rounded-full bg-[#25D366] hover:bg-[#20bd5a] text-white no-hover-effect"
-                >
-                  <MessageCircle className="h-4 w-4" />
-                </Button>
-                <Button
-                  onClick={shareOnLinkedIn}
-                  size="icon"
-                  title="Compartir en LinkedIn"
-                  className="h-9 w-9 rounded-full bg-[#0A66C2] hover:bg-[#095bad] text-white no-hover-effect"
-                >
-                  <Linkedin className="h-4 w-4" />
-                </Button>
-                <div className="h-4 w-px bg-border mx-1"></div>
-                <Button
-                  onClick={handleDownloadImage}
-                  size="sm"
-                  title="Descargar imagen resumen"
-                  className="rounded-[6px] bg-secondary hover:bg-primary text-primary-foreground px-4"
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  <span className="text-sm">Descargar</span>
-                </Button>
               </div>
             </div>
+
           </div>
 
-          {/* Hidden canvas for image generation */}
-          <canvas ref={canvasRef} className="hidden" />
-        </CardContent>
-      </Card>
+          {/* RIGHT COLUMN - Fixed width sidebar */}
+          <div className="lg:w-80 lg:flex-shrink-0 space-y-6">
+            
+            {/* Case Info */}
+            <Card className="shadow-sm border-2" style={{ borderColor: '#FFDA00' }}>
+              <CardHeader className="pb-2 pt-4 px-4">
+                <CardTitle className="text-sm font-bold flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-[#FFDA00]" /> Información del Caso
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="px-4 pb-4 space-y-3">
+                <div className="flex justify-between text-sm"><span className="text-gray-500">Caso</span><span className="font-mono font-medium text-gray-900 bg-gray-100 px-1.5 py-0.5 rounded text-xs">{caseData.display_id}</span></div>
+                <Separator />
+                <div className="flex justify-between text-sm"><span className="text-gray-500">Tipo</span><span className="font-bold text-gray-900">{caseData.type}</span></div>
+                <Separator />
+                <div className="flex justify-between text-sm"><span className="text-gray-500">Vector</span><span>{caseData.metadata?.vector || 'Web'}</span></div>
+                <Separator />
+                <div className="flex justify-between text-sm"><span className="text-gray-500">Reportado</span><span>{caseData.reporter?.name || 'Anónimo'}</span></div>
+                <Separator />
+                <div className="flex justify-between text-sm"><span className="text-gray-500">Fecha</span><span>{new Date(caseData.created_at).toLocaleDateString()}</span></div>
+              </CardContent>
+            </Card>
 
-      {/* Reset button */}
-      <div className="flex">
-        <Button onClick={onReset} className="bg-secondary hover:bg-primary text-primary-foreground transition-all duration-300">
-          Quiero reportar otro contenido!
-        </Button>
+            {/* Statistics */}
+            <Card className="shadow-sm border-2" style={{ borderColor: '#FFDA00' }}>
+              <CardHeader className="pb-2 pt-4 px-4">
+                <CardTitle className="text-sm font-bold flex items-center gap-2">
+                  <Activity className="h-4 w-4 text-[#FFDA00]" /> Estadísticas
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="px-4 pb-4">
+                <div className="space-y-3 text-sm">
+                  <div className="flex justify-between"><span className="text-gray-500">Pruebas</span><span className="font-bold text-gray-900">{caseData.insights.length}</span></div>
+                  <div className="flex justify-between"><span className="text-gray-500">Tiempo total</span><span className="font-bold text-gray-900">12.0s</span></div>
+                  <div className="flex justify-between"><span className="text-gray-500">Precisión</span><span className="font-bold text-gray-900">{caseData.overview.risk_score > 0 ? '92%' : '0%'}</span></div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Chain of Custody */}
+            <Card className="shadow-sm border-2" style={{ borderColor: '#FFDA00' }}>
+              <CardHeader className="pb-2 pt-4 px-4">
+                <CardTitle className="text-sm font-bold flex items-center gap-2">
+                  <Shield className="h-4 w-4 text-[#FFDA00]" /> Cadena de Custodia
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="px-4 pb-4">
+                <div className="relative pl-4 border-l-2 border-gray-200 space-y-6 py-2 ml-1.5">
+                  <div className="relative">
+                    <div className="absolute -left-[23px] top-1 w-3 h-3 bg-[#FFDA00] rounded-full border-2 border-white ring-1 ring-gray-100"></div>
+                    <div className="flex flex-col">
+                      <span className="text-xs font-bold text-gray-900 uppercase tracking-wide">Caso creado</span>
+                      <span className="text-[10px] text-gray-500">{new Date(caseData.created_at).toLocaleString()}</span>
+                    </div>
+                  </div>
+                  <div className="relative">
+                    <div className="absolute -left-[23px] top-1 w-3 h-3 bg-gray-900 rounded-full border-2 border-white ring-1 ring-gray-100"></div>
+                    <div className="flex flex-col">
+                      <span className="text-xs font-bold text-gray-900 uppercase tracking-wide">Análisis ejecutado</span>
+                      <span className="text-[10px] text-gray-500">Score de Riesgo: {caseData.overview.risk_score}%</span>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Recommendations - Always show */}
+            <div className="bg-[#FFFCE8] border-2 rounded-lg p-4 shadow-sm" style={{ borderColor: '#FFDA00' }}>
+              <div className="flex items-center gap-2 mb-3">
+                <Bot className="h-4 w-4 text-[#FFDA00]" />
+                <span className="font-bold text-gray-900 text-sm">Recomendaciones</span>
+              </div>
+              {caseData.recommendations.length > 0 ? (
+                <ul className="space-y-2">
+                  {caseData.recommendations.map((rec: string, idx: number) => (
+                    <li key={idx} className="text-xs text-gray-700 flex gap-2 items-start">
+                      <span className="text-[#FFDA00] font-bold mt-0.5">•</span>
+                      <span>{rec}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-xs text-gray-500 italic">Sin recomendaciones específicas para este caso.</p>
+              )}
+            </div>
+
+            <Button className="w-full bg-[#FFDA00] text-gray-900 hover:bg-[#e6c400]" onClick={handleDownloadImage}>
+              <Download className="mr-2 h-4 w-4" /> Descargar Imagen
+            </Button>
+          </div>
+        </div>
+
+        {/* HUMAN VALIDATION COMPONENT (FULL WIDTH) */}
+        <div className="w-full mb-12">
+          <HumanValidationForm 
+            caseId={caseData.id}
+            aiVerdictLabel={caseData.overview.verdict_label}
+            aiRiskScore={caseData.overview.risk_score}
+            onVoteSuccess={() => {}}
+          />
+        </div>
+
       </div>
+
+      {/* FOOTER */}
+      <div className="py-8 text-center bg-white border-t border-gray-100 mt-12">
+        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+          BOTILITO INTELLIGENCE ECOSYSTEM • 2026
+        </p>
+      </div>
+
+      <canvas ref={canvasRef} className="hidden" />
     </div>
   );
 }

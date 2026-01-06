@@ -2,7 +2,7 @@ import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
-import { Bot, Upload, Users, FileSearch, LogOut, User, Settings, Trophy, Activity, Puzzle, Map, BookOpen, Syringe, LayoutDashboard } from 'lucide-react';
+import { Bot, Upload, Users, FileSearch, LogOut, User, Settings, Trophy, Activity, Puzzle, Map, BookOpen, LayoutDashboard } from 'lucide-react';
 import { NotificationCenter } from './notifications/NotificationCenter';
 import botilitoLogo from 'figma:asset/8604399dafdf4284ef499af970e8af43ff13e21b.png';
 import { useState } from 'react';
@@ -16,10 +16,11 @@ interface NavigationProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
   onLogout?: () => void;
-  onViewTask: (jobId: string, type: string) => void;
+  onViewTask: (jobId: string, type: string, status?: string) => void;
+  onViewAllNotifications?: () => void;
 }
 
-export function Navigation({ activeTab, onTabChange, onLogout, onViewTask }: NavigationProps) {
+export function Navigation({ activeTab, onTabChange, onLogout, onViewTask, onViewAllNotifications }: NavigationProps) {
   const { user, profile, session } = useAuth(); // Get user, profile, and session from AuthProvider
   const [isAdmin, setIsAdmin] = useState<boolean>(() => {
     // Check cached admin status on mount
@@ -40,8 +41,7 @@ export function Navigation({ activeTab, onTabChange, onLogout, onViewTask }: Nav
 
   const tabs = [
     { id: 'upload', label: 'Análisis IA', icon: Upload },
-    { id: 'verification', label: 'Diagnóstico Humano', icon: Users },
-    { id: 'immunization', label: 'Inmunización', icon: Syringe },
+    { id: 'verification', label: 'Validación Humana', icon: Users },
     { id: 'review', label: 'Historial', icon: Bot },
     { id: 'mapa', label: 'Mapa Desinfodémico', icon: Map },
     { id: 'profile', label: 'Mi Perfil', icon: User },
@@ -87,7 +87,7 @@ export function Navigation({ activeTab, onTabChange, onLogout, onViewTask }: Nav
     name: profile?.full_name || user?.email?.split('@')[0] || 'Usuario',
     email: user?.email || '',
     avatar: profile?.photo || profile?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.email || 'User'}&backgroundColor=ffda00`,
-    level: profile?.level || 'Vigilante Centinela', // Default per gamification types
+    level: profile?.role || 'Usuario', 
     totalBadges: profile?.reputation !== undefined ? Math.floor(profile.reputation / 10) : 0 // heuristic if badge count not direct
   };
 
@@ -95,13 +95,13 @@ export function Navigation({ activeTab, onTabChange, onLogout, onViewTask }: Nav
     <nav className="border-b bg-card">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-3 cursor-pointer" onClick={() => onTabChange('upload')}>
             <img
               src={botilitoLogo}
               alt="Botilito"
               className="h-10 object-contain"
             />
-            <Badge variant="secondary">Beta</Badge>
+            <Badge variant="secondary">Beta 1.2</Badge>
           </div>
 
           <div className="flex items-center space-x-1">
@@ -133,7 +133,7 @@ export function Navigation({ activeTab, onTabChange, onLogout, onViewTask }: Nav
             {onLogout && (
               <div className="ml-4 pl-4 border-l border-border flex items-center space-x-2">
                 {/* Botón de Notificaciones Globales */}
-                <NotificationCenter onViewTask={onViewTask} />
+                <NotificationCenter onViewTask={onViewTask} onViewAllNotifications={onViewAllNotifications} />
 
                 {/* Avatar y Menú de Usuario */}
                 <DropdownMenu onOpenChange={(open) => { if (open) checkAdminAccess(); }}>

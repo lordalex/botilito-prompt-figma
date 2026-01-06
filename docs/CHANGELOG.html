@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Botilito - Changelog</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 2rem;
+            line-height: 1.6;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        header {
+            background: linear-gradient(135deg, #f6d365 0%, #fda085 100%);
+            padding: 3rem 2rem;
+            text-align: center;
+            border-bottom: 4px solid #f39c12;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            color: #2c3e50;
+            margin-bottom: 0.5rem;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .subtitle {
+            font-size: 1.1rem;
+            color: #555;
+            font-weight: 300;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin-top: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .stat {
+            background: rgba(255, 255, 255, 0.9);
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-number {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #e74c3c;
+        }
+
+        .stat-label {
+            font-size: 0.85rem;
+            color: #7f8c8d;
+            text-transform: uppercase;
+        }
+
+        .content {
+            padding: 2rem;
+        }
+
+        .timeline {
+            position: relative;
+            padding-left: 2rem;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .commit {
+            position: relative;
+            margin-bottom: 2rem;
+            padding-left: 2rem;
+        }
+
+        .commit::before {
+            content: '';
+            position: absolute;
+            left: -2rem;
+            top: 0.5rem;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: white;
+            border: 3px solid #667eea;
+            box-shadow: 0 0 0 4px white;
+        }
+
+        .commit.feat::before {
+            border-color: #27ae60;
+        }
+
+        .commit.fix::before {
+            border-color: #e74c3c;
+        }
+
+        .commit.chore::before {
+            border-color: #95a5a6;
+        }
+
+        .commit-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .commit-type {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .commit-type.feat {
+            background: #27ae60;
+            color: white;
+        }
+
+        .commit-type.fix {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .commit-type.chore {
+            background: #95a5a6;
+            color: white;
+        }
+
+        .commit-type.merge {
+            background: #3498db;
+            color: white;
+        }
+
+        .commit-hash {
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            color: #7f8c8d;
+            background: #ecf0f1;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+        }
+
+        .commit-message {
+            font-size: 1.1rem;
+            color: #2c3e50;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+
+        .commit-meta {
+            display: flex;
+            gap: 1.5rem;
+            font-size: 0.85rem;
+            color: #7f8c8d;
+            flex-wrap: wrap;
+        }
+
+        .commit-meta span {
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+
+        .author {
+            font-weight: 500;
+            color: #555;
+        }
+
+        .date {
+            color: #95a5a6;
+        }
+
+        footer {
+            background: #2c3e50;
+            color: white;
+            padding: 1.5rem 2rem;
+            text-align: center;
+        }
+
+        footer a {
+            color: #3498db;
+            text-decoration: none;
+        }
+
+        footer a:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 1rem;
+            }
+
+            h1 {
+                font-size: 2rem;
+            }
+
+            .content {
+                padding: 1rem;
+            }
+
+            .timeline {
+                padding-left: 1.5rem;
+            }
+
+            .commit {
+                padding-left: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🤖 Botilito Changelog</h1>
+            <p class="subtitle">Registro de Cambios - Últimos 30 Commits</p>
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-number">30</div>
+                    <div class="stat-label">Commits</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-number">11</div>
+                    <div class="stat-label">Features</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-number">16</div>
+                    <div class="stat-label">Fixes</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-number">3</div>
+                    <div class="stat-label">Chores</div>
+                </div>
+            </div>
+        </header>
+
+        <div class="content">
+            <div class="timeline">
+                <!-- November 15, 2025 -->
+                <div class="commit chore">
+                    <div class="commit-header">
+                        <span class="commit-type chore">chore</span>
+                        <span class="commit-hash">f6e83c5</span>
+                    </div>
+                    <div class="commit-message">Add QA_TESTING.md to .gitignore</div>
+                    <div class="commit-meta">
+                        <span class="author">👤 LordAlex Leon (LA)</span>
+                        <span class="date">📅 Nov 15, 2025 09:35</span>
+                    </div>
+                </div>
+
+                <div class="commit feat">
+                    <div class="commit-header">
+                        <span class="commit-type feat">feat</span>
+                        <span class="commit-hash">1edcc66</span>
+                    </div>
+                    <div class="commit-message">Add vite.config.ts with Figma asset aliases and dependency resolution</div>
+                    <div class="commit-meta">
+                        <span class="author">👤 LordAlex Leon (LA)</span>
+                        <span class="date">📅 Nov 15, 2025 08:45</span>
+                    </div>
+                </div>
+
+                <div class="commit fix">
+                    <div class="commit-header">
+                        <span class="commit-type fix">fix</span>
+                        <span class="commit-hash">5c59830</span>
+                    </div>
+                    <div class="commit-message">Screenshot feature</div>
+                    <div class="commit-meta">
+                        <span class="author">👤 Gerardo Rojas</span>
+                        <span class="date">📅 Nov 15, 2025 14:13</span>
+                    </div>
+                </div>
+
+                <!-- November 1, 2025 -->
+                <div class="commit fix">
+                    <div class="commit-header">
+                        <span class="commit-type fix">fix</span>
+                        <span class="commit-hash">14b2714</span>
+                    </div>
+                    <div class="commit-message">Set max height and width for botilito image (UI)</div>
+                    <div class="commit-meta">
+                        <span class="author">👤 Gerardo Rojas</span>
+                        <span class="date">📅 Nov 1, 2025 22:43</span>
+                    </div>
+                </div>
+
+                <div class="commit fix">
+                    <div class="commit-header">
+                        <span class="commit-type fix">fix</span>
+                        <span class="commit-hash">0c99b27</span>
+                    </div>
+                    <div class="commit-message">Ensure bot and bubble are fully visible (UI)</div>
+                    <div class="commit-meta">
+                        <span class="author">👤 Gerardo Rojas</span>
+                        <span class="date">📅 Nov 1, 2025 22:40</span>
+                    </div>
+                </div>
+
+                <div class="commit fix">
+                    <div class="commit-header">
+                        <span class="commit-type fix">fix</span>
+                        <span class="commit-hash">c2ab7c3</span>
+                    </div>
+                    <div class="commit-message">Consider speech bubble in height calculation (UI)</div>
+                    <div class="commit-meta">
+                        <span class="author">👤 Gerardo Rojas</span>
+                        <span class="date">📅 Nov 1, 2025 22:36</span>
+                    </div>
+                </div>
+
+                <div class="commit fix">
+                    <div class="commit-header">
+                        <span class="commit-type fix">fix</span>
+                        <span class="commit-hash">9929d2f</span>
+                    </div>
+                    <div class="commit-message">Further reduce botilito image height (UI)</div>
+                    <div class="commit-meta">
+                        <span class="author">👤 Gerardo Rojas</span>
+                        <span class="date">📅 Nov 1, 2025 22:35</span>
+                    </div>
+                </div>
+
+                <div class="commit fix">
+                    <div class="commit-header">
+                        <span class="commit-type fix">fix</span>
+                        <span class="commit-hash">7f695f9</span>
+                    </div>
+                    <div class="commit-message">Adjust botilito image height (UI)</div>
+                    <div class="commit-meta">
+                        <span class="author">👤 Gerardo Rojas</span>
+                        <span class="date">📅 Nov 1, 2025 22:32</span>
+                    </div>
+                </div>
+
+                <div class="commit feat">
+                    <div class="commit-header">
+                        <span class="commit-type feat">feat</span>
+                        <span class="commit-hash">49e42c8</span>
+                    </div>
+                    <div class="commit-message">Make botilito image responsive (UI)</div>
+                    <div class="commit-meta">
+                        <span class="author">👤 Gerardo Rojas</span>
+                        <span class="date">📅 Nov 1, 2025 22:30</span>
+                    </div>
+                </div>
+
+                <!-- October 24, 2025 -->
+                <div class="commit merge">
+                    <div class="commit-header">
+                        <span class="commit-type merge">merge</span>
+                        <span class="commit-hash">e9c32cc</span>
+                    </div>
+                    <div class="commit-message">Merge branch 'mapa-de-desinformacion' into main</div>
+                    <div class="commit-meta">
+                        <span class="author">👤 LordAlex Leon (LA)</span>
+                        <span class="date">📅 Oct 24, 2025 01:00</span>
+                    </div>
+                </div>
+
+                <div class="commit feat">
+                    <div class="commit-header">
+                        <span class="commit-type feat">feat</span>
+                        <span class="commit-hash">340196a</span>
+                    </div>
+                    <div class="commit-message">Add comprehensive mock data toggle system for Mapa Desinfodémico</div>
+                    <div class="commit-meta">
+                        <span class="author">👤 LordAlex Leon (LA)</span>
+                        <span class="date">📅 Oct 24, 2025 00:56</span>
+                    </div>
+                </div>
+
+                <div class="commit feat">
+                    <div class="commit-header">
+                        <span class="commit-type feat">feat</span>
+                        <span class="commit-hash">573d9ab</span>
+                    </div>
+                    <div class="commit-message">Add click-to-show description panel for classification markers</div>
+                    <div class="commit-meta">
+                        <span class="author">👤 LordAlex Leon (LA)</span>
+                        <span class="date">📅 Oct 24, 2025 00:29</span>
+                    </div>
+                </div>
+
+                <div class="commit fix">
+                    <div class="commit-header">
+                        <span class="commit-type fix">fix</span>
+                        <span class="commit-hash">d10d39d</span>
+                    </div>
+                    <div class="commit-message">Resolve tooltip rendering issue by removing nested TooltipProvider</div>
+                    <div class="commit-meta">
+                        <span class="author">👤 LordAlex Leon (LA)</span>
+                        <span class="date">📅 Oct 24, 2025 00:11</span>
+                    </div>
+                </div>
+
+                <!-- October 23, 2025 -->
+                <div class="commit fix">
+                    <div class="commit-header">
+                        <span class="commit-type fix">fix</span>
+                        <span class="commit-hash">2c2b8f5</span>
+                    </div>
+                    <div class="commit-message">Extract case_id, reported_by, and source fields from API response</div>
+                    <div class="commit-meta">
+                        <span class="author">👤 LordAlex Leon (LA)</span>
+                        <span class="date">📅 Oct 23, 2025 23:56</span>
+                    </div>
+                </div>
+
+                <div class="commit fix">
+                    <div class="commit-header">
+                        <span class="commit-type fix">fix</span>
+                        <span class="commit-hash">1d93a37</span>
+                    </div>
+                    <div class="commit-message">Add screenshot loading state and improve tooltip visibility</div>
+                    <div class="commit-meta">
+                        <span class="author">👤 LordAlex Leon (LA)</span>
+                        <span class="date">📅 Oct 23, 2025 23:47</span>
+                    </div>
+                </div>
+
+                <div class="commit feat">
+                    <div class="commit-header">
+                        <span class="commit-type feat">feat</span>
+                        <span class="commit-hash">3c9e533</span>
+                    </div>
+                    <div class="commit-message">Add live screenshot generation with screenshotmachine.com API</div>
+                    <div class="commit-meta">
+                        <span class="author">👤 LordAlex Leon (LA)</span>
+                        <span class="date">📅 Oct 23, 2025 23:36</span>
+                    </div>
+                </div>
+
+                <div class="commit merge">
+                    <div class="commit-header">
+                        <span class="commit-type merge">merge</span>
+                        <span class="commit-hash">490e7aa</span>
+                    </div>
+                    <div class="commit-message">Merge branch 'Fix-Mobile-Try-Contentupload'</div>
+                    <div class="commit-meta">
+                        <span class="author">👤 LordAlex Leon (LA)</span>
+                        <span class="date">📅 Oct 23, 2025 20:51</span>
+                    </div>
+                </div>
+
+                <div class="commit chore">
+                    <div class="commit-header">
+                        <span class="commit-type chore">chore</span>
+                        <span class="commit-hash">d0bc7ae</span>
+                    </div>
+                    <div class="commit-message">Delete vite.config.ts</div>
+                    <div class="commit-meta">
+                        <span class="author">👤 gerardo-at-lordalexand</span>
+                        <span class="date">📅 Oct 24, 2025 03:47</span>
+                    </div>
+                </div>
+
+                <div class="commit chore">
+                    <div class="commit-header">
+                        <span class="commit-type chore">chore</span>
+                        <span class="commit-hash">64426b8</span>
+                    </div>
+                    <div class="commit-message">Delete vite.config.ts</div>
+                    <div class="commit-meta">
+                        <span class="author">👤 gerardo-at-lordalexand</span>
+                        <span class="date">📅 Oct 23, 2025 21:37</span>
+                    </div>
+                </div>
+
+                <div class="commit chore">
+                    <div class="commit-header">
+                        <span class="commit-type chore">chore</span>
+                        <span class="commit-hash">1de86f1</span>
+                    </div>
+                    <div class="commit-message">Delete vite.config.ts</div>
+                    <div class="commit-meta">
+                        <span class="author">👤 gerardo-at-lordalexand</span>
+                        <span class="date">📅 Oct 23, 2025 21:37</span>
+                    </div>
+                </div>
+
+                <div class="commit feat">
+                    <div class="commit-header">
+                        <span class="commit-type feat">feat</span>
+                        <span class="commit-hash">3fbf5b0</span>
+                    </div>
+                    <div class="commit-message">Error Manager</div>
+                    <div class="commit-meta">
+                        <span class="author">👤 Gerardo Rojas</span>
+                        <span class="date">📅 Oct 23, 2025 21:35</span>
+                    </div>
+                </div>
+
+                <div class="commit fix">
+                    <div class="commit-header">
+                        <span class="commit-type fix">fix</span>
+                        <span class="commit-hash">fa4689a</span>
+                    </div>
+                    <div class="commit-message">Fix-Mobile-Try-Contentupload</div>
+                    <div class="commit-meta">
+                        <span class="author">👤 root</span>
+                        <span class="date">📅 Oct 23, 2025 17:29</span>
+                    </div>
+                </div>
+
+                <div class="commit fix">
+                    <div class="commit-header">
+                        <span class="commit-type fix">fix</span>
+                        <span class="commit-hash">5fbc986</span>
+                    </div>
+                    <div class="commit-message">Fix-Mobile-Last-Worked-Signup</div>
+                    <div class="commit-meta">
+                        <span class="author">👤 root</span>
+                        <span class="date">📅 Oct 23, 2025 17:03</span>
+                    </div>
+                </div>
+
+                <div class="commit fix">
+                    <div class="commit-header">
+                        <span class="commit-type fix">fix</span>
+                        <span class="commit-hash">161ca9b</span>
+                    </div>
+                    <div class="commit-message">Add comprehensive mobile responsiveness to Login and Register pages</div>
+                    <div class="commit-meta">
+                        <span class="author">👤 LordAlex Leon (LA)</span>
+                        <span class="date">📅 Oct 23, 2025 11:08</span>
+                    </div>
+                </div>
+
+                <div class="commit feat">
+                    <div class="commit-header">
+                        <span class="commit-type feat">feat</span>
+                        <span class="commit-hash">86a0957</span>
+                    </div>
+                    <div class="commit-message">Connected-Dashboard</div>
+                    <div class="commit-meta">
+                        <span class="author">👤 Gerardo Rojas</span>
+                        <span class="date">📅 Oct 23, 2025 11:39</span>
+                    </div>
+                </div>
+
+                <div class="commit feat">
+                    <div class="commit-header">
+                        <span class="commit-type feat">feat</span>
+                        <span class="commit-hash">441c424</span>
+                    </div>
+                    <div class="commit-message">Connected-Dashboard</div>
+                    <div class="commit-meta">
+                        <span class="author">👤 Gerardo Rojas</span>
+                        <span class="date">📅 Oct 23, 2025 11:38</span>
+                    </div>
+                </div>
+
+                <div class="commit fix">
+                    <div class="commit-header">
+                        <span class="commit-type fix">fix</span>
+                        <span class="commit-hash">1633b50</span>
+                    </div>
+                    <div class="commit-message">Add missing safe defaults in datosMitigacion and datosDescriptivos</div>
+                    <div class="commit-meta">
+                        <span class="author">👤 LordAlex Leon (LA)</span>
+                        <span class="date">📅 Oct 23, 2025 03:26</span>
+                    </div>
+                </div>
+
+                <div class="commit fix">
+                    <div class="commit-header">
+                        <span class="commit-type fix">fix</span>
+                        <span class="commit-hash">dfef6d1</span>
+                    </div>
+                    <div class="commit-message">Add safe defaults for API field variations in transformer</div>
+                    <div class="commit-meta">
+                        <span class="author">👤 LordAlex Leon (LA)</span>
+                        <span class="date">📅 Oct 23, 2025 03:21</span>
+                    </div>
+                </div>
+
+                <div class="commit fix">
+                    <div class="commit-header">
+                        <span class="commit-type fix">fix</span>
+                        <span class="commit-hash">5b73499</span>
+                    </div>
+                    <div class="commit-message">Add safe error property access in component error handling</div>
+                    <div class="commit-meta">
+                        <span class="author">👤 LordAlex Leon (LA)</span>
+                        <span class="date">📅 Oct 23, 2025 03:13</span>
+                    </div>
+                </div>
+
+                <div class="commit feat">
+                    <div class="commit-header">
+                        <span class="commit-type feat">feat</span>
+                        <span class="commit-hash">39c1fc7</span>
+                    </div>
+                    <div class="commit-message">Add comprehensive console debug logging for Mapa Desinfodémico data flow</div>
+                    <div class="commit-meta">
+                        <span class="author">👤 LordAlex Leon (LA)</span>
+                        <span class="date">📅 Oct 23, 2025 03:08</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <p>🤖 Botilito - Anti-misinformation Platform</p>
+            <p style="margin-top: 0.5rem; font-size: 0.9rem;">
+                Generado el 15 de noviembre de 2025 |
+                <a href="https://github.com/lordalex/botilito" target="_blank">Ver Repositorio</a>
+            </p>
+        </footer>
+    </div>
+</body>
+</html>

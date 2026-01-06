@@ -68,27 +68,6 @@ export function ContentUploadProgress({ step, status, progress, fileName, onView
               </p>
             </div>
           )}
-
-          {/* Action buttons */}
-          <div className="flex gap-3">
-            <Button variant="outline" className="flex-1 bg-white hover:bg-gray-50" disabled>
-              <Upload className="h-4 w-4 mr-2" />
-              Reportar otro contenido
-            </Button>
-            <Button
-              className="flex-1 text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{ backgroundColor: '#ffda00' }}
-              disabled={!isComplete}
-              onClick={onViewResult}
-            >
-              {isComplete ? (
-                <SquareCheck className="h-4 w-4 mr-2" />
-              ) : (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              )}
-              Ver resultado del análisis
-            </Button>
-          </div>
         </CardContent>
       </Card>
 

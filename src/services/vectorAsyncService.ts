@@ -1,32 +1,41 @@
+/**
+ * Search DTO Service
+ * 
+ * Provides async search, lookup, and dashboard feed functionality
+ * using the unified search-dto API that returns StandardizedCase DTOs.
+ * 
+ * @see /search-dto.json for OpenAPI specification
+ */
 import { supabase } from '@/utils/supabase/client';
-import { 
-  VectorJobResponse, 
-  JobStatusResponse, 
+import {
+  VectorJobResponse,
+  JobStatusResponse,
   EnrichedCase,
+  StandardizedCase,
   SearchResultPayload,
   LookupResultPayload
 } from '@/types/vector-api';
 
-const FUNCTION_NAME = 'vector-async';
+const FUNCTION_NAME = 'search-dto';
 
 // Helper for polling
 async function pollJobStatus<T>(jobId: string, interval = 2000, timeout = 60000): Promise<T> {
   const start = Date.now();
   while (Date.now() - start < timeout) {
     const { data, error } = await supabase.functions.invoke(`${FUNCTION_NAME}/status/${jobId}`, { method: 'GET' });
-    
+
     if (error) throw new Error(error.message || JSON.stringify(error));
-    
+
     const response = data as JobStatusResponse;
-    
+
     if (response.status === 'completed') {
       return response.result as T;
     }
-    
+
     if (response.status === 'failed') {
       throw new Error(response.error?.message || 'Job failed');
     }
-    
+
     await new Promise(resolve => setTimeout(resolve, interval));
   }
   throw new Error('Polling timed out');
@@ -37,8 +46,8 @@ async function pollJobStatus<T>(jobId: string, interval = 2000, timeout = 60000)
  * FIX: Defaults query to "*" if empty to satisfy API requirement "Query required".
  */
 export async function searchCases(
-  query: string = "", 
-  page: number = 1, 
+  query: string = "",
+  page: number = 1,
   pageSize: number = 10
 ): Promise<SearchResultPayload> {
   // Fix: The API requires a non-empty query. 
@@ -47,10 +56,10 @@ export async function searchCases(
 
   const { data: submitData, error: submitError } = await supabase.functions.invoke(`${FUNCTION_NAME}/search`, {
     method: 'POST',
-    body: { 
-      query: effectiveQuery, 
-      page, 
-      pageSize 
+    body: {
+      query: effectiveQuery,
+      page,
+      pageSize
     },
   });
 
@@ -62,8 +71,9 @@ export async function searchCases(
 
 /**
  * Uses /lookup endpoint for single case details.
+ * Returns either StandardizedCase (new format) or EnrichedCase (legacy).
  */
-export async function lookupCase(identifier: string): Promise<EnrichedCase | null> {
+export async function lookupCase(identifier: string): Promise<EnrichedCase | StandardizedCase | null> {
   const { data: submitData, error: submitError } = await supabase.functions.invoke(`${FUNCTION_NAME}/lookup`, {
     method: 'POST',
     body: { identifier },
@@ -80,7 +90,7 @@ export async function lookupCase(identifier: string): Promise<EnrichedCase | nul
  * Uses /summary endpoint to get a paginated list of recent cases.
  */
 export async function fetchHistorialSummary(
-  page: number = 1, 
+  page: number = 1,
   pageSize: number = 10
 ): Promise<SearchResultPayload> {
   const { data: submitData, error: submitError } = await supabase.functions.invoke(`${FUNCTION_NAME}/summary?page=${page}&pageSize=${pageSize}`, {

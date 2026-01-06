@@ -107,5 +107,5 @@ export interface JobStatusResponse {
     status: 'pending' | 'processing' | 'completed' | 'failed';
     current_step?: string;
     error?: { message: string };
-    result?: AnalysisResult;
+    result?: any; // Can be legacy AnalysisResult or { standardized_case: ... }
 }

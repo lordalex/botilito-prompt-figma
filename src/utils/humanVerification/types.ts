@@ -23,7 +23,7 @@ export interface SearchResultList {
 }
 
 export interface SearchResultSingle {
-    case: CaseEnriched;
+  case: CaseEnriched;
 }
 
 export type VerificationSummaryResult = SearchResultList;
@@ -37,13 +37,13 @@ export interface CaseEnriched {
   content?: string;
   url?: string;
   created_at: string;
-  submission_type: 'Text' | 'URL';
+  submission_type: 'Text' | 'URL' | 'TEXT' | 'IMAGE' | 'VIDEO' | 'AUDIO';
   human_votes?: {
     count: number;
     statistics: {
-        label: string;
-        count: number;
-        percentage: number;
+      label: string;
+      count: number;
+      percentage: number;
     }[];
     entries: {
       vote: string;
@@ -60,14 +60,32 @@ export interface CaseEnriched {
   diagnostic_labels: string[];
   metadata: any;
   case_judgement?: {
-      reasoning: string;
-      final_verdict: string;
-      recommendation: string;
+    reasoning: string;
+    final_verdict: string;
+    recommendation: string;
   };
+  state: 'human_consensus' | 'ai_only';
+  final_labels: string[];
+  priority?: 'low' | 'medium' | 'high' | 'critical';
+  related_documents?: {
+    id: string;
+    title: string;
+    url: string;
+    summary: string;
+    similarity: number;
+  }[];
+  web_search_results?: {
+    title: string;
+    url: string;
+    snippet: string;
+    source: string;
+  }[];
+  // [NEW] Added for DTO compatibility
   consensus?: {
-    state: 'human_consensus' | 'ai_only';
+    state: 'ai_only' | 'human_only' | 'consensus' | 'disagreement';
     final_labels: string[];
   };
+  standardized_case?: any; // To access full DTO if needed
 }
 
 // Keep these constants as they are used by the UI components
@@ -174,6 +192,46 @@ export const DIAGNOSTIC_LABELS: Record<string, {
     border: 'border-orange-200',
     virulencia: 55,
     descripcion: 'Exagera o dramatiza para generar clics o emociones fuertes'
+  },
+  'Verificación de Afirmación': {
+    label: 'Verificación de Afirmación',
+    color: 'text-emerald-700',
+    bg: 'bg-emerald-50',
+    border: 'border-emerald-200',
+    virulencia: 0,
+    descripcion: 'Análisis de la veracidad de las afirmaciones clave'
+  },
+  'Coherencia Titular-Contenido': {
+    label: 'Coherencia Titular-Contenido',
+    color: 'text-blue-700',
+    bg: 'bg-blue-50',
+    border: 'border-blue-200',
+    virulencia: 0,
+    descripcion: 'Evaluación de correspondencia entre título y cuerpo'
+  },
+  'Análisis de Fuentes y Datos': {
+    label: 'Análisis de Fuentes y Datos',
+    color: 'text-indigo-700',
+    bg: 'bg-indigo-50',
+    border: 'border-indigo-200',
+    virulencia: 0,
+    descripcion: 'Evaluación de la calidad y fiabilidad de las fuentes'
+  },
+  'Forense': {
+    label: 'Forense',
+    color: 'text-purple-700',
+    bg: 'bg-purple-50',
+    border: 'border-purple-200',
+    virulencia: 0,
+    descripcion: 'Análisis técnico forense de archivos multimedia'
+  },
+  'Desinformódico': {
+    label: 'Desinformódico',
+    color: 'text-red-700',
+    bg: 'bg-red-50',
+    border: 'border-red-200',
+    virulencia: 0,
+    descripcion: 'Análisis de desinformación periodística o narrativa'
   }
 };
 
