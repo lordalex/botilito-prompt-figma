@@ -823,3 +823,211 @@ export async function generateAudioAnalysisPDF(
   const filename = `botilito-audio-${caseNumber || 'reporte'}-${Date.now()}.pdf`;
   doc.save(filename);
 }
+
+// ============================================
+// CONTENT/AMI ANALYSIS PDF GENERATOR
+// ============================================
+export interface ContentAnalysisCaseData {
+  id: string;
+  display_id: string;
+  created_at: string;
+  type: string;
+  overview: {
+    title: string;
+    summary: string;
+    verdict_label: string;
+    risk_score: number;
+    main_asset_url?: string;
+    source_domain?: string;
+  };
+  insights: Array<{
+    id?: string;
+    label?: string;
+    description?: string;
+    category?: string;
+    severity?: string;
+  }>;
+  reporter?: { name?: string };
+  community?: { votes?: number; status?: string };
+  metadata?: { theme?: string; region?: string; vector?: string };
+  recommendations: string[];
+}
+
+export async function generateContentAnalysisPDF(
+  caseData: ContentAnalysisCaseData
+): Promise<void> {
+  const doc = createPdfDocument();
+  let y = addHeader(doc, 'Análisis AMI', caseData.display_id);
+
+  // Verdict Section
+  y = addSectionTitle(doc, 'Diagnóstico Infodémico', y);
+  y = addVerdictBox(
+    doc,
+    caseData.overview.verdict_label || 'Pendiente',
+    caseData.overview.risk_score,
+    y
+  );
+
+  // Risk explanation
+  const riskExplanation = caseData.overview.risk_score >= 70
+    ? "Contenido presenta características de desinformación. Alto riesgo de propagación por apelación emocional."
+    : caseData.overview.risk_score >= 30
+    ? "Contenido requiere verificación adicional. Se recomienda análisis crítico."
+    : "Contenido dentro de parámetros normales. Bajo riesgo de desinformación detectado.";
+
+  const explLines = doc.splitTextToSize(riskExplanation, 165);
+  const cardHeight = explLines.length * 4 + 8;
+  drawCard(doc, y, cardHeight, COLORS.lightGray);
+  doc.setTextColor(0, 0, 0);
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.text(explLines, 18, y + 5);
+  y += cardHeight + 8;
+
+  // Case Info
+  y = checkNewPage(doc, y, 50);
+  y = addSectionTitle(doc, 'Información del Caso', y);
+  y = addKeyValue(doc, 'Caso:', caseData.display_id, y, 25);
+  y = addKeyValue(doc, 'Tipo:', caseData.type, y, 25);
+  if (caseData.metadata?.vector) {
+    y = addKeyValue(doc, 'Vector:', caseData.metadata.vector, y, 25);
+  }
+  y = addKeyValue(doc, 'Reportado por:', caseData.reporter?.name || 'Anónimo', y, 35);
+  y = addKeyValue(doc, 'Fecha:', new Date(caseData.created_at).toLocaleDateString('es-CO', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  }), y, 25);
+  y += 4;
+
+  // Titular
+  y = checkNewPage(doc, y, 35);
+  y = addSectionTitle(doc, 'Titular', y);
+  const titleLines = doc.splitTextToSize(caseData.overview.title, 165);
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(0, 0, 0);
+  doc.text(titleLines, 18, y);
+  y += titleLines.length * 5 + 8;
+
+  // Contenido Analizado
+  y = checkNewPage(doc, y, 50);
+  y = addSectionTitle(doc, 'Contenido Analizado', y);
+
+  const summaryLines = doc.splitTextToSize(caseData.overview.summary, 160);
+  const summaryCardHeight = Math.min(summaryLines.length * 4 + 8, 80);
+  drawCard(doc, y, summaryCardHeight, COLORS.lightGray);
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(0, 0, 0);
+
+  // Only show first portion if too long
+  const summaryToShow = summaryLines.slice(0, 18);
+  doc.text(summaryToShow, 18, y + 5);
+
+  if (summaryLines.length > 18) {
+    doc.setFontSize(7);
+    doc.setTextColor(100, 100, 100);
+    doc.text(`[... ${summaryLines.length - 18} líneas más]`, 18, y + summaryCardHeight - 3);
+  }
+  y += summaryCardHeight + 6;
+
+  // Source info
+  if (caseData.overview.source_domain) {
+    y = addKeyValue(doc, 'Fuente:', caseData.overview.source_domain, y, 25);
+  }
+  if (caseData.metadata?.theme) {
+    y = addKeyValue(doc, 'Tema:', caseData.metadata.theme, y, 25);
+  }
+  y += 4;
+
+  // Human Consensus
+  y = checkNewPage(doc, y, 35);
+  y = addSectionTitle(doc, 'Validación Humana', y);
+  const consensusStatus = caseData.community?.status === 'human_consensus' ? 'Consenso alcanzado' : 'Requiere validación';
+  y = addKeyValue(doc, 'Estado:', consensusStatus, y, 25);
+  y = addKeyValue(doc, 'Votos:', (caseData.community?.votes || 0).toString(), y, 25);
+  y += 4;
+
+  // Insights (AMI Analysis)
+  if (caseData.insights && caseData.insights.length > 0) {
+    y = checkNewPage(doc, y, 50);
+    y = addSectionTitle(doc, 'Análisis AMI', y);
+
+    caseData.insights.forEach((insight, index) => {
+      y = checkNewPage(doc, y, 20);
+
+      // Insight label badge
+      const insightColor = insight.severity === 'high' || insight.severity === 'critical'
+        ? COLORS.red
+        : insight.severity === 'medium'
+        ? COLORS.orange
+        : COLORS.gray;
+      const rgb = hexToRgb(insightColor);
+
+      if (insight.label) {
+        doc.setFillColor(rgb.r, rgb.g, rgb.b);
+        doc.roundedRect(18, y - 3, 50, 7, 2, 2, 'F');
+
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'bold');
+        doc.text(insight.label.substring(0, 22), 20, y + 1);
+        y += 6;
+      }
+
+      // Description
+      if (insight.description) {
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8);
+        doc.setTextColor(80, 80, 80);
+        const descLines = doc.splitTextToSize(insight.description, 160);
+        doc.text(descLines, 20, y);
+        y += descLines.length * 3.5 + 6;
+      }
+    });
+    y += 4;
+  }
+
+  // Recommendations
+  if (caseData.recommendations && caseData.recommendations.length > 0) {
+    y = checkNewPage(doc, y, 45);
+    y = addSectionTitle(doc, 'Recomendaciones', y);
+
+    caseData.recommendations.forEach((rec, index) => {
+      y = checkNewPage(doc, y, 12);
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(0, 0, 0);
+      const recText = doc.splitTextToSize(`${index + 1}. ${rec}`, 160);
+      doc.text(recText, 20, y);
+      y += recText.length * 4 + 3;
+    });
+    y += 5;
+  }
+
+  // Chain of Custody (simplified for text content)
+  y = checkNewPage(doc, y, 35);
+  y = addSectionTitle(doc, 'Cadena de Custodia', y);
+
+  // Created event
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(0, 0, 0);
+  doc.text(`${new Date(caseData.created_at).toLocaleString('es-CO')} - Caso creado`, 20, y);
+  y += 5;
+
+  // Analysis event
+  doc.text(`${new Date(caseData.created_at).toLocaleString('es-CO')} - Análisis ejecutado`, 20, y);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(80, 80, 80);
+  y += 4;
+  doc.text(`Score de Riesgo: ${caseData.overview.risk_score}%`, 20, y);
+  y += 8;
+
+  addFooter(doc);
+
+  // Download
+  const filename = `botilito-ami-${caseData.display_id || 'reporte'}-${Date.now()}.pdf`;
+  doc.save(filename);
+}

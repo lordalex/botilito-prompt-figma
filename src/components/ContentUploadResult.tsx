@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { HumanValidationForm } from '@/components/HumanValidationForm';
 import { generateCaseCode, ContentType, TransmissionVector } from '@/utils/caseCodeGenerator';
+import { domToPng } from 'modern-screenshot';
 
 // Import Specific Views
 import { ImageAnalysisResultView } from './image-analysis/ImageAnalysisResultView';
@@ -142,7 +143,26 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
     return 'text-red-600';
   };
 
-  const handleDownloadImage = () => { alert("Descarga de imagen próximamente."); };
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  const handleDownloadImage = async () => {
+    if (!contentRef.current) return;
+
+    try {
+      const dataUrl = await domToPng(contentRef.current, {
+        backgroundColor: '#f9fafb',
+        scale: 2,
+      });
+
+      const link = document.createElement('a');
+      link.download = `botilito-${caseData.display_id}-${Date.now()}.png`;
+      link.href = dataUrl;
+      link.click();
+    } catch (error) {
+      console.error('Error generating image:', error);
+      alert('Error al generar la imagen. Intenta de nuevo.');
+    }
+  };
 
   // --- 4. RENDER UI ---
   return (
@@ -178,7 +198,7 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
         </div>
 
         {/* TWO-COLUMN LAYOUT (Stretchy Left | Fixed-width Right Sidebar) */}
-        <div className="flex flex-col lg:flex-row gap-8 mb-8">
+        <div ref={contentRef} className="flex flex-col lg:flex-row gap-8 mb-8 bg-gray-50 p-4 rounded-xl">
 
           {/* LEFT COLUMN - Stretches to fill available space */}
           <div className="flex-1 min-w-0 space-y-8">
