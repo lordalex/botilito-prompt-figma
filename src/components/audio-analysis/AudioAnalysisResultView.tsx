@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Download, Share2, Headphones, FileAudio, RefreshCw } from 'lucide-react';
+import { generateAudioAnalysisPDF } from '@/utils/pdfReportGenerator';
 
 interface AudioAnalysisResultViewProps {
     data: AudioAnalysisResult;
@@ -313,10 +314,12 @@ export function AudioAnalysisResultView({ data, onReset }: AudioAnalysisResultVi
                 <Button
                     variant="outline"
                     className="flex-1 sm:flex-none"
-                    onClick={() => {/* TODO: Download report */ }}
+                    onClick={async () => {
+                        await generateAudioAnalysisPDF(data, caseNumber, file_info?.name);
+                    }}
                 >
                     <Download className="w-4 h-4 mr-2" />
-                    Descargar reporte
+                    Descargar PDF
                 </Button>
                 <Button
                     variant="outline"
