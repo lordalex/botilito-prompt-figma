@@ -59,9 +59,10 @@
  * @see useHumanVerification.ts - Similar hook for validation tab
  */
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { fetchVerificationSummary } from '@/utils/humanVerification/api';
 import type { CaseEnriched } from '@/utils/humanVerification/types';
+import { getCachedData, setCachedData, CACHE_KEYS } from '@/utils/sessionCache';
 
 export function useCaseHistory() {
   // Data State
@@ -76,9 +77,23 @@ export function useCaseHistory() {
   const [pageSize] = useState(10);
   const [statusFilter, setStatusFilter] = useState('all');
 
+  // Track if initial load has happened to prevent duplicate fetches
+  const initialLoadDone = useRef(false);
+
   // Initial fetch - replaces cases
-  const fetchCases = useCallback(async () => {
+  const fetchCases = useCallback(async (forceRefresh = false) => {
     try {
+      // Check cache first (unless force refresh)
+      if (!forceRefresh) {
+        const cached = getCachedData<{ cases: CaseEnriched[], hasMore: boolean }>(CACHE_KEYS.CASE_HISTORY);
+        if (cached) {
+          setCases(cached.cases);
+          setHasMore(cached.hasMore);
+          setLoading(false);
+          return;
+        }
+      }
+
       setLoading(true);
       setError(null);
       setCurrentPage(1);
@@ -88,6 +103,12 @@ export function useCaseHistory() {
 
       setCases(result.cases || []);
       setHasMore(result.pagination.hasMore);
+
+      // Cache the result
+      setCachedData(CACHE_KEYS.CASE_HISTORY, {
+        cases: result.cases || [],
+        hasMore: result.pagination.hasMore,
+      });
 
     } catch (err: any) {
       console.error('Error fetching history:', err);
@@ -172,6 +193,6 @@ export function useCaseHistory() {
       statusFilter,
       setStatusFilter
     },
-    refresh: fetchCases
+    refresh: () => fetchCases(true) // Force refresh bypasses cache
   };
 }

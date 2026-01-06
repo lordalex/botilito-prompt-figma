@@ -30,9 +30,9 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
 
   // --- 1. TYPE DETECTION ---
   const resultType = result?.type || result?.meta?.type;
-  
-  // Specific view routing can remain if needed, or we can unify everything.
-  // For now, keeping the routing for specialized views if they exist and match strict criteria.
+
+  // Specific view routing for specialized analysis views with full forensic data
+  // Routes to ImageAnalysisResultView only when full forensic data (human_report) is available
   const isImageAnalysis =
     resultType === 'image_analysis' ||
     (result?.human_report && (result?.raw_forensics || result?.file_info?.dimensions));
@@ -47,13 +47,17 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
   }
 
   // --- 2. DATA NORMALIZATION ---
-  const data = result.fullResult || result; 
-  
+  // Handle both direct StandardizedCase and EnrichedCase with nested standardized_case
+  const rawData = result.fullResult || result;
+  const stdCase = rawData.standardized_case || rawData;
+  const data = { ...rawData, ...stdCase }; // Merge so we pick up insights from standardized_case
+
   // Extract recommendations
-  const rawRecommendations = 
-    data.recommendations || 
-    data.metadata?.recommendations || 
-    data.ai_analysis?.classification?.recomendaciones || 
+  const rawRecommendations =
+    data.recommendations ||
+    stdCase.recommendations ||
+    data.metadata?.recommendations ||
+    data.ai_analysis?.classification?.recomendaciones ||
     [];
 
   const recommendations: string[] = Array.isArray(rawRecommendations) 
@@ -98,22 +102,29 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
   const displayId = data.display_id || data.displayId || data.standardized_case?.display_id ||
     generateCaseCode(getContentType(caseType), getTransmissionVector(caseVector));
 
+  // Extract insights - check multiple possible locations
+  const rawInsights =
+    stdCase.insights ||
+    data.insights ||
+    rawData.insights ||
+    [];
+
   const caseData = {
-    id: data.id || "Unknown",
+    id: data.id || stdCase.id || "Unknown",
     display_id: displayId,
-    created_at: data.created_at || new Date().toISOString(),
+    created_at: data.created_at || stdCase.created_at || new Date().toISOString(),
     type: caseType,
     overview: {
-      title: data.title || data.overview?.title || "Sin título",
-      summary: data.summary || data.overview?.summary || "Sin resumen disponible.",
-      verdict_label: data.overview?.verdict_label || data.metadata?.global_verdict || "Pendiente",
-      risk_score: data.overview?.risk_score ?? data.metadata?.risk_score ?? 0,
-      main_asset_url: data.overview?.main_asset_url || data.main_asset_url || data.url,
-      source_domain: data.overview?.source_domain || data.source_domain
+      title: data.title || stdCase.overview?.title || data.overview?.title || "Sin título",
+      summary: data.summary || stdCase.overview?.summary || data.overview?.summary || "Sin resumen disponible.",
+      verdict_label: stdCase.overview?.verdict_label || data.overview?.verdict_label || data.metadata?.global_verdict || "Pendiente",
+      risk_score: stdCase.overview?.risk_score ?? data.overview?.risk_score ?? data.metadata?.risk_score ?? 0,
+      main_asset_url: stdCase.overview?.main_asset_url || data.overview?.main_asset_url || data.main_asset_url || data.url,
+      source_domain: stdCase.overview?.source_domain || data.overview?.source_domain || data.source_domain
     },
-    insights: Array.isArray(data.insights) ? data.insights : [],
-    reporter: data.reporter,
-    community: data.community || { votes: data.human_votes_count || 0, status: data.consensus?.state || 'pending' },
+    insights: Array.isArray(rawInsights) ? rawInsights : [],
+    reporter: data.reporter || stdCase.reporter,
+    community: data.community || stdCase.community || { votes: data.human_votes_count || 0, status: data.consensus?.state || 'pending' },
     metadata: data.metadata || { theme: data.theme, region: data.region, vector: caseVector },
     recommendations: recommendations
   };
@@ -124,11 +135,11 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
   const isVisual = !isAudio && !!caseData.overview.main_asset_url;
 
   // --- 3. INSIGHT FILTERING ---
-  const sourceInsight = caseData.insights.find((i: any) => 
+  const sourceInsight = caseData.insights.find((i: any) =>
     i.id?.includes('source') || i.category === 'metadata' || i.label?.toLowerCase().includes('fuente')
   );
 
-  const clickbaitInsight = caseData.insights.find((i: any) => 
+  const clickbaitInsight = caseData.insights.find((i: any) =>
     i.id?.includes('clickbait') || i.id?.includes('titular') || i.label?.toLowerCase().includes('titular')
   );
 
@@ -136,11 +147,117 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
     i.category === 'competency' || i.category === 'compliance' || i.label?.toLowerCase().includes('competencia')
   );
 
+  // Forensic insights for IMAGE/VIDEO analysis
+  const forensicInsights = caseData.insights.filter((i: any) =>
+    i.category === 'forensics' || i.id?.includes('algo_') || i.id?.includes('ela') || i.id?.includes('dct')
+  );
+
+  // Check if this is a forensic analysis case (image/video)
+  const isForensicCase = caseData.type === 'IMAGE' || caseData.type === 'VIDEO' || forensicInsights.length > 0;
+
   // --- HELPERS ---
   const getRiskColor = (score: number) => {
     if (score < 30) return 'text-green-600';
     if (score < 70) return 'text-yellow-600';
     return 'text-red-600';
+  };
+
+  // Get full color scheme based on risk score (from CLAUDE.md design system)
+  const getRiskColorScheme = (score: number) => {
+    if (score < 30) {
+      return {
+        border: 'border-green-500',
+        bg: 'bg-green-50',
+        iconText: 'text-green-500',
+        scoreText: 'text-green-600',
+        smallText: 'text-green-400',
+        badgeBg: 'bg-green-100',
+        badgeText: 'text-green-700',
+        badgeBorder: 'border-green-200'
+      };
+    }
+    if (score < 70) {
+      return {
+        border: 'border-yellow-500',
+        bg: 'bg-yellow-50',
+        iconText: 'text-yellow-500',
+        scoreText: 'text-yellow-600',
+        smallText: 'text-yellow-400',
+        badgeBg: 'bg-yellow-100',
+        badgeText: 'text-yellow-700',
+        badgeBorder: 'border-yellow-200'
+      };
+    }
+    if (score < 90) {
+      return {
+        border: 'border-orange-500',
+        bg: 'bg-orange-50',
+        iconText: 'text-orange-500',
+        scoreText: 'text-orange-600',
+        smallText: 'text-orange-400',
+        badgeBg: 'bg-orange-100',
+        badgeText: 'text-orange-700',
+        badgeBorder: 'border-orange-200'
+      };
+    }
+    // Critical (≥90)
+    return {
+      border: 'border-red-500',
+      bg: 'bg-red-50',
+      iconText: 'text-red-500',
+      scoreText: 'text-red-600',
+      smallText: 'text-red-400',
+      badgeBg: 'bg-red-100',
+      badgeText: 'text-red-700',
+      badgeBorder: 'border-red-200'
+    };
+  };
+
+  const riskColors = getRiskColorScheme(caseData.overview.risk_score);
+
+  // Get color for forensic test score (higher = better/green, lower = suspicious/red)
+  const getForensicScoreColor = (score: number | null | undefined) => {
+    if (score === null || score === undefined) return 'bg-gray-100 text-gray-600';
+    if (score >= 70) return 'bg-green-100 text-green-700 border-green-200';
+    if (score >= 40) return 'bg-yellow-100 text-yellow-700 border-yellow-200';
+    return 'bg-red-100 text-red-700 border-red-200';
+  };
+
+  const getForensicScoreBadge = (score: number | null | undefined) => {
+    if (score === null || score === undefined) return 'N/A';
+    if (score >= 70) return 'NORMAL';
+    if (score >= 40) return 'SOSPECHOSO';
+    return 'MANIPULADO';
+  };
+
+  // Get color scheme for insight cards based on confidence score
+  // Higher score = better/green (content is coherent), lower score = red (alert/mismatch)
+  const getInsightColorScheme = (score: number | null | undefined) => {
+    if (score === null || score === undefined || score >= 70) {
+      // High confidence or no score - green (content matches)
+      return {
+        border: 'border-green-400',
+        bg: 'bg-green-50',
+        iconText: 'text-green-500',
+        alertLabel: 'Coherencia verificada'
+      };
+    }
+    if (score >= 40) {
+      // Medium confidence - yellow (uncertain)
+      return {
+        border: 'border-yellow-400',
+        bg: 'bg-yellow-50',
+        iconText: 'text-yellow-500',
+        alertLabel: 'Alerta: Titular vs. Contenido'
+      };
+    }
+    // Low confidence - red (alert/mismatch)
+    return {
+      border: 'border-red-400',
+      bg: 'bg-red-50',
+      iconText: 'text-red-500',
+      alertLabel: 'Alerta: Titular vs. Contenido'
+    };
   };
 
   const contentRef = useRef<HTMLDivElement>(null);
@@ -250,11 +367,11 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
             {/* DIAGNOSTIC CARDS ROW */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Infodemic Diagnosis */}
-              <Card className="shadow-sm border-2 border-red-400 bg-red-50 overflow-hidden">
+              <Card className={`shadow-sm border-2 ${riskColors.border} ${riskColors.bg} overflow-hidden`}>
                 <CardContent className="p-4">
                     <div className="flex gap-4">
                       <div className="shrink-0">
-                        <AlertTriangle className="h-8 w-8 text-red-500" />
+                        <AlertTriangle className={`h-8 w-8 ${riskColors.iconText}`} />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2">
@@ -262,14 +379,14 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
                             <h3 className="text-xl font-bold text-gray-900">Diagnóstico Infodémico</h3>
                             <div className="flex flex-wrap gap-2 mt-2">
                               <Badge variant="secondary" className="bg-gray-200 text-gray-700 hover:bg-gray-200">Análisis IA</Badge>
-                              <Badge className="bg-red-100 text-red-700 hover:bg-red-100 border border-red-200">{caseData.overview.verdict_label || 'Pendiente'}</Badge>
+                              <Badge className={`${riskColors.badgeBg} ${riskColors.badgeText} hover:${riskColors.badgeBg} border ${riskColors.badgeBorder}`}>{caseData.overview.verdict_label || 'Pendiente'}</Badge>
                             </div>
                           </div>
                           <div className="text-right shrink-0">
-                            <div className="text-3xl font-black text-red-500">
+                            <div className={`text-3xl font-black ${riskColors.scoreText}`}>
                               {caseData.overview.risk_score}%
                             </div>
-                            <div className="text-xs text-red-400 font-medium">Precisión<br/>diagnóstica</div>
+                            <div className={`text-xs ${riskColors.smallText} font-medium`}>Precisión<br/>diagnóstica</div>
                           </div>
                         </div>
                         <p className="text-sm text-gray-600 mt-4 leading-relaxed">
@@ -285,11 +402,11 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
               </Card>
 
               {/* Human Analysis */}
-              <Card className="shadow-sm border-2 border-red-400 bg-red-50 overflow-hidden">
+              <Card className={`shadow-sm border-2 ${riskColors.border} ${riskColors.bg} overflow-hidden`}>
                 <CardContent className="p-4">
                     <div className="flex gap-4">
                       <div className="shrink-0">
-                        <User className="h-8 w-8 text-red-500" />
+                        <User className={`h-8 w-8 ${riskColors.iconText}`} />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2">
@@ -297,16 +414,16 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
                             <h3 className="text-xl font-bold text-gray-900">Análisis Humano</h3>
                             <div className="flex flex-wrap gap-2 mt-2">
                               <Badge variant="secondary" className="bg-gray-200 text-gray-700 hover:bg-gray-200">Análisis Humano</Badge>
-                              <Badge className="bg-red-100 text-red-700 hover:bg-red-100 border border-red-200">
+                              <Badge className={`${riskColors.badgeBg} ${riskColors.badgeText} hover:${riskColors.badgeBg} border ${riskColors.badgeBorder}`}>
                                 {caseData.community?.status === 'human_consensus' ? 'Consenso alcanzado' : 'Requiere validación'}
                               </Badge>
                             </div>
                           </div>
                           <div className="text-right shrink-0">
-                            <div className="text-3xl font-black text-red-500">
+                            <div className={`text-3xl font-black ${riskColors.scoreText}`}>
                               {caseData.community?.votes > 0 ? `${Math.min(100, caseData.community.votes * 10)}%` : '--%'}
                             </div>
-                            <div className="text-xs text-red-400 font-medium">Consenso<br/>humano</div>
+                            <div className={`text-xs ${riskColors.smallText} font-medium`}>Consenso<br/>humano</div>
                           </div>
                         </div>
                         <p className="text-sm text-gray-600 mt-4 leading-relaxed">
@@ -400,24 +517,32 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
                   </Card>
                 )}
 
-                {/* 3. Alerta Titular */}
-                {clickbaitInsight && (
-                  <Card className="shadow-sm border-2 border-red-400 bg-red-50 overflow-hidden">
-                    <CardContent className="p-4">
-                      <div className="flex gap-4">
-                        <div className="shrink-0">
-                          <AlertTriangle className="h-8 w-8 text-red-500" />
+                {/* 3. Alerta Titular - Dynamic colors based on insight score */}
+                {clickbaitInsight && (() => {
+                  const insightColors = getInsightColorScheme(clickbaitInsight.score);
+                  return (
+                    <Card className={`shadow-sm border-2 ${insightColors.border} ${insightColors.bg} overflow-hidden`}>
+                      <CardContent className="p-4">
+                        <div className="flex gap-4">
+                          <div className="shrink-0">
+                            <AlertTriangle className={`h-8 w-8 ${insightColors.iconText}`} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h3 className="text-xl font-bold text-gray-900">{insightColors.alertLabel}</h3>
+                            <p className="text-sm text-gray-600 mt-3 leading-relaxed">
+                              {clickbaitInsight.description}
+                            </p>
+                            {clickbaitInsight.score !== undefined && (
+                              <p className="text-xs text-gray-500 mt-2">
+                                Confianza: {clickbaitInsight.score.toFixed(1)}%
+                              </p>
+                            )}
+                          </div>
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <h3 className="text-xl font-bold text-gray-900">Alerta: Titular vs. Contenido</h3>
-                          <p className="text-sm text-gray-600 mt-3 leading-relaxed">
-                            {clickbaitInsight.description}
-                          </p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
+                      </CardContent>
+                    </Card>
+                  );
+                })()}
 
                 {/* 4. Competencias AMI */}
                 {amiCompetencies.length > 0 && (
@@ -446,6 +571,101 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
 
               </div>
             </div>
+
+            {/* FORENSIC ANALYSIS SECTION - For IMAGE/VIDEO cases */}
+            {isForensicCase && forensicInsights.length > 0 && (
+              <div className="mt-8">
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="text-[#FFDA00] text-xl">🔬</span>
+                  <h3 className="text-lg font-bold text-gray-900">
+                    Análisis Forense Digital
+                  </h3>
+                </div>
+
+                <div className="space-y-4">
+                  {/* Forensic Tests Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {forensicInsights.map((insight: any, idx: number) => (
+                      <Card key={idx} className={`shadow-sm border-2 overflow-hidden ${getForensicScoreColor(insight.score)}`}>
+                        <CardContent className="p-4">
+                          <div className="flex justify-between items-start mb-2">
+                            <div>
+                              <h4 className="font-bold text-gray-900">{insight.label}</h4>
+                              <Badge className={`text-xs mt-1 ${getForensicScoreColor(insight.score)}`}>
+                                {getForensicScoreBadge(insight.score)}
+                              </Badge>
+                            </div>
+                            {insight.score !== null && insight.score !== undefined && (
+                              <div className="text-right">
+                                <div className="text-2xl font-black">
+                                  {insight.score}%
+                                </div>
+                                <div className="text-xs opacity-70">Score</div>
+                              </div>
+                            )}
+                          </div>
+                          {insight.description && (
+                            <p className="text-sm text-gray-600 mt-2">{insight.description}</p>
+                          )}
+
+                          {/* Artifacts (heatmaps, masks, etc.) */}
+                          {insight.artifacts && insight.artifacts.length > 0 && (
+                            <div className="mt-3 space-y-2">
+                              {insight.artifacts.map((artifact: any, artIdx: number) => (
+                                <div key={artIdx}>
+                                  {artifact.type === 'image_url' && artifact.content && (
+                                    <div className="rounded-lg overflow-hidden border border-gray-200">
+                                      <img
+                                        src={artifact.content}
+                                        alt={artifact.label || `Visualización ${artIdx + 1}`}
+                                        className="w-full h-auto"
+                                      />
+                                      {artifact.label && (
+                                        <div className="bg-gray-100 px-2 py-1 text-xs text-gray-600 text-center">
+                                          {artifact.label}
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                  {artifact.type === 'text_snippet' && artifact.content && (
+                                    <div className="bg-gray-50 p-2 rounded text-xs font-mono text-gray-600">
+                                      {artifact.content}
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* FORENSIC INFO NOTICE - For IMAGE/VIDEO cases without detailed insights */}
+            {isForensicCase && forensicInsights.length === 0 && (
+              <div className="mt-8">
+                <Card className="shadow-sm border-2 border-blue-200 bg-blue-50/50">
+                  <CardContent className="p-4">
+                    <div className="flex gap-3">
+                      <Info className="h-5 w-5 text-blue-500 shrink-0 mt-0.5" />
+                      <div>
+                        <h4 className="font-semibold text-blue-800">Análisis Forense Procesado</h4>
+                        <p className="text-sm text-blue-700 mt-1">
+                          Este caso de {caseData.type === 'IMAGE' ? 'imagen' : 'video'} fue analizado con algoritmos forenses.
+                          El resumen del análisis se encuentra en la sección "Contenido Analizado" arriba.
+                        </p>
+                        <p className="text-xs text-blue-600 mt-2 opacity-80">
+                          Los detalles técnicos individuales de cada prueba forense estarán disponibles en futuras actualizaciones.
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
 
           </div>
 
@@ -481,7 +701,14 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
               </CardHeader>
               <CardContent className="px-4 pb-4">
                 <div className="space-y-3 text-sm">
-                  <div className="flex justify-between"><span className="text-gray-500">Pruebas</span><span className="font-bold text-gray-900">{caseData.insights.length}</span></div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Pruebas</span>
+                    <span className="font-bold text-gray-900">
+                      {caseData.insights.length > 0
+                        ? caseData.insights.length
+                        : isForensicCase ? '—' : '0'}
+                    </span>
+                  </div>
                   <div className="flex justify-between"><span className="text-gray-500">Tiempo total</span><span className="font-bold text-gray-900">12.0s</span></div>
                   <div className="flex justify-between"><span className="text-gray-500">Precisión</span><span className="font-bold text-gray-900">{caseData.overview.risk_score > 0 ? '92%' : '0%'}</span></div>
                 </div>
