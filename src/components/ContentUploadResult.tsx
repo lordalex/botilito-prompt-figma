@@ -353,17 +353,6 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
               </div>
             )}
 
-            {/* TITULAR */}
-            <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
-              <div className="flex items-center gap-2 mb-2 text-gray-500">
-                <FileText className="h-4 w-4" />
-                <span className="text-xs font-bold uppercase tracking-wider">Titular</span>
-              </div>
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 leading-tight">
-                {caseData.overview.title}
-              </h1>
-            </div>
-
             {/* DIAGNOSTIC CARDS ROW */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Infodemic Diagnosis */}
@@ -435,6 +424,17 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
                     </div>
                 </CardContent>
               </Card>
+            </div>
+
+            {/* TITULAR */}
+            <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
+              <div className="flex items-center gap-2 mb-2 text-gray-500">
+                <FileText className="h-4 w-4" />
+                <span className="text-xs font-bold uppercase tracking-wider">Titular</span>
+              </div>
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 leading-tight">
+                {caseData.overview.title}
+              </h1>
             </div>
 
             {/* CONTENIDO ANALIZADO */}
