@@ -16,9 +16,9 @@
  * ContentReview
  * ├── BotilitoBanner (yellow #ffe97a with mascot image)
  * ├── HeaderSection (title + refresh button)
- * ├── StatsCards (4 cards: Total, Verified, AI Only, Misinformation)
+ * ├── StatsCards (5 cards: Total, Verified, AI Only, Misinformation, Forensic)
  * ├── ErrorState (conditional - red banner if error)
- * └── CaseList (shared component with custom title/description)
+ * └── CaseList (shared component with pagination)
  * ```
  *
  * ### Data Flow:
@@ -31,38 +31,27 @@
  *     ↓
  * CaseList receives cases + pagination props (hasMore, onLoadMore, isLoadingMore)
  *     ↓
- * onViewTask callback navigates to case detail
+ * onViewTask callback → lookupCase → ContentUploadResult
  * ```
  *
- * ### Props:
- * - onViewTask(caseId, 'caseDetail', 'completed'): Navigate to case detail view
- *
- * ### Reusable Patterns:
- * 1. **CaseList Integration**: Pass isEnrichedFormat=true for CaseEnriched[] data
- * 2. **Stats Derivation**: Stats come from hook, computed from cases array
- * 3. **Botilito Banner**: Consistent yellow banner with mascot
- *
  * @see useCaseHistory.ts - Data fetching hook
- * @see CaseList.tsx - Shared list component
+ * @see CaseList.tsx - Shared list component (same as HumanVerification)
  * @see HumanVerification.tsx - Similar page for validation workflow
  */
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import botilitoImage from '@/assets/botilito-mascot.png';
 import {
-  Bot, CheckCircle, Clock, AlertTriangle, Fingerprint, RefreshCcw
+  Bot, CheckCircle, Clock, AlertTriangle, Fingerprint, RefreshCcw, AlertCircle
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useCaseHistory } from '@/hooks/useCaseHistory';
 import { CaseList } from './CaseList';
+import { ContentUploadResult } from '@/components/ContentUploadResult';
+import { lookupCase } from '@/services/vectorAsyncService';
 
-interface ContentReviewProps {
-  /** Callback when a case is selected - navigates to detail view */
-  onViewTask: (jobId: string, type: string, status?: string) => void;
-}
-
-export function ContentReview({ onViewTask }: ContentReviewProps) {
+export function ContentReview() {
   const {
     cases,
     loading,
@@ -74,11 +63,73 @@ export function ContentReview({ onViewTask }: ContentReviewProps) {
     refresh
   } = useCaseHistory();
 
-  // Handle case selection - navigate to detail view
+  // Case detail state (same pattern as HumanVerification)
+  const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
+  const [fullCaseData, setFullCaseData] = useState<any>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
+
+  // Fetch full case data when selected
+  useEffect(() => {
+    if (selectedCaseId) {
+      setDetailLoading(true);
+      setDetailError(null);
+      lookupCase(selectedCaseId)
+        .then(data => {
+          if (!data) throw new Error("Datos no encontrados");
+          setFullCaseData(data);
+        })
+        .catch(err => {
+          console.error(err);
+          setDetailError("Error al cargar los detalles.");
+          setFullCaseData(null);
+        })
+        .finally(() => setDetailLoading(false));
+    } else {
+      setFullCaseData(null);
+      setDetailError(null);
+    }
+  }, [selectedCaseId]);
+
+  // Handle case selection from CaseList
   const handleSelectCase = (caseId: string, contentType: string) => {
-    onViewTask(caseId, 'caseDetail', 'completed');
+    setSelectedCaseId(caseId);
   };
 
+  // Case detail view (loading state)
+  if (selectedCaseId && detailLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[50vh]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#FFDA00]"></div>
+        <p className="mt-4 text-gray-500">Cargando caso...</p>
+      </div>
+    );
+  }
+
+  // Case detail view (error state)
+  if (selectedCaseId && (detailError || !fullCaseData)) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[50vh] p-6">
+        <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
+        <h3 className="text-lg font-bold">Error</h3>
+        <p className="text-gray-500 mb-4">{detailError || "No se pudo cargar el caso."}</p>
+        <Button onClick={() => setSelectedCaseId(null)} variant="outline">Volver al Historial</Button>
+      </div>
+    );
+  }
+
+  // Case detail view (success - show ContentUploadResult)
+  if (selectedCaseId && fullCaseData) {
+    return (
+      <ContentUploadResult
+        result={fullCaseData}
+        onReset={() => setSelectedCaseId(null)}
+        backLabel="Volver al Historial"
+      />
+    );
+  }
+
+  // Main list view
   return (
     <div className="w-full space-y-6 px-6 pt-6">
 
@@ -196,7 +247,7 @@ export function ContentReview({ onViewTask }: ContentReviewProps) {
         </div>
       )}
 
-      {/* Cases List - Using shared CaseList component */}
+      {/* Cases List - Using shared CaseList component (same as HumanVerification) */}
       {!error && (
         <CaseList
           cases={cases}
@@ -214,4 +265,3 @@ export function ContentReview({ onViewTask }: ContentReviewProps) {
     </div>
   );
 }
-

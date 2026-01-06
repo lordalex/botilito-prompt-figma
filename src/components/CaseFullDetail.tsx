@@ -5,6 +5,7 @@ import { Button } from './ui/button';
 import { X } from 'lucide-react';
 import { supabase } from '@/utils/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { generateCaseCode, ContentType, TransmissionVector } from '@/utils/caseCodeGenerator';
 
 interface CaseFullDetailProps {
     data: any;
@@ -39,7 +40,27 @@ export function CaseFullDetail({ data, onClose }: CaseFullDetailProps) {
     const createdAt = fullResult?.created_at || rawData?.created_at;
     const reportedBy = fullResult?.reported_by?.name || rawData?.reported_by?.name || 'Desconocido';
     const title = fullResult?.source_data?.title || rawData?.source_data?.title || (contentType === 'image' ? 'Análisis Forense de Imagen' : contentType === 'audio' ? 'Análisis Forense de Audio' : 'Análisis de Texto');
-    const caseNumber = fullResult?.id?.substring(0, 8) || rawData?.id?.substring(0, 8) || 'N/A';
+
+    // Helper to map content type for code generation
+    const getContentTypeCode = (type: string): ContentType => {
+        const typeMap: Record<string, ContentType> = { 'image': 'imagen', 'audio': 'audio', 'text': 'texto' };
+        return typeMap[type] || 'texto';
+    };
+
+    // Helper to map vector
+    const getVectorCode = (vector?: string): TransmissionVector => {
+        if (!vector) return 'Web';
+        const vectorMap: Record<string, TransmissionVector> = {
+            'whatsapp': 'WhatsApp', 'facebook': 'Facebook', 'twitter': 'Twitter/X', 'x': 'Twitter/X',
+            'instagram': 'Instagram', 'tiktok': 'TikTok', 'youtube': 'YouTube', 'telegram': 'Telegram',
+            'web': 'Web', 'email': 'Email', 'sms': 'SMS'
+        };
+        return vectorMap[vector.toLowerCase()] || 'Web';
+    };
+
+    const caseVector = fullResult?.metadata?.vector || rawData?.metadata?.vector || rawData?.vector || 'Web';
+    const caseNumber = fullResult?.display_id || fullResult?.displayId || rawData?.display_id || rawData?.displayId ||
+        generateCaseCode(getContentTypeCode(contentType), getVectorCode(caseVector));
 
     const handleSubmitDiagnosis = async (diagnosis: any) => {
         setIsSubmittingDiagnosis(true);
