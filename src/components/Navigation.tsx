@@ -6,12 +6,20 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from './ui
 import { Bot, Upload, Users, FileSearch, LogOut, User, Settings, Trophy, Activity, Puzzle, Map, BookOpen, LayoutDashboard, Menu } from 'lucide-react';
 import { NotificationCenter } from './notifications/NotificationCenter';
 import botilitoLogo from 'figma:asset/8604399dafdf4284ef499af970e8af43ff13e21b.png';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { api } from '../services/api';
+import { hasFeatureAccess, RestrictedFeature } from '@/constants';
 
 import { useAuth } from '../providers/AuthProvider';
 
 const ADMIN_CACHE_KEY = 'botilito_admin_access';
+
+interface NavigationTab {
+  id: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  requiredFeature?: RestrictedFeature;
+}
 
 interface NavigationProps {
   activeTab: string;
@@ -41,13 +49,30 @@ export function Navigation({ activeTab, onTabChange, onLogout, onViewTask, onVie
   const [adminCheckDone, setAdminCheckDone] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const tabs = [
+  // All available tabs with optional role restrictions
+  const allTabs: NavigationTab[] = [
     { id: 'upload', label: 'Análisis IA', icon: Upload },
-    { id: 'verification', label: 'Validación Humana', icon: Users },
+    { 
+      id: 'verification', 
+      label: 'Validación Humana', 
+      icon: Users,
+      requiredFeature: RestrictedFeature.HUMAN_VERIFICATION 
+    },
     { id: 'review', label: 'Historial', icon: Bot },
     { id: 'mapa', label: 'Mapa Desinfodémico', icon: Map },
     { id: 'profile', label: 'Mi Perfil', icon: User },
   ];
+
+  // Filter tabs based on user role
+  const tabs = useMemo(() => {
+    return allTabs.filter(tab => {
+      // If tab has no restrictions, show it
+      if (!tab.requiredFeature) return true;
+      
+      // Check if user has access to this feature
+      return hasFeatureAccess(profile?.role, tab.requiredFeature);
+    });
+  }, [profile?.role]);
 
   // Check admin access lazily when menu is opened
   const checkAdminAccess = async () => {
