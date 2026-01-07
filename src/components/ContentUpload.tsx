@@ -1,141 +1,78 @@
-import { useContentUpload } from '../hooks/useContentUpload';
+import React, { useState } from 'react';
+import { performAnalysis } from '../services/contentAnalysisService';
+import { ContentType, TransmissionVector } from '../utils/caseCodeGenerator';
 import { ContentUploadForm } from './ContentUploadForm';
 import { ContentUploadProgress } from './ContentUploadProgress';
 import { ContentUploadResult } from './ContentUploadResult';
-import { CaseRegisteredView } from './CaseRegisteredView';
 import { ErrorManager } from './ErrorManager';
+import { UnifiedDashboardLayout } from './layout/UnifiedDashboardLayout';
 
-interface ContentUploadProps {
-  jobId?: string;
-  jobType?: string;
-  onReset?: () => void;
-}
+export function ContentUpload() {
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisProgress, setAnalysisProgress] = useState(0);
+  const [analysisComplete, setAnalysisComplete] = useState(false);
+  const [error, setError] = useState<any | null>(null);
+  const [aiAnalysis, setAiAnalysis] = useState<any>(null);
+  const [lastSubmission, setLastSubmission] = useState<any>(null);
+  
+  const handleStartAnalysis = async (
+    content: string, 
+    files: File[], 
+    contentType: ContentType, 
+    transmissionMedium: TransmissionVector
+  ) => {
+    setLastSubmission({ content, files, contentType, transmissionMedium });
+    setIsAnalyzing(true);
+    setAnalysisComplete(false);
+    setError(null);
+    setAiAnalysis(null);
 
-export function ContentUpload({ jobId, jobType, onReset }: ContentUploadProps) {
-  const {
-    status,
-    progress,
-    result,
-    error,
-    fileName,
-    fileSize,
-    transmissionVector,
-    submitContent,
-    resetState: internalReset,
-    retryLastSubmission,
-    retryCount,
-  } = useContentUpload(jobId, jobType);
-
-  const handleReset = () => {
-    internalReset();
-    onReset?.();
+    try {
+      const result = await performAnalysis(content, transmissionMedium, (progress, status) => {
+        setAnalysisProgress(progress);
+      });
+      setAiAnalysis(result);
+      setAnalysisComplete(true);
+    } catch (err: any) {
+      setError({ message: err.message || 'Ocurrió un error desconocido durante el análisis.' });
+    } finally {
+      setIsAnalyzing(false);
+      setAnalysisProgress(100);
+    }
   };
 
-  if (status === 'error' && error) {
-    return (
-      <ErrorManager
-        error={error}
-        onRetry={retryLastSubmission}
-        onReset={handleReset}
-        retryCount={retryCount}
-      />
-    );
+  const handleReset = () => {
+    setIsAnalyzing(false);
+    setAnalysisComplete(false);
+    setAiAnalysis(null);
+    setError(null);
+    setAnalysisProgress(0);
+    setLastSubmission(null);
+  };
+
+  const handleRetry = () => {
+    if (lastSubmission) {
+      handleStartAnalysis(lastSubmission.content, lastSubmission.files, lastSubmission.contentType, lastSubmission.transmissionMedium);
+    }
+  };
+
+  // Determine what to render inside the layout
+  let content;
+  if (error) {
+    content = <ErrorManager error={error} onRetry={handleRetry} onReset={handleReset} />;
+  } else if (isAnalyzing) {
+    content = <ContentUploadProgress progress={analysisProgress} />;
+  } else if (analysisComplete && aiAnalysis) {
+    content = <ContentUploadResult result={aiAnalysis} onReset={handleReset} />;
+  } else {
+    content = <ContentUploadForm onSubmit={handleStartAnalysis} isSubmitting={isAnalyzing} />;
   }
 
-  // Mostrar vista de caso registrado automáticamente cuando el análisis está completo o en progreso (polling)
-  // User requested to skip the loader/polling view and show success immediately after submission
-  if ((status === 'complete' && result) || status === 'polling' || status === 'uploading') {
-    // Determine info from result OR local state if result is pending
-    const extractedFilename =
-      fileName ||
-      result?.file_info?.name ||
-      result?.fullResult?.metadata?.file_name ||
-      result?.fullResult?.metadata?.filename ||
-      result?.fullResult?.details?.[0]?.insights?.[0]?.data?.filename ||
-      result?.fullResult?.details?.[0]?.original ||
-      undefined;
-
-    // Use fileSize from hook (original File.size) as primary source
-    const rawSize =
-      fileSize ??
-      result?.file_info?.size_bytes ??
-      result?.fullResult?.metadata?.file_size ??
-      result?.fullResult?.metadata?.size ??
-      result?.fullResult?.details?.[0]?.insights?.[0]?.data?.size ??
-      undefined;
-
-    const extractedFileSize =
-      rawSize !== undefined && rawSize !== null && rawSize > 0
-        ? `${(Number(rawSize) / 1024).toFixed(2)} KB`
-        : undefined;
-
-    // Detect content type from various response structures or fallback to file extension
-    const detectContentType = (): 'texto' | 'imagen' | 'video' | 'audio' | 'url' => {
-      // If we are polling or uploading, we might not have result type yet, so guess from filename
-      if ((status === 'polling' || status === 'uploading') && fileName) {
-        const lowerName = fileName.toLowerCase();
-        if (lowerName.endsWith('.mp4') || lowerName.endsWith('.mov') || lowerName.endsWith('.avi')) return 'video';
-        if (lowerName.endsWith('.mp3') || lowerName.endsWith('.wav') || lowerName.endsWith('.m4a') || lowerName.endsWith('.ogg')) return 'audio';
-        if (lowerName.endsWith('.jpg') || lowerName.endsWith('.jpeg') || lowerName.endsWith('.png')) return 'imagen';
-      }
-
-      if (!result) return 'texto'; // Default fallback if no result and no filename (text)
-
-      // Audio response structure: result.type === "audio_analysis" or "audio"
-      if (result.type === 'audio_analysis' || result.type === 'audio') return 'audio';
-
-      // Video response structure: check for original_video in raw_forensics or file_info
-      if (
-        result.file_info?.original_video_url ||
-        result.raw_forensics?.[0]?.summary?.original_video ||
-        result.type === 'video'
-      ) {
-        return 'video';
-      }
-
-      // Image response structure: result.file_info exists and has data
-      if (result.file_info && result.file_info.name && result.file_info.name !== 'image.jpg') return 'imagen';
-
-      // Text analysis structure: result.fullResult.submission_type
-      const submissionType = result.fullResult?.submission_type?.toLowerCase();
-      if (submissionType) return submissionType as 'texto' | 'imagen' | 'video' | 'audio' | 'url';
-
-      // Fallback: check result.type directly
-      if (result.type && ['texto', 'imagen', 'video', 'audio', 'url'].includes(result.type)) {
-        return result.type as 'texto' | 'imagen' | 'video' | 'audio' | 'url';
-      }
-
-      // Default fallback
-      return 'imagen';
-    };
-
-    const detectedType = detectContentType();
-
-    const caseData = {
-      caseCode:
-        result?.caseNumber ||
-        result?.fullResult?.displayId ||
-        `PENDING-${new Date().toISOString().slice(11, 19).replace(/:/g, '')}`, // Temp ID if polling
-      createdAt: result?.fullResult?.created_at || result?.meta?.timestamp || new Date().toISOString(),
-      contentType: detectedType,
-      analysisType: result?.theme || (detectedType === 'texto' ? 'Desinformódico' : 'Forense'),
-      fileName: extractedFilename,
-      fileSize: extractedFileSize,
-      vector: transmissionVector || result?.vectores?.[0] || result?.fullResult?.metadata?.vector || 'Telegram',
-    };
-
-    return <CaseRegisteredView caseData={caseData} onReportAnother={handleReset} jobId={result?.jobId} />;
-  }
-
-  // Loader view is now effectively bypassed by the logic above. 
-  // We keep this block only as a theoretical fallback or for states not covered (though currently covered).
-  // If we wanted to remove it completely:
-  /* 
-  if (status === 'uploading' || status === 'polling') {
-    return <ContentUploadProgress ... />;
-  } 
-  */
-
-
-  return <ContentUploadForm onSubmit={submitContent} isSubmitting={status !== 'idle'} />;
+  return (
+    <UnifiedDashboardLayout pageKey="analisis">
+      <div className="animate-in fade-in duration-500">
+        {content}
+      </div>
+    </UnifiedDashboardLayout>
+  );
 }

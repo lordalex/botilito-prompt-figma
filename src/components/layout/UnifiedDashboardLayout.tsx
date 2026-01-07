@@ -1,8 +1,3 @@
-#!/bin/bash
-
-# Refine UnifiedDashboardLayout.tsx to match the slim banner design
-echo "Refining src/components/layout/UnifiedDashboardLayout.tsx..."
-cat << 'EOF' > src/components/layout/UnifiedDashboardLayout.tsx
 import React from 'react';
 import bannersConfig from '@/config/banners.json';
 import { getBotIcon } from '@/utils/botIcons';
@@ -116,7 +111,3 @@ export function UnifiedDashboardLayout({
     </div>
   );
 }
-EOF
-
-echo "UnifiedLayout updated to Slim Contained Banner."
-

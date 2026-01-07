@@ -1,0 +1,32 @@
+{
+  "analisis": {
+    "title": "Análisis IA",
+    "subtitle": "Detecta patrones de desinformación en texto, imágenes, audio y video con nuestros modelos forenses.",
+    "botImage": "bot_default",
+    "speechBubble": "¡Ajá! ¿Listos para diagnosticar juntos lo que se esconde detrás de lo evidente? 🕵️‍♂️⚡"
+  },
+  "validacion": {
+    "title": "Validación Humana",
+    "subtitle": "Tu criterio experto es clave para entrenar nuestros modelos y confirmar casos complejos.",
+    "botImage": "bot_detective",
+    "speechBubble": "¡Ey, mi llave! Ayúdame a mejorar mis diagnósticos validando estos casos. ¡Tu voto cuenta! 🗳️✨"
+  },
+  "historial": {
+    "title": "Historial de Casos",
+    "subtitle": "Base de conocimiento completa de todos los análisis realizados por la comunidad.",
+    "botImage": "bot_detective",
+    "speechBubble": "¡Qué más parce! Acá está el historial completo de casos 🗂️🔍. Todos los contenidos analizados, desde multimedia forense hasta desinformación."
+  },
+  "mapa": {
+    "title": "Mapa Desinfodémico",
+    "subtitle": "Monitoreo epidemiológico de la desinformación en tiempo real.",
+    "botImage": "bot_mapa",
+    "speechBubble": "¡Qué hubo parce! 🗺️ Este es el Mapa Desinfodémico. Pillá cómo se mueve la infodemia por el país."
+  },
+  "perfil": {
+    "title": "Mi Perfil",
+    "subtitle": "Gestiona tu identidad, insignias y contribuciones a la red.",
+    "botImage": "bot_profile",
+    "speechBubble": "¡Todo bien! Aquí puedes ver tu progreso y ajustar tus preferencias. ⚙️👤"
+  }
+}

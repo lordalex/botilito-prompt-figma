@@ -34,54 +34,43 @@ export const useHumanVerification = () => {
     const [totalPages, setTotalPages] = useState<number>(0);
 
     const goToPage = async (newPage: number) => {
-        if (newPage < 1 || isLoading || (totalPages > 0 && newPage > totalPages)) return;
-        setIsLoading(true); // Show main loading spinner or list skeleton
+        if (newPage < 1 || isLoading || (totalPages > 0 && newPage > totalPages && newPage !== totalPages + 1)) return;
+        setIsLoading(true);
         try {
-            const summary = await fetchVerificationSummary(newPage, 10);
+            const [summary, nextPageSummary] = await Promise.all([
+                fetchVerificationSummary(newPage, 10),
+                fetchVerificationSummary(newPage + 1, 1)
+            ]);
 
-            setCases(summary.cases); // REPLACE cases, do not append
-            setHasMore(summary.pagination.hasMore);
+            const more = nextPageSummary.cases.length > 0;
+            setHasMore(more);
+            setCases(summary.cases);
             setPage(newPage);
 
-            const total = summary.pagination.totalItems || summary.summary?.total;
-            if (total) {
-                setTotalPages(Math.ceil(total / 10));
+            if (more) {
+                setTotalPages(newPage + 1);
+            } else {
+                setTotalPages(newPage);
             }
         } catch (e: any) {
-            console.error("Error loading page:", e);
-            setError("Error al cargar la página.");
+            setError(e.message || 'Error al cargar la página.');
         } finally {
             setIsLoading(false);
         }
     };
 
-    // Initial load logic also needs to set totalPages
     useEffect(() => {
         const loadInitialData = async () => {
             if (!user) return;
-
-            // Check cache first for cases
-            const cachedCases = getCachedData<CaseEnriched[]>(CACHE_KEYS.HUMAN_VERIFICATION);
-            const cachedStats = getCachedData<{ total_verifications: number, points: number }>(CACHE_KEYS.HUMAN_VERIFICATION_STATS);
-
-            if (cachedCases && cachedStats) {
-                setCases(cachedCases);
-                setUserStats(cachedStats);
-                setIsLoading(false);
-                // Still fetch profile for current permissions
-                try {
-                    const profileResponse = await api.profile.get(session!);
-                    setProfile(profileResponse.data);
-                    setInitialProfile(profileResponse.data);
-                } catch (e) {
-                    // Profile fetch can fail silently if we have cached data
-                }
-                return;
-            }
-
             setIsLoading(true);
             try {
-                const profileResponse = await api.profile.get(session!);
+                const [profileResponse, summary, nextPageSummary, stats] = await Promise.all([
+                    api.profile.get(session!),
+                    fetchVerificationSummary(1, 10),
+                    fetchVerificationSummary(2, 1),
+                    getUserVerificationStats(user.id)
+                ]);
+                
                 const userProfile = profileResponse.data;
                 setProfile(userProfile);
                 setInitialProfile(userProfile);
@@ -91,22 +80,17 @@ export const useHumanVerification = () => {
                     return;
                 }
 
-                const [summary, stats] = await Promise.all([
-                    fetchVerificationSummary(1, 10),
-                    getUserVerificationStats(user.id)
-                ]);
-
+                const more = nextPageSummary.cases.length > 0;
+                setHasMore(more);
                 setCases(summary.cases);
-                setHasMore(summary.pagination.hasMore);
-                const total = summary.pagination.totalItems || summary.summary?.total;
-                if (total) {
-                    setTotalPages(Math.ceil(total / 10));
+                
+                if (more) {
+                    setTotalPages(2);
+                } else {
+                    setTotalPages(1);
                 }
                 setUserStats(stats);
 
-                // Cache the results
-                setCachedData(CACHE_KEYS.HUMAN_VERIFICATION, summary.cases);
-                setCachedData(CACHE_KEYS.HUMAN_VERIFICATION_STATS, stats);
             } catch (e: any) {
                 setError(e.message || 'Error al cargar los datos.');
             } finally {
@@ -176,6 +160,56 @@ export const useHumanVerification = () => {
         }
     };
 
+    const refresh = async () => {
+        // Clear cache for both cases and stats
+        setCachedData(CACHE_KEYS.HUMAN_VERIFICATION, null);
+        setCachedData(CACHE_KEYS.HUMAN_VERIFICATION_STATS, null);
+        
+        // Reset state and reload data
+        setIsLoading(true);
+        setError(null);
+        setPage(1); // Reset to first page
+        
+        try {
+            if (!user || !session) {
+                throw new Error("Usuario no autenticado.");
+            }
+
+            const profileResponse = await api.profile.get(session);
+            const userProfile = profileResponse.data;
+            setProfile(userProfile);
+            setInitialProfile(userProfile);
+
+            if (userProfile?.role === 'cibernauta') {
+                setCases([]);
+                setHasMore(false);
+                setTotalPages(0);
+                setUserStats(null);
+                setIsLoading(false);
+                return;
+            }
+
+            const [summary, stats] = await Promise.all([
+                fetchVerificationSummary(1, 10), // Fetch page 1
+                getUserVerificationStats(user.id)
+            ]);
+
+            setCases(summary.cases);
+            setHasMore(summary.pagination.hasMore);
+            const total = summary.pagination.totalItems || summary.summary?.total;
+            setTotalPages(total ? Math.ceil(total / 10) : 0);
+            setUserStats(stats);
+
+            // Update cache with new data
+            setCachedData(CACHE_KEYS.HUMAN_VERIFICATION, summary.cases);
+            setCachedData(CACHE_KEYS.HUMAN_VERIFICATION_STATS, stats);
+        } catch (e: any) {
+            setError(e.message || 'Error al recargar los datos.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     const handleBackToList = () => {
         setSelectedCase(null);
     };
@@ -196,6 +230,7 @@ export const useHumanVerification = () => {
         handleSelectCase,
         handleSubmitVerification,
         handleBackToList,
+        refresh, // Expose refresh function
 
         page,
         hasMore,

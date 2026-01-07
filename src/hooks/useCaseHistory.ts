@@ -64,15 +64,18 @@ import { fetchVerificationSummary } from '@/utils/humanVerification/api';
 import type { CaseEnriched } from '@/utils/humanVerification/types';
 import { getCachedData, setCachedData, CACHE_KEYS } from '@/utils/sessionCache';
 
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { fetchVerificationSummary } from '@/utils/humanVerification/api';
+import type { CaseEnriched } from '@/utils/humanVerification/types';
+import { getCachedData, setCachedData, CACHE_KEYS } from '@/utils/sessionCache';
+
 export function useCaseHistory() {
   // Data State
   const [cases, setCases] = useState<CaseEnriched[]>([]);
-  const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Stats State (fetched separately as requested)
+  // Stats State
   const [stats, setStats] = useState({
     total: 0,
     verified: 0,
@@ -81,43 +84,41 @@ export function useCaseHistory() {
     forensic: 0
   });
 
-  // Filter & Pagination State
-  const [currentPage, setCurrentPage] = useState(1);
+  // Pagination State
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
   const [pageSize] = useState(10);
+
+  // Filter State
   const [statusFilter, setStatusFilter] = useState('all');
 
-  // Track if initial load has happened to prevent duplicate fetches
-  const initialLoadDone = useRef(false);
+  const fetchCases = useCallback(async (newPage: number, forceRefresh = false) => {
+    setLoading(true);
+    setError(null);
 
-  // Initial fetch - replaces cases
-  const fetchCases = useCallback(async (forceRefresh = false) => {
     try {
-      // Check cache first (unless force refresh)
-      if (!forceRefresh) {
-        const cached = getCachedData<{ cases: CaseEnriched[], hasMore: boolean }>(CACHE_KEYS.CASE_HISTORY);
-        if (cached) {
-          setCases(cached.cases);
-          setHasMore(cached.hasMore);
-          setLoading(false);
-          return;
-        }
+      const [result, nextPageResult] = await Promise.all([
+        fetchVerificationSummary(newPage, pageSize),
+        fetchVerificationSummary(newPage + 1, 1)
+      ]);
+      
+      const fetchedCases = result.cases || [];
+      const more = nextPageResult.cases.length > 0;
+
+      setHasMore(more);
+      setCases(fetchedCases);
+      setPage(newPage);
+
+      if (more) {
+        setTotalPages(newPage + 1);
+      } else {
+        setTotalPages(newPage);
       }
 
-      setLoading(true);
-      setError(null);
-      setCurrentPage(1);
-
-      // Use the same API function as HumanVerification for consistent transformations
-      const result = await fetchVerificationSummary(1, pageSize);
-
-      setCases(result.cases || []);
-      setHasMore(result.pagination.hasMore);
-
-      // Cache the result
-      setCachedData(CACHE_KEYS.CASE_HISTORY, {
-        cases: result.cases || [],
-        hasMore: result.pagination.hasMore,
-      });
+      if (newPage === 1) {
+        const summaryStats = await fetchHistoryStats();
+        setStats(summaryStats);
+      }
 
     } catch (err: any) {
       console.error('Error fetching history:', err);
@@ -128,67 +129,20 @@ export function useCaseHistory() {
     }
   }, [pageSize]);
 
-  // Separate effect for Stats (Two separate queries requirement)
   useEffect(() => {
-    const loadStats = async () => {
-      try {
-        // Request just the summary/metadata (pageSize=1 is a workaround if no dedicated endpoint)
-        // Ideally checking for a top-level summary object
-        const result = await fetchVerificationSummary(1, 1);
-
-        if (result.summary) {
-          setStats({
-            total: result.summary.total ?? 0,
-            verified: result.summary.verified ?? 0,
-            aiOnly: result.summary.aiOnly ?? 0,
-            misinformation: result.summary.misinformation ?? 0,
-            forensic: result.summary.forensic ?? 0
-          });
-        } else if (result.pagination && typeof result.pagination.totalItems === 'number') {
-          setStats({
-            total: result.pagination.totalItems,
-            verified: 0,
-            aiOnly: 0,
-            misinformation: 0,
-            forensic: 0
-          });
-        }
-      } catch (e) {
-        console.error("Error fetching history stats:", e);
-      }
-    };
-    loadStats();
-  }, []); // Only load stats once on mount
-
-  // Load more - appends to existing cases
-  const loadMore = useCallback(async () => {
-    if (loadingMore || !hasMore) return;
-
-    try {
-      setLoadingMore(true);
-      const nextPage = currentPage + 1;
-
-      const result = await fetchVerificationSummary(nextPage, pageSize);
-
-      // Append new cases to existing ones
-      setCases(prev => [...prev, ...(result.cases || [])]);
-      setHasMore(result.pagination.hasMore);
-      setCurrentPage(nextPage);
-
-    } catch (err: any) {
-      console.error('Error loading more cases:', err);
-      // Don't clear existing cases on load more error
-    } finally {
-      setLoadingMore(false);
-    }
-  }, [currentPage, pageSize, loadingMore, hasMore]);
-
-  // Trigger fetch on filter changes (re-fetch list)
-  useEffect(() => {
-    fetchCases();
+    fetchCases(1);
   }, [fetchCases]);
 
-  // Client-side filtering for status (if API doesn't support status filter yet)
+  const goToPage = (newPage: number) => {
+    if (newPage >= 1 && (newPage <= totalPages || hasMore)) {
+      fetchCases(newPage);
+    }
+  };
+  
+  const refresh = () => {
+    fetchCases(1, true);
+  };
+
   const filteredCases = useMemo(() => {
     if (statusFilter === 'all') return cases;
     return cases.filter(c => {
@@ -202,21 +156,15 @@ export function useCaseHistory() {
   return {
     cases: filteredCases,
     loading,
-    loadingMore,
     error,
     stats,
-    hasMore,
-    loadMore,
-    pagination: {
-      currentPage,
-      setCurrentPage,
-      pageSize,
-      hasMore,
-    },
+    page,
+    totalPages,
+    goToPage,
     filters: {
       statusFilter,
       setStatusFilter
     },
-    refresh: () => fetchCases(true) // Force refresh bypasses cache
+    refresh,
   };
 }
