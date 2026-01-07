@@ -39,3 +39,6 @@ export const ADMIN_DASHBOARD_URL = `${SUPABASE_URL}/functions/v1/admin-dashboard
 
 // User Roles API
 export const UPDATE_USER_ROLE = `${SUPABASE_URL}/functions/v1/update-user-role`;
+
+// Mapa Desinfodémico API (v5.1.0)
+export const MAPA_DESINFODEMICO_URL = `${SUPABASE_URL}/functions/v1/mapa-desinfodemico-verbose`;
