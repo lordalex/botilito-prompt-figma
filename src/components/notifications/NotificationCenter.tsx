@@ -43,7 +43,7 @@ export function NotificationCenter({ onViewTask, onViewAllNotifications }: {
 
     const uniqueNotifications = React.useMemo(() => {
         const seenJobs = new Set<string>();
-        return notifications.filter(n => {
+        return (notifications || []).filter(n => {
             const jobId = n.metadata?.job_id;
             if (jobId) {
                 if (seenJobs.has(jobId)) return false;
