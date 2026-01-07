@@ -34,7 +34,10 @@ export const useHumanVerification = () => {
     const [totalPages, setTotalPages] = useState<number>(0);
 
     const goToPage = async (newPage: number) => {
-        if (newPage < 1 || isLoading || (totalPages > 0 && newPage > totalPages && newPage !== totalPages + 1)) return;
+        if (newPage < 1 || isLoading) return;
+        // Optimistic check for last page
+        if (totalPages > 0 && newPage > totalPages) return;
+
         setIsLoading(true);
         try {
             const [summary, nextPageSummary] = await Promise.all([

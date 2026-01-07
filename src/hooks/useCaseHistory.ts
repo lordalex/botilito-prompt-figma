@@ -59,21 +59,16 @@
  * @see useHumanVerification.ts - Similar hook for validation tab
  */
 
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { fetchVerificationSummary } from '@/utils/humanVerification/api';
-import type { CaseEnriched } from '@/utils/humanVerification/types';
-import { getCachedData, setCachedData, CACHE_KEYS } from '@/utils/sessionCache';
-
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { fetchVerificationSummary } from '@/utils/humanVerification/api';
+import { fetchVerificationSummary, fetchHistoryStats } from '@/utils/humanVerification/api';
 import type { CaseEnriched } from '@/utils/humanVerification/types';
-import { getCachedData, setCachedData, CACHE_KEYS } from '@/utils/sessionCache';
 
 export function useCaseHistory() {
   // Data State
   const [cases, setCases] = useState<CaseEnriched[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(false);
 
   // Stats State
   const [stats, setStats] = useState({
