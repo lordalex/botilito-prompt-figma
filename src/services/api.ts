@@ -6,6 +6,7 @@
 import type { Session } from '@supabase/supabase-js';
 import * as apiEndpoints from '../lib/apiEndpoints';
 import type { IngestPayload, FullAnalysisResponse, UserProfileData, DispatchResponse, AdminJobResult, VoteJobAcceptedResponse as JobAcceptedResponse, VoteJobStatusResponse as JobStatusResponse } from '../types';
+import type { ProfileResponse, UpdateProfileResponse, Profile } from '../types/profile';
 
 /**
  * A generic and robust fetch client for making authenticated requests to Supabase functions.
@@ -73,64 +74,71 @@ export const api = {
             fetchClient(session, `${apiEndpoints.SEARCH_DTO_BASE_URL}/status/${jobId}`),
     },
     profile: {
+        /**
+         * Get current user's profile (v1.2.0)
+         * Maps Spanish field names from backend to English for frontend use.
+         */
         get: async (session: Session): Promise<ProfileResponse> => {
             const response = await fetchClient(session, apiEndpoints.PROFILE_API_URL);
 
-            // Adapter to map Spanish field names from the backend to English field names used in the frontend.
+            // Adapter: Map Spanish fields (v1.2.0) to legacy English field names for backward compatibility
             if (response.data) {
                 const mappedData = {
                     ...response.data,
+                    // Map v1.2.0 Spanish fields to legacy English fields
                     full_name: response.data.nombre_completo,
-                    phone_number: response.data.numero_telefono,
                     city: response.data.ciudad,
                     state_province: response.data.departamento,
-                    birth_date: response.data.fecha_nacimiento,
+                    // Preserve new v1.2.0 fields
+                    current_streak: response.data.current_streak || 0,
+                    profile_rewarded: response.data.profile_rewarded || false,
                 };
-                // It's good practice to delete the old keys to avoid confusion.
-                delete mappedData.nombre_completo;
-                delete mappedData.numero_telefono;
-                delete mappedData.ciudad;
-                delete mappedData.departamento;
-                delete mappedData.fecha_nacimiento;
                 response.data = mappedData;
             }
 
             return response;
         },
+        /**
+         * Get another user's profile by ID (v1.2.0)
+         */
         getById: async (session: Session, userId: string): Promise<ProfileResponse> => {
             const response = await fetchClient(session, `${apiEndpoints.PROFILE_API_URL}?id=${userId}`);
-            // Adapter to map Spanish field names from the backend to English field names used in the frontend.
+
+            // Adapter: Map Spanish fields (v1.2.0) to legacy English field names
             if (response.data) {
                 const mappedData = {
                     ...response.data,
                     full_name: response.data.nombre_completo,
-                    phone_number: response.data.numero_telefono,
                     city: response.data.ciudad,
                     state_province: response.data.departamento,
-                    birth_date: response.data.fecha_nacimiento,
+                    current_streak: response.data.current_streak || 0,
+                    profile_rewarded: response.data.profile_rewarded || false,
                 };
-                // It's good practice to delete the old keys to avoid confusion.
-                delete mappedData.nombre_completo;
-                delete mappedData.numero_telefono;
-                delete mappedData.ciudad;
-                delete mappedData.departamento;
-                delete mappedData.fecha_nacimiento;
                 response.data = mappedData;
             }
             return response;
         },
 
-        update: (session: Session, profileData: Partial<UserProfileData>): Promise<{ message: string; data: Profile }> => {
-            // Adapter to map English field names from the frontend to Spanish field names for the backend.
+        /**
+         * Update user profile (v1.2.0)
+         * 
+         * Gamification: If nombre_completo, departamento, and ciudad are provided
+         * for the first time, backend awards +50 XP and sets profile_rewarded=true.
+         * 
+         * Response includes reward_awarded: boolean if bonus was triggered.
+         */
+        update: (session: Session, profileData: Partial<UserProfileData>): Promise<UpdateProfileResponse> => {
+            // Adapter: Map English fields (frontend) to Spanish fields (v1.2.0 API)
             const mappedData: any = {};
-            if (profileData.full_name) mappedData.nombre_completo = profileData.full_name;
-            if (profileData.phone_number) mappedData.numero_telefono = profileData.phone_number;
-            if (profileData.city) mappedData.ciudad = profileData.city;
-            if (profileData.state_province) mappedData.departamento = profileData.state_province;
-            if (profileData.birth_date) mappedData.fecha_nacimiento = profileData.birth_date;
-            if (profileData.photo) mappedData.photo = profileData.photo;
-            if (profileData.avatar) mappedData.avatar = profileData.avatar;
 
+            // v1.2.0 required fields for gamification rewards
+            if (profileData.full_name) mappedData.nombre_completo = profileData.full_name;
+            if (profileData.state_province) mappedData.departamento = profileData.state_province;
+            if (profileData.city) mappedData.ciudad = profileData.city;
+
+            // Avatar (photo/avatar both map to avatar_url in v1.2.0)
+            if (profileData.photo) mappedData.avatar_url = profileData.photo;
+            if (profileData.avatar) mappedData.avatar_url = profileData.avatar;
 
             return fetchClient(session, apiEndpoints.PROFILE_API_URL, {
                 method: 'PUT',
@@ -248,4 +256,10 @@ export const api = {
         getStatus: (session: Session, jobId: string): Promise<AdminJobResult> =>
             fetchClient(session, `${apiEndpoints.ADMIN_DASHBOARD_URL}/status/${jobId}`),
     },
+    /**
+     * Generic helper to fetch arbitrary URLs (like status_url from notifications)
+     */
+    generic: {
+        get: (session: Session, url: string): Promise<any> => fetchClient(session, url),
+    }
 };

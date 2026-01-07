@@ -67,6 +67,8 @@ export interface AnalysisJob {
 /**
  * Represents the data structure for a user's profile,
  * mirroring the 'perfiles_usuario' table in the database.
+ * 
+ * v1.2.0: Added photo and avatar fields for avatar_url mapping
  */
 export interface UserProfileData {
   id: string; // Corresponds to the user's auth ID
@@ -76,6 +78,8 @@ export interface UserProfileData {
   city?: string;
   birth_date?: string; // Stored as a string for simplicity, e.g., 'YYYY-MM-DD'
   email?: string;
+  photo?: string;      // Maps to avatar_url in v1.2.0
+  avatar?: string;     // Maps to avatar_url in v1.2.0
   // Note: 'password', 'role', etc., are intentionally omitted for security.
 }
 

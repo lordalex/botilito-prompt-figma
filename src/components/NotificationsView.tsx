@@ -12,9 +12,29 @@ interface NotificationsViewProps {
     onViewTask: (jobId: string, type: string, status?: string) => void;
 }
 
+// Add api import
+import { api } from '@/services/api';
+import { useAuth } from '@/providers/AuthProvider';
+
+/**
+ * NotificationsView Component (v2.0.0 - Active Sync)
+ * 
+ * Updated navigation logic to use new metadata schema:
+ * - metadata.status: 'processing' | 'completed' | 'failed'
+ * - metadata.doc_id: Present when completed - navigate to /dashboard/analysis/{doc_id}
+ * - metadata.job_id: Always present - used for processing status or fallback
+ * - metadata.error: Present when failed - show error message
+ * 
+ * Navigation Rules:
+ * 1. Completed: Redirect to /dashboard/analysis/{doc_id}
+ * 2. Processing: Redirect to /dashboard/status/{job_id} (polling page)
+ * 3. Failed: Show error modal/toast with metadata.error
+ */
 export function NotificationsView({ onViewTask }: NotificationsViewProps) {
+    const { session } = useAuth(); // Get session for authenticated requests
     const { notifications, unreadCount, markAsRead } = useNotifications();
     const [filter, setFilter] = useState<'all' | 'unread' | 'info' | 'success' | 'warning' | 'error'>('all');
+    const [isLoadingDetails, setIsLoadingDetails] = useState<string | null>(null); // Track which notification is loading
 
     const uniqueNotifications = React.useMemo(() => {
         const seenJobs = new Set<string>();
@@ -47,22 +67,79 @@ export function NotificationsView({ onViewTask }: NotificationsViewProps) {
         }
     };
 
-    const handleNotificationClick = (notification: Notification) => {
+    /**
+     * Handle notification click with new v1.3.0 metadata schema
+     */
+    /**
+     * Handle notification click with robust status checking (v2.0.1)
+     * 
+     * 1. If status_url exists, fetch fresh status (job might be completed now vs processing when notif created)
+     * 2. If valid result found in fresh status, use THAT id (case_id/doc_id) for navigation
+     * 3. Fallback to existing metadata if fetch fails or no URL
+     */
+    const handleNotificationClick = async (notification: Notification) => {
         if (!notification.is_read) {
             markAsRead(notification.id);
         }
 
-        if (notification.metadata?.job_id) {
-            // Map the metadata source to the job type expected by the App component
-            const jobType = notification.metadata?.source === 'upload' ? 'image_analysis' :
-                notification.metadata?.source === 'audio-upload' ? 'audio_analysis' :
-                    notification.metadata?.source === 'ai-analysis' ? 'text_analysis' : 'unknown';
+        const metadata = notification.metadata;
+        if (!metadata?.job_id) return;
 
-            const status = notification.metadata?.final_status || 'unknown';
+        // PRIORITY 1: Always check fresh status via status_url if available
+        // This prevents using stale 'doc_id' from metadata which causes "Case not found"
+        if (metadata.status_url && session) {
+            try {
+                setIsLoadingDetails(notification.id);
+                const freshStatus = await api.generic.get(session, metadata.status_url);
 
-            if (jobType !== 'unknown') {
-                onViewTask(notification.metadata.job_id, jobType, status);
+                // Check if job is now completed
+                if (freshStatus.status === 'completed') {
+                    // Edge case: Job completed but returned an error result (e.g. "Not found")
+                    if (freshStatus.result?.error) {
+                        console.error("Job completed with internal error:", freshStatus.result.error);
+                        onViewTask(metadata.job_id, 'error', 'failed');
+                        return;
+                    }
+
+                    // Extract ID - commonly result.id, doc_id, or case_id
+                    const validId = freshStatus.result?.id || freshStatus.result?.case_id || freshStatus.result?.resolved_case_id || freshStatus.doc_id || metadata.doc_id;
+
+                    if (validId) {
+                        onViewTask(validId, 'analysis', 'completed');
+                        return;
+                    }
+                } else if (freshStatus.status === 'failed') {
+                    onViewTask(metadata.job_id, 'error', 'failed');
+                    return;
+                }
+            } catch (error) {
+                console.error("Failed to fetch fresh job status:", error);
+                // Fall through to fallback behavior below on error
+            } finally {
+                setIsLoadingDetails(null);
             }
+        }
+
+        // PRIORITY 2: Fallback to existing metadata (Optimistic / Offline)
+        if (metadata.status === 'completed' && metadata.doc_id) {
+            onViewTask(metadata.doc_id, 'analysis', 'completed');
+            return;
+        }
+
+        if (metadata.status === 'failed' && metadata.error) {
+            onViewTask(metadata.job_id, 'error', 'failed');
+            return;
+        }
+
+        // Fallback: Navigation based on existing metadata
+        const status = metadata.status;
+        const jobId = metadata.job_id;
+
+        if (status === 'processing') {
+            onViewTask(jobId, 'status', 'processing');
+        } else {
+            // Default fallback
+            onViewTask(jobId, 'analysis', status || 'unknown');
         }
     };
 
@@ -94,11 +171,11 @@ export function NotificationsView({ onViewTask }: NotificationsViewProps) {
                         <CardContent className="grid gap-1">
                             <Button
                                 variant={filter === 'all' ? 'secondary' : 'ghost'}
-                                className="justify-start"
+                                className={`justify-start ${filter === 'all' ? 'bg-[#FFD700] hover:bg-[#fae255] text-black font-medium' : ''}`}
                                 onClick={() => setFilter('all')}
                             >
                                 Todas
-                                <Badge variant="secondary" className="ml-auto text-xs">{notifications.length}</Badge>
+                                <Badge variant="secondary" className="ml-auto text-xs bg-white/50">{notifications.length}</Badge>
                             </Button>
                             <Button
                                 variant={filter === 'unread' ? 'secondary' : 'ghost'}
@@ -147,7 +224,7 @@ export function NotificationsView({ onViewTask }: NotificationsViewProps) {
                                     {filteredNotifications.map((notification) => (
                                         <div
                                             key={notification.id}
-                                            className={`flex items-start p-4 rounded-lg border transition-colors cursor-pointer hover:bg-muted/50 ${!notification.is_read ? 'bg-blue-50/50 border-blue-200' : 'bg-card'
+                                            className={`flex items-start p-4 rounded-xl border transition-all cursor-pointer hover:shadow-sm ${!notification.is_read ? 'bg-white border-l-4 border-l-[#FFD700]' : 'bg-white border-gray-100'
                                                 }`}
                                             onClick={() => handleNotificationClick(notification)}
                                         >
@@ -155,29 +232,28 @@ export function NotificationsView({ onViewTask }: NotificationsViewProps) {
                                                 {getIcon(notification.type)}
                                             </div>
                                             <div className="flex-1 space-y-1">
-                                                <div className="flex items-center justify-between">
-                                                    {/* Changed to flex-col on mobile? No, the screenshot shows desktop width but constrained column. */}
-                                                    {/* Actually, let's keep it row but handle overflow better. */}
-                                                    <p className={`text-sm font-medium leading-none ${!notification.is_read ? 'text-black' : ''} pr-4`}>
+                                                <div className="flex flex-col mb-1">
+                                                    <p className={`text-sm font-medium leading-tight ${!notification.is_read ? 'text-black' : ''}`}>
                                                         {notification.title}
                                                     </p>
-                                                    <span className="text-xs text-muted-foreground whitespace-nowrap flex-shrink-0">
+                                                    <span className="text-[10px] text-muted-foreground mt-1">
                                                         {new Date(notification.created_at).toLocaleString()}
                                                     </span>
                                                 </div>
                                                 <p className="text-sm text-muted-foreground">
                                                     {notification.message}
                                                 </p>
-                                                {notification.metadata?.actionable && (
+                                                {notification.metadata?.job_id && (
                                                     <Button
                                                         variant="link"
-                                                        className="px-0 h-auto text-xs mt-2"
+                                                        className="px-0 h-auto text-xs mt-2 text-[#FFD700] hover:text-[#e6c200] font-medium"
                                                         onClick={(e) => {
                                                             e.stopPropagation();
                                                             handleNotificationClick(notification);
                                                         }}
+                                                        disabled={isLoadingDetails === notification.id}
                                                     >
-                                                        Ver detalles &rarr;
+                                                        {isLoadingDetails === notification.id ? 'Cargando status...' : 'Ver detalles →'}
                                                     </Button>
                                                 )}
                                             </div>

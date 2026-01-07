@@ -1,0 +1,21 @@
+{
+  "rewards": {
+    "text-analysis-DTO": { "action": "submit", "xp": 15 },
+    "image-analysis-DTO": { "action": "submit", "xp": 25 },
+    "video-analysis-DTO": { "action": "submit", "xp": 35 },
+    "audio-analysis-dto": { "action": "submit", "xp": 30 },
+    "vote": {
+      "text": 20,
+      "image": 35,
+      "video": 50,
+      "audio": 45
+    },
+    "profile": { "complete": 50 }
+  },
+  "streak": {
+    "daily_bonus": 10,
+    "reset_hours": 48,
+    "min_hours": 24
+  }
+}
+

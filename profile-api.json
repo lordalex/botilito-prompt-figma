@@ -1,303 +1,137 @@
 {
   "openapi": "3.0.3",
   "info": {
-    "title": "Gamified User Profile API",
-    "description": "API for managing user identities, profile images (Base64), and gamification elements (XP, Reputation, Badges). Includes system-calculated challenge progress and public currency conversion utilities.",
-    "version": "2.2.0",
+    "title": "Botilito User Profile API",
+    "description": "API for managing user identities, demographics, and reputation stats.\n\n### Gamification & Rewards\nThis API implements a **One-Time Reward** system for profile completion.\n- **Trigger:** When a user updates their profile via `PUT /profile`.\n- **Condition:** If the user provides `nombre_completo`, `departamento`, and `ciudad` for the first time.\n- **Reward:** The system awards **+50 XP (Puntos de Inmunización)** and sets the internal flag `profile_rewarded` to true.\n\n### Authentication\nAll endpoints require a valid Supabase JWT in the `Authorization` header.",
+    "version": "1.2.0",
     "contact": {
-      "name": "API Support Team"
+      "name": "API Support",
+      "email": "dev@botilito.dev"
     }
   },
   "servers": [
     {
-      "url": "https://<PROJECT_REF>.supabase.co/functions/v1",
+      "url": "https://mdkswlgcqsmgfmcuorxq.supabase.co/functions/v1/profile",
       "description": "Production Edge Function"
     }
   ],
   "components": {
     "securitySchemes": {
-      "BearerAuth": {
+      "bearerAuth": {
         "type": "http",
         "scheme": "bearer",
         "bearerFormat": "JWT",
-        "description": "Supabase Access Token found in `session.access_token`. Must be sent in the `Authorization` header as `Bearer <token>`."
+        "description": "Supabase User Token."
       }
     },
     "schemas": {
-      "Profile": {
+      "UserProfile": {
         "type": "object",
-        "description": "The complete user profile object including readonly gamification stats.",
-        "required": [
-          "id",
-          "email",
-          "full_name"
-        ],
+        "description": "Public profile information for a user.",
         "properties": {
           "id": {
             "type": "string",
             "format": "uuid",
-            "description": "Unique User ID (UUID).",
-            "example": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11"
+            "description": "Unique user ID (linked to auth.users).",
+            "example": "a1b2c3d4-e5f6-7890-1234-567890abcdef"
           },
           "email": {
             "type": "string",
             "format": "email",
-            "description": "User's registered email address.",
-            "example": "jane.doe@example.com"
+            "example": "usuario@ejemplo.com"
           },
-          "full_name": {
+          "nombre_completo": {
             "type": "string",
-            "description": "Full display name.",
-            "example": "Jane Doe"
+            "nullable": true,
+            "description": "Full display name. Required for 'Profile Complete' badge.",
+            "example": "Juan Pérez"
           },
-          "photo": {
+          "departamento": {
             "type": "string",
-            "description": "Base64 encoded string of the user's photo. Max size 2MB.",
-            "example": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD...",
-            "nullable": true
+            "nullable": true,
+            "description": "Geographic department (e.g., Cundinamarca). Required for rewards.",
+            "example": "Bogotá D.C."
           },
-          "avatar": {
+          "ciudad": {
             "type": "string",
-            "description": "Base64 encoded string of the user's avatar (SVG preferred). Max size 2MB.",
-            "example": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0i...",
-            "nullable": true
-          },
-          "phone_number": {
-            "type": "string",
-            "description": "Contact phone number.",
-            "example": "+1 555 0199",
-            "nullable": true
-          },
-          "city": {
-            "type": "string",
-            "description": "City of residence.",
-            "example": "New York",
-            "nullable": true
-          },
-          "state_province": {
-            "type": "string",
-            "description": "State, Province, or Department.",
-            "example": "NY",
-            "nullable": true
-          },
-          "birth_date": {
-            "type": "string",
-            "format": "date",
-            "description": "Date of birth in YYYY-MM-DD format.",
-            "example": "1990-05-15",
-            "nullable": true
+            "nullable": true,
+            "description": "City of residence. Required for rewards.",
+            "example": "Bogotá"
           },
           "role": {
             "type": "string",
-            "description": "User role permissions (e.g., 'user', 'admin').",
-            "example": "user",
-            "readOnly": true
-          },
-          "reputation": {
-            "type": "integer",
-            "description": "Total reputation score. Read-only (updated via system events).",
-            "example": 50,
-            "readOnly": true
+            "enum": [
+              "cibernauta",
+              "epidemiologo",
+              "director"
+            ],
+            "description": "Current system role determining RBAC permissions.",
+            "example": "cibernauta"
           },
           "xp": {
             "type": "integer",
-            "description": "Experience points derived from reputation and actions. Read-only.",
-            "example": 1250,
-            "readOnly": true
+            "description": "Total 'Puntos de Inmunización' (PI) earned.",
+            "example": 150
           },
-          "badges": {
-            "type": "array",
-            "description": "List of unique badge identifiers earned by the user.",
-            "items": {
-              "type": "string",
-              "example": "elite_voter"
-            },
-            "readOnly": true
-          }
-        }
-      },
-      "ProfileUpdateInput": {
-        "type": "object",
-        "description": "Payload for updating user profile details. All fields are optional.",
-        "properties": {
-          "full_name": {
-            "type": "string",
-            "description": "Update full name.",
-            "example": "Jane M. Doe"
+          "reputation": {
+            "type": "number",
+            "description": "Calculated reliability score based on voting consensus history.",
+            "example": 4.5
           },
-          "photo": {
-            "type": "string",
-            "description": "Set profile photo. Base64 string. Max 2MB. Send null or empty string to delete.",
-            "example": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+          "current_streak": {
+            "type": "integer",
+            "description": "Consecutive days of activity.",
+            "example": 5
           },
-          "avatar": {
-            "type": "string",
-            "description": "Set avatar. Base64 string. Max 2MB.",
-            "example": "data:image/svg+xml;base64,PHN2ZyB..."
-          },
-          "phone_number": {
-            "type": "string",
-            "example": "+1 555 0000"
-          },
-          "city": {
-            "type": "string",
-            "example": "Chicago"
-          },
-          "state_province": {
-            "type": "string",
-            "example": "IL"
-          },
-          "birth_date": {
-            "type": "string",
-            "format": "date",
-            "example": "1990-05-15"
-          }
-        }
-      },
-      "ChallengeProgress": {
-        "type": "object",
-        "description": "Represents the user's progress towards a specific challenge.",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "description": "Unique Challenge ID.",
-            "example": "123e4567-e89b-12d3-a456-426614174000"
-          },
-          "title": {
-            "type": "string",
-            "description": "Display title of the challenge.",
-            "example": "Fact Check Master"
-          },
-          "badge_name": {
-            "type": "string",
-            "description": "The internal ID of the badge awarded upon completion.",
-            "example": "fc_master"
-          },
-          "completed": {
+          "profile_rewarded": {
             "type": "boolean",
-            "description": "True if the user currently meets all requirements.",
-            "example": false
+            "description": "Internal flag. If true, the +50 XP reward has already been claimed."
           },
-          "requirements": {
-            "type": "object",
-            "description": "Goals needed to complete the challenge.",
-            "properties": {
-              "xp": {
-                "type": "integer",
-                "example": 1000
-              },
-              "reputation": {
-                "type": "integer",
-                "example": 50
-              }
-            }
-          },
-          "current": {
-            "type": "object",
-            "description": "User's current stats for comparison.",
-            "properties": {
-              "xp": {
-                "type": "integer",
-                "example": 850
-              },
-              "reputation": {
-                "type": "integer",
-                "example": 30
-              }
-            }
+          "avatar_url": {
+            "type": "string",
+            "format": "uri",
+            "nullable": true
           }
         }
       },
-      "ChallengeCreateInput": {
+      "UpdateProfileRequest": {
         "type": "object",
-        "required": [
-          "title",
-          "badge_name"
-        ],
+        "description": "Fields to update. Providing missing demographic fields triggers the Gamification Engine.",
         "properties": {
-          "title": {
+          "nombre_completo": {
             "type": "string",
-            "description": "The public name of the challenge.",
-            "example": "Grand Consensus"
+            "minLength": 3
           },
-          "description": {
+          "departamento": {
+            "type": "string"
+          },
+          "ciudad": {
+            "type": "string"
+          },
+          "avatar_url": {
             "type": "string",
-            "description": "Internal or public description of requirements.",
-            "example": "Reach 100 Rep points."
-          },
-          "badge_name": {
-            "type": "string",
-            "description": "The unique string added to user's badge list. Must be unique in DB.",
-            "example": "grand_consensus"
-          },
-          "required_xp": {
-            "type": "integer",
-            "description": "XP needed to unlock.",
-            "default": 0,
-            "example": 2500
-          },
-          "required_reputation": {
-            "type": "integer",
-            "description": "Reputation needed to unlock.",
-            "default": 0,
-            "example": 100
+            "format": "uri"
           }
         }
       },
-      "ConversionRequest": {
+      "UpdateResponse": {
         "type": "object",
-        "required": [
-          "amount",
-          "from"
-        ],
         "properties": {
-          "amount": {
-            "type": "integer",
-            "minimum": 0,
-            "description": "The numeric value to calculate conversion for.",
-            "example": 100
+          "success": {
+            "type": "boolean",
+            "example": true
           },
-          "from": {
+          "data": {
+            "$ref": "#/components/schemas/UserProfile"
+          },
+          "reward_awarded": {
+            "type": "boolean",
+            "description": "True if this specific update triggered the +50 XP bonus.",
+            "example": true
+          },
+          "message": {
             "type": "string",
-            "enum": [
-              "xp",
-              "reputation"
-            ],
-            "description": "The source unit.",
-            "example": "xp"
-          }
-        }
-      },
-      "ConversionResponse": {
-        "type": "object",
-        "properties": {
-          "input": {
-            "type": "object",
-            "properties": {
-              "amount": {
-                "type": "integer",
-                "example": 100
-              },
-              "unit": {
-                "type": "string",
-                "example": "xp"
-              }
-            }
-          },
-          "conversion": {
-            "type": "object",
-            "properties": {
-              "amount": {
-                "type": "integer",
-                "description": "The calculated result (25 XP = 1 Rep).",
-                "example": 4
-              },
-              "unit": {
-                "type": "string",
-                "example": "reputation"
-              }
-            }
+            "example": "Profile updated successfully. +50 XP Awarded!"
           }
         }
       },
@@ -306,260 +140,73 @@
         "properties": {
           "error": {
             "type": "string",
-            "description": "Short error message.",
-            "example": "Validation Error"
+            "example": "Database Error"
           },
           "details": {
-            "type": "string",
-            "description": "Technical details (mostly for 500 errors).",
-            "example": "Database constraint violation: badge_name must be unique."
+            "type": "string"
           }
         }
       }
     }
   },
-  "tags": [
+  "security": [
     {
-      "name": "Profile",
-      "description": "User identity and dashboard data"
-    },
-    {
-      "name": "Gamification",
-      "description": "Challenge management and currency tools"
+      "bearerAuth": []
     }
   ],
   "paths": {
-    "/profile": {
+    "/": {
       "get": {
-        "tags": [
-          "Profile"
-        ],
-        "summary": "Get Profile & Progress",
-        "description": "Retrieves the user's profile, including their photos (Base64), stats, and badges. 
-
-**Auto-Award Logic:** This endpoint automatically compares the user's current XP/Reputation against all active challenges. If criteria are met, the badge is added to the user's record instantly.",
-        "operationId": "getProfile",
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "query",
-            "description": "Optional UUID to view another user's profile. Defaults to authenticated user if omitted.",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
+        "summary": "Get My Profile",
+        "description": "Retrieves the profile of the authenticated user based on the JWT token.",
         "responses": {
           "200": {
-            "description": "Profile retrieved successfully.",
+            "description": "Profile Data",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "$ref": "#/components/schemas/Profile"
-                    },
-                    "challenges_progress": {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/components/schemas/ChallengeProgress"
-                      },
-                      "description": "List of all challenges and the user's status in each."
-                    }
-                  }
+                  "$ref": "#/components/schemas/UserProfile"
                 }
               }
             }
           },
           "401": {
-            "description": "Unauthorized. Invalid Token.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
+            "description": "Unauthorized"
           },
           "404": {
-            "description": "User not found.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
+            "description": "Profile not found (User needs to be initialized)"
           }
         }
       },
       "put": {
-        "tags": [
-          "Profile"
-        ],
         "summary": "Update Profile",
-        "description": "Updates allowable personal information and profile images. 
-
-**Validation:** `photo` and `avatar` must be Base64 strings less than 2MB.",
-        "operationId": "updateProfile",
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
+        "description": "Updates demographic and display information. \n\n**Gamification Logic:**\nIf the user fills in `nombre_completo`, `departamento`, and `ciudad` for the first time, the backend automatically:\n1. Awards **+50 XP**.\n2. Sets `profile_rewarded` to `true`.\n3. Returns `reward_awarded: true` in the response.",
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ProfileUpdateInput"
+                "$ref": "#/components/schemas/UpdateProfileRequest"
               }
             }
           }
         },
         "responses": {
           "200": {
-            "description": "Update successful.",
+            "description": "Profile Updated",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "message": {
-                      "type": "string",
-                      "example": "Profile updated successfully."
-                    },
-                    "data": {
-                      "$ref": "#/components/schemas/Profile"
-                    }
-                  }
+                  "$ref": "#/components/schemas/UpdateResponse"
                 }
               }
             }
           },
           "400": {
-            "description": "Validation Error (e.g., Image too large, invalid Base64).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/profile/challenges": {
-      "post": {
-        "tags": [
-          "Gamification"
-        ],
-        "summary": "Create Challenge (Admin)",
-        "description": "Creates a new mission for users to achieve. 
-
-**Permissions:** Requires `role: admin` in the `perfiles_usuario` table.",
-        "operationId": "createChallenge",
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ChallengeCreateInput"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Challenge created successfully.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "message": {
-                      "type": "string",
-                      "example": "Challenge created successfully."
-                    },
-                    "data": {
-                      "$ref": "#/components/schemas/ChallengeProgress"
-                    }
-                  }
-                }
-              }
-            }
+            "description": "Validation Error"
           },
-          "403": {
-            "description": "Forbidden. User is not an admin.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                },
-                "example": {
-                  "error": "Permission denied. Only admins can create challenges."
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/profile/convert": {
-      "post": {
-        "tags": [
-          "Gamification"
-        ],
-        "summary": "Calculator (Public)",
-        "description": "Utility endpoint to convert between Reputation and XP. 
-
-**Rate:** 1 Reputation = 25 XP.",
-        "operationId": "convertCurrency",
-        "security": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ConversionRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Calculation successful.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ConversionResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid parameters.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
+          "401": {
+            "description": "Unauthorized"
           }
         }
       }
