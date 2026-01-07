@@ -2,11 +2,19 @@ import { useState, useEffect, useRef } from 'react';
 import { performAnalysis as performTextAnalysis } from '../services/contentAnalysisService';
 import { imageAnalysisService, convertFileToBase64 } from '../services/imageAnalysisService';
 import { audioAnalysisService } from '../services/audioAnalysisService';
-import { useNotifications } from '@/providers/NotificationProvider';
 import { ContentType, TransmissionVector } from '../utils/caseCodeGenerator';
 
 const POLLING_INTERVAL = 3000;
 
+/**
+ * useContentUpload Hook (v1.3.0)
+ * 
+ * Updated for Lazy Polling architecture:
+ * - Removed registerTask calls (server handles job registration automatically)
+ * - Hook still polls locally for immediate UI feedback during active upload
+ * - Server tracks jobs via notifications API for cross-session persistence
+ * - Notifications will be updated when user polls /inbox endpoint
+ */
 export function useContentUpload(initialJobId?: string, initialJobType?: string) {
   const [status, setStatus] = useState<'idle' | 'uploading' | 'polling' | 'complete' | 'error'>('idle');
   const [progress, setProgress] = useState(0);
@@ -16,9 +24,6 @@ export function useContentUpload(initialJobId?: string, initialJobType?: string)
   const [fileName, setFileName] = useState<string | undefined>(undefined);
   const [fileSize, setFileSize] = useState<number | undefined>(undefined);
   const [transmissionVector, setTransmissionVector] = useState<TransmissionVector | undefined>(undefined);
-
-  // We need to use RegisterTask
-  const { registerTask } = useNotifications();
 
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
   const lastSubmissionRef = useRef<any>(null);
@@ -84,9 +89,8 @@ export function useContentUpload(initialJobId?: string, initialJobType?: string)
 
           const { jobId, result: fastResult } = await audioAnalysisService.submitJob(file);
 
-          if (jobId) {
-            registerTask(jobId, 'audio_analysis', { filename: file.name });
-          }
+          // Note: Server automatically registers this job in notifications system
+          // No need to call registerTask - removed for v1.3.0 Lazy Polling
 
           let finalResult = fastResult;
 
@@ -129,9 +133,8 @@ export function useContentUpload(initialJobId?: string, initialJobType?: string)
 
           const { jobId, result: fastResult } = await imageAnalysisService.submitJob(file);
 
-          if (jobId) {
-            registerTask(jobId, 'image_analysis', { filename: file.name });
-          }
+          // Note: Server automatically registers this job in notifications system
+          // No need to call registerTask - removed for v1.3.0 Lazy Polling
 
           let finalResult = fastResult;
 
@@ -167,12 +170,13 @@ export function useContentUpload(initialJobId?: string, initialJobType?: string)
           setStatus('complete');
         }
       } else {
-        // --- FLUJO TEXTO ---
+        // --- TEXT FLOW ---
         const textResult = await performTextAnalysis(content, transmissionMedium, (p: number) => {
           setProgress(p);
         });
 
         // Handling the new response type (Pending Job)
+        // Note: Server automatically registers text analysis jobs in notifications system
         if (textResult && 'jobId' in textResult && textResult.status === 'pending') {
           setResult(textResult);
           setStatus('polling'); // Triggers success view (CaseRegisteredView) immediately as per logic
