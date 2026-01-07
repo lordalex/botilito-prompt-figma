@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Badge } from '@/components/ui/badge';
 import { submitVote } from '@/services/votingService';
-import { toast } from 'sonner';
+import { useToast } from '@/hooks/use-toast';
 
 interface HumanValidationFormProps {
   caseId: string;
@@ -16,12 +16,13 @@ interface HumanValidationFormProps {
   onVoteSuccess?: () => void;
 }
 
-export function HumanValidationForm({ 
-  caseId, 
-  aiVerdictLabel, 
-  aiRiskScore, 
-  onVoteSuccess 
+export function HumanValidationForm({
+  caseId,
+  aiVerdictLabel,
+  aiRiskScore,
+  onVoteSuccess
 }: HumanValidationFormProps) {
+  const { toast } = useToast();
   const [selectedOption, setSelectedOption] = useState<string>('');
   const [justification, setJustification] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -58,13 +59,20 @@ export function HumanValidationForm({
         classification: selectedOption,
         reason: justification
       });
-      toast.success('¡Validación enviada correctamente!');
+      toast({
+        title: '¡Validación enviada!',
+        description: 'Tu opinión ha sido registrada correctamente.',
+      });
       if (onVoteSuccess) onVoteSuccess();
       setSelectedOption('');
       setJustification('');
     } catch (err: any) {
       console.error(err);
-      toast.error('Error al enviar la validación');
+      toast({
+        title: 'Error',
+        description: 'Error al enviar la validación. Intenta nuevamente.',
+        variant: 'destructive',
+      });
       setError('Ocurrió un error al procesar tu voto. Intenta nuevamente.');
     } finally {
       setIsSubmitting(false);

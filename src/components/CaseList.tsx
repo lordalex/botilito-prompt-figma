@@ -211,7 +211,14 @@ export function CaseList({
               className="text-sm font-medium px-3 py-1 bg-white"
               style={{ borderColor: 'var(--accent)', color: 'var(--color-yellow-700)', backgroundColor: 'var(--color-yellow-50)' }}
             >
-              # {cases.length} casos
+              {isLoading ? (
+                <span className="flex items-center gap-1.5">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  Cargando...
+                </span>
+              ) : (
+                `# ${cases.length} casos`
+              )}
             </Badge>
           </div>
           <CardDescription>{description}</CardDescription>

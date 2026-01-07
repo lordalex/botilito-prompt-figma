@@ -15,7 +15,7 @@ import {
   CircleCheck,
   FileSearchIcon,
   Search,
-  Loader2
+  Clock
 } from 'lucide-react';
 
 interface CaseRegisteredViewProps {
@@ -235,7 +235,7 @@ export function CaseRegisteredView({ caseData, onReportAnother, jobId }: CaseReg
                           {isAnalysisComplete ? (
                             <CircleCheck className="h-5 w-5 text-white" style={{ color: 'var(--color-green-500)' }} />
                           ) : (
-                            <Loader2 className="h-5 w-5 animate-spin" style={{ color: '#d97706' }} />
+                            <Clock className="h-5 w-5" style={{ color: '#d97706' }} />
                           )}
                         </div>
                       </div>

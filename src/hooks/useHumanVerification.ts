@@ -5,6 +5,7 @@ import { fetchVerificationSummary, fetchCaseDetails, getUserVerificationStats } 
 import { useVoteTracker } from '../providers/VoteTrackerProvider';
 import { useJobTracker } from './useJobTracker';
 import type { CaseEnriched, Profile } from '../types';
+import { getCachedData, setCachedData, CACHE_KEYS } from '@/utils/sessionCache';
 
 export const useHumanVerification = () => {
     const { user, session } = useAuth();
@@ -58,6 +59,26 @@ export const useHumanVerification = () => {
     useEffect(() => {
         const loadInitialData = async () => {
             if (!user) return;
+
+            // Check cache first for cases
+            const cachedCases = getCachedData<CaseEnriched[]>(CACHE_KEYS.HUMAN_VERIFICATION);
+            const cachedStats = getCachedData<{ total_verifications: number, points: number }>(CACHE_KEYS.HUMAN_VERIFICATION_STATS);
+
+            if (cachedCases && cachedStats) {
+                setCases(cachedCases);
+                setUserStats(cachedStats);
+                setIsLoading(false);
+                // Still fetch profile for current permissions
+                try {
+                    const profileResponse = await api.profile.get(session!);
+                    setProfile(profileResponse.data);
+                    setInitialProfile(profileResponse.data);
+                } catch (e) {
+                    // Profile fetch can fail silently if we have cached data
+                }
+                return;
+            }
+
             setIsLoading(true);
             try {
                 const profileResponse = await api.profile.get(session!);
@@ -82,6 +103,10 @@ export const useHumanVerification = () => {
                     setTotalPages(Math.ceil(total / 10));
                 }
                 setUserStats(stats);
+
+                // Cache the results
+                setCachedData(CACHE_KEYS.HUMAN_VERIFICATION, summary.cases);
+                setCachedData(CACHE_KEYS.HUMAN_VERIFICATION_STATS, stats);
             } catch (e: any) {
                 setError(e.message || 'Error al cargar los datos.');
             } finally {
