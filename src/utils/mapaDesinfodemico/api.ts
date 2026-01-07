@@ -1,93 +1,51 @@
 // src/utils/mapaDesinfodemico/api.ts
-
-import { supabase } from '../supabase/client';
-
-const BASE_URL = 'https://mdkswlgcqsmgfmcuorxq.supabase.co/functions/v1/mapa-desinfodemico-verbose';
-const POLLING_INTERVAL_MS = 3000; // Poll every 3 seconds
-const JOB_TIMEOUT_MS = 180000; // 3 minutes timeout
+import { useState, useEffect } from 'react';
+import { api } from '@/services/api';
+import { useAuth } from '@/providers/AuthProvider';
+import type { DashboardResponse } from '@/types/mapaDesinfodemico';
 
 /**
- * Initiates and polls for the result of the infodemic map data generation.
- * @param onProgress - A callback function to report the status of the job.
- * @returns A promise that resolves with the final dashboard data.
+ * Hook to fetch the dashboard data for Mapa Desinfodémico.
+ * Triggers aggregation pipeline via POST using the centralized API service.
  */
-export async function generateMapa(onProgress: (status: string) => void): Promise<any> {
-  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+export function useDashboardData() {
+  const { session } = useAuth();
+  const [data, setData] = useState<DashboardResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  if (sessionError || !session) {
-    throw new Error('Authentication required to generate the map.');
-  }
+  useEffect(() => {
+    let isMounted = true;
 
-  // 1. Start the Job via POST request
-  onProgress('starting_job');
-  const startResponse = await fetch(BASE_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${session.access_token}`,
-    },
-  });
-
-  if (!startResponse.ok) {
-    const errorBody = await startResponse.json();
-    throw new Error(`Failed to start map generation job: ${errorBody.error || startResponse.statusText}`);
-  }
-
-  const { job_id } = await startResponse.json();
-  onProgress(`Job started with ID: ${job_id}`);
-
-  // 2. Poll for the Job Status via GET request
-  return new Promise((resolve, reject) => {
-    const startTime = Date.now();
-
-    const intervalId = setInterval(async () => {
-      // Check for timeout
-      if (Date.now() - startTime > JOB_TIMEOUT_MS) {
-        clearInterval(intervalId);
-        reject(new Error(`Job timed out after ${JOB_TIMEOUT_MS / 1000} seconds.`));
-        return;
-      }
+    async function fetchMetrics() {
+      if (!session) return;
 
       try {
-        const statusResponse = await fetch(`${BASE_URL}/status/${job_id}`, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`,
-          },
-        });
+        setLoading(true);
+        // Defaulting to nacional scope and weekly timeframe
+        const result = await api.mapaDesinfodemico.getDashboardData(session, 'nacional', 'weekly');
 
-        if (!statusResponse.ok) {
-          // Don't stop polling on a single failed GET, could be a network blip
-          console.warn(`Polling failed with status: ${statusResponse.status}`);
-          return;
+        if (isMounted) {
+          setData(result);
         }
-
-        const jobStatus = await statusResponse.json();
-
-        switch (jobStatus.status) {
-          case 'completed':
-            clearInterval(intervalId);
-            onProgress('completed');
-            resolve(jobStatus.result);
-            break;
-          case 'failed':
-            clearInterval(intervalId);
-            onProgress('failed');
-            reject(new Error(jobStatus.error?.message || 'Map generation failed.'));
-            break;
-          case 'processing':
-          case 'pending':
-            onProgress(jobStatus.status);
-            break;
-          default:
-            // Continue polling
-            break;
+      } catch (e: any) {
+        if (isMounted) {
+          console.error("Error fetching dashboard data:", e);
+          setError(e.message || "Error desconocido al cargar el tablero");
         }
-      } catch (error) {
-        console.error('Error during polling:', error);
-        // Don't reject immediately, allow for recovery
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
       }
-    }, POLLING_INTERVAL_MS);
-  });
-}
+    }
 
+    fetchMetrics();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [session]);
+
+  return { data, loading, error };
+}

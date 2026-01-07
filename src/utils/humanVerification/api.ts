@@ -208,7 +208,7 @@ function determineAmiLevel(std: any): string | undefined {
       return 'No cumple las premisas AMI'; // Shows "Manipulado Digitalmente"
     }
     if (combinedText.includes('SINTÉTICO') || combinedText.includes('SYNTHETIC') ||
-        combinedText.includes('GENERADO POR IA') || combinedText.includes('AI GENERATED')) {
+      combinedText.includes('GENERADO POR IA') || combinedText.includes('AI GENERATED')) {
       return 'Generado por IA';
     }
     // Default for forensic with unclear verdict
@@ -321,6 +321,45 @@ export async function fetchVerificationSummary(page: number, pageSize: number): 
   } catch (error) {
     console.error('Error fetching verification summary:', error);
     throw error;
+  }
+}
+
+/**
+ * Fetch JUST the stats/summary without loading a large list of cases.
+ * Used for the "Historial" header counters.
+ */
+export async function fetchHistoryStats(): Promise<{ total: number; verified: number; aiOnly: number; misinformation: number; forensic: number }> {
+  try {
+    // Request a summary with pageSize=1 just to get the metadata/total counts
+    // Assuming the backend returns the 'summary' object or 'pagination.totalItems'
+    const result = await fetchVerificationSummary(1, 1);
+
+    // If the API returns a top-level summary object (best case)
+    if (result.summary) {
+      return {
+        total: result.summary.total ?? 0,
+        verified: result.summary.verified ?? 0,
+        aiOnly: result.summary.aiOnly ?? 0,
+        misinformation: result.summary.misinformation ?? 0,
+        forensic: result.summary.forensic ?? 0
+      };
+    }
+
+    // Fallback: If API only returns totalItems in pagination
+    if (result.pagination && typeof result.pagination.totalItems === 'number') {
+      return {
+        total: result.pagination.totalItems,
+        verified: 0, // Cannot know without specific endpoint
+        aiOnly: 0,
+        misinformation: 0,
+        forensic: 0
+      };
+    }
+
+    return { total: 0, verified: 0, aiOnly: 0, misinformation: 0, forensic: 0 };
+  } catch (e) {
+    console.error("Error fetching history stats:", e);
+    return { total: 0, verified: 0, aiOnly: 0, misinformation: 0, forensic: 0 };
   }
 }
 

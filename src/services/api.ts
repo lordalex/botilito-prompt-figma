@@ -261,5 +261,12 @@ export const api = {
      */
     generic: {
         get: (session: Session, url: string): Promise<any> => fetchClient(session, url),
+    },
+    mapaDesinfodemico: {
+        getDashboardData: (session: Session, region: string = 'nacional', timeframe: string = 'weekly'): Promise<any> =>
+            fetchClient(session, apiEndpoints.MAPA_DESINFODEMICO_URL, {
+                method: 'POST',
+                body: JSON.stringify({ region, timeframe }),
+            }),
     }
 };

@@ -1,0 +1,291 @@
+{
+    "openapi": "3.0.3",
+    "info": {
+        "title": "Mapa Desinfodémico API",
+        "version": "5.1.0",
+        "description": "API for retrieving dashboard data for the Mapa Desinfodémico"
+    },
+    "servers": [
+        {
+            "url": "https://mdkswlgcqsmgfmcuorxq.supabase.co/functions/v1"
+        }
+    ],
+    "paths": {
+        "/mapa-desinfodemico-verbose": {
+            "post": {
+                "summary": "Get Dashboard Data",
+                "description": "Retrieves comprehensive dashboard data including KPIs, charts, and detailed metrics.",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "region": {
+                                        "type": "string",
+                                        "example": "andina"
+                                    },
+                                    "timeframe": {
+                                        "type": "string",
+                                        "enum": [
+                                            "daily",
+                                            "weekly",
+                                            "monthly"
+                                        ],
+                                        "example": "weekly"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/DashboardResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "DashboardResponse": {
+                "type": "object",
+                "properties": {
+                    "kpi": {
+                        "$ref": "#/components/schemas/KPIData"
+                    },
+                    "evolution_chart": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/TimePoint"
+                        }
+                    },
+                    "radar_dimensions": {
+                        "$ref": "#/components/schemas/RadarDimensions"
+                    },
+                    "indicators": {
+                        "$ref": "#/components/schemas/IndicatorsGroup"
+                    },
+                    "detailed_metrics": {
+                        "$ref": "#/components/schemas/DetailedMetrics"
+                    }
+                }
+            },
+            "KPIData": {
+                "type": "object",
+                "properties": {
+                    "total_cases": {
+                        "type": "number"
+                    },
+                    "active_cases": {
+                        "type": "number"
+                    },
+                    "average_consensus": {
+                        "type": "string"
+                    },
+                    "pi_generated": {
+                        "type": "number"
+                    },
+                    "active_users": {
+                        "type": "number"
+                    }
+                }
+            },
+            "TimePoint": {
+                "type": "object",
+                "properties": {
+                    "date": {
+                        "type": "string"
+                    },
+                    "cases": {
+                        "type": "number"
+                    },
+                    "validations": {
+                        "type": "number"
+                    },
+                    "pi": {
+                        "type": "number"
+                    }
+                }
+            },
+            "RadarDimensions": {
+                "type": "object",
+                "properties": {
+                    "magnitude": {
+                        "type": "number"
+                    },
+                    "temporality": {
+                        "type": "number"
+                    },
+                    "reach": {
+                        "type": "number"
+                    },
+                    "impact": {
+                        "type": "number"
+                    },
+                    "response": {
+                        "type": "number"
+                    }
+                }
+            },
+            "IndicatorsGroup": {
+                "type": "object",
+                "properties": {
+                    "ami": {
+                        "type": "object",
+                        "properties": {
+                            "develops_rate": {
+                                "type": "number"
+                            },
+                            "needs_focus_rate": {
+                                "type": "number"
+                            },
+                            "supervision_rate": {
+                                "type": "number"
+                            },
+                            "iami_score": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "forensic": {
+                        "type": "object",
+                        "properties": {
+                            "authentic_rate": {
+                                "type": "number"
+                            },
+                            "manipulated_rate": {
+                                "type": "number"
+                            },
+                            "ai_rate": {
+                                "type": "number"
+                            },
+                            "deepfake_rate": {
+                                "type": "number"
+                            }
+                        }
+                    },
+                    "epidemiological": {
+                        "type": "object",
+                        "properties": {
+                            "r0": {
+                                "type": "string"
+                            },
+                            "transmission_speed": {
+                                "type": "string"
+                            },
+                            "infectivity": {
+                                "type": "string"
+                            },
+                            "virulence": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "DetailedMetrics": {
+                "type": "object",
+                "properties": {
+                    "magnitude": {
+                        "type": "object",
+                        "properties": {
+                            "generation_rate": {
+                                "type": "string"
+                            },
+                            "recurrence": {
+                                "type": "string"
+                            },
+                            "source_diversity": {
+                                "type": "number"
+                            },
+                            "content_concentration": {
+                                "type": "string"
+                            },
+                            "incidence_rate": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "temporality": {
+                        "type": "object",
+                        "properties": {
+                            "detection_time": {
+                                "type": "string"
+                            },
+                            "transmission_speed": {
+                                "type": "string"
+                            },
+                            "resolution_time": {
+                                "type": "string"
+                            },
+                            "response_latency": {
+                                "type": "string"
+                            },
+                            "peak_frequency": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "reach": {
+                        "type": "object",
+                        "properties": {
+                            "viral_index": {
+                                "type": "string"
+                            },
+                            "engagement": {
+                                "type": "string"
+                            },
+                            "diffusion_rate": {
+                                "type": "string"
+                            },
+                            "demographics": {
+                                "type": "string"
+                            },
+                            "channel_amplitude": {
+                                "type": "number"
+                            }
+                        }
+                    },
+                    "impact": {
+                        "type": "object",
+                        "properties": {
+                            "cumulative_exposure": {
+                                "type": "number"
+                            },
+                            "exposed_population": {
+                                "type": "number"
+                            },
+                            "penetration_rate": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "response": {
+                        "type": "object",
+                        "properties": {
+                            "effectiveness": {
+                                "type": "string"
+                            },
+                            "consensus_rate": {
+                                "type": "string"
+                            },
+                            "participation": {
+                                "type": "number"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

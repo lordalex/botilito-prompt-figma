@@ -72,6 +72,15 @@ export function useCaseHistory() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Stats State (fetched separately as requested)
+  const [stats, setStats] = useState({
+    total: 0,
+    verified: 0,
+    aiOnly: 0,
+    misinformation: 0,
+    forensic: 0
+  });
+
   // Filter & Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(10);
@@ -119,6 +128,38 @@ export function useCaseHistory() {
     }
   }, [pageSize]);
 
+  // Separate effect for Stats (Two separate queries requirement)
+  useEffect(() => {
+    const loadStats = async () => {
+      try {
+        // Request just the summary/metadata (pageSize=1 is a workaround if no dedicated endpoint)
+        // Ideally checking for a top-level summary object
+        const result = await fetchVerificationSummary(1, 1);
+
+        if (result.summary) {
+          setStats({
+            total: result.summary.total ?? 0,
+            verified: result.summary.verified ?? 0,
+            aiOnly: result.summary.aiOnly ?? 0,
+            misinformation: result.summary.misinformation ?? 0,
+            forensic: result.summary.forensic ?? 0
+          });
+        } else if (result.pagination && typeof result.pagination.totalItems === 'number') {
+          setStats({
+            total: result.pagination.totalItems,
+            verified: 0,
+            aiOnly: 0,
+            misinformation: 0,
+            forensic: 0
+          });
+        }
+      } catch (e) {
+        console.error("Error fetching history stats:", e);
+      }
+    };
+    loadStats();
+  }, []); // Only load stats once on mount
+
   // Load more - appends to existing cases
   const loadMore = useCallback(async () => {
     if (loadingMore || !hasMore) return;
@@ -142,13 +183,12 @@ export function useCaseHistory() {
     }
   }, [currentPage, pageSize, loadingMore, hasMore]);
 
-  // Trigger fetch on filter changes
+  // Trigger fetch on filter changes (re-fetch list)
   useEffect(() => {
     fetchCases();
   }, [fetchCases]);
 
   // Client-side filtering for status (if API doesn't support status filter yet)
-  // Note: ideally status filtering happens on backend, but for now we filter the current page
   const filteredCases = useMemo(() => {
     if (statusFilter === 'all') return cases;
     return cases.filter(c => {
@@ -158,22 +198,6 @@ export function useCaseHistory() {
       return true;
     });
   }, [cases, statusFilter]);
-
-  // Stats derived from current view (approximate since we don't have global aggregation endpoint)
-  const stats = {
-    total: cases.length,
-    verified: cases.filter(c => c.consensus?.state === 'human_consensus').length,
-    aiOnly: cases.filter(c => c.consensus?.state === 'ai_only').length,
-    misinformation: cases.filter(c => c.metadata?.global_verdict === 'TAMPERED').length,
-    forensic: cases.filter(c =>
-      c.submission_type === 'IMAGE' ||
-      c.submission_type === 'VIDEO' ||
-      c.submission_type === 'AUDIO' ||
-      c.submission_type === 'Image' ||
-      c.submission_type === 'Video' ||
-      c.submission_type === 'Audio'
-    ).length
-  };
 
   return {
     cases: filteredCases,

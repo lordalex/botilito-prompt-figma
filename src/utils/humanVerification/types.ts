@@ -19,6 +19,14 @@ export interface SearchResultList {
     pageSize: number;
     returnedCount: number;
     hasMore: boolean;
+    totalItems?: number;
+  };
+  summary?: {
+    total: number;
+    verified?: number;
+    aiOnly?: number;
+    misinformation?: number;
+    forensic?: number;
   };
 }
 
