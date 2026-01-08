@@ -158,7 +158,7 @@ export function Navigation({ activeTab, onTabChange, onLogout, onViewTask, onVie
             </div>
 
             {onLogout && (
-              <div className="ml-4 pl-4 border-l border-border flex items-center space-x-2">
+              <div className="ml-2 flex items-center space-x-2">
                 <NotificationCenter onViewTask={onViewTask} onViewAllNotifications={onViewAllNotifications} />
 
                 <DropdownMenu onOpenChange={(open) => { if (open) checkAdminAccess(); }}>
@@ -172,7 +172,7 @@ export function Navigation({ activeTab, onTabChange, onLogout, onViewTask, onVie
                       </Avatar>
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent className="w-64" align="end" forceMount>
+                  <DropdownMenuContent className="w-64" align="end">
                     <DropdownMenuLabel className="font-normal">
                       <div className="flex flex-col space-y-1">
                         <p className="text-sm font-medium leading-none">{userData.name}</p>
@@ -241,7 +241,7 @@ export function Navigation({ activeTab, onTabChange, onLogout, onViewTask, onVie
                       </Avatar>
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent className="w-64" align="end" forceMount>
+                  <DropdownMenuContent className="w-64" align="end">
                     <DropdownMenuLabel className="font-normal">
                       <div className="flex flex-col space-y-1">
                         <p className="text-sm font-medium leading-none">{userData.name}</p>
