@@ -2,15 +2,24 @@ import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
-import { Bot, Upload, Users, FileSearch, LogOut, User, Settings, Trophy, Activity, Puzzle, Map, BookOpen, LayoutDashboard } from 'lucide-react';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from './ui/sheet';
+import { Bot, Upload, Users, FileSearch, LogOut, User, Settings, Trophy, Activity, Puzzle, Map, BookOpen, LayoutDashboard, Menu } from 'lucide-react';
 import { NotificationCenter } from './notifications/NotificationCenter';
 import botilitoLogo from 'figma:asset/8604399dafdf4284ef499af970e8af43ff13e21b.png';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { api } from '../services/api';
+import { hasFeatureAccess, RestrictedFeature } from '@/constants';
 
 import { useAuth } from '../providers/AuthProvider';
 
 const ADMIN_CACHE_KEY = 'botilito_admin_access';
+
+interface NavigationTab {
+  id: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  requiredFeature?: RestrictedFeature;
+}
 
 interface NavigationProps {
   activeTab: string;
@@ -38,14 +47,32 @@ export function Navigation({ activeTab, onTabChange, onLogout, onViewTask, onVie
     return false;
   });
   const [adminCheckDone, setAdminCheckDone] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const tabs = [
+  // All available tabs with optional role restrictions
+  const allTabs: NavigationTab[] = [
     { id: 'upload', label: 'Análisis IA', icon: Upload },
-    { id: 'verification', label: 'Validación Humana', icon: Users },
+    { 
+      id: 'verification', 
+      label: 'Validación Humana', 
+      icon: Users,
+      requiredFeature: RestrictedFeature.HUMAN_VERIFICATION 
+    },
     { id: 'review', label: 'Historial', icon: Bot },
     { id: 'mapa', label: 'Mapa Desinfodémico', icon: Map },
     { id: 'profile', label: 'Mi Perfil', icon: User },
   ];
+
+  // Filter tabs based on user role
+  const tabs = useMemo(() => {
+    return allTabs.filter(tab => {
+      // If tab has no restrictions, show it
+      if (!tab.requiredFeature) return true;
+      
+      // Check if user has access to this feature
+      return hasFeatureAccess(profile?.role, tab.requiredFeature);
+    });
+  }, [profile?.role]);
 
   // Check admin access lazily when menu is opened
   const checkAdminAccess = async () => {
@@ -91,51 +118,49 @@ export function Navigation({ activeTab, onTabChange, onLogout, onViewTask, onVie
     totalBadges: profile?.reputation !== undefined ? Math.floor(profile.reputation / 10) : 0 // heuristic if badge count not direct
   };
 
+  const handleTabChange = (tab: string) => {
+    onTabChange(tab);
+    setMobileMenuOpen(false);
+  };
+
   return (
-    <nav className="border-b bg-card">
-      <div className="container mx-auto px-4">
-        <div className="flex items-center justify-between h-16">
-          <div className="flex items-center space-x-3 cursor-pointer" onClick={() => onTabChange('upload')}>
+    <nav className="border-b bg-card sticky top-0 z-50 shadow-sm">
+      <div className="container mx-auto px-3 sm:px-4">
+        <div className="flex items-center justify-between h-14 sm:h-16">
+          {/* Logo */}
+          <div className="flex items-center space-x-2 sm:space-x-3 cursor-pointer" onClick={() => handleTabChange('upload')}>
             <img
               src={botilitoLogo}
               alt="Botilito"
-              className="h-10 object-contain"
+              className="h-8 sm:h-10 object-contain"
             />
-            <Badge variant="secondary">Beta 1.2</Badge>
+            <Badge variant="secondary" className="text-xs sm:text-sm">Beta 1.2</Badge>
           </div>
 
-          <div className="flex items-center space-x-1">
+          {/* Desktop Navigation */}
+          <div className="hidden lg:flex items-center space-x-1">
             <div className="flex space-x-1">
               {tabs.map(({ id, label, icon: Icon }) => (
                 <Button
                   key={id}
                   variant={activeTab === id ? 'default' : 'ghost'}
-                  onClick={() => onTabChange(id)}
+                  onClick={() => handleTabChange(id)}
                   size="sm"
                   className={`relative group transition-all duration-200 ${activeTab === id
                     ? 'bg-primary text-primary-foreground shadow-md scale-105'
                     : 'bg-white/80 hover:bg-secondary hover:scale-105'
                     }`}
-                  title={label}
                 >
                   <Icon className="h-4 w-4" />
-                  <span className="ml-2 hidden lg:inline font-medium">{label}</span>
-
-                  {/* Tooltip para pantallas pequeñas */}
-                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-black text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none lg:hidden whitespace-nowrap z-50">
-                    {label}
-                    <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-black"></div>
-                  </div>
+                  <span className="ml-2 font-medium">{label}</span>
                 </Button>
               ))}
             </div>
 
             {onLogout && (
-              <div className="ml-4 pl-4 border-l border-border flex items-center space-x-2">
-                {/* Botón de Notificaciones Globales */}
+              <div className="ml-2 flex items-center space-x-2">
                 <NotificationCenter onViewTask={onViewTask} onViewAllNotifications={onViewAllNotifications} />
 
-                {/* Avatar y Menú de Usuario */}
                 <DropdownMenu onOpenChange={(open) => { if (open) checkAdminAccess(); }}>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" className="relative h-10 w-10 rounded-full p-0">
@@ -147,7 +172,7 @@ export function Navigation({ activeTab, onTabChange, onLogout, onViewTask, onVie
                       </Avatar>
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent className="w-64" align="end" forceMount>
+                  <DropdownMenuContent className="w-64" align="end">
                     <DropdownMenuLabel className="font-normal">
                       <div className="flex flex-col space-y-1">
                         <p className="text-sm font-medium leading-none">{userData.name}</p>
@@ -166,17 +191,17 @@ export function Navigation({ activeTab, onTabChange, onLogout, onViewTask, onVie
                       </div>
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => onTabChange('profile')}>
+                    <DropdownMenuItem onClick={() => handleTabChange('profile')}>
                       <User className="mr-2 h-4 w-4" />
                       <span>Mi Perfil</span>
                     </DropdownMenuItem>
                     {isAdmin && (
-                      <DropdownMenuItem onClick={() => onTabChange('admin')}>
+                      <DropdownMenuItem onClick={() => handleTabChange('admin')}>
                         <LayoutDashboard className="mr-2 h-4 w-4" />
                         <span>Dashboard Administrativo</span>
                       </DropdownMenuItem>
                     )}
-                    <DropdownMenuItem onClick={() => onTabChange('extension')}>
+                    <DropdownMenuItem onClick={() => handleTabChange('extension')}>
                       <Puzzle className="mr-2 h-4 w-4" />
                       <span>Extensión</span>
                     </DropdownMenuItem>
@@ -184,7 +209,7 @@ export function Navigation({ activeTab, onTabChange, onLogout, onViewTask, onVie
                       <Settings className="mr-2 h-4 w-4" />
                       <span>Configuración</span>
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => onTabChange('docs')}>
+                    <DropdownMenuItem onClick={() => handleTabChange('docs')}>
                       <BookOpen className="mr-2 h-4 w-4" />
                       <span>Documentación</span>
                     </DropdownMenuItem>
@@ -197,6 +222,139 @@ export function Navigation({ activeTab, onTabChange, onLogout, onViewTask, onVie
                 </DropdownMenu>
               </div>
             )}
+          </div>
+
+          {/* Mobile/Tablet Navigation */}
+          <div className="flex lg:hidden items-center space-x-2">
+            {onLogout && (
+              <>
+                <NotificationCenter onViewTask={onViewTask} onViewAllNotifications={onViewAllNotifications} />
+
+                <DropdownMenu onOpenChange={(open) => { if (open) checkAdminAccess(); }}>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="relative h-9 w-9 rounded-full p-0">
+                      <Avatar className="h-9 w-9">
+                        <AvatarImage src={userData.avatar} alt={userData.name} />
+                        <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+                          {userData.name.split(' ').map(n => n[0]).join('')}
+                        </AvatarFallback>
+                      </Avatar>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-64" align="end">
+                    <DropdownMenuLabel className="font-normal">
+                      <div className="flex flex-col space-y-1">
+                        <p className="text-sm font-medium leading-none">{userData.name}</p>
+                        <p className="text-xs leading-none text-muted-foreground">
+                          {userData.email}
+                        </p>
+                        <div className="flex items-center space-x-2 mt-1">
+                          <Badge variant="secondary" className="text-xs">
+                            {userData.level}
+                          </Badge>
+                          <Badge variant="outline" className="text-xs">
+                            <Trophy className="h-3 w-3 mr-1" />
+                            {userData.totalBadges} badges
+                          </Badge>
+                        </div>
+                      </div>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => handleTabChange('profile')}>
+                      <User className="mr-2 h-4 w-4" />
+                      <span>Mi Perfil</span>
+                    </DropdownMenuItem>
+                    {isAdmin && (
+                      <DropdownMenuItem onClick={() => handleTabChange('admin')}>
+                        <LayoutDashboard className="mr-2 h-4 w-4" />
+                        <span>Dashboard Administrativo</span>
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuItem onClick={() => handleTabChange('extension')}>
+                      <Puzzle className="mr-2 h-4 w-4" />
+                      <span>Extensión</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem>
+                      <Settings className="mr-2 h-4 w-4" />
+                      <span>Configuración</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleTabChange('docs')}>
+                      <BookOpen className="mr-2 h-4 w-4" />
+                      <span>Documentación</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={onLogout} className="text-red-600 focus:text-red-600">
+                      <LogOut className="mr-2 h-4 w-4" />
+                      <span>Cerrar Sesión</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </>
+            )}
+
+            {/* Menú lateral */}
+            <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+              <SheetTrigger className="inline-flex items-center justify-center h-9 w-9 rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
+                <Menu className="h-5 w-5" />
+              </SheetTrigger>
+              <SheetContent side="right" className="w-[280px] sm:w-[350px]">
+                <SheetHeader>
+                  <SheetTitle className="flex items-center space-x-2">
+                    <img
+                      src={botilitoLogo}
+                      alt="Botilito"
+                      className="h-8 object-contain"
+                    />
+                    <span>Navegación</span>
+                  </SheetTitle>
+                </SheetHeader>
+                <div className="mt-6 flex flex-col space-y-2">
+                  {tabs.map(({ id, label, icon: Icon }) => (
+                    <Button
+                      key={id}
+                      variant={activeTab === id ? 'default' : 'ghost'}
+                      onClick={() => handleTabChange(id)}
+                      className={`justify-start h-12 ${
+                        activeTab === id ? 'bg-primary text-primary-foreground' : ''
+                      }`}
+                    >
+                      <Icon className="h-5 w-5 mr-3" />
+                      <span className="font-medium">{label}</span>
+                    </Button>
+                  ))}
+
+                  {isAdmin && (
+                    <>
+                      <div className="my-2 border-t" />
+                      <Button
+                        variant={activeTab === 'admin' ? 'default' : 'ghost'}
+                        onClick={() => handleTabChange('admin')}
+                        className={`justify-start h-12 ${
+                          activeTab === 'admin' ? 'bg-primary text-primary-foreground' : ''
+                        }`}
+                      >
+                        <LayoutDashboard className="h-5 w-5 mr-3" />
+                        <span className="font-medium">Dashboard Admin</span>
+                      </Button>
+                    </>
+                  )}
+
+                  {onLogout && (
+                    <>
+                      <div className="my-2 border-t" />
+                      <Button
+                        variant="ghost"
+                        onClick={onLogout}
+                        className="justify-start h-12 text-red-600 hover:text-red-600 hover:bg-red-50 mb-4"
+                      >
+                        <LogOut className="h-5 w-5 mr-3" />
+                        <span className="font-medium">Cerrar Sesión</span>
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </SheetContent>
+            </Sheet>
           </div>
         </div>
       </div>

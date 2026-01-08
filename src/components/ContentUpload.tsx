@@ -118,7 +118,7 @@ export function ContentUpload({ jobId, jobType, onReset }: ContentUploadProps) {
         `PENDING-${new Date().toISOString().slice(11, 19).replace(/:/g, '')}`, // Temp ID if polling
       createdAt: result?.fullResult?.created_at || result?.meta?.timestamp || new Date().toISOString(),
       contentType: detectedType,
-      analysisType: result?.theme || (detectedType === 'texto' ? 'Desinformódico' : 'Forense'),
+      analysisType: result?.theme || (detectedType === 'texto' ? 'Desinfodémico' : 'Forense'),
       fileName: extractedFilename,
       fileSize: extractedFileSize,
       vector: transmissionVector || result?.vectores?.[0] || result?.fullResult?.metadata?.vector || 'Telegram',

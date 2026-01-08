@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Legend } from 'recharts';
-import { Database, Activity, CheckCircle2, Syringe } from 'lucide-react';
+import { Activity } from 'lucide-react';
 import { KPIData, TimePoint, RadarDimensions } from '../types';
 
 interface PanoramaViewProps {
@@ -35,103 +35,8 @@ export function PanoramaView({ kpi, evolution, radar }: PanoramaViewProps) {
 
   const hasEvolutionData = evolution && evolution.length > 0;
 
-  // Calculate dynamic trends
-  const calculateTrend = (key: keyof TimePoint) => {
-    if (!evolution || evolution.length < 2) return null;
-    const current = evolution[evolution.length - 1][key] as number;
-    const previous = evolution[evolution.length - 2][key] as number;
-    if (previous === 0) return null;
-    const percent = ((current - previous) / previous) * 100;
-    return percent;
-  };
-
-  const caseTrend = calculateTrend('cases');
-
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      {/* KPI Cards Row */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        
-        {/* Total Cases */}
-        <Card className="shadow-sm hover:shadow-md transition-all bg-white border border-blue-100 rounded-xl overflow-hidden">
-          <CardContent className="p-6">
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="text-sm font-semibold text-gray-500 mb-1">Total de Casos</p>
-                <div className="text-4xl font-extrabold text-gray-900">{kpi?.total_cases?.toLocaleString() || 0}</div>
-              </div>
-              <div className="p-3 rounded-full bg-blue-600 text-white shadow-lg shadow-blue-100">
-                <Database className="h-7 w-7" />
-              </div>
-            </div>
-            <div className="mt-4 flex items-center text-xs font-bold text-red-500">
-              {caseTrend !== null ? (
-                <>
-                  <span className="mr-1">{caseTrend > 0 ? '↗' : '↘'}</span>
-                  {Math.abs(caseTrend).toFixed(1)}% esta semana
-                </>
-              ) : (
-                <span className="text-gray-400">Sin datos históricos</span>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Active Cases */}
-        <Card className="shadow-sm hover:shadow-md transition-all bg-white border border-orange-100 rounded-xl overflow-hidden">
-          <CardContent className="p-6">
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="text-sm font-semibold text-gray-500 mb-1">Casos Activos</p>
-                <div className="text-4xl font-extrabold text-gray-900">{kpi?.active_cases?.toLocaleString() || 0}</div>
-              </div>
-              <div className="p-3 rounded-full bg-orange-600 text-white shadow-lg shadow-orange-100">
-                <Activity className="h-7 w-7" />
-              </div>
-            </div>
-            <div className="mt-4 flex items-center text-xs font-bold text-orange-600">
-              🔥 En análisis epidemiológico
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Consensus */}
-        <Card className="shadow-sm hover:shadow-md transition-all bg-white border border-green-100 rounded-xl overflow-hidden">
-          <CardContent className="p-6">
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="text-sm font-semibold text-gray-500 mb-1">Consenso Promedio</p>
-                <div className="text-4xl font-extrabold text-gray-900">{kpi?.average_consensus || '0%'}</div>
-              </div>
-              <div className="p-3 rounded-full bg-green-500 text-white shadow-lg shadow-green-100">
-                <CheckCircle2 className="h-7 w-7" />
-              </div>
-            </div>
-            <div className="mt-4 flex items-center text-xs font-bold text-green-600">
-              Alta confianza comunitaria
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* PI Generated */}
-        <Card className="shadow-sm hover:shadow-md transition-all bg-white border border-yellow-100 rounded-xl overflow-hidden">
-          <CardContent className="p-6">
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="text-sm font-semibold text-gray-500 mb-1">PI Generados</p>
-                <div className="text-4xl font-extrabold text-gray-900">{kpi?.pi_generated?.toLocaleString() || 0}</div>
-              </div>
-              <div className="p-3 rounded-full bg-yellow-400 text-gray-900 shadow-lg shadow-yellow-100">
-                <Syringe className="h-7 w-7" />
-              </div>
-            </div>
-            <div className="mt-4 flex items-center text-xs font-bold text-gray-500">
-              👤 {kpi?.active_users || 0} usuarios activos
-            </div>
-          </CardContent>
-        </Card>
-
-      </div>
 
       {/* Evolution Chart (Full Width) */}
       <Card className="shadow-sm border border-gray-100 rounded-xl overflow-hidden bg-white">

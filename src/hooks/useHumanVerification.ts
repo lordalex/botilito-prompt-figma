@@ -86,11 +86,6 @@ export const useHumanVerification = () => {
                 setProfile(userProfile);
                 setInitialProfile(userProfile);
 
-                if (userProfile?.role === 'cibernauta') {
-                    setIsLoading(false);
-                    return;
-                }
-
                 const [summary, stats] = await Promise.all([
                     fetchVerificationSummary(1, 10),
                     getUserVerificationStats(user.id)

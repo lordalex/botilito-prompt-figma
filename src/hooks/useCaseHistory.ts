@@ -5,8 +5,17 @@
  * ## LLM CONTEXT - HOOK ARCHITECTURE
  *
  * This hook powers the "Historial" (History) tab in ContentReview.tsx.
- * It fetches the same data as useHumanVerification but is used for viewing
- * completed/historical cases rather than pending validation cases.
+ * It fetches case list from fetchVerificationSummary and KPI stats from
+ * mapa-desinfodemico-verbose endpoint.
+ *
+ * ### Data Sources:
+ * 1. **Case List**: fetchVerificationSummary (same as HumanVerification for consistency)
+ * 2. **KPI Stats**: mapa-desinfodemico-verbose endpoint
+ *    - total_cases → stats.total
+ *    - verificados → stats.verified
+ *    - pendientes → stats.aiOnly
+ *    - desinfodemico → stats.misinformation
+ *    - forense → stats.forensic
  *
  * ### Why Use fetchVerificationSummary?
  * Both Historial and Validación Humana need IDENTICAL data transformations:
@@ -26,15 +35,23 @@
  * Response enrichment (theme, AMI levels, display IDs)
  *     ↓
  * CaseEnriched[] stored in state
+ *
+ * + (in parallel)
+ *
+ * api.mapaDesinfodemico.getDashboardData(session)
  *     ↓
- * Passed to CaseList with isEnrichedFormat=true
+ * API: POST /functions/v1/mapa-desinfodemico-verbose
+ *     ↓
+ * KPI stats (total_cases, verificados, pendientes, etc.)
+ *     ↓
+ * stats state updated
  * ```
  *
  * ### State Management:
  * - `cases`: Array of enriched case objects
  * - `loading`: Boolean for loading state
  * - `error`: Error message string (null if no error)
- * - `stats`: Derived statistics (total, verified, aiOnly, misinformation)
+ * - `stats`: KPI statistics from mapa-desinfodemico-verbose
  * - `pagination`: Page controls (currentPage, setCurrentPage, hasMore)
  * - `filters`: Status filter controls (not fully implemented on backend yet)
  *
@@ -55,16 +72,21 @@
  * ```
  *
  * @see ContentReview.tsx - Consumer component
- * @see @/utils/humanVerification/api.ts - API functions
+ * @see @/utils/humanVerification/api.ts - API functions for case list
+ * @see @/services/api.ts - Centralized API service (mapaDesinfodemico.getDashboardData)
  * @see useHumanVerification.ts - Similar hook for validation tab
  */
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { fetchVerificationSummary } from '@/utils/humanVerification/api';
+import { api } from '@/services/api';
 import type { CaseEnriched } from '@/utils/humanVerification/types';
 import { getCachedData, setCachedData, CACHE_KEYS } from '@/utils/sessionCache';
+import { useAuth } from '@/providers/AuthProvider';
 
 export function useCaseHistory() {
+  const { session } = useAuth();
+  
   // Data State
   const [cases, setCases] = useState<CaseEnriched[]>([]);
   const [hasMore, setHasMore] = useState(false);
@@ -72,7 +94,7 @@ export function useCaseHistory() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Stats State (fetched separately as requested)
+  // Stats State (fetched from mapa-desinfodemico-verbose)
   const [stats, setStats] = useState({
     total: 0,
     verified: 0,
@@ -128,37 +150,33 @@ export function useCaseHistory() {
     }
   }, [pageSize]);
 
-  // Separate effect for Stats (Two separate queries requirement)
+  // Separate effect for Stats using centralized API service
   useEffect(() => {
     const loadStats = async () => {
+      if (!session) return;
+      
       try {
-        // Request just the summary/metadata (pageSize=1 is a workaround if no dedicated endpoint)
-        // Ideally checking for a top-level summary object
-        const result = await fetchVerificationSummary(1, 1);
-
-        if (result.summary) {
+        console.log('📊 Fetching KPIs from mapa-desinfodemico-verbose...');
+        const result = await api.mapaDesinfodemico.getDashboardData(session);
+        
+        // Map response fields to stats state
+        if (result.kpi) {
           setStats({
-            total: result.summary.total ?? 0,
-            verified: result.summary.verified ?? 0,
-            aiOnly: result.summary.aiOnly ?? 0,
-            misinformation: result.summary.misinformation ?? 0,
-            forensic: result.summary.forensic ?? 0
+            total: result.kpi.total_cases ?? 0,
+            verified: result.kpi.verificados ?? 0,
+            aiOnly: result.kpi.pendientes ?? 0,
+            misinformation: result.kpi.desinfodemico ?? 0,
+            forensic: result.kpi.forense ?? 0
           });
-        } else if (result.pagination && typeof result.pagination.totalItems === 'number') {
-          setStats({
-            total: result.pagination.totalItems,
-            verified: 0,
-            aiOnly: 0,
-            misinformation: 0,
-            forensic: 0
-          });
+          console.log('✅ KPIs loaded:', result.kpi);
         }
       } catch (e) {
-        console.error("Error fetching history stats:", e);
+        console.error("❌ Error fetching KPIs:", e);
+        // Keep default zeros on error
       }
     };
     loadStats();
-  }, []); // Only load stats once on mount
+  }, [session]); // Reload if session changes
 
   // Load more - appends to existing cases
   const loadMore = useCallback(async () => {
