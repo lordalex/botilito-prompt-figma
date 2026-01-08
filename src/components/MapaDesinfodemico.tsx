@@ -56,9 +56,9 @@ export function MapaDesinfodemico() {
   }, [region, timeframe]);
 
   return (
-    <div className="min-h-screen bg-gray-50/20 pb-12 font-sans">
+    <div className="min-h-screen bg-gray-50/20 pb-12 font-sans ">
       {/* Botilito Header - Styled Info Card */}
-      <div className="max-w-7xl mx-auto pt-6 pb-4">
+      <div className="max-w-7xl mx-auto pt-6 pb-4 px-4">
         <div className="bg-[#ffe97a] border-2 border-[#ffda00] rounded-lg p-4 shadow-lg">
           <div className="flex items-center space-x-4">
             <img
@@ -79,19 +79,21 @@ export function MapaDesinfodemico() {
       </div>
 
       {/* KPI Cards - Always visible at the top */}
-      <div className="mb-4">
-        <KPICards
-          kpi={data.kpi}
-          caseTrend={(() => {
-            const evolution = data.evolution_chart;
-            if (!evolution || evolution.length < 2) return null;
-            const current = evolution[evolution.length - 1].cases;
-            const previous = evolution[evolution.length - 2].cases;
-            if (previous === 0) return null;
-            return ((current - previous) / previous) * 100;
-          })()}
-        />
-      </div>
+      {!loading && !error && data && (
+        <div className="max-w-7xl mx-auto px-4 mb-4">
+          <KPICards
+            kpi={data.kpi}
+            caseTrend={(() => {
+              const evolution = data.evolution_chart;
+              if (!evolution || evolution.length < 2) return null;
+              const current = evolution[evolution.length - 1].cases;
+              const previous = evolution[evolution.length - 2].cases;
+              if (previous === 0) return null;
+              return ((current - previous) / previous) * 100;
+            })()}
+          />
+        </div>
+      )}
 
       {/* Floating Navigation Tabs - Simple clean design matching production */}
       <div className="relative z-20 flex justify-center px-4 w-full pb-4">
