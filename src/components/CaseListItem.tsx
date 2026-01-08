@@ -85,30 +85,35 @@ const themeBadges: Record<string, { label: string; className: string; icon: 'spa
 // Configuración de badges por nivel AMI con iconos
 const amiBadges: Record<
   AMIComplianceLevel | 'Generado por IA',
-  { label: string; className: string; icon: 'check' | 'alert' | 'bot' | 'wand' }
+  { label: string; labelShort: string; className: string; icon: 'check' | 'alert' | 'bot' | 'wand' }
 > = {
   'Desarrolla las estrategias AMI': {
-    label: 'Desarrolla las premisas AMI',
+    label: 'Desarrolla AMI',
+    labelShort: 'Desarrolla AMI',
     className: 'bg-green-50 text-green-700 border-green-200',
     icon: 'check',
   },
   'Cumple las premisas AMI': {
-    label: '✓ Sin alteraciones',
+    label: 'Sin alteraciones',
+    labelShort: 'Sin alteración',
     className: 'bg-green-50 text-green-700 border-green-200',
     icon: 'check',
   },
   'Requiere un enfoque AMI': {
-    label: 'Requiere un enfoque AMI',
+    label: 'Requiere AMI',
+    labelShort: 'Requiere AMI',
     className: 'bg-orange-50 text-orange-700 border-orange-200',
     icon: 'alert',
   },
   'No cumple las premisas AMI': {
-    label: 'Manipulado Digitalmente',
+    label: 'Manipulado',
+    labelShort: 'Manipulado',
     className: 'bg-red-50 text-red-700 border-red-200',
     icon: 'wand',
   },
   'Generado por IA': {
-    label: '🤖 Generado por IA',
+    label: 'Generado por IA',
+    labelShort: 'IA',
     className: 'bg-purple-50 text-purple-700 border-purple-200',
     icon: 'bot',
   },
@@ -154,72 +159,81 @@ export function CaseListItem({ caseItem, onClick, className = '' }: CaseListItem
   return (
     <div
       onClick={() => onClick(caseItem.id, caseItem.contentType)}
-      className={`case-card-hover flex items-center gap-4 p-4 rounded-2xl cursor-pointer bg-white border border-gray-200 ${className}`}
+      className={`case-card-hover flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl sm:rounded-2xl cursor-pointer bg-white border border-gray-200 ${className}`}
     >
-      {/* Icono de tipo de contenido - fondo amarillo */}
-      <div className="shrink-0 p-3 rounded-xl" style={{ backgroundColor: 'var(--accent)' }}>
-        <ContentIcon className="h-6 w-6 text-gray-800" />
+      {/* Fila superior: Icono + ID del caso */}
+      <div className="flex items-center gap-3 sm:gap-4">
+        {/* Icono de tipo de contenido - fondo amarillo */}
+        <div className="shrink-0 p-2 sm:p-3 rounded-lg sm:rounded-xl" style={{ backgroundColor: 'var(--accent)' }}>
+          <ContentIcon className="h-5 w-5 sm:h-6 sm:w-6 text-gray-800" />
+        </div>
+
+        {/* ID del caso */}
+        <span
+          className="text-xs sm:text-sm font-mono px-2 py-0.5 border-2 rounded-md sm:rounded-lg bg-white text-gray-700 shrink-0"
+          style={{ borderColor: 'var(--accent)' }}
+        >
+          Caso: {caseItem.caseCode}
+        </span>
       </div>
 
-      {/* Información principal */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-1">
-          <span
-            className="text-sm font-mono px-2 py-0.5 border-2 rounded-lg bg-white text-gray-700 shrink-0"
-            style={{ borderColor: 'var(--accent)' }}
-          >
-            Caso: {caseItem.caseCode}
-          </span>
+      {/* Información principal - crece para ocupar espacio disponible */}
+      <div className="flex-1 min-w-0 space-y-1.5 sm:space-y-1">
+        {/* Primera línea: Badge AMI + Badge de tema */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Badge AMI - visible en todas las pantallas */}
+          {amiConfig && AmiIcon && (
+            <Badge
+              variant="outline"
+              className={`shrink-0 text-[10px] sm:text-xs font-medium px-2 py-0.5 sm:px-2.5 sm:py-1 ${amiConfig.className}`}
+            >
+              <AmiIcon className="h-3 w-3 sm:h-3.5 sm:w-3.5 mr-0.5 sm:mr-1" />
+              <span className="sm:hidden">{amiConfig.labelShort}</span>
+              <span className="hidden sm:inline">{amiConfig.label}</span>
+            </Badge>
+          )}
+          
           {themeConfig && (
             <Badge
               variant="outline"
-              className={`text-xs font-medium shrink-0 ${themeConfig.className}`}
+              className={`text-[10px] sm:text-xs font-medium shrink-0 ${themeConfig.className}`}
             >
               {themeConfig.icon === 'sparkles' ? (
-                <Sparkles className="h-3 w-3 mr-1" />
+                <Sparkles className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1" />
               ) : (
-                <Wand2 className="h-3 w-3 mr-1" />
+                <Wand2 className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1" />
               )}
               {themeConfig.label}
             </Badge>
           )}
-          <span className="font-semibold text-gray-900 truncate flex-1 min-w-0">
-            {caseItem.title}
-          </span>
         </div>
 
-        {/* Segunda línea: metadatos */}
-        <div className="flex items-center gap-4 text-xs text-gray-500">
-          <span className="flex items-center gap-1">
+        {/* Segunda línea: Título */}
+        <div className="text-xs sm:text-sm font-semibold text-gray-900 line-clamp-2">
+          {caseItem.title}
+        </div>
+
+        {/* Tercera línea: metadatos en formato compacto */}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] sm:text-xs text-gray-500">
+          <span className="flex items-center gap-1 shrink-0">
             <Calendar className="h-3 w-3" />
             {formatDate(caseItem.createdAt)}
           </span>
-          <span className="flex items-center gap-1">
-            <User className="h-3 w-3" />
-            Reportado por: {caseItem.reportedBy}
+          <span className="flex items-center gap-1 min-w-0">
+            <User className="h-3 w-3 shrink-0" />
+            <span className="truncate">por: {caseItem.reportedBy}</span>
           </span>
-          <span className="flex items-center gap-1">
+          <span className="flex items-center gap-1 shrink-0">
             <Shield
               className={`h-3 w-3 ${caseItem.humanValidatorsCount > 0 ? 'text-green-600' : ''}`}
             />
             <span className={caseItem.humanValidatorsCount > 0 ? 'text-green-600 font-medium' : ''}>
               {caseItem.humanValidatorsCount}
             </span>{' '}
-            validadores humanos
+            validadores
           </span>
         </div>
       </div>
-
-      {/* Badge de nivel AMI con icono */}
-      {amiConfig && AmiIcon && (
-        <Badge
-          variant="outline"
-          className={`shrink-0 text-sm font-medium px-3 py-1.5 ${amiConfig.className}`}
-        >
-          <AmiIcon className="h-4 w-4 mr-1" />
-          {amiConfig.label}
-        </Badge>
-      )}
     </div>
   );
 }
