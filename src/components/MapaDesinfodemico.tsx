@@ -57,55 +57,31 @@ export function MapaDesinfodemico() {
   return (
     <div className="min-h-screen bg-gray-50/20 pb-12 font-sans">
       
-      {/* Botilito Header - Full Width Yellow Hero */}
-      <div className="w-full bg-[#ffe97a] pt-10 pb-24 border-b border-[#e5d053]">
-        <div className="max-w-4xl mx-auto text-center px-4">
-          <div className="flex flex-col items-center space-y-6">
-            
-            {/* Logo & Title */}
-            <div className="flex flex-col items-center gap-4">
-              <div className="bg-white p-3 rounded-full border-4 border-white shadow-sm ring-1 ring-black/5">
-                 <img src={botilitoImage} alt="Botilito" className="w-20 h-20 object-contain" />
-              </div>
-              <h1 className="text-4xl md:text-5xl font-extrabold text-gray-900 tracking-tight">
-                Mapa Desinfodémico
-              </h1>
+      {/* Botilito Header - Styled Info Card */}
+      <div className="max-w-7xl mx-auto px-4 pt-6 pb-4">
+        <div className="bg-[#ffe97a] border-2 border-[#ffda00] rounded-lg p-4 shadow-lg">
+          <div className="flex items-center space-x-4">
+            <img
+              src={botilitoImage}
+              alt="Botilito"
+              className="w-24 h-24 object-contain mt-[0px] mr-[16px] mb-[-18px] ml-[0px]"
+            />
+            <div className="flex-1">
+              <p className="text-xl">
+                ¡Qué hubo parce! 🗺️ Este es el Mapa Desinfodémico en tiempo real
+              </p>
+              <p className="text-sm mt-1 opacity-80">
+                Acá podés ver el panorama epidemiológico de la desinformación: casos activos por región, indicadores de magnitud/alcance/impacto, rankings de colaboradores, y todo el análisis forense de contenidos. ¡Vamos a combatir la desinfodemia juntos! 💪🦠
+              </p>
             </div>
-
-            {/* Filters Centered */}
-            <div className="flex flex-wrap justify-center gap-4">
-              <Select value={region} onValueChange={(v: Region) => setRegion(v)}>
-                <SelectTrigger className="w-[180px] bg-white border-0 shadow-sm rounded-lg h-11 font-semibold text-gray-700 hover:bg-gray-50 transition-colors focus:ring-0">
-                  <SelectValue placeholder="Región" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="andina">Región Andina</SelectItem>
-                  <SelectItem value="caribe">Región Caribe</SelectItem>
-                  <SelectItem value="pacifica">Región Pacífica</SelectItem>
-                  <SelectItem value="global">Consolidado Nacional</SelectItem>
-                </SelectContent>
-              </Select>
-              
-              <Select value={timeframe} onValueChange={(v: TimeFrame) => setTimeframe(v)}>
-                <SelectTrigger className="w-[160px] bg-white border-0 shadow-sm rounded-lg h-11 font-semibold text-gray-700 hover:bg-gray-50 transition-colors focus:ring-0">
-                  <SelectValue placeholder="Periodo" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="daily">Diario</SelectItem>
-                  <SelectItem value="weekly">Semanal</SelectItem>
-                  <SelectItem value="monthly">Mensual</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
           </div>
         </div>
       </div>
 
-      {/* Floating Navigation Tabs - WIDE STRIP (max-w-5xl) */}
-      <div className="relative -mt-12 z-20 flex justify-center px-4 w-full">
-        <div className="bg-white p-2 rounded-full shadow-xl border border-gray-100 flex items-center justify-center w-full max-w-5xl">
-          <div className="flex space-x-2 overflow-x-auto scrollbar-hide p-1 w-full justify-between md:justify-center">
+      {/* Floating Navigation Tabs - Simple clean design matching production */}
+      <div className="relative z-20 flex justify-center px-4 w-full pb-4">
+        <div className="bg-gray-100 backdrop-blur-sm p-1 rounded-full shadow-sm border border-gray-200 flex items-center justify-center w-full max-w-7xl">
+          <div className="flex items-center gap-1 w-full">
             {tabs.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
@@ -114,15 +90,15 @@ export function MapaDesinfodemico() {
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as Tab)}
                   className={`
-                    flex items-center gap-2 px-4 md:px-8 py-2.5 rounded-full text-sm font-bold transition-all duration-300 whitespace-nowrap
+                    flex-1 flex items-center justify-center gap-2 px-3 sm:px-4 py-3 rounded-full text-sm font-medium transition-all duration-200 whitespace-nowrap
                     ${isActive 
-                      ? 'bg-[#1f2937] text-white shadow-md transform scale-[1.02]' 
-                      : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'}
+                      ? 'bg-white text-gray-900 shadow-sm' 
+                      : 'text-gray-600 hover:bg-gray-50/50 hover:text-gray-900'}
                   `}
                 >
-                  <Icon className={`h-4 w-4 ${isActive ? 'text-[#ffda00]' : 'text-gray-400'}`} />
-                  <span className="hidden md:inline">{tab.label}</span>
-                  <span className="md:hidden">{tab.label.split(' ')[0]}</span>
+                  <Icon className={`h-4 w-4 flex-shrink-0 ${isActive ? 'text-gray-900' : 'text-gray-500'}`} />
+                  {/* Mobile: solo icono, Desktop: icono + texto */}
+                  <span className="hidden sm:inline lg:inline">{tab.label}</span>
                 </button>
               )
             })}
