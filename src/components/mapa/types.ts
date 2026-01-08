@@ -8,6 +8,7 @@ export interface KPIData {
   average_consensus: string;
   pi_generated: number;
   active_users: number;
+  total_validations?: number;
 }
 
 export interface TimePoint {

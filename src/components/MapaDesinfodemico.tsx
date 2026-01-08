@@ -90,7 +90,7 @@ export function MapaDesinfodemico() {
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as Tab)}
                   className={`
-                    flex-1 flex items-center justify-center gap-2 px-3 sm:px-4 py-3 rounded-full text-sm font-medium transition-all duration-200 whitespace-nowrap
+                    flex-1 flex items-center justify-center gap-2 px-3 sm:px-4 py-1 rounded-full text-sm font-medium transition-all duration-200 whitespace-nowrap
                     ${isActive 
                       ? 'bg-white text-gray-900 shadow-sm' 
                       : 'text-gray-600 hover:bg-gray-50/50 hover:text-gray-900'}

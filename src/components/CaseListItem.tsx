@@ -72,12 +72,12 @@ const contentTypeIconBg = {
 const themeBadges: Record<string, { label: string; className: string; icon: 'sparkles' | 'wand' }> = {
   Desinformódico: {
     label: 'Desinformódico',
-    className: 'bg-red-50 text-red-700 border-red-200',
+    className: 'bg-red-50 text-red-700 border-2 border-red-600',
     icon: 'sparkles',
   },
   Forense: {
     label: 'Forense',
-    className: 'bg-purple-50 text-purple-700 border-purple-200',
+    className: 'bg-purple-50 text-purple-700 border-2 border-purple-600',
     icon: 'wand',
   },
 };
@@ -90,31 +90,31 @@ const amiBadges: Record<
   'Desarrolla las estrategias AMI': {
     label: 'Desarrolla AMI',
     labelShort: 'Desarrolla AMI',
-    className: 'bg-green-50 text-green-700 border-green-200',
+    className: 'bg-green-50 text-green-700 border-2 border-green-600',
     icon: 'check',
   },
   'Cumple las premisas AMI': {
     label: 'Sin alteraciones',
     labelShort: 'Sin alteración',
-    className: 'bg-green-50 text-green-700 border-green-200',
+    className: 'bg-green-50 text-green-700 border-2 border-green-600',
     icon: 'check',
   },
   'Requiere un enfoque AMI': {
     label: 'Requiere AMI',
     labelShort: 'Requiere AMI',
-    className: 'bg-orange-50 text-orange-700 border-orange-200',
+    className: 'bg-orange-50 text-orange-700 border-2 border-orange-600',
     icon: 'alert',
   },
   'No cumple las premisas AMI': {
     label: 'Manipulado',
     labelShort: 'Manipulado',
-    className: 'bg-red-50 text-red-700 border-red-200',
+    className: 'bg-red-50 text-red-700 border-2 border-red-600',
     icon: 'wand',
   },
   'Generado por IA': {
     label: 'Generado por IA',
     labelShort: 'IA',
-    className: 'bg-purple-50 text-purple-700 border-purple-200',
+    className: 'bg-purple-50 text-purple-700 border-2 border-purple-600',
     icon: 'bot',
   },
 };
@@ -159,13 +159,13 @@ export function CaseListItem({ caseItem, onClick, className = '' }: CaseListItem
   return (
     <div
       onClick={() => onClick(caseItem.id, caseItem.contentType)}
-      className={`case-card-hover flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl sm:rounded-2xl cursor-pointer bg-white border border-gray-200 ${className}`}
+      className={`case-card-hover flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg sm:rounded-xl cursor-pointer bg-white border border-gray-200 ${className}`}
     >
       {/* Fila superior: Icono + ID del caso */}
-      <div className="flex items-center gap-3 sm:gap-4">
+      <div className="flex items-center gap-2 sm:gap-3">
         {/* Icono de tipo de contenido - fondo amarillo */}
-        <div className="shrink-0 p-2 sm:p-3 rounded-lg sm:rounded-xl" style={{ backgroundColor: 'var(--accent)' }}>
-          <ContentIcon className="h-5 w-5 sm:h-6 sm:w-6 text-gray-800" />
+        <div className="shrink-0 p-1.5 sm:p-2 rounded-md sm:rounded-lg" style={{ backgroundColor: 'var(--accent)' }}>
+          <ContentIcon className="h-4 w-4 sm:h-5 sm:w-5 text-gray-800" />
         </div>
 
         {/* ID del caso */}
