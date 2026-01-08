@@ -24,6 +24,7 @@ export function useContentUpload(initialJobId?: string, initialJobType?: string)
   const [fileName, setFileName] = useState<string | undefined>(undefined);
   const [fileSize, setFileSize] = useState<number | undefined>(undefined);
   const [transmissionVector, setTransmissionVector] = useState<TransmissionVector | undefined>(undefined);
+  const [originalContentType, setOriginalContentType] = useState<ContentType | undefined>(undefined);
 
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
   const lastSubmissionRef = useRef<any>(null);
@@ -36,6 +37,7 @@ export function useContentUpload(initialJobId?: string, initialJobType?: string)
     setFileName(undefined);
     setFileSize(undefined);
     setTransmissionVector(undefined);
+    setOriginalContentType(undefined);
     if (pollingRef.current) clearInterval(pollingRef.current);
   };
 
@@ -63,6 +65,7 @@ export function useContentUpload(initialJobId?: string, initialJobType?: string)
     resetState();
     lastSubmissionRef.current = { content, files, contentType, transmissionMedium };
     setTransmissionVector(transmissionMedium);
+    setOriginalContentType(contentType);
     setStatus('uploading');
     setProgress(10);
 
@@ -157,11 +160,18 @@ export function useContentUpload(initialJobId?: string, initialJobType?: string)
               const objectUrl = URL.createObjectURL(file);
               finalResult = {
                 ...finalResult,
-                local_image_url: objectUrl
+                local_image_url: objectUrl,
+                jobId // Preserve jobId in the result
               };
             } catch (e) {
               console.error("Failed to create object URL", e);
             }
+          } else if (finalResult) {
+            // Even if no file, preserve jobId
+            finalResult = {
+              ...finalResult,
+              jobId
+            };
           }
 
           stopFakeProgress();
@@ -170,7 +180,18 @@ export function useContentUpload(initialJobId?: string, initialJobType?: string)
           setStatus('complete');
         }
       } else {
-        // --- TEXT FLOW ---
+        // --- TEXT/URL FLOW ---
+        // If contentType is 'url', store the URL as fileName for display
+        if (contentType === 'url' && content) {
+          // Extract URL from content (in case content has extra text)
+          const urlMatch = content.match(/(https?:\/\/[^\s]+)/);
+          if (urlMatch) {
+            setFileName(urlMatch[0]);
+          } else {
+            setFileName(content);
+          }
+        }
+
         const textResult = await performTextAnalysis(content, transmissionMedium, (p: number) => {
           setProgress(p);
         });
@@ -266,6 +287,6 @@ export function useContentUpload(initialJobId?: string, initialJobType?: string)
     restoreJob();
   }, [initialJobId, initialJobType]);
 
-  return { status, progress, result, error, fileName, fileSize, transmissionVector, submitContent, resetState, retryLastSubmission, retryCount };
+  return { status, progress, result, error, fileName, fileSize, transmissionVector, originalContentType, submitContent, resetState, retryLastSubmission, retryCount };
 }
 

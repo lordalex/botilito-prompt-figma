@@ -21,11 +21,11 @@ export const VOTE_SUBMIT_ENDPOINT = VOTE_API_URL;
 // Profile API
 export const PROFILE_API_URL = `${SUPABASE_URL}/functions/v1/profileCRUD`;
 
-// Image Analysis API
-export const IMAGE_ANALYSIS_BASE_URL = `${SUPABASE_URL}/functions/v1/image-analysis`;
+// Image Analysis API (v2.0.0 - DTO format)
+export const IMAGE_ANALYSIS_BASE_URL = `${SUPABASE_URL}/functions/v1/image-analysis-DTO`;
 
-// Audio Analysis API
-export const AUDIO_ANALYSIS_BASE_URL = `${SUPABASE_URL}/functions/v1/audio-analysis`;
+// Audio Analysis API (v2.0.0 - DTO format)
+export const AUDIO_ANALYSIS_BASE_URL = `${SUPABASE_URL}/functions/v1/audio-analysis-dto`;
 
 // Legacy/Other APIs
 export const WEB_SNAPSHOT_URL = `${SUPABASE_URL}/functions/v1/web-snapshot`;

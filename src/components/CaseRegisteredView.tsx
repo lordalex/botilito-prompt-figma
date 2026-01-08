@@ -15,7 +15,8 @@ import {
   CircleCheck,
   FileSearchIcon,
   Search,
-  Clock
+  Clock,
+  Loader2
 } from 'lucide-react';
 
 interface CaseRegisteredViewProps {
@@ -66,23 +67,88 @@ function formatDate(dateString: string): string {
 }
 
 import { getJobStatus } from '../utils/aiAnalysis';
+import { imageAnalysisService } from '@/services/imageAnalysisService';
 
 export function CaseRegisteredView({ caseData, onReportAnother, jobId }: CaseRegisteredViewProps) {
   const ContentIcon = contentTypeIcons[caseData.contentType];
   const [analysisStatus, setAnalysisStatus] = React.useState<'pending' | 'processing' | 'completed' | 'failed' | null>(null);
 
-  // Single GET check for status if jobId is provided
+  console.log('[CaseRegisteredView] Props received:', { 
+    jobId, 
+    contentType: caseData.contentType,
+    caseCode: caseData.caseCode
+  });
+
+  // Polling for job status if jobId is provided
   React.useEffect(() => {
-    if (jobId) {
-      getJobStatus(jobId)
-        .then(response => {
-          setAnalysisStatus(response.status);
-        })
-        .catch(err => console.error("Error checking job status", err));
+    console.log('[CaseRegisteredView] useEffect triggered with jobId:', jobId);
+    if (!jobId) {
+      console.warn('[CaseRegisteredView] No jobId provided, skipping polling');
+      return;
     }
-  }, [jobId]);
+
+    let intervalId: NodeJS.Timeout | null = null;
+    let isActive = true;
+
+    const checkStatus = async () => {
+      try {
+        // Use imageAnalysisService for image content type
+        if (caseData.contentType === 'imagen') {
+          console.log('[CaseRegisteredView] Checking image status for jobId:', jobId);
+          const response = await imageAnalysisService.getJobStatus(jobId);
+          console.log('[CaseRegisteredView] Image status response:', response);
+          if (isActive) {
+            setAnalysisStatus(response.status);
+            
+            // Stop polling if completed or failed
+            if (response.status === 'completed' || response.status === 'failed') {
+              console.log('[CaseRegisteredView] Image analysis finished:', response.status);
+              if (intervalId) clearInterval(intervalId);
+            }
+          }
+        } else {
+          // Use text-analysis for other content types
+          console.log('[CaseRegisteredView] Checking text/url status for jobId:', jobId);
+          const response = await getJobStatus(jobId);
+          console.log('[CaseRegisteredView] Text/URL status response:', response);
+          if (isActive) {
+            setAnalysisStatus(response.status);
+            
+            // Stop polling if completed or failed
+            if (response.status === 'completed' || response.status === 'failed') {
+              console.log('[CaseRegisteredView] Text/URL analysis finished:', response.status);
+              if (intervalId) clearInterval(intervalId);
+            }
+          }
+        }
+      } catch (err) {
+        console.error("[CaseRegisteredView] Error checking job status", err);
+        if (intervalId) clearInterval(intervalId);
+      }
+    };
+
+    // Initial check
+    checkStatus();
+
+    // Start polling every 2 seconds
+    intervalId = setInterval(checkStatus, 2000);
+
+    return () => {
+      isActive = false;
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [jobId, caseData.contentType]);
 
   const isAnalysisComplete = analysisStatus === 'completed';
+  const isAnalysisProcessing = analysisStatus === 'processing' || analysisStatus === 'pending';
+
+  console.log('[CaseRegisteredView] Current state:', { 
+    jobId, 
+    contentType: caseData.contentType,
+    analysisStatus, 
+    isAnalysisComplete, 
+    isAnalysisProcessing 
+  });
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] p-4">
@@ -234,6 +300,8 @@ export function CaseRegisteredView({ caseData, onReportAnother, jobId }: CaseReg
                         <div className="w-6 h-6 rounded-full flex items-center justify-center">
                           {isAnalysisComplete ? (
                             <CircleCheck className="h-5 w-5 text-white" style={{ color: 'var(--color-green-500)' }} />
+                          ) : isAnalysisProcessing ? (
+                            <Loader2 className="h-5 w-5 animate-spin" style={{ color: '#d97706' }} />
                           ) : (
                             <Clock className="h-5 w-5" style={{ color: '#d97706' }} />
                           )}
@@ -244,7 +312,12 @@ export function CaseRegisteredView({ caseData, onReportAnother, jobId }: CaseReg
                       <p className="text-xs font-medium text-gray-900">
                         {isAnalysisComplete ? 'Análisis automatizado completado' : 'Análisis automatizado iniciado'}
                       </p>
-                      <p className="text-[10px] text-gray-500">{formatDate(caseData.createdAt).split(' - ')[1]}</p>
+                      <p className="text-[10px] text-gray-500">
+                        {isAnalysisProcessing && (
+                          <span className="text-amber-600 font-medium">Procesando...</span>
+                        )}
+                        {!isAnalysisProcessing && formatDate(caseData.createdAt).split(' - ')[1]}
+                      </p>
                     </div>
 
                     {/* Step 3 */}

@@ -7,14 +7,20 @@ export type { JobStatusResponse } from '@/types/imageAnalysis';
 
 const POLLING_INTERVAL_MS = 2000;
 const MAX_ATTEMPTS = 60; // 2 minutes max
-const CHUNK_SIZE = 4 * 1024 * 1024; // 4MB
 
-// --- Hashing Utility ---
-async function getFileHash(file: File): Promise<string> {
-  const buffer = await file.arrayBuffer();
-  const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+// --- Base64 Conversion Utility ---
+export async function convertFileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      // Remove the data URL prefix (e.g., "data:image/png;base64,")
+      const base64 = result.split(',')[1] || result;
+      resolve(base64);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 }
 
 // --- Data Transformation ---
@@ -182,72 +188,40 @@ export const imageAnalysisService = {
     if (!session) throw new Error('No active session');
     const token = session.access_token;
 
-    // 1. Get file hash
-    const fileHash = await getFileHash(file);
     const useCache = import.meta.env.VITE_USE_CACHE === 'true';
 
-    // 2. Init Upload
-    const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
-    const initResponse = await fetch(`${IMAGE_ANALYSIS_BASE_URL}/upload_session`, {
+    // Convert file to Base64
+    const base64 = await convertFileToBase64(file);
+
+    // Submit to /submit endpoint with Base64
+    const response = await fetch(`${IMAGE_ANALYSIS_BASE_URL}/submit`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      headers: { 
+        'Content-Type': 'application/json', 
+        'Authorization': `Bearer ${token}` 
+      },
       body: JSON.stringify({
-        action: 'init',
-        filename: file.name,
-        total_chunks: totalChunks,
-        total_size: file.size,
-        file_hash: fileHash,
+        image_base64: base64,
         use_cache: useCache,
       }),
     });
 
-    if (!initResponse.ok) throw new Error('Upload initialization failed.');
-    const initData = await initResponse.json();
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `Image analysis submission failed: ${response.status}`);
+    }
+    
+    const data = await response.json();
 
-    if (initData.job_id && initData.status === 'completed' && initData.result) {
-      // This would be a cache hit if the API returned the result on init
-      return { jobId: initData.job_id, result: transformApiResult(initData, file) };
+    // Extract jobId: API returns 'id' field
+    const jobId = data.id || data.job_id;
+
+    // Check if result is already available (cache hit)
+    if (data.status === 'completed' && data.result) {
+      return { jobId, result: transformApiResult(data, file) };
     }
 
-    const uploadId = initData.upload_id;
-    if (!uploadId) throw new Error('Failed to get upload_id from server.');
-
-    // 3. Upload Chunks
-    for (let i = 0; i < totalChunks; i++) {
-      const start = i * CHUNK_SIZE;
-      const end = Math.min(start + CHUNK_SIZE, file.size);
-      const chunk = file.slice(start, end);
-
-      const formData = new FormData();
-      formData.append('action', 'chunk');
-      formData.append('upload_id', uploadId);
-      formData.append('chunk_index', String(i));
-      formData.append('chunk_data', chunk);
-
-      const chunkResponse = await fetch(`${IMAGE_ANALYSIS_BASE_URL}/upload_session`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` },
-        body: formData,
-      });
-
-      if (!chunkResponse.ok) throw new Error(`Chunk ${i} upload failed.`);
-    }
-
-    // 4. Finish Upload
-    const finishResponse = await fetch(`${IMAGE_ANALYSIS_BASE_URL}/upload_session`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify({
-        action: 'finish',
-        upload_id: uploadId,
-        file_hash: fileHash,
-      }),
-    });
-
-    if (!finishResponse.ok) throw new Error('Upload finalization failed.');
-    const finishData = await finishResponse.json();
-
-    return { jobId: finishData.job_id };
+    return { jobId };
   },
 
   submitImage: async (file: File): Promise<AnalysisResult> => {
