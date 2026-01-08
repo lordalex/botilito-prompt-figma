@@ -767,17 +767,6 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
             </Button>
           </div>
         </div>
-
-        {/* HUMAN VALIDATION COMPONENT (FULL WIDTH) */}
-        <div className="w-full mb-12">
-          <HumanValidationForm 
-            caseId={caseData.id}
-            aiVerdictLabel={caseData.overview.verdict_label}
-            aiRiskScore={caseData.overview.risk_score}
-            onVoteSuccess={() => {}}
-          />
-        </div>
-
       </div>
 
       {/* FOOTER */}
