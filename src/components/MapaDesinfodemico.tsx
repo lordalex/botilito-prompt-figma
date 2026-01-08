@@ -1,19 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import botilitoImage from '@/assets/e27a276e6ff0e187a67cf54678c265c1c38adbf7.png';
-import { 
-  LayoutDashboard, 
-  BarChart2, 
-  Stethoscope, 
-  Map, 
+import {
+  LayoutDashboard,
+  BarChart2,
+  Stethoscope,
+  Map,
   Crown,
   Info,
   Loader2,
-  AlertCircle
+  AlertCircle,
 } from 'lucide-react';
 import { PanoramaView } from './mapa/views/PanoramaView';
 import { IndicadoresView } from './mapa/views/IndicadoresView';
 import { DiagnosticoView } from './mapa/views/DiagnosticoView';
 import { ColaboradoresView } from './mapa/views/ColaboradoresView';
+import { KPICards } from './mapa/KPICards';
 import { fetchDashboardData } from './mapa/api';
 import { DashboardResponse, Region, TimeFrame } from './mapa/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -56,9 +57,8 @@ export function MapaDesinfodemico() {
 
   return (
     <div className="min-h-screen bg-gray-50/20 pb-12 font-sans">
-      
       {/* Botilito Header - Styled Info Card */}
-      <div className="max-w-7xl mx-auto px-4 pt-6 pb-4">
+      <div className="max-w-7xl mx-auto pt-6 pb-4">
         <div className="bg-[#ffe97a] border-2 border-[#ffda00] rounded-lg p-4 shadow-lg">
           <div className="flex items-center space-x-4">
             <img
@@ -67,15 +67,30 @@ export function MapaDesinfodemico() {
               className="w-24 h-24 object-contain mt-[0px] mr-[16px] mb-[-18px] ml-[0px]"
             />
             <div className="flex-1">
-              <p className="text-xl">
-                ¡Qué hubo parce! 🗺️ Este es el Mapa Desinfodémico en tiempo real
-              </p>
+              <p className="text-xl">¡Qué hubo parce! 🗺️ Este es el Mapa Desinfodémico en tiempo real</p>
               <p className="text-sm mt-1 opacity-80">
-                Acá podés ver el panorama epidemiológico de la desinformación: casos activos por región, indicadores de magnitud/alcance/impacto, rankings de colaboradores, y todo el análisis forense de contenidos. ¡Vamos a combatir la desinfodemia juntos! 💪🦠
+                Acá podés ver el panorama epidemiológico de la desinformación: casos activos por región,
+                indicadores de magnitud/alcance/impacto, rankings de colaboradores, y todo el análisis forense
+                de contenidos. ¡Vamos a combatir la desinfodemia juntos! 💪🦠
               </p>
             </div>
           </div>
         </div>
+      </div>
+
+      {/* KPI Cards - Always visible at the top */}
+      <div className="mb-4">
+        <KPICards
+          kpi={data.kpi}
+          caseTrend={(() => {
+            const evolution = data.evolution_chart;
+            if (!evolution || evolution.length < 2) return null;
+            const current = evolution[evolution.length - 1].cases;
+            const previous = evolution[evolution.length - 2].cases;
+            if (previous === 0) return null;
+            return ((current - previous) / previous) * 100;
+          })()}
+        />
       </div>
 
       {/* Floating Navigation Tabs - Simple clean design matching production */}
@@ -91,16 +106,18 @@ export function MapaDesinfodemico() {
                   onClick={() => setActiveTab(tab.id as Tab)}
                   className={`
                     flex-1 flex items-center justify-center gap-2 px-3 sm:px-4 py-1 rounded-full text-sm font-medium transition-all duration-200 whitespace-nowrap
-                    ${isActive 
-                      ? 'bg-white text-gray-900 shadow-sm' 
-                      : 'text-gray-600 hover:bg-gray-50/50 hover:text-gray-900'}
+                    ${
+                      isActive
+                        ? 'bg-white text-gray-900 shadow-sm'
+                        : 'text-gray-600 hover:bg-gray-50/50 hover:text-gray-900'
+                    }
                   `}
                 >
                   <Icon className={`h-4 w-4 flex-shrink-0 ${isActive ? 'text-gray-900' : 'text-gray-500'}`} />
                   {/* Mobile: solo icono, Desktop: icono + texto */}
                   <span className="hidden sm:inline lg:inline">{tab.label}</span>
                 </button>
-              )
+              );
             })}
           </div>
         </div>
@@ -112,7 +129,9 @@ export function MapaDesinfodemico() {
           {loading && (
             <div className="flex flex-col items-center justify-center h-96 bg-white rounded-2xl shadow-sm border border-gray-100 mt-4">
               <Loader2 className="h-12 w-12 animate-spin text-[#ffda00] mb-4" />
-              <p className="text-gray-500 font-medium text-lg">Actualizando epidemiología en tiempo real...</p>
+              <p className="text-gray-500 font-medium text-lg">
+                Actualizando epidemiología en tiempo real...
+              </p>
             </div>
           )}
 
@@ -120,13 +139,18 @@ export function MapaDesinfodemico() {
             <Alert variant="destructive" className="mb-6 mt-4 bg-red-50 border-red-200">
               <AlertCircle className="h-4 w-4" />
               <AlertTitle>Error de Conexión</AlertTitle>
-              <AlertDescription>{error}. Por favor verifica tu conexión e intenta nuevamente.</AlertDescription>
+              <AlertDescription>
+                {error}. Por favor verifica tu conexión e intenta nuevamente.
+              </AlertDescription>
             </Alert>
           )}
 
           {!loading && !error && data && (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
-              {activeTab === 'panorama' && <PanoramaView kpi={data.kpi} evolution={data.evolution_chart} radar={data.radar_dimensions} />}
+              {/* Tab Content */}
+              {activeTab === 'panorama' && (
+                <PanoramaView kpi={data.kpi} evolution={data.evolution_chart} radar={data.radar_dimensions} />
+              )}
               {activeTab === 'indicadores' && <IndicadoresView data={data.indicators} />}
               {activeTab === 'diagnostico' && <DiagnosticoView data={data.detailed_metrics} />}
               {activeTab === 'colaboradores' && <ColaboradoresView />}
@@ -136,7 +160,9 @@ export function MapaDesinfodemico() {
                     <Map className="h-12 w-12 text-gray-300" />
                   </div>
                   <h3 className="text-xl font-bold text-gray-600">Mapa de Calor Geográfico</h3>
-                  <p className="text-gray-400 mt-2">Visualización geográfica no disponible en esta versión de API.</p>
+                  <p className="text-gray-400 mt-2">
+                    Visualización geográfica no disponible en esta versión de API.
+                  </p>
                 </div>
               )}
             </div>
@@ -147,10 +173,10 @@ export function MapaDesinfodemico() {
         <div className="mt-16 flex items-center justify-center gap-2 text-gray-400 text-sm py-8 border-t border-gray-200">
           <Info className="h-4 w-4" />
           <p>
-            Datos sincronizados en tiempo real desde el nodo central. Última actualización: {new Date().toLocaleTimeString()}
+            Datos sincronizados en tiempo real desde el nodo central. Última actualización:{' '}
+            {new Date().toLocaleTimeString()}
           </p>
         </div>
-
       </div>
     </div>
   );
