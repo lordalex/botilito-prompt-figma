@@ -229,7 +229,7 @@ export function Navigation({ activeTab, onTabChange, onLogout, onViewTask, onVie
             {onLogout && (
               <>
                 <NotificationCenter onViewTask={onViewTask} onViewAllNotifications={onViewAllNotifications} />
-                
+
                 <DropdownMenu onOpenChange={(open) => { if (open) checkAdminAccess(); }}>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" className="relative h-9 w-9 rounded-full p-0">
@@ -291,8 +291,8 @@ export function Navigation({ activeTab, onTabChange, onLogout, onViewTask, onVie
                 </DropdownMenu>
               </>
             )}
-            
-            {/* Menú Hamburguesa */}
+
+            {/* Menú lateral */}
             <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
               <SheetTrigger className="inline-flex items-center justify-center h-9 w-9 rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
                 <Menu className="h-5 w-5" />
@@ -322,7 +322,7 @@ export function Navigation({ activeTab, onTabChange, onLogout, onViewTask, onVie
                       <span className="font-medium">{label}</span>
                     </Button>
                   ))}
-                  
+
                   {isAdmin && (
                     <>
                       <div className="my-2 border-t" />
@@ -338,39 +338,7 @@ export function Navigation({ activeTab, onTabChange, onLogout, onViewTask, onVie
                       </Button>
                     </>
                   )}
-                  
-                  <div className="my-2 border-t" />
-                  
-                  <Button
-                    variant={activeTab === 'extension' ? 'default' : 'ghost'}
-                    onClick={() => handleTabChange('extension')}
-                    className={`justify-start h-12 ${
-                      activeTab === 'extension' ? 'bg-primary text-primary-foreground' : ''
-                    }`}
-                  >
-                    <Puzzle className="h-5 w-5 mr-3" />
-                    <span className="font-medium">Extensión</span>
-                  </Button>
-                  
-                  <Button
-                    variant="ghost"
-                    className="justify-start h-12"
-                  >
-                    <Settings className="h-5 w-5 mr-3" />
-                    <span className="font-medium">Configuración</span>
-                  </Button>
-                  
-                  <Button
-                    variant={activeTab === 'docs' ? 'default' : 'ghost'}
-                    onClick={() => handleTabChange('docs')}
-                    className={`justify-start h-12 ${
-                      activeTab === 'docs' ? 'bg-primary text-primary-foreground' : ''
-                    }`}
-                  >
-                    <BookOpen className="h-5 w-5 mr-3" />
-                    <span className="font-medium">Documentación</span>
-                  </Button>
-                  
+
                   {onLogout && (
                     <>
                       <div className="my-2 border-t" />
