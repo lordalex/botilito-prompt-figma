@@ -325,6 +325,50 @@ export async function fetchVerificationSummary(page: number, pageSize: number): 
 }
 
 /**
+ * Fetch ALL cases for Historial view using /search endpoint.
+ *
+ * KEY DIFFERENCE from fetchVerificationSummary:
+ * - Uses /search endpoint (not /summary)
+ * - Does NOT filter by consensus_filter: "missing"
+ * - Returns ALL cases, not just pending validation
+ * - Includes insights via select_fields
+ *
+ * @param page - Page number (1-indexed)
+ * @param pageSize - Items per page
+ * @param query - Optional search query (defaults to "*" for all cases)
+ */
+export async function fetchHistorialCases(page: number, pageSize: number, query: string = "*"): Promise<VerificationSummaryResult> {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+
+    if (!session) {
+      throw new Error('No hay sesión activa');
+    }
+
+    const { job_id } = await api.historial.getAll(session, page, pageSize, query);
+
+    if (!job_id) {
+      throw new Error('No se recibió un ID de trabajo válido');
+    }
+
+    const result = await pollJobStatus(job_id);
+    if ('cases' in result) {
+      // Map cases to enriched format (same transformation as verification)
+      const enrichedCases = result.cases.map(transformStandardizedToEnriched);
+      return {
+        ...result,
+        cases: enrichedCases
+      };
+    }
+    throw new Error("API response did not contain 'cases'");
+
+  } catch (error) {
+    console.error('Error fetching historial cases:', error);
+    throw error;
+  }
+}
+
+/**
  * Fetch JUST the stats/summary without loading a large list of cases.
  * Used for the "Historial" header counters.
  */

@@ -188,18 +188,30 @@ export const api = {
             fetchClient(session, `${apiEndpoints.VOTE_API_URL}/status/${jobId}`),
     },
     humanVerification: {
-        getSummary: (session: Session, page: number, pageSize: number): Promise<any> => {
-            const url = new URL(apiEndpoints.SUMMARY_ENDPOINT);
-            url.searchParams.set('page', String(page));
-            url.searchParams.set('pageSize', String(pageSize));
-            return fetchClient(session, url.toString(), {
+        /**
+         * Get summary of cases pending human validation.
+         * Uses correct payload structure with select_fields to include insights.
+         */
+        getSummary: (session: Session, page: number, pageSize: number): Promise<any> =>
+            fetchClient(session, apiEndpoints.SUMMARY_ENDPOINT, {
                 method: 'POST',
-            });
-        },
+                body: JSON.stringify({
+                    consensus_filter: "missing",
+                    page,
+                    limit: pageSize,
+                    select_fields: ["id", "overview", "insights", "community"]
+                }),
+            }),
+        /**
+         * Get detailed case information including insights for human validation.
+         */
         getCaseDetails: (session: Session, caseId: string): Promise<any> =>
             fetchClient(session, apiEndpoints.LOOKUP_ENDPOINT, {
                 method: 'POST',
-                body: JSON.stringify({ identifier: caseId }),
+                body: JSON.stringify({
+                    identifier: caseId,
+                    select_fields: ["id", "overview", "insights", "community"]
+                }),
             }),
         submitJob: (session: Session, submission: { caseId: string; labels: string[]; notes?: string; evidenceUrl?: string }): Promise<{ job_id: string; message?: string }> => {
             const payload = {
@@ -267,6 +279,31 @@ export const api = {
             fetchClient(session, apiEndpoints.MAPA_DESINFODEMICO_URL, {
                 method: 'POST',
                 body: JSON.stringify({ region, timeframe }),
+            }),
+    },
+    /**
+     * Historial API - Fetches ALL cases for the history view.
+     * Uses /search endpoint with select_fields to include insights.
+     * Unlike humanVerification.getSummary, this does NOT filter by consensus_filter.
+     */
+    historial: {
+        /**
+         * Get all cases for history view using /search endpoint.
+         * Includes insights in select_fields as per API documentation.
+         * @param session - Active Supabase session
+         * @param page - Page number (1-indexed)
+         * @param pageSize - Number of items per page
+         * @param query - Optional search query (defaults to "*" for all cases)
+         */
+        getAll: (session: Session, page: number = 1, pageSize: number = 10, query: string = "*"): Promise<any> =>
+            fetchClient(session, apiEndpoints.SEARCH_ENDPOINT, {
+                method: 'POST',
+                body: JSON.stringify({
+                    query,
+                    page,
+                    limit: pageSize,
+                    select_fields: ["id", "overview", "insights", "community"]
+                }),
             }),
     }
 };

@@ -5,11 +5,11 @@
  * ## LLM CONTEXT - HOOK ARCHITECTURE
  *
  * This hook powers the "Historial" (History) tab in ContentReview.tsx.
- * It fetches case list from fetchVerificationSummary and KPI stats from
- * mapa-desinfodemico-verbose endpoint.
+ * It fetches case list from fetchHistorialCases (using /search endpoint)
+ * and KPI stats from mapa-desinfodemico-verbose endpoint.
  *
  * ### Data Sources:
- * 1. **Case List**: fetchVerificationSummary (same as HumanVerification for consistency)
+ * 1. **Case List**: fetchHistorialCases → /search endpoint with select_fields
  * 2. **KPI Stats**: mapa-desinfodemico-verbose endpoint
  *    - total_cases → stats.total
  *    - verificados → stats.verified
@@ -17,20 +17,18 @@
  *    - desinfodemico → stats.misinformation
  *    - forense → stats.forensic
  *
- * ### Why Use fetchVerificationSummary?
- * Both Historial and Validación Humana need IDENTICAL data transformations:
- * - Theme color mapping
- * - AMI level badge generation
- * - Reporter name extraction
- * - Display ID formatting
- *
- * By using the same API function, we guarantee visual consistency across tabs.
+ * ### KEY DIFFERENCE from Human Verification:
+ * - Historial uses /search endpoint (returns ALL cases)
+ * - HumanVerification uses /summary with consensus_filter: "missing" (only pending)
+ * - Both include select_fields: ["id", "overview", "insights", "community"]
  *
  * ### Data Flow:
  * ```
- * fetchVerificationSummary(page, pageSize)
+ * fetchHistorialCases(page, pageSize)
  *     ↓
- * API: GET /functions/v1/get-verification-summary
+ * API: POST /functions/v1/search-dto/search
+ *     ↓
+ * Payload: { query: "*", page, limit, select_fields: [..., "insights", ...] }
  *     ↓
  * Response enrichment (theme, AMI levels, display IDs)
  *     ↓
@@ -78,7 +76,7 @@
  */
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { fetchVerificationSummary } from '@/utils/humanVerification/api';
+import { fetchHistorialCases } from '@/utils/humanVerification/api';
 import { api } from '@/services/api';
 import type { CaseEnriched } from '@/utils/humanVerification/types';
 import { getCachedData, setCachedData, CACHE_KEYS } from '@/utils/sessionCache';
@@ -129,8 +127,8 @@ export function useCaseHistory() {
       setError(null);
       setCurrentPage(1);
 
-      // Use the same API function as HumanVerification for consistent transformations
-      const result = await fetchVerificationSummary(1, pageSize);
+      // Use /search endpoint with select_fields including insights (per API docs)
+      const result = await fetchHistorialCases(1, pageSize);
 
       setCases(result.cases || []);
       setHasMore(result.pagination.hasMore);
@@ -186,7 +184,7 @@ export function useCaseHistory() {
       setLoadingMore(true);
       const nextPage = currentPage + 1;
 
-      const result = await fetchVerificationSummary(nextPage, pageSize);
+      const result = await fetchHistorialCases(nextPage, pageSize);
 
       // Append new cases to existing ones
       setCases(prev => [...prev, ...(result.cases || [])]);
