@@ -115,7 +115,8 @@ export function useCaseHistory() {
       // Check cache first (unless force refresh)
       if (!forceRefresh) {
         const cached = getCachedData<{ cases: CaseEnriched[], hasMore: boolean }>(CACHE_KEYS.CASE_HISTORY);
-        if (cached) {
+        // Only use cache if it has actual data (not empty)
+        if (cached && cached.cases && cached.cases.length > 0) {
           setCases(cached.cases);
           setHasMore(cached.hasMore);
           setLoading(false);
