@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Bot, UserCheck, AlertTriangle, Send, CheckCircle2 } from 'lucide-react';
+import { Bot, UserCheck, AlertTriangle, Send, CheckCircle, XCircle, HelpCircle, Laugh } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -8,6 +8,60 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Badge } from '@/components/ui/badge';
 import { submitVote } from '@/services/votingService';
 import { useToast } from '@/hooks/use-toast';
+
+// Vote classification options from API v1.2.0
+const VOTE_CLASSIFICATIONS = [
+  {
+    id: 'Verificado',
+    label: 'Verificado',
+    description: 'El contenido ha sido verificado como verdadero y preciso',
+    icon: CheckCircle,
+    color: 'text-green-600',
+    borderColor: 'border-green-500',
+    bgColor: 'bg-green-50',
+    dotColor: 'bg-green-500'
+  },
+  {
+    id: 'Falso',
+    label: 'Falso',
+    description: 'El contenido contiene información falsa o incorrecta',
+    icon: XCircle,
+    color: 'text-red-600',
+    borderColor: 'border-red-500',
+    bgColor: 'bg-red-50',
+    dotColor: 'bg-red-500'
+  },
+  {
+    id: 'Engañoso',
+    label: 'Engañoso',
+    description: 'Parcialmente cierto pero presentado de forma engañosa',
+    icon: AlertTriangle,
+    color: 'text-orange-600',
+    borderColor: 'border-orange-500',
+    bgColor: 'bg-orange-50',
+    dotColor: 'bg-orange-500'
+  },
+  {
+    id: 'No Verificable',
+    label: 'No Verificable',
+    description: 'No es posible verificar con las fuentes disponibles',
+    icon: HelpCircle,
+    color: 'text-gray-600',
+    borderColor: 'border-gray-400',
+    bgColor: 'bg-gray-50',
+    dotColor: 'bg-gray-500'
+  },
+  {
+    id: 'Sátira',
+    label: 'Sátira',
+    description: 'Contenido satírico o humorístico, no busca desinformar',
+    icon: Laugh,
+    color: 'text-blue-600',
+    borderColor: 'border-blue-500',
+    bgColor: 'bg-blue-50',
+    dotColor: 'bg-blue-500'
+  }
+] as const;
 
 interface HumanValidationFormProps {
   caseId: string;
@@ -27,19 +81,6 @@ export function HumanValidationForm({
   const [justification, setJustification] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const OPTIONS = [
-    {
-      id: 'Desarrolla las premisas AMI',
-      label: 'Desarrolla las premisas AMI',
-      description: 'El contenido cumple con los criterios de Alfabetización Mediática'
-    },
-    {
-      id: 'Requiere un enfoque AMI',
-      label: 'Requiere un enfoque AMI',
-      description: 'El contenido requiere aplicar premisas de Alfabetización Mediática'
-    }
-  ];
 
   const handleSubmit = async () => {
     setError(null);
@@ -113,27 +154,40 @@ export function HumanValidationForm({
           {/* Right: Selection */}
           <div className="space-y-4">
             <Label className="text-base font-bold text-gray-900 block mb-2">
-              ¿Cuál es tu consideración como especialista sobre este caso?
+              ¿Cuál es tu clasificación para este contenido?
             </Label>
-            
-            <RadioGroup value={selectedOption} onValueChange={setSelectedOption} className="space-y-3">
-              {OPTIONS.map((option) => (
-                <div key={option.id}>
-                  <RadioGroupItem value={option.id} id={option.id} className="peer sr-only" />
-                  <Label
-                    htmlFor={option.id}
-                    className="flex items-center gap-3 p-4 rounded-lg border-2 border-gray-200 bg-white hover:border-[#FFE97A] hover:bg-[#FFFCE8]/50 peer-data-[state=checked]:border-[#FFDA00] peer-data-[state=checked]:bg-[#FFFCE8] cursor-pointer transition-all w-full"
-                  >
-                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${selectedOption === option.id ? 'border-[#FFDA00]' : 'border-gray-300'}`}>
-                      {selectedOption === option.id && <div className="w-2.5 h-2.5 rounded-full bg-[#FFDA00]" />}
-                    </div>
-                    <span className="font-bold text-gray-900">{option.label}</span>
-                    <span className="text-sm text-gray-500 font-normal">
-                      {option.description}
-                    </span>
-                  </Label>
-                </div>
-              ))}
+
+            <RadioGroup value={selectedOption} onValueChange={setSelectedOption} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {VOTE_CLASSIFICATIONS.map((option) => {
+                const Icon = option.icon;
+                const isSelected = selectedOption === option.id;
+                return (
+                  <div key={option.id}>
+                    <RadioGroupItem value={option.id} id={option.id} className="peer sr-only" />
+                    <Label
+                      htmlFor={option.id}
+                      className={`flex flex-col items-start gap-2 p-4 rounded-lg border-2 cursor-pointer transition-all hover:shadow-md w-full ${
+                        isSelected
+                          ? `${option.borderColor} ${option.bgColor}`
+                          : 'border-gray-200 bg-white hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 w-full">
+                        <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+                          isSelected ? option.borderColor : 'border-gray-300'
+                        }`}>
+                          {isSelected && <div className={`w-2 h-2 rounded-full ${option.dotColor}`} />}
+                        </div>
+                        <Icon className={`h-5 w-5 ${option.color} flex-shrink-0`} />
+                        <span className="font-bold text-gray-900">{option.label}</span>
+                      </div>
+                      <p className="text-xs text-gray-600 leading-relaxed pl-6">
+                        {option.description}
+                      </p>
+                    </Label>
+                  </div>
+                );
+              })}
             </RadioGroup>
           </div>
         </div>
