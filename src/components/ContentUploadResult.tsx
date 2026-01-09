@@ -152,8 +152,8 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
     i.category === 'forensics' || i.id?.includes('algo_') || i.id?.includes('ela') || i.id?.includes('dct')
   );
 
-  // Check if this is a forensic analysis case (image/video)
-  const isForensicCase = caseData.type === 'IMAGE' || caseData.type === 'VIDEO' || forensicInsights.length > 0;
+  // Check if this is a forensic analysis case (image/video/audio only)
+  const isForensicCase = caseData.type === 'IMAGE' || caseData.type === 'VIDEO' || caseData.type === 'AUDIO';
 
   // --- HELPERS ---
   const getRiskColor = (score: number) => {
@@ -353,6 +353,45 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
               </div>
             )}
 
+            {/* TITULAR */}
+            <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
+              <div className="flex items-center gap-2 mb-2 text-gray-500">
+                <FileText className="h-4 w-4" />
+                <span className="text-xs font-bold uppercase tracking-wider">Titular</span>
+              </div>
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 leading-tight">
+                {caseData.overview.title}
+              </h1>
+            </div>
+
+            {/* CONTENIDO ANALIZADO */}
+            <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
+              <div className="flex items-center gap-2 mb-2 text-gray-500">
+                <FileText className="h-4 w-4" />
+                <span className="text-xs font-bold uppercase tracking-wider">Contenido Analizado</span>
+              </div>
+              <div className="bg-gray-50 p-4 rounded-lg border-l-4 border-[#ffda00]">
+                <p className="text-gray-800 text-sm leading-relaxed whitespace-pre-wrap">
+                  {caseData.overview.summary}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2 pt-4">
+                {caseData.overview.source_domain && (
+                  <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 gap-1.5 py-1">
+                    <Globe className="h-3 w-3" /> Fuente: <strong>{caseData.overview.source_domain}</strong>
+                  </Badge>
+                )}
+                <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 gap-1.5 py-1">
+                  <Hash className="h-3 w-3" /> Tipo: <strong>{caseData.type}</strong>
+                </Badge>
+                {caseData.metadata?.theme && (
+                  <Badge variant="outline" className="bg-gray-100 text-gray-700 border-gray-200 gap-1.5 py-1">
+                    <Activity className="h-3 w-3" /> Tema: <strong>{caseData.metadata.theme}</strong>
+                  </Badge>
+                )}
+              </div>
+            </div>
+
             {/* DIAGNOSTIC CARDS ROW */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Infodemic Diagnosis */}
@@ -424,45 +463,6 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
                     </div>
                 </CardContent>
               </Card>
-            </div>
-
-            {/* TITULAR */}
-            <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
-              <div className="flex items-center gap-2 mb-2 text-gray-500">
-                <FileText className="h-4 w-4" />
-                <span className="text-xs font-bold uppercase tracking-wider">Titular</span>
-              </div>
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 leading-tight">
-                {caseData.overview.title}
-              </h1>
-            </div>
-
-            {/* CONTENIDO ANALIZADO */}
-            <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
-              <div className="flex items-center gap-2 mb-2 text-gray-500">
-                <FileText className="h-4 w-4" />
-                <span className="text-xs font-bold uppercase tracking-wider">Contenido Analizado</span>
-              </div>
-              <div className="bg-gray-50 p-4 rounded-lg border-l-4 border-[#ffda00]">
-                <p className="text-gray-800 text-sm leading-relaxed whitespace-pre-wrap">
-                  {caseData.overview.summary}
-                </p>
-              </div>
-              <div className="flex flex-wrap gap-2 pt-4">
-                {caseData.overview.source_domain && (
-                  <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 gap-1.5 py-1">
-                    <Globe className="h-3 w-3" /> Fuente: <strong>{caseData.overview.source_domain}</strong>
-                  </Badge>
-                )}
-                <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 gap-1.5 py-1">
-                  <Hash className="h-3 w-3" /> Tipo: <strong>{caseData.type}</strong>
-                </Badge>
-                {caseData.metadata?.theme && (
-                  <Badge variant="outline" className="bg-gray-100 text-gray-700 border-gray-200 gap-1.5 py-1">
-                    <Activity className="h-3 w-3" /> Tema: <strong>{caseData.metadata.theme}</strong>
-                  </Badge>
-                )}
-              </div>
             </div>
 
             {/* AMI SPECIFIC SECTION */}
