@@ -702,7 +702,7 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
               <CardContent className="px-4 pb-4">
                 <div className="space-y-3 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Pruebas</span>
+                    <span className="text-gray-500">Pruebas realizadas</span>
                     <span className="font-bold text-gray-900">
                       {caseData.insights.length > 0
                         ? caseData.insights.length
@@ -710,7 +710,7 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
                     </span>
                   </div>
                   <div className="flex justify-between"><span className="text-gray-500">Tiempo total</span><span className="font-bold text-gray-900">12.0s</span></div>
-                  <div className="flex justify-between"><span className="text-gray-500">Precisión</span><span className="font-bold text-gray-900">{caseData.overview.risk_score > 0 ? '92%' : '0%'}</span></div>
+                  <div className="flex justify-between"><span className="text-gray-500">Nivel de precisión diagnóstica</span><span className="font-bold text-gray-900">{caseData.overview.risk_score > 0 ? '92%' : '0%'}</span></div>
                 </div>
               </CardContent>
             </Card>
