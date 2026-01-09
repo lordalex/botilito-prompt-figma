@@ -1,6 +1,6 @@
 {
       "name": "Botilito",
-      "version": "1.2.1-beta",
+      "version": "1.2.1",
       "private": true,
       "dependencies": {
             "@jsr/supabase__supabase-js": "^2.49.8",
