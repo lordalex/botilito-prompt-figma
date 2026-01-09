@@ -5,36 +5,51 @@
  * ## LLM CONTEXT - HOOK ARCHITECTURE
  *
  * This hook powers the "Historial" (History) tab in ContentReview.tsx.
- * It fetches the same data as useHumanVerification but is used for viewing
- * completed/historical cases rather than pending validation cases.
+ * It fetches case list from fetchHistorialCases (using /search endpoint)
+ * and KPI stats from mapa-desinfodemico-verbose endpoint.
  *
- * ### Why Use fetchVerificationSummary?
- * Both Historial and Validación Humana need IDENTICAL data transformations:
- * - Theme color mapping
- * - AMI level badge generation
- * - Reporter name extraction
- * - Display ID formatting
+ * ### Data Sources:
+ * 1. **Case List**: fetchHistorialCases → /search endpoint with select_fields
+ * 2. **KPI Stats**: mapa-desinfodemico-verbose endpoint
+ *    - total_cases → stats.total
+ *    - verificados → stats.verified
+ *    - pendientes → stats.aiOnly
+ *    - desinfodemico → stats.misinformation
+ *    - forense → stats.forensic
  *
- * By using the same API function, we guarantee visual consistency across tabs.
+ * ### KEY DIFFERENCE from Human Verification:
+ * - Historial uses /search endpoint (returns ALL cases)
+ * - HumanVerification uses /summary with consensus_filter: "missing" (only pending)
+ * - Both include select_fields: ["id", "overview", "insights", "community"]
  *
  * ### Data Flow:
  * ```
- * fetchVerificationSummary(page, pageSize)
+ * fetchHistorialCases(page, pageSize)
  *     ↓
- * API: GET /functions/v1/get-verification-summary
+ * API: POST /functions/v1/search-dto/search
+ *     ↓
+ * Payload: { query: "*", page, limit, select_fields: [..., "insights", ...] }
  *     ↓
  * Response enrichment (theme, AMI levels, display IDs)
  *     ↓
  * CaseEnriched[] stored in state
+ *
+ * + (in parallel)
+ *
+ * api.mapaDesinfodemico.getDashboardData(session)
  *     ↓
- * Passed to CaseList with isEnrichedFormat=true
+ * API: POST /functions/v1/mapa-desinfodemico-verbose
+ *     ↓
+ * KPI stats (total_cases, verificados, pendientes, etc.)
+ *     ↓
+ * stats state updated
  * ```
  *
  * ### State Management:
  * - `cases`: Array of enriched case objects
  * - `loading`: Boolean for loading state
  * - `error`: Error message string (null if no error)
- * - `stats`: Derived statistics (total, verified, aiOnly, misinformation)
+ * - `stats`: KPI statistics from mapa-desinfodemico-verbose
  * - `pagination`: Page controls (currentPage, setCurrentPage, hasMore)
  * - `filters`: Status filter controls (not fully implemented on backend yet)
  *
@@ -55,15 +70,21 @@
  * ```
  *
  * @see ContentReview.tsx - Consumer component
- * @see @/utils/humanVerification/api.ts - API functions
+ * @see @/utils/humanVerification/api.ts - API functions for case list
+ * @see @/services/api.ts - Centralized API service (mapaDesinfodemico.getDashboardData)
  * @see useHumanVerification.ts - Similar hook for validation tab
  */
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { fetchVerificationSummary } from '@/utils/humanVerification/api';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { fetchHistorialCases } from '@/utils/humanVerification/api';
+import { api } from '@/services/api';
 import type { CaseEnriched } from '@/utils/humanVerification/types';
+import { getCachedData, setCachedData, CACHE_KEYS } from '@/utils/sessionCache';
+import { useAuth } from '@/providers/AuthProvider';
 
 export function useCaseHistory() {
+  const { session } = useAuth();
+  
   // Data State
   const [cases, setCases] = useState<CaseEnriched[]>([]);
   const [hasMore, setHasMore] = useState(false);
@@ -71,23 +92,53 @@ export function useCaseHistory() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Stats State (fetched from mapa-desinfodemico-verbose)
+  const [stats, setStats] = useState({
+    total: 0,
+    verified: 0,
+    aiOnly: 0,
+    misinformation: 0,
+    forensic: 0
+  });
+
   // Filter & Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(10);
   const [statusFilter, setStatusFilter] = useState('all');
 
+  // Track if initial load has happened to prevent duplicate fetches
+  const initialLoadDone = useRef(false);
+
   // Initial fetch - replaces cases
-  const fetchCases = useCallback(async () => {
+  const fetchCases = useCallback(async (forceRefresh = false) => {
     try {
+      // Check cache first (unless force refresh)
+      if (!forceRefresh) {
+        const cached = getCachedData<{ cases: CaseEnriched[], hasMore: boolean }>(CACHE_KEYS.CASE_HISTORY);
+        // Only use cache if it has actual data (not empty)
+        if (cached && cached.cases && cached.cases.length > 0) {
+          setCases(cached.cases);
+          setHasMore(cached.hasMore);
+          setLoading(false);
+          return;
+        }
+      }
+
       setLoading(true);
       setError(null);
       setCurrentPage(1);
 
-      // Use the same API function as HumanVerification for consistent transformations
-      const result = await fetchVerificationSummary(1, pageSize);
+      // Use /search endpoint with select_fields including insights (per API docs)
+      const result = await fetchHistorialCases(1, pageSize);
 
       setCases(result.cases || []);
       setHasMore(result.pagination.hasMore);
+
+      // Cache the result
+      setCachedData(CACHE_KEYS.CASE_HISTORY, {
+        cases: result.cases || [],
+        hasMore: result.pagination.hasMore,
+      });
 
     } catch (err: any) {
       console.error('Error fetching history:', err);
@@ -98,6 +149,34 @@ export function useCaseHistory() {
     }
   }, [pageSize]);
 
+  // Separate effect for Stats using centralized API service
+  useEffect(() => {
+    const loadStats = async () => {
+      if (!session) return;
+      
+      try {
+        console.log('📊 Fetching KPIs from mapa-desinfodemico-verbose...');
+        const result = await api.mapaDesinfodemico.getDashboardData(session);
+        
+        // Map response fields to stats state
+        if (result.kpi) {
+          setStats({
+            total: result.kpi.total_cases ?? 0,
+            verified: result.kpi.verificados ?? 0,
+            aiOnly: result.kpi.pendientes ?? 0,
+            misinformation: result.kpi.desinfodemico ?? 0,
+            forensic: result.kpi.forense ?? 0
+          });
+          console.log('✅ KPIs loaded:', result.kpi);
+        }
+      } catch (e) {
+        console.error("❌ Error fetching KPIs:", e);
+        // Keep default zeros on error
+      }
+    };
+    loadStats();
+  }, [session]); // Reload if session changes
+
   // Load more - appends to existing cases
   const loadMore = useCallback(async () => {
     if (loadingMore || !hasMore) return;
@@ -106,7 +185,7 @@ export function useCaseHistory() {
       setLoadingMore(true);
       const nextPage = currentPage + 1;
 
-      const result = await fetchVerificationSummary(nextPage, pageSize);
+      const result = await fetchHistorialCases(nextPage, pageSize);
 
       // Append new cases to existing ones
       setCases(prev => [...prev, ...(result.cases || [])]);
@@ -121,13 +200,12 @@ export function useCaseHistory() {
     }
   }, [currentPage, pageSize, loadingMore, hasMore]);
 
-  // Trigger fetch on filter changes
+  // Trigger fetch on filter changes (re-fetch list)
   useEffect(() => {
     fetchCases();
   }, [fetchCases]);
 
   // Client-side filtering for status (if API doesn't support status filter yet)
-  // Note: ideally status filtering happens on backend, but for now we filter the current page
   const filteredCases = useMemo(() => {
     if (statusFilter === 'all') return cases;
     return cases.filter(c => {
@@ -137,22 +215,6 @@ export function useCaseHistory() {
       return true;
     });
   }, [cases, statusFilter]);
-
-  // Stats derived from current view (approximate since we don't have global aggregation endpoint)
-  const stats = {
-    total: cases.length,
-    verified: cases.filter(c => c.consensus?.state === 'human_consensus').length,
-    aiOnly: cases.filter(c => c.consensus?.state === 'ai_only').length,
-    misinformation: cases.filter(c => c.metadata?.global_verdict === 'TAMPERED').length,
-    forensic: cases.filter(c =>
-      c.submission_type === 'IMAGE' ||
-      c.submission_type === 'VIDEO' ||
-      c.submission_type === 'AUDIO' ||
-      c.submission_type === 'Image' ||
-      c.submission_type === 'Video' ||
-      c.submission_type === 'Audio'
-    ).length
-  };
 
   return {
     cases: filteredCases,
@@ -172,6 +234,6 @@ export function useCaseHistory() {
       statusFilter,
       setStatusFilter
     },
-    refresh: fetchCases
+    refresh: () => fetchCases(true) // Force refresh bypasses cache
   };
 }

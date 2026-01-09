@@ -5,6 +5,7 @@ import { fetchVerificationSummary, fetchCaseDetails, getUserVerificationStats } 
 import { useVoteTracker } from '../providers/VoteTrackerProvider';
 import { useJobTracker } from './useJobTracker';
 import type { CaseEnriched, Profile } from '../types';
+import { getCachedData, setCachedData, CACHE_KEYS } from '@/utils/sessionCache';
 
 export const useHumanVerification = () => {
     const { user, session } = useAuth();
@@ -12,6 +13,9 @@ export const useHumanVerification = () => {
 
     const [profile, setProfile] = useState<Profile | null>(null);
     const [cases, setCases] = useState<CaseEnriched[]>([]);
+    const [page, setPage] = useState(1);
+    const [hasMore, setHasMore] = useState(false);
+    const [isLoadingMore, setIsLoadingMore] = useState(false);
     const [selectedCase, setSelectedCase] = useState<CaseEnriched | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -20,36 +24,84 @@ export const useHumanVerification = () => {
     const [voteJobId, setVoteJobId] = useState<string | null>(null);
     const [showSuccessDialog, setShowSuccessDialog] = useState(false);
     const [successDialogData, setSuccessDialogData] = useState<any>(null);
+    // Helper to prevent concurrent page fetches if needed (reusing isLoading for now is fine)
+
 
     const voteJob = useJobTracker(voteJobId);
 
     const [initialProfile, setInitialProfile] = useState<Profile | null>(null);
 
+    const [totalPages, setTotalPages] = useState<number>(0);
+
+    const goToPage = async (newPage: number) => {
+        if (newPage < 1 || isLoading || (totalPages > 0 && newPage > totalPages)) return;
+        setIsLoading(true); // Show main loading spinner or list skeleton
+        try {
+            const summary = await fetchVerificationSummary(newPage, 10);
+
+            setCases(summary.cases); // REPLACE cases, do not append
+            setHasMore(summary.pagination.hasMore);
+            setPage(newPage);
+
+            const total = summary.pagination.totalItems || summary.summary?.total;
+            if (total) {
+                setTotalPages(Math.ceil(total / 10));
+            }
+        } catch (e: any) {
+            console.error("Error loading page:", e);
+            setError("Error al cargar la página.");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // Initial load logic also needs to set totalPages
     useEffect(() => {
         const loadInitialData = async () => {
             if (!user) return;
+
+            // Check cache first for cases
+            const cachedCases = getCachedData<CaseEnriched[]>(CACHE_KEYS.HUMAN_VERIFICATION);
+            const cachedStats = getCachedData<{ total_verifications: number, points: number }>(CACHE_KEYS.HUMAN_VERIFICATION_STATS);
+
+            if (cachedCases && cachedStats) {
+                setCases(cachedCases);
+                setUserStats(cachedStats);
+                setIsLoading(false);
+                // Still fetch profile for current permissions
+                try {
+                    const profileResponse = await api.profile.get(session!);
+                    setProfile(profileResponse.data);
+                    setInitialProfile(profileResponse.data);
+                } catch (e) {
+                    // Profile fetch can fail silently if we have cached data
+                }
+                return;
+            }
+
             setIsLoading(true);
             try {
-                // 1. Fetch Profile first to check permissions
                 const profileResponse = await api.profile.get(session!);
                 const userProfile = profileResponse.data;
                 setProfile(userProfile);
                 setInitialProfile(userProfile);
 
-                // 2. Check Role - Optimization: Don't fetch cases if user can't see them
-                if (userProfile?.role === 'cibernauta') {
-                    setIsLoading(false);
-                    return;
-                }
-
-                // 3. Fetch Case Data only if authorized
                 const [summary, stats] = await Promise.all([
                     fetchVerificationSummary(1, 10),
                     getUserVerificationStats(user.id)
                 ]);
 
                 setCases(summary.cases);
+                setHasMore(summary.pagination.hasMore);
+                const total = summary.pagination.totalItems || summary.summary?.total;
+                if (total) {
+                    setTotalPages(Math.ceil(total / 10));
+                }
                 setUserStats(stats);
+
+                // Cache the results
+                setCachedData(CACHE_KEYS.HUMAN_VERIFICATION, summary.cases);
+                setCachedData(CACHE_KEYS.HUMAN_VERIFICATION_STATS, stats);
             } catch (e: any) {
                 setError(e.message || 'Error al cargar los datos.');
             } finally {
@@ -139,5 +191,11 @@ export const useHumanVerification = () => {
         handleSelectCase,
         handleSubmitVerification,
         handleBackToList,
+
+        page,
+        hasMore,
+        goToPage,
+        totalPages,
+        isLoadingMore: false // Deprecated but kept for compat if needed, though unused now
     };
 };

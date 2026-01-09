@@ -57,6 +57,7 @@ import type {
   CaseEnrichedCompatible,
   StandardizedCase,
 } from '@/types/validation';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   transformCasesToListItems,
   transformEnrichedCasesToListItems,
@@ -132,6 +133,12 @@ export interface CaseListProps {
   onLoadMore?: () => void;
   /** Loading state for Load More button */
   isLoadingMore?: boolean;
+  /** Current page number for traditional pagination */
+  currentPage?: number;
+  /** Total pages for traditional pagination */
+  totalPages?: number;
+  /** Handler for page changes */
+  onPageChange?: (page: number) => void;
 }
 
 export function CaseList({
@@ -146,6 +153,9 @@ export function CaseList({
   hasMore = false,
   onLoadMore,
   isLoadingMore = false,
+  currentPage = 1,
+  totalPages = 0,
+  onPageChange,
 }: CaseListProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [filter, setFilter] = useState<FilterOption>('todos');
@@ -201,7 +211,14 @@ export function CaseList({
               className="text-sm font-medium px-3 py-1 bg-white"
               style={{ borderColor: 'var(--accent)', color: 'var(--color-yellow-700)', backgroundColor: 'var(--color-yellow-50)' }}
             >
-              # {cases.length} casos
+              {isLoading ? (
+                <span className="flex items-center gap-1.5">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  Cargando...
+                </span>
+              ) : (
+                `# ${cases.length} casos`
+              )}
             </Badge>
           </div>
           <CardDescription>{description}</CardDescription>
@@ -241,8 +258,23 @@ export function CaseList({
 
       <CardContent className="space-y-3">
         {isLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <div className="space-y-3">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="flex items-center gap-4 p-4 rounded-2xl bg-white border border-gray-200">
+                <Skeleton className="h-12 w-12 rounded-xl shrink-0" />
+                <div className="flex-1 min-w-0 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Skeleton className="h-6 w-24 rounded-lg" />
+                    <Skeleton className="h-6 flex-1 rounded-lg" />
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <Skeleton className="h-4 w-32 rounded" />
+                    <Skeleton className="h-4 w-40 rounded" />
+                  </div>
+                </div>
+                <Skeleton className="h-8 w-32 rounded-full shrink-0 hidden sm:block" />
+              </div>
+            ))}
           </div>
         ) : filteredCases.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground">
@@ -260,8 +292,39 @@ export function CaseList({
               />
             ))}
 
-            {/* Load More Button - Only shows when hasMore is true and onLoadMore is provided */}
-            {hasMore && onLoadMore && (
+            {/* Pagination Controls (Traditional: Prev/Next) */}
+            {onPageChange && (
+              <div className="flex items-center justify-center gap-4 pt-6 pb-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onPageChange(currentPage - 1)}
+                  disabled={currentPage <= 1 || isLoading}
+                  className="gap-1 border-gray-200"
+                >
+                  <ChevronDown className="h-4 w-4 rotate-90" /> {/* Left Arrow */}
+                  Anterior
+                </Button>
+
+                <span className="text-sm font-medium text-gray-600">
+                  Página {currentPage} {totalPages ? `de ${totalPages}` : ''}
+                </span>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onPageChange(currentPage + 1)}
+                  disabled={(!hasMore && (totalPages ? currentPage >= totalPages : true)) || isLoading}
+                  className="gap-1 border-gray-200"
+                >
+                  Siguiente
+                  <ChevronDown className="h-4 w-4 -rotate-90" /> {/* Right Arrow */}
+                </Button>
+              </div>
+            )}
+
+            {/* Legacy Load More Button (only if pagination not used) */}
+            {hasMore && onLoadMore && !onPageChange && (
               <div className="flex justify-center pt-4">
                 <Button
                   variant="outline"

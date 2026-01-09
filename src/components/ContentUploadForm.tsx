@@ -177,28 +177,28 @@ export function ContentUploadForm({ onSubmit, isSubmitting }: ContentUploadFormP
                 <div className="grid grid-cols-1 gap-6">
                   <div className="space-y-6">
                     <div className="m-4 p-8 bg-[#ffe97a] rounded-xl border-2 border-[#ffda00]">
-                      <div className="flex items-center justify-center gap-6">
+                      <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6">
                         {/* Logo a la izquierda */}
                         <img
                           src={botilitoImage}
                           alt="Botilito"
-                          className="h-24 w-24 object-contain shrink-0"
+                          className="h-16 w-16 sm:h-24 sm:w-24 object-contain shrink-0"
                         />
 
                         {/* Contenido derecho */}
-                        <div className="flex flex-col gap-4">
-                          <p className="text-base font-semibold text-black">
+                        <div className="flex flex-col gap-3 sm:gap-4 w-full sm:w-auto">
+                          <p className="text-sm sm:text-base font-semibold text-black text-center sm:text-left">
                             En Digital-IA me incorporaron tecnología para analizar:
                           </p>
 
                           {/* Iconos en fila horizontal con tooltips */}
                           <TooltipProvider>
-                            <div className="flex justify-center items-center gap-8">
+                            <div className="flex justify-center items-center gap-4 sm:gap-6 lg:gap-8 flex-wrap">
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <div className="flex flex-col items-center gap-2 cursor-help">
-                                    <Link2 className="h-8 w-8 text-black" />
-                                    <span className="text-xs font-medium text-black">Enlaces</span>
+                                  <div className="flex flex-col items-center gap-1 sm:gap-2 cursor-help">
+                                    <Link2 className="h-6 w-6 sm:h-8 sm:w-8 text-black" />
+                                    <span className="text-[10px] sm:text-xs font-medium text-black">Enlaces</span>
                                   </div>
                                 </TooltipTrigger>
                                 <TooltipContent side="bottom">
@@ -208,9 +208,9 @@ export function ContentUploadForm({ onSubmit, isSubmitting }: ContentUploadFormP
 
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <div className="flex flex-col items-center gap-2 cursor-help">
-                                    <FileText className="h-8 w-8 text-black" />
-                                    <span className="text-xs font-medium text-black">Texto</span>
+                                  <div className="flex flex-col items-center gap-1 sm:gap-2 cursor-help">
+                                    <FileText className="h-6 w-6 sm:h-8 sm:w-8 text-black" />
+                                    <span className="text-[10px] sm:text-xs font-medium text-black">Texto</span>
                                   </div>
                                 </TooltipTrigger>
                                 <TooltipContent side="bottom">
@@ -220,9 +220,9 @@ export function ContentUploadForm({ onSubmit, isSubmitting }: ContentUploadFormP
 
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <div className="flex flex-col items-center gap-2 cursor-help">
-                                    <ImageIcon className="h-8 w-8 text-black" />
-                                    <span className="text-xs font-medium text-black">Imágenes</span>
+                                  <div className="flex flex-col items-center gap-1 sm:gap-2 cursor-help">
+                                    <ImageIcon className="h-6 w-6 sm:h-8 sm:w-8 text-black" />
+                                    <span className="text-[10px] sm:text-xs font-medium text-black">Imágenes</span>
                                   </div>
                                 </TooltipTrigger>
                                 <TooltipContent side="bottom">
@@ -232,9 +232,9 @@ export function ContentUploadForm({ onSubmit, isSubmitting }: ContentUploadFormP
 
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <div className="flex flex-col items-center gap-2 cursor-help">
-                                    <Video className="h-8 w-8 text-black" />
-                                    <span className="text-xs font-medium text-black">Videos</span>
+                                  <div className="flex flex-col items-center gap-1 sm:gap-2 cursor-help">
+                                    <Video className="h-6 w-6 sm:h-8 sm:w-8 text-black" />
+                                    <span className="text-[10px] sm:text-xs font-medium text-black">Videos</span>
                                   </div>
                                 </TooltipTrigger>
                                 <TooltipContent side="bottom">
@@ -244,9 +244,9 @@ export function ContentUploadForm({ onSubmit, isSubmitting }: ContentUploadFormP
 
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <div className="flex flex-col items-center gap-2 cursor-help">
-                                    <Volume2 className="h-8 w-8 text-black" />
-                                    <span className="text-xs font-medium text-black">Audios</span>
+                                  <div className="flex flex-col items-center gap-1 sm:gap-2 cursor-help">
+                                    <Volume2 className="h-6 w-6 sm:h-8 sm:w-8 text-black" />
+                                    <span className="text-[10px] sm:text-xs font-medium text-black">Audios</span>
                                   </div>
                                 </TooltipTrigger>
                                 <TooltipContent side="bottom">

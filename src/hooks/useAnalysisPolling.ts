@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
 import { analysisPipeline, checkAnalysisStatusOnce } from '../lib/analysisPipeline';
-import { useNotifications } from '@/providers/NotificationProvider';
 
 export interface AnalysisPollingResult {
     analysisResult: { result: any, user_id: string } | null;
@@ -12,6 +11,14 @@ export interface AnalysisPollingResult {
     resetAnalysis: () => void;
 }
 
+/**
+ * useAnalysisPolling Hook (v1.3.0)
+ * 
+ * Updated for Lazy Polling architecture:
+ * - Removed registerTask call (server handles job registration)
+ * - This hook still polls locally for immediate UI feedback during active analysis
+ * - Server will also track the job via notifications API for cross-session persistence
+ */
 export function useAnalysisPolling(initialJobId?: string): AnalysisPollingResult {
     const [analysisResult, setAnalysisResult] = useState<{ result: any, user_id: string } | null>(null);
     const [isLoading, setIsLoading] = useState<boolean>(!!initialJobId);
@@ -19,9 +26,7 @@ export function useAnalysisPolling(initialJobId?: string): AnalysisPollingResult
     const [progress, setProgress] = useState<{ step: string; status: string; percent?: number }>({ step: 'init', status: 'Iniciando...' });
     const [currentJobId, setCurrentJobId] = useState<string | undefined>(initialJobId);
 
-    const { registerTask } = useNotifications();
-
-    // Polling Effect
+    // Polling Effect - for active in-session analysis
     useEffect(() => {
         if (!currentJobId || analysisResult) return;
 
@@ -68,7 +73,8 @@ export function useAnalysisPolling(initialJobId?: string): AnalysisPollingResult
                 (p) => setProgress(p),
                 (jobId) => {
                     setCurrentJobId(jobId);
-                    registerTask(jobId, 'text_analysis');
+                    // Note: Server will automatically track this job via notifications API
+                    // No need to call registerTask - removed for v1.3.0 Lazy Polling
                 }
             );
             setAnalysisResult(result);
@@ -77,7 +83,7 @@ export function useAnalysisPolling(initialJobId?: string): AnalysisPollingResult
             setError(err instanceof Error ? err.message : 'An unknown error occurred.');
             setIsLoading(false);
         }
-    }, [registerTask]);
+    }, []);
 
     const resetAnalysis = useCallback(() => {
         setAnalysisResult(null);

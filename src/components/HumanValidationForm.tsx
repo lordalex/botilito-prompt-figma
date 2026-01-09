@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Badge } from '@/components/ui/badge';
 import { submitVote } from '@/services/votingService';
-import { toast } from 'sonner';
+import { useToast } from '@/hooks/use-toast';
 
 interface HumanValidationFormProps {
   caseId: string;
@@ -16,12 +16,13 @@ interface HumanValidationFormProps {
   onVoteSuccess?: () => void;
 }
 
-export function HumanValidationForm({ 
-  caseId, 
-  aiVerdictLabel, 
-  aiRiskScore, 
-  onVoteSuccess 
+export function HumanValidationForm({
+  caseId,
+  aiVerdictLabel,
+  aiRiskScore,
+  onVoteSuccess
 }: HumanValidationFormProps) {
+  const { toast } = useToast();
   const [selectedOption, setSelectedOption] = useState<string>('');
   const [justification, setJustification] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -29,12 +30,14 @@ export function HumanValidationForm({
 
   const OPTIONS = [
     {
-      id: 'Desarrolla las premisas AMI',
+      id: 'desarrolla-ami',
+      value: 'Desarrolla las premisas AMI',
       label: 'Desarrolla las premisas AMI',
       description: 'El contenido cumple con los criterios de Alfabetización Mediática'
     },
     {
-      id: 'Requiere un enfoque AMI',
+      id: 'requiere-ami',
+      value: 'Requiere un enfoque AMI',
       label: 'Requiere un enfoque AMI',
       description: 'El contenido requiere aplicar premisas de Alfabetización Mediática'
     }
@@ -58,13 +61,20 @@ export function HumanValidationForm({
         classification: selectedOption,
         reason: justification
       });
-      toast.success('¡Validación enviada correctamente!');
+      toast({
+        title: '¡Validación enviada!',
+        description: 'Tu opinión ha sido registrada correctamente.',
+      });
       if (onVoteSuccess) onVoteSuccess();
       setSelectedOption('');
       setJustification('');
     } catch (err: any) {
       console.error(err);
-      toast.error('Error al enviar la validación');
+      toast({
+        title: 'Error',
+        description: 'Error al enviar la validación. Intenta nuevamente.',
+        variant: 'destructive',
+      });
       setError('Ocurrió un error al procesar tu voto. Intenta nuevamente.');
     } finally {
       setIsSubmitting(false);
@@ -108,24 +118,37 @@ export function HumanValidationForm({
               ¿Cuál es tu consideración como especialista sobre este caso?
             </Label>
             
-            <RadioGroup value={selectedOption} onValueChange={setSelectedOption} className="space-y-3">
-              {OPTIONS.map((option) => (
-                <div key={option.id}>
-                  <RadioGroupItem value={option.id} id={option.id} className="peer sr-only" />
-                  <Label
+            <RadioGroup
+              value={selectedOption}
+              onValueChange={setSelectedOption}
+              className="space-y-3"
+            >
+              {OPTIONS.map((option) => {
+                const isSelected = selectedOption === option.value;
+                return (
+                  <label
+                    key={option.id}
                     htmlFor={option.id}
-                    className="flex items-center gap-3 p-4 rounded-lg border-2 border-gray-200 bg-white hover:border-[#FFE97A] hover:bg-[#FFFCE8]/50 peer-data-[state=checked]:border-[#FFDA00] peer-data-[state=checked]:bg-[#FFFCE8] cursor-pointer transition-all w-full"
+                    className={`flex items-center gap-3 p-4 rounded-lg border-2 cursor-pointer transition-all w-full ${
+                      isSelected
+                        ? 'border-[#FFDA00] bg-[#FFFCE8]'
+                        : 'border-gray-200 bg-white hover:border-[#FFE97A] hover:bg-[#FFFCE8]/50'
+                    }`}
                   >
-                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${selectedOption === option.id ? 'border-[#FFDA00]' : 'border-gray-300'}`}>
-                      {selectedOption === option.id && <div className="w-2.5 h-2.5 rounded-full bg-[#FFDA00]" />}
+                    <RadioGroupItem
+                      value={option.value}
+                      id={option.id}
+                      className="border-[#FFDA00] text-[#FFDA00] focus:ring-[#FFDA00]"
+                    />
+                    <div className="flex flex-col">
+                      <span className="font-bold text-gray-900">{option.label}</span>
+                      <span className="text-sm text-gray-500 font-normal">
+                        {option.description}
+                      </span>
                     </div>
-                    <span className="font-bold text-gray-900">{option.label}</span>
-                    <span className="text-sm text-gray-500 font-normal">
-                      {option.description}
-                    </span>
-                  </Label>
-                </div>
-              ))}
+                  </label>
+                );
+              })}
             </RadioGroup>
           </div>
         </div>

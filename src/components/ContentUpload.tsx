@@ -20,6 +20,7 @@ export function ContentUpload({ jobId, jobType, onReset }: ContentUploadProps) {
     fileName,
     fileSize,
     transmissionVector,
+    originalContentType,
     submitContent,
     resetState: internalReset,
     retryLastSubmission,
@@ -71,6 +72,11 @@ export function ContentUpload({ jobId, jobType, onReset }: ContentUploadProps) {
 
     // Detect content type from various response structures or fallback to file extension
     const detectContentType = (): 'texto' | 'imagen' | 'video' | 'audio' | 'url' => {
+      // PRIORITY 1: Use the original content type selected by user (most reliable)
+      if (originalContentType) {
+        return originalContentType as 'texto' | 'imagen' | 'video' | 'audio' | 'url';
+      }
+
       // If we are polling or uploading, we might not have result type yet, so guess from filename
       if ((status === 'polling' || status === 'uploading') && fileName) {
         const lowerName = fileName.toLowerCase();
@@ -111,6 +117,12 @@ export function ContentUpload({ jobId, jobType, onReset }: ContentUploadProps) {
 
     const detectedType = detectContentType();
 
+    // Determine analysis type: texto/url = Desinfodémico, imagen/video/audio = Forense
+    const getAnalysisType = (type: string) => {
+      if (type === 'texto' || type === 'url') return 'Desinfodémico';
+      return 'Forense';
+    };
+
     const caseData = {
       caseCode:
         result?.caseNumber ||
@@ -118,11 +130,18 @@ export function ContentUpload({ jobId, jobType, onReset }: ContentUploadProps) {
         `PENDING-${new Date().toISOString().slice(11, 19).replace(/:/g, '')}`, // Temp ID if polling
       createdAt: result?.fullResult?.created_at || result?.meta?.timestamp || new Date().toISOString(),
       contentType: detectedType,
-      analysisType: result?.theme || (detectedType === 'texto' ? 'Desinformódico' : 'Forense'),
+      analysisType: result?.theme || getAnalysisType(detectedType),
       fileName: extractedFilename,
       fileSize: extractedFileSize,
       vector: transmissionVector || result?.vectores?.[0] || result?.fullResult?.metadata?.vector || 'Telegram',
     };
+
+    console.log('[ContentUpload] Rendering CaseRegisteredView with:', {
+      jobId: result?.jobId,
+      resultKeys: result ? Object.keys(result) : [],
+      metaJobId: result?.meta?.job_id,
+      fullResult: result
+    });
 
     return <CaseRegisteredView caseData={caseData} onReportAnother={handleReset} jobId={result?.jobId} />;
   }

@@ -11,12 +11,16 @@ export const notificationService = {
 
         const params = new URLSearchParams({
             limit: limit.toString(),
-            unread: unreadOnly ? 'true' : 'false'
+            unread: unreadOnly ? 'true' : 'false',
+            _t: new Date().getTime().toString() // Prevent browser caching
         });
 
         const response = await fetch(`${NOTIFICATION_API_URL}/inbox?${params}`, {
             headers: {
-                'Authorization': `Bearer ${session.access_token}`
+                'Authorization': `Bearer ${session.access_token}`,
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
             }
         });
 

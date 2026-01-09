@@ -4,357 +4,232 @@ import { defaultAvatars, type DefaultAvatar } from '../assets/avatars';
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Input } from "./ui/input";
 import { Progress } from "./ui/progress";
 import { Separator } from "./ui/separator";
 import { motion, AnimatePresence } from 'motion/react';
 import botilitoImage from 'figma:asset/e27a276e6ff0e187a67cf54678c265c1c38adbf7.png';
-import {
-    Shield, Zap, User, Edit, Save, Trophy, Edit3, Camera, CheckCircle, Lock,
-    UserPlus, Copy, Share2, HeartPulse, Stethoscope, Crosshair, Siren,
-    TrendingDown, BarChart3, FileText, Users, Globe, Bot, Coffee, Gift,
-    Sparkles, Medal, Crown, Brain, Upload, Eye, Microscope, Syringe, Target, Flame, Clock, Bell
-} from 'lucide-react';
+import { Target, Edit, Camera, CheckCircle, Upload, Bell, Flame } from 'lucide-react';
 import { useNotifications } from '@/providers/NotificationProvider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
+// Role display mapping
+const roleDisplay: Record<string, string> = {
+    cibernauta: 'CIBERNAUTA',
+    epidemiologo: 'EPIDEMIÓLOGO',
+    director: 'DIRECTOR'
+};
 
-// Define levels inside the component or import from a shared config
-const levels = [
-    { level: 1, title: 'VIGILANTE CENTINELA', subtitle: 'Primera Línea de Defensa', minXP: 0, maxXP: 500, color: 'bg-blue-500', badge: '👁️' },
-    { level: 2, title: 'EPIDEMIÓLOGO DIGITAL VOLUNTARIO', subtitle: 'Analista de Contagio', minXP: 500, maxXP: 2000, color: 'bg-purple-500', badge: '🔬' },
-    { level: 3, title: 'ESPECIALISTA EN INMUNOLOGÍA INFORMATIVA', subtitle: 'Educomunicador Estratégico', minXP: 2000, maxXP: 999999, color: 'bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500', badge: '💉' }
-];
+// Level tiers based on XP
+const getLevelInfo = (xp: number) => {
+    if (xp >= 2000) return { level: 3, title: 'ESPECIALISTA', nextXP: 999999, color: 'bg-gradient-to-r from-yellow-400 to-orange-500' };
+    if (xp >= 500) return { level: 2, title: 'EPIDEMIÓLOGO DIGITAL VOLUNTARIO', nextXP: 2000, color: 'bg-purple-500' };
+    return { level: 1, title: 'VIGILANTE CENTINELA', nextXP: 500, color: 'bg-blue-500' };
+};
 
 export function UserProfile() {
     const {
-        profile,
-        challenges,
-        isLoading,
-        error,
-        isEditing,
-        setIsEditing,
-        handleInputChange,
-        handleFileChange,
-        handleUploadClick,
-        handleAvatarSelect,
-        handleSaveProfile,
-        fileInputRef
+        profile, challenges, isLoading, error, isEditing, setIsEditing,
+        handleInputChange, handleFileChange, handleUploadClick, handleAvatarSelect,
+        handleSaveProfile, fileInputRef
     } = useUserProfile();
     const { pollingInterval, setPollingInterval } = useNotifications();
-    const [showLevelUp, setShowLevelUp] = useState(false);
     const [showAvatarModal, setShowAvatarModal] = useState(false);
     const [loadedAvatars, setLoadedAvatars] = useState<Array<{ avatar: DefaultAvatar, url: string }>>([]);
     const [selectedAvatarId, setSelectedAvatarId] = useState<string | null>(null);
 
-    // Cargar avatares desde assets/avatars
     useEffect(() => {
         const loadAvatars = async () => {
-            // Usar import.meta.glob para pre-cargar todos los SVG
             const avatarModules = import.meta.glob('../assets/avatars/*.svg', { eager: true, import: 'default' }) as Record<string, string>;
-
-            const avatarPromises = defaultAvatars.map(async (avatar) => {
-                const modulePath = `../assets/avatars/${avatar.filename}`;
-                const url = avatarModules[modulePath];
-
-                if (url) {
-                    return { avatar, url };
-                }
-
-                return null;
-            });
-
-            const loaded = (await Promise.all(avatarPromises)).filter((item): item is { avatar: DefaultAvatar, url: string } => item !== null);
-
+            const loaded = defaultAvatars.map(avatar => {
+                const url = avatarModules[`../assets/avatars/${avatar.filename}`];
+                return url ? { avatar, url } : null;
+            }).filter((item): item is { avatar: DefaultAvatar, url: string } => item !== null);
             setLoadedAvatars(loaded);
         };
-
         loadAvatars();
     }, []);
 
-    if (isLoading) {
-        return <div>Loading profile...</div>;
-    }
+    if (isLoading) return <div className="flex items-center justify-center h-64">Cargando perfil...</div>;
+    if (error && !profile) return <div className="text-red-500 p-4">Error: {error}</div>;
+    if (!profile) return <div className="p-4">No hay datos de perfil.</div>;
 
-    if (error && !profile) {
-        return <div className="text-red-500">Error: {error}</div>;
-    }
-
-    if (!profile) {
-        return <div>No profile data available.</div>;
-    }
-
-    const currentXP = profile.xp;
-    const currentLevel = levels.find(l => currentXP >= l.minXP && currentXP < l.maxXP) || levels[0];
-    const nextLevel = levels.find(l => l.level === currentLevel.level + 1);
-    const progressToNext = nextLevel ? ((currentXP - currentLevel.minXP) / (nextLevel.minXP - currentLevel.minXP)) * 100 : 100;
-
-    const getChallengeProgress = (challenge: any) => {
-        const requirement = challenge.requirements.xp || challenge.requirements.reputation || 1;
-        const current = challenge.current.xp || challenge.current.reputation || 0;
-        return (current / requirement) * 100;
-    };
-
-    const avatarSrc = profile.photo || profile.avatar;
+    const levelInfo = getLevelInfo(profile.xp || 0);
+    const xpProgress = levelInfo.nextXP < 999999 ? ((profile.xp || 0) / levelInfo.nextXP) * 100 : 100;
+    const xpRemaining = levelInfo.nextXP - (profile.xp || 0);
 
     return (
-        <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="space-y-8 relative"
-        >
-            <AnimatePresence>
-                {showLevelUp && (
-                    <motion.div
-                        initial={{ scale: 0, rotate: -180 }}
-                        animate={{ scale: 1, rotate: 0 }}
-                        exit={{ scale: 0, rotate: 180 }}
-                        className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50"
-                    >
-                        <Card className="border-4 border-primary bg-gradient-to-br from-yellow-50 via-orange-50 to-yellow-50 shadow-2xl">
-                            <CardContent className="p-8 text-center">
-                                <div className="text-6xl mb-4">🎉🔬</div>
-                                <h2 className="mb-2">¡OMBE, SUBISTE DE NIVEL PARCE!</h2>
-                                <p className="text-lg mb-2">Ahora sos un/a:</p>
-                                <Badge className="bg-purple-500 text-white text-lg px-4 py-2 mb-3">
-                                    🔬 EPIDEMIÓLOGO DIGITAL VOLUNTARIO
-                                </Badge>
-                                <p className="text-sm text-muted-foreground mb-4">Ya puedes hacer diagnósticos completos y participar en misiones especiales</p>
-                                <Badge className="bg-primary text-primary-foreground">+20 XP por análisis</Badge>
-                            </CardContent>
-                        </Card>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-
-            <div className="bg-[#ffe97a] border-2 border-[#ffda00] rounded-lg p-4 shadow-lg">
-                <div className="flex items-center space-x-4">
-                    <img
-                        src={botilitoImage}
-                        alt="Botilito"
-                        className="w-24 h-24 object-contain mt-[0px] mr-[16px] mb-[-18px] ml-[0px]"
-                    />
-                    <div className="flex-1">
-                        <p className="text-xl">
-                            ¡Qué más parce! Este es tu espacio personal 👤✨
-                        </p>
-                        <p className="text-sm mt-1 opacity-80">
-                            Acá está tu nivel, XP, insignias y misiones. Mientras más analices, más subes de nivel. ¡A darle con toda! 💪🏆
-                        </p>
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+            {/* Yellow Banner */}
+            <div className="bg-[#ffe97a] border-2 border-[#ffda00] rounded-xl p-4">
+                <div className="flex items-center gap-4">
+                    <img src={botilitoImage} alt="Botilito" className="w-16 h-16 object-contain" />
+                    <div>
+                        <p className="text-lg font-semibold">¡Qué más parce! Este es tu espacio personal 👤✨</p>
+                        <p className="text-sm opacity-80">Acá está tu nivel, XP, insignias y misiones. Mientras más analices, más subes de nivel. ¡A darle con toda! 💪🏆</p>
                     </div>
                 </div>
             </div>
 
-            <Card className="relative overflow-hidden border-2 border-primary/20">
-                <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-secondary/10 to-transparent" />
-                <CardContent className="pt-8 relative">
-                    <div className="flex flex-col lg:flex-row lg:items-start space-y-6 lg:space-y-0 lg:space-x-8">
-                        <div className="flex items-start space-x-6">
-                            <div className="relative">
-                                <motion.div
-                                    whileHover={{ scale: 1.05 }}
-                                    className="relative"
-                                >
-                                    <Avatar className="h-32 w-32 border-4 border-primary/20 shadow-lg">
-                                        <AvatarImage src={avatarSrc} alt={profile.full_name || ''} />
-                                        <AvatarFallback className="text-2xl bg-primary text-primary-foreground">
-                                            {(profile.full_name || 'A').split(' ').map(n => n[0]).join('')}
-                                        </AvatarFallback>
-                                    </Avatar>
-                                    <div className="absolute -bottom-2 -right-2 bg-white rounded-full p-1 shadow-md">
-                                        <Button
-                                            size="icon"
-                                            variant="outline"
-                                            className="h-8 w-8 hover:bg-primary hover:text-primary-foreground transition-all"
-                                            onClick={() => setShowAvatarModal(true)}
-                                            title="Cambiar foto de perfil"
-                                        >
-                                            <Camera className="h-4 w-4" />
-                                        </Button>
-                                    </div>
-                                </motion.div>
-
-                                <motion.div
-                                    className="absolute -top-2 -left-2"
-                                    whileHover={{ scale: 1.1 }}
-                                >
-                                    <div className={`${currentLevel.color} text-white rounded-full w-16 h-16 flex flex-col items-center justify-center shadow-lg border-2 border-white`}>
-                                        <div className="text-2xl">{currentLevel.badge}</div>
-                                        <div className="text-xs">Nv.{currentLevel.level}</div>
-                                    </div>
-                                </motion.div>
+            {/* Profile Header Card */}
+            <Card className="border-2 border-gray-200">
+                <CardContent className="p-6">
+                    <div className="flex items-start gap-6">
+                        {/* Avatar with Level Badge */}
+                        <div className="relative">
+                            <Avatar className="h-24 w-24 border-4 border-gray-100">
+                                <AvatarImage src={profile.avatar_url || ''} />
+                                <AvatarFallback className="bg-yellow-400 text-xl">
+                                    {(profile.nombre_completo || 'U')[0]}
+                                </AvatarFallback>
+                            </Avatar>
+                            <div className={`absolute -bottom-1 -left-1 ${levelInfo.color} text-white text-xs font-bold px-2 py-1 rounded-full`}>
+                                Nv.{levelInfo.level}
                             </div>
+                            <Button
+                                size="icon"
+                                variant="outline"
+                                className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full bg-white"
+                                onClick={() => setShowAvatarModal(true)}
+                            >
+                                <Camera className="h-3 w-3" />
+                            </Button>
+                        </div>
 
-                            <div className="space-y-3">
-                                <div>
-                                    <h1 className="text-3xl">{profile.full_name}</h1>
-                                    <p className="text-sm text-muted-foreground">{profile.email}</p>
-                                    <div className="flex items-center space-x-2 mt-3">
-                                        <Badge className={`${currentLevel.color} text-white`}>
-                                            {profile.role?.toUpperCase() || ''}
-                                        </Badge>
-                                        {profile.city && <Badge variant="outline" className="text-xs">{profile.city}</Badge>}
-                                    </div>
-                                    <p className="text-xs text-muted-foreground mt-2 italic">"{currentLevel.subtitle}"</p>
-                                </div>
+                        {/* Profile Info */}
+                        <div className="flex-1 space-y-2">
+                            <h2 className="text-2xl font-bold">{profile.nombre_completo || 'Usuario'}</h2>
+                            <p className="text-sm text-gray-500">{profile.email}</p>
+                            <div className="flex items-center gap-2">
+                                <Badge className={`${levelInfo.color} text-white`}>{roleDisplay[profile.role] || 'CIBERNAUTA'}</Badge>
+                                {profile.ciudad && <Badge variant="outline">{profile.ciudad}</Badge>}
+                            </div>
+                            <p className="text-xs text-gray-400 italic">"Primera Línea de Defensa"</p>
 
-                                <div className="w-80">
-                                    <div className="flex justify-between text-sm mb-2">
-                                        <span>Experiencia (XP)</span>
-                                        <span>{currentXP.toLocaleString()} / {nextLevel?.minXP.toLocaleString() || 'MAX'} XP</span>
-                                    </div>
-                                    <div className="relative">
-                                        <Progress value={progressToNext} className="h-3" />
-                                    </div>
-                                    {nextLevel && (
-                                        <p className="text-xs text-muted-foreground mt-1">
-                                            ¡Te faltan {(nextLevel.minXP - currentXP).toLocaleString()} XP para ser {nextLevel.title}!
-                                        </p>
-                                    )}
+                            {/* XP Progress */}
+                            <div className="max-w-sm pt-2">
+                                <div className="flex justify-between text-sm mb-1">
+                                    <span>Experiencia (XP)</span>
+                                    <span>{profile.xp || 0} / {levelInfo.nextXP} XP</span>
                                 </div>
+                                <Progress value={xpProgress} className="h-2" />
+                                {xpRemaining > 0 && xpRemaining < 999999 && (
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        ¡Te faltan {xpRemaining} XP para ser {levelInfo.title}!
+                                    </p>
+                                )}
                             </div>
                         </div>
                     </div>
                 </CardContent>
             </Card>
 
+            {/* Two Column Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Left Column - 2/3 width */}
                 <div className="lg:col-span-2 space-y-6">
+                    {/* Missions */}
                     <Card>
-                        <CardHeader>
-                            <CardTitle className="flex items-center space-x-2">
-                                <Target className="h-5 w-5 text-primary" />
-                                <span>Misiones y Desafíos Activos</span>
+                        <CardHeader className="pb-3">
+                            <CardTitle className="flex items-center gap-2 text-base">
+                                <Target className="h-4 w-4 text-yellow-500" />
+                                Misiones y Desafíos Activos
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <ul className="space-y-4">
-                                {challenges.map(challenge => (
-                                    <li key={challenge.id} className="flex items-start space-x-3">
-                                        <div className={`p-2 rounded-full ${challenge.completed ? 'bg-green-500' : 'bg-gray-500'}`}>
-                                            <Trophy className="h-5 w-5 text-white" />
-                                        </div>
-                                        <div>
-                                            <p className="font-semibold text-sm">{challenge.title}</p>
-                                            <p className="text-xs text-muted-foreground">Requisito: {challenge.requirements.xp ? `${challenge.requirements.xp} XP` : `${challenge.requirements.reputation} Rep`}</p>
-                                            <div className="flex items-center space-x-2 mt-1">
-                                                <Progress value={getChallengeProgress(challenge)} className="w-full" />
-                                                <span className="text-xs">{challenge.current.xp || challenge.current.reputation}/{challenge.requirements.xp || challenge.requirements.reputation}</span>
-                                            </div>
-                                        </div>
-                                    </li>
-                                ))}
-                            </ul>
+                            {challenges && challenges.length > 0 ? (
+                                <ul className="space-y-3">
+                                    {challenges.map((c: any) => (
+                                        <li key={c.id} className="text-sm">{c.title}</li>
+                                    ))}
+                                </ul>
+                            ) : (
+                                <p className="text-sm text-gray-400">No hay misiones activas.</p>
+                            )}
                         </CardContent>
                     </Card>
+
+                    {/* Personal Info */}
                     <Card>
-                        <CardHeader className="flex flex-row items-center justify-between">
-                            <CardTitle>Información Personal</CardTitle>
+                        <CardHeader className="pb-3 flex flex-row items-center justify-between">
+                            <CardTitle className="text-base">Información Personal</CardTitle>
                             {!isEditing && (
-                                <Button variant="outline" size="icon" onClick={() => setIsEditing(true)}>
+                                <Button variant="ghost" size="icon" onClick={() => setIsEditing(true)}>
                                     <Edit className="h-4 w-4" />
                                 </Button>
                             )}
                         </CardHeader>
                         <CardContent>
                             {isEditing ? (
-                                <form onSubmit={handleSaveProfile} className="space-y-6">
-                                    {error && <p className="text-red-500">{error}</p>}
-                                    <div className="space-y-1">
-                                        <label htmlFor="full_name" className={`text-sm font-medium ${!profile.full_name ? 'text-red-600' : ''}`}>
-                                            Nombre Completo {!profile.full_name && <span className="text-red-600">* (Requerido)</span>}
-                                        </label>
-                                        <Input
-                                            id="full_name"
-                                            name="full_name"
-                                            placeholder="Nombre Completo"
-                                            value={profile.full_name || ''}
-                                            onChange={handleInputChange}
-                                            className={!profile.full_name ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}
-                                            autoFocus={!profile.full_name}
-                                        />
+                                <form onSubmit={handleSaveProfile} className="space-y-4">
+                                    {error && <p className="text-red-500 text-sm">{error}</p>}
+                                    <div>
+                                        <label className="text-sm font-medium">Nombre Completo</label>
+                                        <Input name="nombre_completo" value={profile.nombre_completo || ''} onChange={handleInputChange} />
                                     </div>
-                                    <Input id="phone_number" name="phone_number" placeholder="Número de Teléfono" value={profile.phone_number || ''} onChange={handleInputChange} />
-                                    <Input id="state_province" name="state_province" placeholder="Departamento" value={profile.state_province || ''} onChange={handleInputChange} />
-                                    <Input id="city" name="city" placeholder="Ciudad" value={profile.city || ''} onChange={handleInputChange} />
-                                    <Input id="birth_date" name="birth_date" type="date" value={profile.birth_date || ''} onChange={handleInputChange} />
-                                    <Input id="email" name="email" value={profile.email || ''} disabled />
+                                    <div>
+                                        <label className="text-sm font-medium">Departamento</label>
+                                        <Input name="departamento" value={profile.departamento || ''} onChange={handleInputChange} />
+                                    </div>
+                                    <div>
+                                        <label className="text-sm font-medium">Ciudad</label>
+                                        <Input name="ciudad" value={profile.ciudad || ''} onChange={handleInputChange} />
+                                    </div>
                                     <div className="flex gap-2">
-                                        <Button type="submit">Guardar Cambios</Button>
+                                        <Button type="submit">Guardar</Button>
                                         <Button variant="ghost" onClick={() => setIsEditing(false)}>Cancelar</Button>
                                     </div>
                                 </form>
                             ) : (
-                                <div className="space-y-4 text-sm">
-                                    <div className={`flex justify-between items-center ${!profile.full_name ? 'bg-red-50 p-2 rounded-md border border-red-200' : ''}`}>
-                                        <strong className={!profile.full_name ? 'text-red-600' : ''}>
-                                            Nombre: {!profile.full_name && <span className="text-red-600 text-xs">(Requerido)</span>}
-                                        </strong>
-                                        <span className={!profile.full_name ? 'text-red-600 font-medium' : ''}>
-                                            {profile.full_name || '⚠️ Falta completar'}
-                                        </span>
-                                    </div>
+                                <div className="space-y-3 text-sm">
+                                    <div className="flex justify-between"><strong>Nombre:</strong><span>{profile.nombre_completo || 'No especificado'}</span></div>
                                     <Separator />
-                                    <div className="flex justify-between items-center"><strong>Email:</strong> <span>{profile.email}</span></div>
+                                    <div className="flex justify-between"><strong>Email:</strong><span>{profile.email}</span></div>
                                     <Separator />
-                                    <div className="flex justify-between items-center"><strong>Teléfono:</strong> <span>{profile.phone_number || 'No especificado'}</span></div>
-                                    <Separator />
-                                    <div className="flex justify-between items-center"><strong>Ubicación:</strong> <span>{`${profile.city || ''}, ${profile.state_province || 'No especificado'}`}</span></div>
-                                    <Separator />
-                                    <div className="flex justify-between items-center"><strong>Fecha de Nacimiento:</strong> <span>{profile.birth_date || 'No especificado'}</span></div>
+                                    <div className="flex justify-between"><strong>Ubicación:</strong><span>{profile.ciudad || ''}{profile.departamento ? `, ${profile.departamento}` : ''}</span></div>
                                 </div>
                             )}
                         </CardContent>
                     </Card>
                 </div>
+
+                {/* Right Column - 1/3 width */}
                 <div className="space-y-6">
+                    {/* Reputation */}
                     <Card>
-                        <CardHeader>
-                            <CardTitle>Reputación</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-center">
-                                <div className="text-4xl font-bold text-primary">{profile.reputation}</div>
-                                <p className="text-xs text-muted-foreground">Puntos de Reputación</p>
-                            </div>
+                        <CardHeader className="pb-2"><CardTitle className="text-base">Reputación</CardTitle></CardHeader>
+                        <CardContent className="text-center">
+                            <div className="text-4xl font-bold text-yellow-500">{profile.reputation || 0}</div>
+                            <p className="text-xs text-gray-500">Puntos de Reputación</p>
                         </CardContent>
                     </Card>
+
+                    {/* Insignias */}
                     <Card>
-                        <CardHeader>
-                            <CardTitle>Insignias</CardTitle>
-                        </CardHeader>
+                        <CardHeader className="pb-2"><CardTitle className="text-base">Insignias</CardTitle></CardHeader>
                         <CardContent>
-                            <div className="flex flex-wrap gap-2">
-                                {profile.badges.map(badge => <Badge key={badge} variant="secondary">{badge}</Badge>)}
-                            </div>
+                            <p className="text-sm text-gray-400">Sin insignias aún.</p>
                         </CardContent>
                     </Card>
+
+                    {/* Notifications Config */}
                     <Card>
-                        <CardHeader>
-                            <CardTitle className="flex items-center space-x-2">
-                                <Bell className="h-5 w-5 text-primary" />
-                                <span>Configuración de Notificaciones</span>
+                        <CardHeader className="pb-2">
+                            <CardTitle className="flex items-center gap-2 text-base">
+                                <Bell className="h-4 w-4" />
+                                Configuración de Notificaciones
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
                             <div className="flex items-center justify-between">
-                                <div className="space-y-0.5">
-                                    <label className="text-sm font-medium">Frecuencia de Actualización</label>
-                                    <p className="text-xs text-muted-foreground">
-                                        Cada cuánto buscamos nuevas alertas.
-                                    </p>
+                                <div>
+                                    <p className="text-sm font-medium">Frecuencia de Actualización</p>
+                                    <p className="text-xs text-gray-500">Cada cuánto buscamos nuevas alertas.</p>
                                 </div>
-                                <Select
-                                    value={pollingInterval.toString()}
-                                    onValueChange={(val) => setPollingInterval(parseInt(val))}
-                                >
-                                    <SelectTrigger className="w-[140px]">
-                                        <SelectValue placeholder="Seleccionar" />
-                                    </SelectTrigger>
+                                <Select value={pollingInterval.toString()} onValueChange={(v) => setPollingInterval(parseInt(v))}>
+                                    <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="5000">Tiempo real (5s)</SelectItem>
-                                        <SelectItem value="10000">Rápido (10s)</SelectItem>
                                         <SelectItem value="30000">Normal (30s)</SelectItem>
                                         <SelectItem value="60000">Lento (1m)</SelectItem>
                                     </SelectContent>
@@ -364,122 +239,35 @@ export function UserProfile() {
                     </Card>
                 </div>
             </div>
+
+            {/* Avatar Modal */}
             <AnimatePresence>
                 {showAvatarModal && (
                     <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
+                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                         className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
                         onClick={() => setShowAvatarModal(false)}
                     >
-                        <motion.div
-                            initial={{ scale: 0.9, y: 20 }}
-                            animate={{ scale: 1, y: 0 }}
-                            exit={{ scale: 0.9, y: 20 }}
-                            onClick={(e) => e.stopPropagation()}
-                            className="max-w-md w-full"
-                        >
+                        <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }}
+                            onClick={(e) => e.stopPropagation()} className="max-w-md w-full">
                             <Card>
-                                <CardHeader>
-                                    <CardTitle className="flex items-center space-x-2">
-                                        <Camera className="h-5 w-5 text-primary" />
-                                        <span>Cambiar Foto de Perfil</span>
-                                    </CardTitle>
-                                    <CardDescription>
-                                        Personaliza tu avatar epidemiológico
-                                    </CardDescription>
-                                </CardHeader>
+                                <CardHeader><CardTitle>Cambiar Avatar</CardTitle></CardHeader>
                                 <CardContent className="space-y-4">
-                                    {/* Avatar Actual */}
-                                    <div className="flex flex-col items-center space-y-3">
-                                        <Avatar className="h-32 w-32 border-4 border-primary/20 shadow-lg">
-                                            <AvatarImage src={avatarSrc} alt={profile.full_name || ''} />
-                                            <AvatarFallback className="text-2xl bg-primary text-primary-foreground">
-                                                {(profile.full_name || 'A').split(' ').map(n => n[0]).join('')}
-                                            </AvatarFallback>
-                                        </Avatar>
-                                        <p className="text-sm text-muted-foreground text-center">
-                                            {profile.full_name}
-                                        </p>
+                                    <Button variant="outline" className="w-full" onClick={handleUploadClick}>
+                                        <Upload className="h-4 w-4 mr-2" />Subir foto
+                                    </Button>
+                                    <div className="grid grid-cols-4 gap-4">
+                                        {loadedAvatars.map(({ avatar, url }) => (
+                                            <button key={avatar.id} onClick={() => { setSelectedAvatarId(avatar.id); handleAvatarSelect(url); }}
+                                                className={`p-1 rounded-full ${selectedAvatarId === avatar.id ? 'ring-2 ring-yellow-400' : ''}`}>
+                                                <Avatar className="h-12 w-12"><AvatarImage src={url} /></Avatar>
+                                            </button>
+                                        ))}
                                     </div>
-
-                                    <Separator />
-
-                                    {/* Opciones de Cambio */}
-                                    <div className="space-y-4">
-                                        <Button
-                                            className="w-full"
-                                            variant="outline"
-                                            onClick={handleUploadClick}
-                                        >
-                                            <Upload className="h-4 w-4 mr-2" />
-                                            Subir nueva foto
-                                        </Button>
-
-                                        {loadedAvatars.length === 0 ? (
-                                            <div className="text-center text-sm text-muted-foreground py-4">
-                                                Cargando avatares...
-                                            </div>
-                                        ) : (
-                                            <div className="grid grid-cols-4 gap-6 px-4 py-2">
-                                                {loadedAvatars.map(({ avatar, url }) => (
-                                                    <motion.button
-                                                        key={avatar.id}
-                                                        onClick={() => {
-                                                            setSelectedAvatarId(avatar.id);
-                                                            handleAvatarSelect(url);
-                                                        }}
-                                                        whileHover={{ scale: 1.05 }}
-                                                        whileTap={{ scale: 0.95 }}
-                                                        className="relative flex justify-center items-center w-24 h-24 rounded-md"
-                                                        title={avatar.description}
-                                                    >
-                                                        {/* Fondo amarillo circular detrás */}
-                                                        {selectedAvatarId === avatar.id && (
-                                                            <motion.div
-                                                                initial={{ scale: 0 }}
-                                                                animate={{ scale: 1 }}
-                                                                className="absolute w-20 h-20 bg-[#ffda00] rounded-full"
-                                                            />
-                                                        )}
-                                                        <Avatar className="h-16 w-16 border-0 shadow-lg relative z-10">
-                                                            <AvatarImage src={url} alt={avatar.name} />
-                                                            <AvatarFallback>
-                                                                {avatar.name.split(' ').map(n => n[0]).join('')}
-                                                            </AvatarFallback>
-                                                        </Avatar>
-                                                    </motion.button>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    <Separator />
-
-                                    {/* Botones de Acción */}
-                                    <div className="flex space-x-2">
-                                        <Button
-                                            variant="outline"
-                                            className="flex-1"
-                                            onClick={() => {
-                                                setShowAvatarModal(false);
-                                                setSelectedAvatarId(null);
-                                            }}
-                                        >
-                                            Cancelar
-                                        </Button>
-                                        <Button
-                                            className="flex-1 bg-primary hover:bg-primary/90"
-                                            onClick={async (e) => {
-                                                await handleSaveProfile(e);
-                                                setShowAvatarModal(false);
-                                                setSelectedAvatarId(null);
-                                            }}
-                                            disabled={!selectedAvatarId && !profile?.photo}
-                                        >
-                                            <CheckCircle className="h-4 w-4 mr-2" />
-                                            Guardar
+                                    <div className="flex gap-2">
+                                        <Button variant="outline" className="flex-1" onClick={() => setShowAvatarModal(false)}>Cancelar</Button>
+                                        <Button className="flex-1" onClick={async (e) => { await handleSaveProfile(e); setShowAvatarModal(false); }}>
+                                            <CheckCircle className="h-4 w-4 mr-2" />Guardar
                                         </Button>
                                     </div>
                                 </CardContent>
@@ -488,13 +276,7 @@ export function UserProfile() {
                     </motion.div>
                 )}
             </AnimatePresence>
-            <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileChange}
-                style={{ display: 'none' }}
-                accept="image/png, image/jpeg, image/webp"
-            />
+            <input type="file" ref={fileInputRef} onChange={handleFileChange} style={{ display: 'none' }} accept="image/*" />
         </motion.div>
     );
 }

@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { AnalysisResult } from '@/types/imageAnalysis';
 import { imageAnalysisService } from '@/services/imageAnalysisService';
-import { useNotifications } from '@/providers/NotificationProvider';
 
 interface UseImageAnalysisReturn {
     analyzeImage: (file: File) => Promise<void>;
@@ -11,11 +10,17 @@ interface UseImageAnalysisReturn {
     reset: () => void;
 }
 
+/**
+ * useImageAnalysis Hook (v1.3.0)
+ * 
+ * Updated for Lazy Polling architecture:
+ * - Removed registerTask call (server handles job registration automatically)
+ * - Analysis jobs are now tracked server-side via notifications API
+ */
 export const useImageAnalysis = (): UseImageAnalysisReturn => {
     const [data, setData] = useState<AnalysisResult | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const { registerTask } = useNotifications();
 
     const analyzeImage = async (file: File) => {
         setLoading(true);

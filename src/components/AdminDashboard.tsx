@@ -17,26 +17,27 @@ export default function AdminDashboard() {
     };
 
     return (
-        <div className="container mx-auto p-6 space-y-6">
+        <div className="container mx-auto p-4 sm:p-6 space-y-6">
             {/* Franja de Botilito - Admin Style */}
             <div className="bg-[#e0e7ff] border-2 border-[#4f46e5] rounded-lg p-4 shadow-lg">
-                <div className="flex items-center space-x-4">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                     <img
                         src={botilitoImage}
                         alt="Botilito Admin"
-                        className="w-24 h-24 object-contain mt-[0px] mr-[16px] mb-[-18px] ml-[0px]"
+                        className="w-16 h-16 sm:w-24 sm:h-24 object-contain"
                     />
-                    <div className="flex-1">
-                        <p className="text-xl text-[#312e81] font-bold">
+                    <div className="flex-1 min-w-0">
+                        <p className="text-lg sm:text-xl text-[#312e81] font-bold truncate">
                             Panel de Control Maestro 🛠️
                         </p>
-                        <p className="text-sm mt-1 opacity-80 text-[#4338ca]">
+                        <p className="text-xs sm:text-sm mt-1 opacity-80 text-[#4338ca] line-clamp-2">
                             Gestión centralizada de usuarios, análisis y métricas del sistema.
                         </p>
                     </div>
-                    <Button onClick={refresh} variant="ghost" disabled={isLoading} className="text-[#312e81] hover:bg-[#c7d2fe]">
+                    <Button onClick={refresh} variant="ghost" disabled={isLoading} className="text-[#312e81] hover:bg-[#c7d2fe] self-start sm:self-auto">
                         <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-                        Actualizar Datos
+                        <span className="hidden sm:inline">Actualizar Datos</span>
+                        <span className="sm:hidden">Actualizar</span>
                     </Button>
                 </div>
             </div>
@@ -48,16 +49,23 @@ export default function AdminDashboard() {
             )}
 
             <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
-                <TabsList className="bg-slate-100 p-1">
-                    <TabsTrigger value="overview">Resumen General</TabsTrigger>
-                    <TabsTrigger value="macros">Tendencias (Macros)</TabsTrigger>
-                    <TabsTrigger value="challenges" className="flex items-center gap-2">
-                        <Trophy className="h-4 w-4 text-amber-500" />
+                <TabsList className="bg-slate-100 p-1 w-full grid grid-cols-2 sm:flex sm:w-auto gap-1">
+                    <TabsTrigger value="overview" className="text-xs sm:text-sm">
+                        <span className="hidden sm:inline">Resumen General</span>
+                        <span className="sm:hidden">Resumen</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="macros" className="text-xs sm:text-sm">
+                        <span className="hidden sm:inline">Tendencias (Macros)</span>
+                        <span className="sm:hidden">Tendencias</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="challenges" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+                        <Trophy className="h-3 w-3 sm:h-4 sm:w-4 text-amber-500" />
                         Misiones
                     </TabsTrigger>
-                    <TabsTrigger value="gestion-roles" className="flex items-center gap-2">
-                        <UserCog className="h-4 w-4 text-indigo-500" />
-                        Gestión de Roles
+                    <TabsTrigger value="gestion-roles" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+                        <UserCog className="h-3 w-3 sm:h-4 sm:w-4 text-indigo-500" />
+                        <span className="hidden sm:inline">Gestión de Roles</span>
+                        <span className="sm:hidden">Roles</span>
                     </TabsTrigger>
                 </TabsList>
 
