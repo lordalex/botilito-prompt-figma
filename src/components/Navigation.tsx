@@ -134,7 +134,7 @@ export function Navigation({ activeTab, onTabChange, onLogout, onViewTask, onVie
               alt="Botilito"
               className="h-8 sm:h-10 object-contain"
             />
-            <Badge variant="secondary" className="text-xs sm:text-sm">Beta 1.2</Badge>
+            <Badge variant="secondary" className="text-xs sm:text-sm">v1.2.1</Badge>
           </div>
 
           {/* Desktop Navigation */}
