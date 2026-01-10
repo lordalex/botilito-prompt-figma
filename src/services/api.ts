@@ -190,10 +190,10 @@ export const api = {
     humanVerification: {
         /**
          * Get cases pending human validation (consensus_filter: "missing").
-         * Uses /search endpoint per API guide documentation.
+         * Uses /summary endpoint which supports consensus filtering.
          */
         getSummary: (session: Session, page: number, pageSize: number): Promise<any> =>
-            fetchClient(session, apiEndpoints.SEARCH_ENDPOINT, {
+            fetchClient(session, apiEndpoints.SUMMARY_ENDPOINT, {
                 method: 'POST',
                 body: JSON.stringify({
                     consensus_filter: "missing",
@@ -283,7 +283,7 @@ export const api = {
     },
     /**
      * Historial API - Fetches cases that have been voted on (Ya Votados).
-     * Uses /search endpoint with consensus_filter: "present" per API guide.
+     * Uses /summary endpoint with consensus_filter: "present".
      */
     historial: {
         /**
@@ -294,7 +294,7 @@ export const api = {
          * @param pageSize - Number of items per page
          */
         getAll: (session: Session, page: number = 1, pageSize: number = 10): Promise<any> =>
-            fetchClient(session, apiEndpoints.SEARCH_ENDPOINT, {
+            fetchClient(session, apiEndpoints.SUMMARY_ENDPOINT, {
                 method: 'POST',
                 body: JSON.stringify({
                     consensus_filter: "present",
