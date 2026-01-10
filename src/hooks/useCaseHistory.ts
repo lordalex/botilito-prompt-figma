@@ -200,10 +200,10 @@ export function useCaseHistory() {
     }
   }, [currentPage, pageSize, loadingMore, hasMore]);
 
-  // Trigger fetch on filter changes (re-fetch list)
+  // Trigger fresh fetch on component mount (bypasses cache to get latest data)
   useEffect(() => {
-    fetchCases();
-  }, [fetchCases]);
+    fetchCases(true);
+  }, []);
 
   // Client-side filtering for status (if API doesn't support status filter yet)
   const filteredCases = useMemo(() => {

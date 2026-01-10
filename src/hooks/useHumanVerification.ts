@@ -55,30 +55,12 @@ export const useHumanVerification = () => {
         }
     };
 
-    // Initial load logic also needs to set totalPages
+    // Initial load logic - always bypasses cache to get fresh data
     useEffect(() => {
         const loadInitialData = async () => {
             if (!user) return;
 
-            // Check cache first for cases
-            const cachedCases = getCachedData<CaseEnriched[]>(CACHE_KEYS.HUMAN_VERIFICATION);
-            const cachedStats = getCachedData<{ total_verifications: number, points: number }>(CACHE_KEYS.HUMAN_VERIFICATION_STATS);
-
-            if (cachedCases && cachedStats) {
-                setCases(cachedCases);
-                setUserStats(cachedStats);
-                setIsLoading(false);
-                // Still fetch profile for current permissions
-                try {
-                    const profileResponse = await api.profile.get(session!);
-                    setProfile(profileResponse.data);
-                    setInitialProfile(profileResponse.data);
-                } catch (e) {
-                    // Profile fetch can fail silently if we have cached data
-                }
-                return;
-            }
-
+            // Always fetch fresh data (bypassing cache for up-to-date results)
             setIsLoading(true);
             try {
                 const profileResponse = await api.profile.get(session!);
@@ -99,7 +81,7 @@ export const useHumanVerification = () => {
                 }
                 setUserStats(stats);
 
-                // Cache the results
+                // Cache the results for quick return visits
                 setCachedData(CACHE_KEYS.HUMAN_VERIFICATION, summary.cases);
                 setCachedData(CACHE_KEYS.HUMAN_VERIFICATION_STATS, stats);
             } catch (e: any) {
