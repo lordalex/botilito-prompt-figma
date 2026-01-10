@@ -9,7 +9,7 @@
  * and KPI stats from mapa-desinfodemico-verbose endpoint.
  *
  * ### Data Sources:
- * 1. **Case List**: fetchHistorialCases → /search endpoint with select_fields
+ * 1. **Case List**: fetchHistorialCases → /search endpoint with consensus_filter: "present"
  * 2. **KPI Stats**: mapa-desinfodemico-verbose endpoint
  *    - total_cases → stats.total
  *    - verificados → stats.verified
@@ -17,10 +17,10 @@
  *    - desinfodemico → stats.misinformation
  *    - forense → stats.forensic
  *
- * ### KEY DIFFERENCE from Human Verification:
- * - Historial uses /search endpoint (returns ALL cases)
- * - HumanVerification uses /summary with consensus_filter: "missing" (only pending)
- * - Both include select_fields: ["id", "overview", "insights", "community"]
+ * ### KEY DIFFERENCE from Human Verification (per API Guide):
+ * - Historial uses consensus_filter: "present" (cases already voted on)
+ * - HumanVerification uses consensus_filter: "missing" (pending validation)
+ * - Both use /search endpoint with select_fields: ["id", "created_at", "type", "overview", "community"]
  *
  * ### Data Flow:
  * ```
@@ -28,7 +28,7 @@
  *     ↓
  * API: POST /functions/v1/search-dto/search
  *     ↓
- * Payload: { query: "*", page, limit, select_fields: [..., "insights", ...] }
+ * Payload: { consensus_filter: "present", page, limit, select_fields }
  *     ↓
  * Response enrichment (theme, AMI levels, display IDs)
  *     ↓

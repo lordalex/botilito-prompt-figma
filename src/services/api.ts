@@ -189,17 +189,17 @@ export const api = {
     },
     humanVerification: {
         /**
-         * Get summary of cases pending human validation.
-         * Uses correct payload structure with select_fields to include insights.
+         * Get cases pending human validation (consensus_filter: "missing").
+         * Uses /search endpoint per API guide documentation.
          */
         getSummary: (session: Session, page: number, pageSize: number): Promise<any> =>
-            fetchClient(session, apiEndpoints.SUMMARY_ENDPOINT, {
+            fetchClient(session, apiEndpoints.SEARCH_ENDPOINT, {
                 method: 'POST',
                 body: JSON.stringify({
                     consensus_filter: "missing",
                     page,
                     limit: pageSize,
-                    select_fields: ["id", "overview", "insights", "community"]
+                    select_fields: ["id", "created_at", "type", "overview", "community"]
                 }),
             }),
         /**
@@ -282,27 +282,25 @@ export const api = {
             }),
     },
     /**
-     * Historial API - Fetches ALL cases for the history view.
-     * Uses /search endpoint with select_fields to include insights.
-     * Unlike humanVerification.getSummary, this does NOT filter by consensus_filter.
+     * Historial API - Fetches cases that have been voted on (Ya Votados).
+     * Uses /search endpoint with consensus_filter: "present" per API guide.
      */
     historial: {
         /**
-         * Get all cases for history view using /search endpoint.
-         * Includes insights in select_fields as per API documentation.
+         * Get cases with human consensus for history view.
+         * Uses consensus_filter: "present" to get already-voted cases.
          * @param session - Active Supabase session
          * @param page - Page number (1-indexed)
          * @param pageSize - Number of items per page
-         * @param query - Optional search query (defaults to "*" for all cases)
          */
-        getAll: (session: Session, page: number = 1, pageSize: number = 10, query: string = "*"): Promise<any> =>
+        getAll: (session: Session, page: number = 1, pageSize: number = 10): Promise<any> =>
             fetchClient(session, apiEndpoints.SEARCH_ENDPOINT, {
                 method: 'POST',
                 body: JSON.stringify({
-                    query,
+                    consensus_filter: "present",
                     page,
                     limit: pageSize,
-                    select_fields: ["id", "overview", "insights", "community"]
+                    select_fields: ["id", "created_at", "type", "overview", "community"]
                 }),
             }),
     }
