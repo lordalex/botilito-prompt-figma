@@ -17,16 +17,16 @@
  *    - desinfodemico → stats.misinformation
  *    - forense → stats.forensic
  *
- * ### KEY DIFFERENCE from Human Verification:
+ * ### KEY DIFFERENCE from Human Verification (per API Guide):
  * - Historial uses consensus_filter: "present" (cases already voted on)
  * - HumanVerification uses consensus_filter: "missing" (pending validation)
- * - Both use /summary endpoint with select_fields: ["id", "created_at", "type", "overview", "community"]
+ * - Both use /search endpoint with select_fields: ["id", "created_at", "type", "overview", "community"]
  *
  * ### Data Flow:
  * ```
  * fetchHistorialCases(page, pageSize)
  *     ↓
- * API: POST /functions/v1/search-dto/summary
+ * API: POST /functions/v1/search-dto/search
  *     ↓
  * Payload: { consensus_filter: "present", page, limit, select_fields }
  *     ↓
