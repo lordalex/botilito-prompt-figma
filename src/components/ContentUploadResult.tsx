@@ -152,6 +152,9 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
     i.category === 'forensics' || i.id?.includes('algo_') || i.id?.includes('ela') || i.id?.includes('dct')
   );
 
+  // Content classification type insight (for TEXT content "Tipo" badge)
+  const metaContextTypeInsight = caseData.insights.find((i: any) => i.id === 'meta_context_type');
+
   // Check if this is a forensic analysis case (image/video/audio only)
   const isForensicCase = caseData.type === 'IMAGE' || caseData.type === 'VIDEO' || caseData.type === 'AUDIO';
 
@@ -382,7 +385,7 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
                   </Badge>
                 )}
                 <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 gap-1.5 py-1">
-                  <Hash className="h-3 w-3" /> Tipo: <strong>{caseData.type}</strong>
+                  <Hash className="h-3 w-3" /> Tipo: <strong>{metaContextTypeInsight?.value || caseData.type}</strong>
                 </Badge>
                 {caseData.metadata?.theme && (
                   <Badge variant="outline" className="bg-gray-100 text-gray-700 border-gray-200 gap-1.5 py-1">
