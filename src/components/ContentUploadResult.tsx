@@ -716,26 +716,79 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
             </Card>
 
             {/* Chain of Custody */}
-            <Card className="shadow-sm border-2" style={{ borderColor: '#FFDA00' }}>
-              <CardHeader className="pb-2 pt-4 px-4">
-                <CardTitle className="text-sm font-bold flex items-center gap-2">
-                  <Shield className="h-4 w-4 text-[#FFDA00]" /> Cadena de Custodia
+            <Card className="shadow-sm border-2 rounded-xl" style={{ borderColor: '#FFDA00' }}>
+              <CardHeader className="pt-4 px-4">
+                <CardTitle className="text-base font-bold flex items-center gap-2 text-gray-900">
+                  <Shield className="h-4 w-4"/> Cadena de Custodia
                 </CardTitle>
               </CardHeader>
-              <CardContent className="px-4 pb-4">
-                <div className="relative pl-4 border-l-2 border-gray-200 space-y-6 py-2 ml-1.5">
-                  <div className="relative">
-                    <div className="absolute -left-[23px] top-1 w-3 h-3 bg-[#FFDA00] rounded-full border-2 border-white ring-1 ring-gray-100"></div>
-                    <div className="flex flex-col">
-                      <span className="text-xs font-bold text-gray-900 uppercase tracking-wide">Caso creado</span>
-                      <span className="text-[10px] text-gray-500">{new Date(caseData.created_at).toLocaleString()}</span>
+              <CardContent className="px-6 pb-6">
+                <div className="space-y-0">
+                  {/* Event 1: Case Created */}
+                  <div className="flex gap-3 py-4">
+                    <div className="shrink-0 w-3 h-3 rounded-full mt-1" style={{ backgroundColor: '#FFDA00' }}></div>
+                    <div className="flex flex-col gap-1 flex-1">
+                      <span className="text-sm font-bold text-gray-900">Caso creado</span>
+                      <span className="text-xs text-gray-600">
+                        {new Date(caseData.created_at).toLocaleDateString('es-CO', { 
+                          day: 'numeric', 
+                          month: 'long', 
+                          year: 'numeric' 
+                        })} a las {new Date(caseData.created_at).toLocaleTimeString('es-CO', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          second: '2-digit',
+                          hour12: true
+                        })} - Sistema Botilito
+                      </span>
                     </div>
                   </div>
-                  <div className="relative">
-                    <div className="absolute -left-[23px] top-1 w-3 h-3 bg-gray-900 rounded-full border-2 border-white ring-1 ring-gray-100"></div>
-                    <div className="flex flex-col">
-                      <span className="text-xs font-bold text-gray-900 uppercase tracking-wide">Análisis ejecutado</span>
-                      <span className="text-[10px] text-gray-500">Score de Riesgo: {caseData.overview.risk_score}%</span>
+
+                  <Separator className="bg-gray-200" />
+
+                  {/* Event 2: Analysis Executed */}
+                  <div className="flex gap-3 py-4">
+                    <div className="shrink-0 w-3 h-3 rounded-full mt-1" style={{ backgroundColor: '#FFDA00' }}></div>
+                    <div className="flex flex-col gap-1 flex-1">
+                      <span className="text-sm font-bold text-gray-900">
+                        {caseData.type === 'TEXT' || caseData.type === 'URL' 
+                          ? 'Análisis desinfodémico ejecutado' 
+                          : 'Análisis forense ejecutado'}
+                      </span>
+                      <span className="text-xs text-gray-600">
+                        {new Date(caseData.created_at).toLocaleDateString('es-CO', { 
+                          day: 'numeric', 
+                          month: 'long', 
+                          year: 'numeric' 
+                        })} a las {new Date(new Date(caseData.created_at).getTime() + 5000).toLocaleTimeString('es-CO', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          second: '2-digit',
+                          hour12: true
+                        })} - {caseData.insights.length} {caseData.insights.length === 1 ? 'prueba completada' : 'pruebas completadas'}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <Separator className="bg-gray-200" />
+                  
+                  {/* Event 3: Diagnosis Generated */}
+                  <div className="flex gap-3 py-4">
+                    <div className="shrink-0 w-3 h-3 rounded-full mt-1" style={{ backgroundColor: '#FFDA00' }}></div>
+                    <div className="flex flex-col gap-1 flex-1">
+                      <span className="text-sm font-bold text-gray-900">Diagnóstico generado</span>
+                      <span className="text-xs text-gray-600">
+                        {new Date(caseData.created_at).toLocaleDateString('es-CO', { 
+                          day: 'numeric', 
+                          month: 'long', 
+                          year: 'numeric' 
+                        })} a las {new Date(new Date(caseData.created_at).getTime() + 12000).toLocaleTimeString('es-CO', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          second: '2-digit',
+                          hour12: true
+                        })} - {caseData.overview.verdict_label || 'Análisis completado'}
+                      </span>
                     </div>
                   </div>
                 </div>
