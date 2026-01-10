@@ -130,8 +130,8 @@ export function CaseRegisteredView({ caseData, onReportAnother, jobId }: CaseReg
     // Initial check
     checkStatus();
 
-    // Start polling every 2 seconds
-    intervalId = setInterval(checkStatus, 2000);
+    // Start polling every 15 seconds
+    intervalId = setInterval(checkStatus, 15000);
 
     return () => {
       isActive = false;
