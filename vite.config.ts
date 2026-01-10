@@ -79,14 +79,16 @@ export default defineConfig({
     }
   },
   server: {
-    allowedHosts: ['.digitalia.gov.co'],
+    allowedHosts: ['.digitalia.gov.co', 'botilito.lordalexand.dev'],
     host: '0.0.0.0',
     port: 3000,
     open: true,
     // Disable caching in dev mode
     headers: {
       'Cache-Control': 'no-store',
-    }
+    },
+    // Disable HMR to prevent WebSocket errors on deployed servers behind reverse proxy
+    hmr: false,
   },
   ...vitestConfig,
 });
