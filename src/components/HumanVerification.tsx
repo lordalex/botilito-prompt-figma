@@ -8,7 +8,7 @@ import { AlertCircle } from 'lucide-react';
 import { GlobalLoader } from '@/components/ui/GlobalLoader';
 
 export function HumanVerification() {
-  const { cases, isLoading, handleSelectCase, goToPage, page, totalPages, hasMore } = useHumanVerification();
+  const { cases, isLoading, handleSelectCase, goToPage, page, totalPages, hasMore, refreshCases } = useHumanVerification();
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
   const [fullCaseData, setFullCaseData] = useState<any>(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -88,6 +88,8 @@ export function HumanVerification() {
           currentPage={page}
           totalPages={totalPages}
           hasMore={hasMore}
+          onRefresh={refreshCases}
+          isRefreshing={isLoading}
         />
       </div>
     </div>

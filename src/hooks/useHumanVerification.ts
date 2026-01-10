@@ -5,7 +5,7 @@ import { fetchVerificationSummary, fetchCaseDetails, getUserVerificationStats } 
 import { useVoteTracker } from '../providers/VoteTrackerProvider';
 import { useJobTracker } from './useJobTracker';
 import type { CaseEnriched, Profile } from '../types';
-import { getCachedData, setCachedData, CACHE_KEYS } from '@/utils/sessionCache';
+import { getCachedData, setCachedData, clearCachedData, CACHE_KEYS } from '@/utils/sessionCache';
 
 export const useHumanVerification = () => {
     const { user, session } = useAuth();
@@ -50,6 +50,44 @@ export const useHumanVerification = () => {
         } catch (e: any) {
             console.error("Error loading page:", e);
             setError("Error al cargar la página.");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const refreshCases = async () => {
+        if (isLoading) return;
+        // Clear cache to force fresh fetch
+        clearCachedData(CACHE_KEYS.HUMAN_VERIFICATION);
+        clearCachedData(CACHE_KEYS.HUMAN_VERIFICATION_STATS);
+
+        setIsLoading(true);
+        setError(null);
+        try {
+            const [summary, stats] = await Promise.all([
+                fetchVerificationSummary(1, 10),
+                user ? getUserVerificationStats(user.id) : Promise.resolve(null)
+            ]);
+
+            setCases(summary.cases);
+            setHasMore(summary.pagination.hasMore);
+            setPage(1);
+            const total = summary.pagination.totalItems || summary.summary?.total;
+            if (total) {
+                setTotalPages(Math.ceil(total / 10));
+            }
+            if (stats) {
+                setUserStats(stats);
+            }
+
+            // Re-cache the fresh results
+            setCachedData(CACHE_KEYS.HUMAN_VERIFICATION, summary.cases);
+            if (stats) {
+                setCachedData(CACHE_KEYS.HUMAN_VERIFICATION_STATS, stats);
+            }
+        } catch (e: any) {
+            console.error("Error refreshing cases:", e);
+            setError("Error al actualizar la lista.");
         } finally {
             setIsLoading(false);
         }
@@ -196,6 +234,7 @@ export const useHumanVerification = () => {
         hasMore,
         goToPage,
         totalPages,
+        refreshCases,
         isLoadingMore: false // Deprecated but kept for compat if needed, though unused now
     };
 };
