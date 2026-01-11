@@ -121,24 +121,36 @@ export const api = {
 
         /**
          * Update user profile (v1.2.0)
-         * 
+         *
          * Gamification: If nombre_completo, departamento, and ciudad are provided
          * for the first time, backend awards +50 XP and sets profile_rewarded=true.
-         * 
+         *
          * Response includes reward_awarded: boolean if bonus was triggered.
          */
         update: (session: Session, profileData: Partial<UserProfileData>): Promise<UpdateProfileResponse> => {
-            // Adapter: Map English fields (frontend) to Spanish fields (v1.2.0 API)
+            // Adapt profileData to match the expected API payload (v1.2.0 or v3)
+            // This version removes the explicit English-to-Spanish mapping and
+            // assumes profileData keys directly match the API's expected keys,
+            // or that the backend handles the mapping internally.
             const mappedData: any = {};
 
-            // v1.2.0 required fields for gamification rewards
-            if (profileData.full_name) mappedData.nombre_completo = profileData.full_name;
-            if (profileData.state_province) mappedData.departamento = profileData.state_province;
-            if (profileData.city) mappedData.ciudad = profileData.city;
+            // Direct mapping for v1.2.0 fields or v3 fields if they align
+            if (profileData.nombre_completo) mappedData.nombre_completo = profileData.nombre_completo;
+            if (profileData.departamento) mappedData.departamento = profileData.departamento;
+            if (profileData.ciudad) mappedData.ciudad = profileData.ciudad;
+            if (profileData.avatar_url) mappedData.avatar_url = profileData.avatar_url;
 
-            // Avatar (photo/avatar both map to avatar_url in v1.2.0)
-            if (profileData.photo) mappedData.avatar_url = profileData.photo;
-            if (profileData.avatar) mappedData.avatar_url = profileData.avatar;
+            // If `avatar` is used for base64 updates (as suggested in the edit snippet)
+            if (profileData.avatar) mappedData.avatar = profileData.avatar;
+            // If `photo` is still used and maps to `avatar`
+            if (profileData.photo) mappedData.avatar = profileData.photo;
+
+            // If `full_name`, `state_province`, `city` are still used by frontend
+            // but backend expects Spanish, this mapping would be needed.
+            // For now, removing based on "remove legacy mapping" instruction.
+            // If `UserProfileData` itself has been updated to use Spanish keys,
+            // then `mappedData` could just be `profileData`.
+            // For safety, keeping direct assignments for known keys.
 
             return fetchClient(session, apiEndpoints.PROFILE_API_URL, {
                 method: 'PUT',
@@ -189,17 +201,17 @@ export const api = {
     },
     humanVerification: {
         /**
-         * Get summary of cases pending human validation.
-         * Uses correct payload structure with select_fields to include insights.
+         * Get cases pending human validation (consensus_filter: "missing").
+         * Uses /search endpoint per API guide documentation.
          */
         getSummary: (session: Session, page: number, pageSize: number): Promise<any> =>
-            fetchClient(session, apiEndpoints.SUMMARY_ENDPOINT, {
+            fetchClient(session, apiEndpoints.SEARCH_ENDPOINT, {
                 method: 'POST',
                 body: JSON.stringify({
                     consensus_filter: "missing",
                     page,
                     limit: pageSize,
-                    select_fields: ["id", "overview", "insights", "community"]
+                    select_fields: ["id", "created_at", "type", "overview", "community"]
                 }),
             }),
         /**
@@ -282,27 +294,25 @@ export const api = {
             }),
     },
     /**
-     * Historial API - Fetches ALL cases for the history view.
-     * Uses /search endpoint with select_fields to include insights.
-     * Unlike humanVerification.getSummary, this does NOT filter by consensus_filter.
+     * Historial API - Fetches cases that have been voted on (Ya Votados).
+     * Uses /search endpoint with consensus_filter: "present" per API guide.
      */
     historial: {
         /**
-         * Get all cases for history view using /search endpoint.
-         * Includes insights in select_fields as per API documentation.
+         * Get cases with human consensus for history view.
+         * Uses consensus_filter: "present" to get already-voted cases.
          * @param session - Active Supabase session
          * @param page - Page number (1-indexed)
          * @param pageSize - Number of items per page
-         * @param query - Optional search query (defaults to "*" for all cases)
          */
-        getAll: (session: Session, page: number = 1, pageSize: number = 10, query: string = "*"): Promise<any> =>
+        getAll: (session: Session, page: number = 1, pageSize: number = 10): Promise<any> =>
             fetchClient(session, apiEndpoints.SEARCH_ENDPOINT, {
                 method: 'POST',
                 body: JSON.stringify({
-                    query,
+                    consensus_filter: "present",
                     page,
                     limit: pageSize,
-                    select_fields: ["id", "overview", "insights", "community"]
+                    select_fields: ["id", "created_at", "type", "overview", "community"]
                 }),
             }),
     }

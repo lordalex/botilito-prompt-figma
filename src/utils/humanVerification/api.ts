@@ -325,19 +325,16 @@ export async function fetchVerificationSummary(page: number, pageSize: number): 
 }
 
 /**
- * Fetch ALL cases for Historial view using /search endpoint.
+ * Fetch cases with human consensus for Historial view (Ya Votados).
  *
  * KEY DIFFERENCE from fetchVerificationSummary:
- * - Uses /search endpoint (not /summary)
- * - Does NOT filter by consensus_filter: "missing"
- * - Returns ALL cases, not just pending validation
- * - Includes insights via select_fields
+ * - Uses consensus_filter: "present" (cases that have been voted on)
+ * - fetchVerificationSummary uses consensus_filter: "missing" (pending validation)
  *
  * @param page - Page number (1-indexed)
  * @param pageSize - Items per page
- * @param query - Optional search query (defaults to "*" for all cases)
  */
-export async function fetchHistorialCases(page: number, pageSize: number, query: string = "*"): Promise<VerificationSummaryResult> {
+export async function fetchHistorialCases(page: number, pageSize: number): Promise<VerificationSummaryResult> {
   try {
     const { data: { session } } = await supabase.auth.getSession();
 
@@ -345,7 +342,7 @@ export async function fetchHistorialCases(page: number, pageSize: number, query:
       throw new Error('No hay sesión activa');
     }
 
-    const { job_id } = await api.historial.getAll(session, page, pageSize, query);
+    const { job_id } = await api.historial.getAll(session, page, pageSize);
 
     if (!job_id) {
       throw new Error('No se recibió un ID de trabajo válido');

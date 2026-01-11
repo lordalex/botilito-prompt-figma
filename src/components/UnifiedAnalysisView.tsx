@@ -527,6 +527,7 @@ export function UnifiedAnalysisView({
     // Specific Insights
     const sourceInsight = getInsightById('tech_sources');
     const clickbaitInsight = getInsightById('tech_clickbait');
+    const metaContextTypeInsight = getInsightById('meta_context_type');
 
     // Get AMI Competencies from insights (category: 'content_quality' or id starts with 'ami_')
     const amiCompetencies = (data?.standardized_case?.insights || data?.insights || [])
@@ -574,8 +575,7 @@ export function UnifiedAnalysisView({
                 {/* ========== LEFT COLUMN - MAIN CONTENT ========== */}
                 <div className="space-y-6 min-w-0">
 
-                    {/* IMAGE/AUDIO PREVIEW + CASE INFO - Two column layout (stacks on phone only) */}
-                    <div className="grid md:grid-cols-[2fr_1fr] gap-4">
+                    {/* IMAGE/AUDIO PREVIEW - Full width */}
                     <Card className="border-2 border-black bg-[#0a0e1a] overflow-hidden rounded-[12px]">
                         {contentType === 'audio' ? (
                             visualUrl ? (
@@ -656,10 +656,6 @@ export function UnifiedAnalysisView({
                         )}
                     </Card>
 
-                    {/* Case Info - Right of image */}
-                    <AnalysisSidebarCaseInfo {...caseInfoProps} />
-                    </div>
-
                     {/* CONTENT INFO SECTION - Figma: Card with explicit font sizes */}
                     <Card className="border border-[#e5e7eb] bg-white rounded-[12px]">
                         <CardContent className="p-6">
@@ -690,7 +686,7 @@ export function UnifiedAnalysisView({
                                     Fuente: {contentInfo.tags.source}
                                 </Badge>
                                 <Badge variant="outline" className="bg-blue-50 border-blue-200 text-blue-700 text-[12px]">
-                                    Tipo: {contentInfo.tags.type}
+                                    Tipo: {metaContextTypeInsight?.value || contentInfo.tags.type}
                                 </Badge>
                                 <Badge variant="outline" className="bg-gray-50 border-gray-200 text-gray-700 text-[12px]">
                                     <Tag className="h-3 w-3 mr-1" />
@@ -879,6 +875,7 @@ export function UnifiedAnalysisView({
 
                 {/* ========== RIGHT COLUMN - SIDEBAR ========== */}
                 <div className="space-y-4 md:sticky md:top-8">
+                    <AnalysisSidebarCaseInfo {...caseInfoProps} />
                     <AnalysisSidebarStats stats={statsProps.length > 0 ? statsProps : [
                         { label: 'Pruebas realizadas', value: '1' },
                         { label: 'Tiempo total', value: '12.0s' },

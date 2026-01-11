@@ -15,6 +15,14 @@
 | **Role** | Admin |
 | **Notes** | Primary admin account for testing |
 
+### Test User Account (LordAlex Leon)
+| Field | Value |
+|-------|-------|
+| **Email** | `la@lordalexandco` |
+| **Password** | `123456789` |
+| **Role** | User |
+| **Notes** | Standard test user for QA testing |
+
 ---
 
 ## Testing Environment
@@ -67,5 +75,5 @@
 ---
 
 ## Last Updated
-- **Date:** 2025-12-15
-- **Updated by:** Claude Code (QA session)
+- **Date:** 2026-01-10
+- **Updated by:** Claude Code (Article Results Page testing session)

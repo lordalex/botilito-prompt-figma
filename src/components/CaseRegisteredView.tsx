@@ -81,11 +81,8 @@ export function CaseRegisteredView({ caseData, onReportAnother, jobId }: CaseReg
 
   // Polling for job status if jobId is provided
   React.useEffect(() => {
-    console.log('[CaseRegisteredView] useEffect triggered with jobId:', jobId);
-    if (!jobId) {
-      console.warn('[CaseRegisteredView] No jobId provided, skipping polling');
-      return;
-    }
+    // Skip polling silently if jobId not yet available (expected during initial render)
+    if (!jobId) return;
 
     let intervalId: NodeJS.Timeout | null = null;
     let isActive = true;
@@ -130,8 +127,8 @@ export function CaseRegisteredView({ caseData, onReportAnother, jobId }: CaseReg
     // Initial check
     checkStatus();
 
-    // Start polling every 2 seconds
-    intervalId = setInterval(checkStatus, 2000);
+    // Start polling every 15 seconds
+    intervalId = setInterval(checkStatus, 15000);
 
     return () => {
       isActive = false;

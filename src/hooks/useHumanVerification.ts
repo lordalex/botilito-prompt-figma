@@ -5,7 +5,7 @@ import { fetchVerificationSummary, fetchCaseDetails, getUserVerificationStats } 
 import { useVoteTracker } from '../providers/VoteTrackerProvider';
 import { useJobTracker } from './useJobTracker';
 import type { CaseEnriched, Profile } from '../types';
-import { getCachedData, setCachedData, CACHE_KEYS } from '@/utils/sessionCache';
+import { getCachedData, setCachedData, clearCachedData, CACHE_KEYS } from '@/utils/sessionCache';
 
 export const useHumanVerification = () => {
     const { user, session } = useAuth();
@@ -40,16 +40,68 @@ export const useHumanVerification = () => {
             const summary = await fetchVerificationSummary(newPage, 10);
 
             setCases(summary.cases); // REPLACE cases, do not append
-            setHasMore(summary.pagination.hasMore);
             setPage(newPage);
 
+            const pageSize = 10;
             const total = summary.pagination.totalItems || summary.summary?.total;
             if (total) {
-                setTotalPages(Math.ceil(total / 10));
+                setTotalPages(Math.ceil(total / pageSize));
+                const calculatedHasMore = newPage < Math.ceil(total / pageSize);
+                setHasMore(summary.pagination.hasMore || calculatedHasMore);
+            } else {
+                // Heuristic: if we got exactly pageSize results, assume there might be more
+                const returnedCount = summary.pagination.returnedCount ?? summary.cases?.length ?? 0;
+                const inferredHasMore = returnedCount >= pageSize;
+                setHasMore(summary.pagination.hasMore || inferredHasMore);
             }
         } catch (e: any) {
             console.error("Error loading page:", e);
             setError("Error al cargar la página.");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const refreshCases = async () => {
+        if (isLoading) return;
+        // Clear cache to force fresh fetch
+        clearCachedData(CACHE_KEYS.HUMAN_VERIFICATION);
+        clearCachedData(CACHE_KEYS.HUMAN_VERIFICATION_STATS);
+
+        setIsLoading(true);
+        setError(null);
+        try {
+            const [summary, stats] = await Promise.all([
+                fetchVerificationSummary(1, 10),
+                user ? getUserVerificationStats(user.id) : Promise.resolve(null)
+            ]);
+
+            setCases(summary.cases);
+            setPage(1);
+            const pageSize = 10;
+            const total = summary.pagination.totalItems || summary.summary?.total;
+            if (total) {
+                setTotalPages(Math.ceil(total / pageSize));
+                const calculatedHasMore = 1 < Math.ceil(total / pageSize);
+                setHasMore(summary.pagination.hasMore || calculatedHasMore);
+            } else {
+                // Heuristic: if we got exactly pageSize results, assume there might be more
+                const returnedCount = summary.pagination.returnedCount ?? summary.cases?.length ?? 0;
+                const inferredHasMore = returnedCount >= pageSize;
+                setHasMore(summary.pagination.hasMore || inferredHasMore);
+            }
+            if (stats) {
+                setUserStats(stats);
+            }
+
+            // Re-cache the fresh results
+            setCachedData(CACHE_KEYS.HUMAN_VERIFICATION, summary.cases);
+            if (stats) {
+                setCachedData(CACHE_KEYS.HUMAN_VERIFICATION_STATS, stats);
+            }
+        } catch (e: any) {
+            console.error("Error refreshing cases:", e);
+            setError("Error al actualizar la lista.");
         } finally {
             setIsLoading(false);
         }
@@ -92,10 +144,17 @@ export const useHumanVerification = () => {
                 ]);
 
                 setCases(summary.cases);
-                setHasMore(summary.pagination.hasMore);
+                const pageSize = 10;
                 const total = summary.pagination.totalItems || summary.summary?.total;
                 if (total) {
-                    setTotalPages(Math.ceil(total / 10));
+                    setTotalPages(Math.ceil(total / pageSize));
+                    const calculatedHasMore = 1 < Math.ceil(total / pageSize);
+                    setHasMore(summary.pagination.hasMore || calculatedHasMore);
+                } else {
+                    // Heuristic: if we got exactly pageSize results, assume there might be more
+                    const returnedCount = summary.pagination.returnedCount ?? summary.cases?.length ?? 0;
+                    const inferredHasMore = returnedCount >= pageSize;
+                    setHasMore(summary.pagination.hasMore || inferredHasMore);
                 }
                 setUserStats(stats);
 
@@ -196,6 +255,7 @@ export const useHumanVerification = () => {
         hasMore,
         goToPage,
         totalPages,
+        refreshCases,
         isLoadingMore: false // Deprecated but kept for compat if needed, though unused now
     };
 };

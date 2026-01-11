@@ -51,6 +51,7 @@ import {
   Layers,
   ChevronDown,
   Loader2,
+  RefreshCw,
 } from 'lucide-react';
 import type {
   ValidationCaseDTO,
@@ -139,6 +140,10 @@ export interface CaseListProps {
   totalPages?: number;
   /** Handler for page changes */
   onPageChange?: (page: number) => void;
+  /** Optional callback to refresh the list */
+  onRefresh?: () => void;
+  /** Whether refresh is in progress */
+  isRefreshing?: boolean;
 }
 
 export function CaseList({
@@ -156,6 +161,8 @@ export function CaseList({
   currentPage = 1,
   totalPages = 0,
   onPageChange,
+  onRefresh,
+  isRefreshing = false,
 }: CaseListProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [filter, setFilter] = useState<FilterOption>('todos');
@@ -206,20 +213,35 @@ export function CaseList({
                 <CardTitle className="text-xl font-bold">{title}</CardTitle>
               </div>
             </div>
-            <Badge
-              variant="outline"
-              className="text-sm font-medium px-3 py-1 bg-white"
-              style={{ borderColor: 'var(--accent)', color: 'var(--color-yellow-700)', backgroundColor: 'var(--color-yellow-50)' }}
-            >
-              {isLoading ? (
-                <span className="flex items-center gap-1.5">
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                  Cargando...
-                </span>
-              ) : (
-                `# ${cases.length} casos`
+            <div className="flex items-center gap-2">
+              <Badge
+                variant="outline"
+                className="text-sm font-medium px-3 py-1 bg-white"
+                style={{ borderColor: 'var(--accent)', color: 'var(--color-yellow-700)', backgroundColor: 'var(--color-yellow-50)' }}
+              >
+                {isLoading ? (
+                  <span className="flex items-center gap-1.5">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    Cargando...
+                  </span>
+                ) : (
+                  `# ${cases.length} casos`
+                )}
+              </Badge>
+              {onRefresh && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onRefresh}
+                  disabled={isRefreshing || isLoading}
+                  className="flex items-center gap-1.5 h-7 px-2"
+                  title="Actualizar lista"
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+                  <span className="hidden sm:inline text-xs">Actualizar</span>
+                </Button>
               )}
-            </Badge>
+            </div>
           </div>
           <CardDescription>{description}</CardDescription>
         </div>
