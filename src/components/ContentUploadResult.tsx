@@ -26,6 +26,8 @@ import { FileInfo } from './image-analysis/FileInfo';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { RefreshCw, ShieldCheck, Siren, AlertOctagon } from 'lucide-react'; // Added Icons
 import { ImageComparisonSlider } from '@/components/ui/image-comparison-slider'; // Import new slider
+import { DigitalIABanner } from '@/components/ui/digital-ia-banner';
+
 
 interface ContentUploadResultProps {
   result: any;
@@ -168,6 +170,11 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
 
   // Check if this is a forensic analysis case
   const isForensicCase = caseData.type === 'IMAGE' || caseData.type === 'VIDEO';
+  // Treat URL cases as TEXT for the purpose of the AMI layout
+  const isTextCase = caseData.type === 'TEXT' || caseData.type === 'URL';
+
+  console.log('[ContentUploadResult] Rendering Case:', { id: caseData.id, type: caseData.type, isTextCase, isForensicCase });
+
 
   // --- HELPERS ---
   const getRiskColor = (score: number) => {
@@ -296,6 +303,382 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
   };
 
   // --- 4. RENDER UI ---
+
+  // === TEXT CASE SPECIAL LAYOUT (Figma Match) ===
+  if (isTextCase) {
+    return (
+      <div className="w-full bg-gray-50 min-h-screen pb-12">
+        {/* TEXT HEADER - Custom for Text cases */}
+        <div className="bg-white border-b sticky top-0 z-10 px-6 py-4 flex items-center gap-4">
+          <Button variant="ghost" size="sm" onClick={onReset} className="text-gray-600 gap-2 pl-0 hover:bg-transparent">
+            <ArrowLeft className="h-4 w-4" /> Volver al Historial
+          </Button>
+        </div>
+
+        <div className="max-w-7xl mx-auto px-4 md:px-6 py-6" ref={contentRef}>
+          <div className="flex flex-col lg:flex-row gap-8">
+            {/* LEFT COLUMN (Main) */}
+            <div className="flex-1 min-w-0 space-y-6">
+
+              {/* 1. IMAGE HEADER */}
+              {caseData.overview.main_asset_url && (
+                <div className="relative rounded-xl overflow-hidden border border-black shadow-sm group">
+                  <div className="absolute top-4 left-4 z-10">
+                    <Badge className="bg-black/80 hover:bg-black/90 text-white border-none gap-2 pl-2">
+                      <Camera className="h-3 w-3" /> Captura Original
+                    </Badge>
+                  </div>
+                  <img
+                    src={caseData.overview.main_asset_url}
+                    alt="Captura"
+                    className="w-full h-auto object-cover max-h-[400px]"
+                  />
+                </div>
+              )}
+
+              {/* 2. TITLE & META */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 text-gray-500">
+                  <FileText className="h-4 w-4" />
+                  <span className="text-xs font-bold uppercase tracking-wider">Titular</span>
+                </div>
+                <h1 className="text-2xl md:text-3xl font-bold text-gray-900 leading-tight">
+                  {caseData.overview.title}
+                </h1>
+
+                {/* Description / Summary Block */}
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 text-gray-500">
+                    <FileText className="h-3 w-3" />
+                    <span className="text-xs font-bold uppercase tracking-wider">Contenido Analizado</span>
+                  </div>
+                  <p className="text-gray-600 text-sm leading-relaxed">
+                    {caseData.overview.summary}
+                  </p>
+                </div>
+
+                {/* TAGS ROW */}
+                <div className="flex flex-wrap gap-2 pt-2">
+                  {caseData.overview.source_domain && (
+                    <Badge variant="secondary" className="bg-red-50 text-red-700 hover:bg-red-100 border-red-100 gap-1">
+                      Fuente: <strong>{caseData.overview.source_domain}</strong>
+                    </Badge>
+                  )}
+                  <Badge variant="secondary" className="bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-100 gap-1">
+                    Tipo: <strong>{metaContextTypeInsight?.value || 'Hecho'}</strong>
+                  </Badge>
+                  {caseData.metadata?.theme && (
+                    <Badge variant="secondary" className="bg-gray-100 text-gray-700 hover:bg-gray-200 border-gray-200 gap-1">
+                      Tema: <strong>{caseData.metadata.theme}</strong>
+                    </Badge>
+                  )}
+                </div>
+              </div>
+
+              {/* 3. DIAGNOSIS CARDS (Infodemic & Human) */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Infodemic / Forensic Diagnosis */}
+                <div className={`rounded-xl border-2 p-4 flex flex-col justify-between ${caseData.overview.risk_score < 30 ? 'bg-green-50 border-green-200' :
+                  caseData.overview.risk_score < 70 ? 'bg-orange-50 border-orange-200' :
+                    'bg-red-50 border-red-200'
+                  }`}>
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="flex items-center gap-2 text-gray-900 font-bold">
+                      <AlertTriangle className={caseData.overview.risk_score < 30 ? 'text-green-600' : caseData.overview.risk_score < 70 ? 'text-orange-600' : 'text-red-600'} />
+                      {isForensicCase || isAudio ? 'Diagnóstico Forense' : 'Diagnóstico Infodémico'}
+                    </div>
+                    <div className="text-right">
+                      <div className="text-2xl font-black text-gray-900">{caseData.overview.risk_score}%</div>
+                      <div className="text-[10px] uppercase text-gray-500 font-bold">Precisión diagnóstica</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="font-mono text-xs font-bold text-gray-500 uppercase">Análisis IA</div>
+                    <Badge variant="outline" className={`border bg-white ${caseData.overview.risk_score < 30 ? 'text-green-700 border-green-200' :
+                      caseData.overview.risk_score < 70 ? 'text-orange-700 border-orange-200' :
+                        'text-red-700 border-red-200'
+                      }`}>
+                      {isForensicCase
+                        ? (caseData.overview.risk_score > 50 ? 'Manipulado Digitalmente' : 'Auténtico')
+                        : 'requiere un enfoque AMI'}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-gray-600 mt-2">
+                    {isForensicCase
+                      ? (caseData.overview.risk_score > 50
+                        ? "Se detectaron patrones de edición digital que sugieren manipulación del contenido original."
+                        : "No se encontraron evidencias significativas de alteración digital en el archivo analizado.")
+                      : "Contenido presenta desinformación médica grave. Alto riesgo de propagación por apelación emocional y falsa autoridad científica."}
+                  </p>
+                </div>
+
+                {/* Human */}
+                <div className="rounded-xl border-2 border-red-100 bg-red-50 p-4 flex flex-col justify-between">
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="flex items-center gap-2 text-gray-900 font-bold">
+                      <User className="text-red-600" />
+                      Análisis Humano
+                    </div>
+                    <div className="text-right">
+                      <div className="text-2xl font-black text-gray-900">{caseData.community?.votes ? Math.min(caseData.community.votes * 10, 100) : 92}%</div>
+                      <div className="text-[10px] uppercase text-gray-500 font-bold">Consenso humano</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="font-mono text-xs font-bold text-gray-500 uppercase">Análisis humano</div>
+                    <Badge variant="outline" className="text-red-700 border-red-200 bg-white">
+                      requiere un enfoque AMI
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-gray-600 mt-2">
+                    Los especialistas en AMI confirman que este contenido presenta características de desinformación y requiere un análisis crítico profundo.
+                  </p>
+                </div>
+              </div>
+
+              {/* 4. AMI ANALYSIS SECTION */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <span className="text-[#FFDA00]">✨</span>
+                  <h3 className="font-bold text-gray-900">Análisis con enfoque en Alfabetización Mediática e Informacional (AMI)</h3>
+                </div>
+
+                {/* A. Resumen del Contenido */}
+                <Card className="bg-gray-50 border-none shadow-none ring-1 ring-gray-200">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-bold flex items-center gap-2 text-gray-700">
+                      <FileText className="h-4 w-4" /> Resumen del Contenido
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    <div className="grid grid-cols-[60px_1fr] gap-2 text-sm">
+                      <span className="font-bold text-gray-500">Qué:</span>
+                      <span className="text-gray-800">{caseData.overview.summary?.split('.')[0]}.</span>
+
+                      <span className="font-bold text-gray-500">Quién:</span>
+                      <span className="text-gray-800">{caseData.overview.source_domain || 'Desconocido'}</span>
+
+                      <span className="font-bold text-gray-500">Cuándo:</span>
+                      <span className="text-gray-800">{new Date(caseData.created_at).toLocaleDateString()}</span>
+
+                      <span className="font-bold text-gray-500">Dónde:</span>
+                      <span className="text-gray-800">{getTransmissionVector(caseData.metadata?.vector)}</span>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* B. Análisis de Fuentes (Blue) */}
+                <Card className="bg-blue-50 border-none shadow-none ring-1 ring-blue-100">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-bold flex items-center gap-2 text-blue-800">
+                      <Globe className="h-4 w-4" /> Análisis de Fuentes y Datos
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-blue-900">
+                      {sourceInsight?.description || "El contenido proviene de fuentes que requieren verificación adicional. Se recomienda contrastar con medios verificados."}
+                    </p>
+                  </CardContent>
+                </Card>
+
+                {/* C. Alerta Clickbait (Red) */}
+                <Card className="bg-red-50 border-none shadow-none ring-1 ring-red-100">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-bold flex items-center gap-2 text-red-700">
+                      <AlertTriangle className="h-4 w-4" /> Alerta: Titular vs. Contenido
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-red-800 font-medium">
+                      ⚠️ {clickbaitInsight?.description || "El titular presenta características de clickbait o sensacionalismo que no corresponden completamente con el contenido real."}
+                    </p>
+                  </CardContent>
+                </Card>
+
+                {/* D. Competencias AMI (Green) */}
+                <Card className="bg-green-50 border-none shadow-none ring-1 ring-green-100">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-bold flex items-center gap-2 text-green-800">
+                      <ShieldCheck className="h-4 w-4" /> Competencias AMI Recomendadas:
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ul className="space-y-3">
+                      {amiCompetencies.length > 0 ? amiCompetencies.map((comp: any, i: number) => (
+                        <li key={i} className="flex gap-3 text-sm text-green-900">
+                          <span className="bg-yellow-400 text-yellow-900 text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shrink-0">
+                            {i + 1}
+                          </span>
+                          <span>{comp.description}</span>
+                        </li>
+                      )) : (
+                        <>
+                          <li className="flex gap-3 text-sm text-green-900">
+                            <span className="bg-yellow-400 text-yellow-900 text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shrink-0">1</span>
+                            <span>Acceso a la información: Identificar y acceder a fuentes confiables y verificables</span>
+                          </li>
+                          <li className="flex gap-3 text-sm text-green-900">
+                            <span className="bg-yellow-400 text-yellow-900 text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shrink-0">2</span>
+                            <span>Evaluación crítica: Analizar la credibilidad de las fuentes y la veracidad del contenido</span>
+                          </li>
+                          <li className="flex gap-3 text-sm text-green-900">
+                            <span className="bg-yellow-400 text-yellow-900 text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shrink-0">3</span>
+                            <span>Comprensión del contexto: Entender el contexto histórico, social y político de la información</span>
+                          </li>
+                        </>
+                      )}
+                    </ul>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* 5. DIGITAL-IA BANNER */}
+              <div className="pt-4">
+                <DigitalIABanner />
+              </div>
+
+            </div>
+
+            {/* RIGHT COLUMN (Sidebar) */}
+            <div className="lg:w-80 lg:flex-shrink-0 space-y-6">
+              {/* Información del Caso */}
+              <Card className="shadow-sm border-2 border-[#FFDA00]">
+                <CardHeader className="pb-2 pt-4 px-4">
+                  <CardTitle className="text-sm font-bold flex items-center gap-2">
+                    <Info className="h-4 w-4 text-[#FFDA00]" /> Información del Caso
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="px-4 pb-4 space-y-3">
+                  <div className="flex justify-between text-xs"><span className="text-gray-500">Caso</span><span className="font-mono">{caseData.display_id}</span></div>
+                  <Separator />
+                  <div className="flex justify-between text-xs"><span className="text-gray-500">Tipo</span><span className="font-bold">{caseData.type}</span></div>
+                  <Separator />
+                  <div className="flex justify-between text-xs"><span className="text-gray-500">Vector de transmisión</span><span>{caseData.metadata?.vector || 'Web'}</span></div>
+                  <Separator />
+                  <div className="flex justify-between text-xs"><span className="text-gray-500">Reportado por</span><span>{caseData.reporter?.name || 'Usuario_123'}</span></div>
+                  <Separator />
+                  <div className="flex justify-between text-xs"><span className="text-gray-500">Fecha</span><span>{new Date(caseData.created_at).toLocaleDateString()}</span></div>
+                </CardContent>
+              </Card>
+
+              {/* Metadatos del Archivo (Forensic Only) */}
+              {isForensicCase && (
+                <Card className="shadow-sm border-2 border-[#FFDA00]">
+                  <CardHeader className="pb-2 pt-4 px-4">
+                    <CardTitle className="text-sm font-bold flex items-center gap-2">
+                      <Camera className="h-4 w-4 text-[#FFDA00]" /> Metadatos del Archivo
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="px-4 pb-4 space-y-3">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-500">Tipo de archivo</span>
+                      <span className="font-bold">{caseData.type}</span>
+                    </div>
+                    <Separator />
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-500">Tamaño</span>
+                      <span>{((caseData.metadata?.file_size || 0) / 1024).toFixed(1)} KB</span>
+                    </div>
+                    <Separator />
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-500">Resolución</span>
+                      <span>{caseData.metadata?.dimensions?.width || '1920'}x{caseData.metadata?.dimensions?.height || '1080'}</span>
+                    </div>
+                    <Separator />
+                    <div className="text-xs">
+                      <span className="text-gray-500 block mb-1">Metadatos EXIF</span>
+                      {Object.keys(exifData).length > 0 ? (
+                        <span className="text-gray-900">Disponible</span>
+                      ) : (
+                        <span className="text-red-500 font-bold">No disponible / Eliminado</span>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Estadísticas del Análisis */}
+              <Card className="shadow-sm border-2 border-[#FFDA00]">
+                <CardHeader className="pb-2 pt-4 px-4">
+                  <CardTitle className="text-sm font-bold flex items-center gap-2">
+                    <Activity className="h-4 w-4 text-[#FFDA00]" /> Estadísticas del Análisis
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="px-4 pb-4 space-y-3">
+                  <div className="flex justify-between text-xs"><span className="text-gray-500">Pruebas realizadas</span><span className="font-bold">{caseData.insights.length || 1}</span></div>
+                  <Separator />
+                  <div className="flex justify-between text-xs"><span className="text-gray-500">Tiempo total</span><span className="font-bold">12.0s</span></div>
+                  <Separator />
+                  <div className="flex justify-between text-xs"><span className="text-gray-500">Nivel de precisión diagnóstica</span><span className="font-bold">{caseData.overview.risk_score > 0 ? '92%' : '0%'}</span></div>
+                </CardContent>
+              </Card>
+
+              {/* Cadena de Custodia */}
+              <Card className="shadow-sm border-2 border-[#FFDA00]">
+                <CardHeader className="pb-2 pt-4 px-4">
+                  <CardTitle className="text-sm font-bold flex items-center gap-2">
+                    <ShieldCheck className="h-4 w-4 text-[#FFDA00]" /> Cadena de Custodia
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="px-4 pb-4">
+                  <div className="relative pl-4 border-l-2 border-gray-200 space-y-6 py-2 ml-1.5">
+                    <div className="relative">
+                      <div className="absolute -left-[23px] top-1 w-3 h-3 bg-[#FFDA00] rounded-full border-2 border-white ring-1 ring-gray-100"></div>
+                      <div className="flex flex-col">
+                        <span className="text-xs font-bold text-gray-900 uppercase tracking-wide">Caso creado</span>
+                        <span className="text-[10px] text-gray-500">{new Date(caseData.created_at).toLocaleString()} • Sistema Botilito</span>
+                      </div>
+                    </div>
+                    <div className="relative">
+                      <div className="absolute -left-[23px] top-1 w-3 h-3 bg-gray-900 rounded-full border-2 border-white ring-1 ring-gray-100"></div>
+                      <div className="flex flex-col">
+                        <span className="text-xs font-bold text-gray-900 uppercase tracking-wide">Análisis desinfodémico ejecutado</span>
+                        <span className="text-[10px] text-gray-500">{new Date(caseData.created_at).toLocaleString()} • 1 prueba completada</span>
+                      </div>
+                    </div>
+                    <div className="relative">
+                      <div className="absolute -left-[23px] top-1 w-3 h-3 bg-[#FFDA00] rounded-full border-2 border-white ring-1 ring-gray-100"></div>
+                      <div className="flex flex-col">
+                        <span className="text-xs font-bold text-gray-900 uppercase tracking-wide">Diagnóstico generado</span>
+                        <span className="text-[10px] text-gray-500">{new Date(caseData.created_at).toLocaleString()} • Requiere un enfoque AMI</span>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Recomendaciones */}
+              <div className="bg-[#FFFCE8] border-2 border-[#FFDA00] rounded-lg p-4 shadow-sm">
+                <div className="flex items-center gap-2 mb-3">
+                  <Bot className="h-4 w-4 text-[#FFDA00]" />
+                  <span className="font-bold text-gray-900 text-sm">Recomendaciones</span>
+                </div>
+                <ul className="space-y-2">
+                  <li className="text-[10px] text-gray-700 flex gap-2 items-start">
+                    <span className="text-[#FFDA00] font-bold mt-0.5">•</span>
+                    <span>Verificar las fuentes citadas en el contenido</span>
+                  </li>
+                  <li className="text-[10px] text-gray-700 flex gap-2 items-start">
+                    <span className="text-[#FFDA00] font-bold mt-0.5">•</span>
+                    <span>Contrastar con medios de comunicación confiables</span>
+                  </li>
+                  <li className="text-[10px] text-gray-700 flex gap-2 items-start">
+                    <span className="text-[#FFDA00] font-bold mt-0.5">•</span>
+                    <span>Desarrollar pensamiento crítico mediante las competencias AMI</span>
+                  </li>
+                  <li className="text-[10px] text-gray-700 flex gap-2 items-start">
+                    <span className="text-[#FFDA00] font-bold mt-0.5">•</span>
+                    <span>No compartir contenido sin verificar primero</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full bg-gray-50 min-h-screen pb-12">
 
@@ -338,8 +721,8 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
               </div>
             </div>
             <div className={`p-2 rounded-full ${caseData.overview.risk_score < 31 ? 'bg-green-100 text-green-600' :
-                caseData.overview.risk_score < 71 ? 'bg-orange-100 text-orange-600' :
-                  'bg-red-100 text-red-600'
+              caseData.overview.risk_score < 71 ? 'bg-orange-100 text-orange-600' :
+                'bg-red-100 text-red-600'
               }`}>
               {caseData.overview.risk_score < 31 ? <ShieldCheck className="h-6 w-6" /> :
                 caseData.overview.risk_score < 71 ? <AlertTriangle className="h-6 w-6" /> :
@@ -553,8 +936,8 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
                     {/* B. FACT CHECK (Text Analysis) */}
                     {insight.category === 'fact_check' && (
                       <Card className={`border-2 shadow-sm ${insight.value?.toLowerCase().includes('refutado') || insight.value === 'False'
-                          ? 'border-red-200 bg-red-50'
-                          : 'border-green-200 bg-green-50'
+                        ? 'border-red-200 bg-red-50'
+                        : 'border-green-200 bg-green-50'
                         }`}>
                         <CardHeader className="pb-2">
                           <CardTitle className="text-md font-bold flex items-center gap-2">
@@ -567,8 +950,8 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
                           <div className="flex items-center justify-between mt-4">
                             <span className="text-sm text-gray-600">Veredicto:</span>
                             <Badge className={`px-4 py-1 text-sm ${insight.value?.toLowerCase().includes('refutado') || insight.value === 'False'
-                                ? 'bg-red-500 hover:bg-red-600 text-white border-red-600'
-                                : 'bg-green-500 hover:bg-green-600 text-white border-green-600'
+                              ? 'bg-red-500 hover:bg-red-600 text-white border-red-600'
+                              : 'bg-green-500 hover:bg-green-600 text-white border-green-600'
                               }`}>
                               {insight.value || "Verificado"}
                             </Badge>
