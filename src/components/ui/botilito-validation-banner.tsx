@@ -1,39 +1,47 @@
 
 import React from 'react';
 import botilitoImage from '@/assets/e27a276e6ff0e187a67cf54678c265c1c38adbf7.png';
-import { Sparkles } from 'lucide-react';
 
 interface BotilitoValidationBannerProps {
     variant?: 'list' | 'detail';
+    title?: React.ReactNode;
 }
 
-export function BotilitoValidationBanner({ variant = 'list', title }: { variant?: 'list' | 'detail', title?: React.ReactNode }) {
+/**
+ * Banner component styled to match Mapa Desinfodémico banner.
+ * Uses solid yellow background (#ffe97a) with Botilito mascot overlapping at bottom.
+ */
+export function BotilitoValidationBanner({ variant = 'list', title }: BotilitoValidationBannerProps) {
+    const defaultTitle = variant === 'list'
+        ? '¡Ey, mi llave! Ayúdame a mejorar mis diagnósticos validando estos casos'
+        : 'Revisa este caso y dame tu opinión. ¡Tu validación me ayuda a mejorar!';
+
+    const defaultDescription = variant === 'list'
+        ? 'Tu opinión experta es vital para entrenar mi diagnóstico. Cada validación me ayuda a ser más preciso detectando desinformación. ¡Vamos a combatir la desinfodemia juntos! 💪🦠'
+        : 'Analiza la información, revisa las fuentes y comparte tu criterio. ¡Tu experiencia marca la diferencia! 🎯';
+
     return (
-        <div className="bg-[#FFFCE8] border-2 border-[#FFDA00] rounded-xl p-4 md:p-6 mb-8 flex flex-col md:flex-row items-center gap-6 shadow-sm">
-            <div className="shrink-0 bg-[#FFDA00] p-3 rounded-full border-4 border-white shadow-md rotate-[-5deg]">
+        <div className="bg-[#ffe97a] border-2 border-[#ffda00] rounded-lg p-4 shadow-lg mb-6">
+            <div className="flex items-center space-x-4">
                 <img
                     src={botilitoImage}
                     alt="Detective Botilito"
-                    className="w-16 h-16 md:w-20 md:h-20 object-contain"
+                    className="w-24 h-24 object-contain mt-[0px] mr-[16px] mb-[-18px] ml-[0px]"
                 />
-            </div>
-
-            <div className="flex-1 text-center md:text-left">
-                <h2 className="text-xl md:text-2xl font-bold text-gray-900 flex items-center justify-center md:justify-start gap-2">
-                    {title ? title : (
-                        variant === 'list' ? (
-                            <>
-                                ¡Ey, mi llave! Ayúdame a mejorar mis diagnósticos validando estos casos
-                                <span className="text-2xl">🕵️‍♂️✨</span>
-                            </>
-                        ) : (
-                            <>
-                                Revisa este caso y dame tu opinión. ¡Tu validación me ayuda a mejorar!
-                                <span className="text-2xl">🎯</span>
-                            </>
-                        )
+                <div className="flex-1">
+                    {title ? (
+                        <div className="text-xl font-semibold">{title}</div>
+                    ) : (
+                        <>
+                            <p className="text-xl">
+                                {defaultTitle} {variant === 'list' ? '🕵️‍♂️✨' : '🎯'}
+                            </p>
+                            <p className="text-sm mt-1 opacity-80">
+                                {defaultDescription}
+                            </p>
+                        </>
                     )}
-                </h2>
+                </div>
             </div>
         </div>
     );
