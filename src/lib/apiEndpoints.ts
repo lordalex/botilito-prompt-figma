@@ -9,7 +9,6 @@ export const SEARCH_DTO_BASE_URL = `${SUPABASE_URL}/functions/v1/search-dto`;
 export const SEARCH_ENDPOINT = `${SEARCH_DTO_BASE_URL}/search`;
 export const SUMMARY_ENDPOINT = `${SEARCH_DTO_BASE_URL}/summary`;
 export const LOOKUP_ENDPOINT = `${SEARCH_DTO_BASE_URL}/lookup`;
-export const STATUS_ENDPOINT = `${SEARCH_DTO_BASE_URL}/status`;
 
 // Legacy alias (for backwards compatibility during migration)
 export const VECTOR_ASYNC_BASE_URL = SEARCH_DTO_BASE_URL;

@@ -1,0 +1,10 @@
+
+> Botilito@1.2.1 dev
+> vite
+
+Port 3000 is in use, trying another one...
+
+  VITE v6.3.5  ready in 117 ms
+
+  ➜  Local:   http://localhost:3001/
+  ➜  Network: http://192.168.1.5:3001/

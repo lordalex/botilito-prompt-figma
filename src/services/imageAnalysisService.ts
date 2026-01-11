@@ -1,4 +1,4 @@
-import { supabase } from '@/utils/supabase/client';
+import { supabase } from '../utils/supabase/client';
 import { IMAGE_ANALYSIS_BASE_URL } from '@/lib/apiEndpoints';
 import { AnalysisResult, JobStatusResponse } from '@/types/imageAnalysis';
 
@@ -10,21 +10,47 @@ const MAX_ATTEMPTS = 60; // 2 minutes max
 
 // --- Base64 Conversion Utility ---
 export async function convertFileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
+  console.log(`[Base64] Starting conversion for ${file.name} size=${file.size}`);
+
+  const conversionPromise = new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
+
     reader.onload = () => {
+      console.log('[Base64] Reader onload fired');
       const result = reader.result as string;
-      // Remove the data URL prefix (e.g., "data:image/png;base64,")
       const base64 = result.split(',')[1] || result;
+      console.log(`[Base64] Resolved string length: ${base64.length}`);
       resolve(base64);
     };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
+
+    reader.onerror = (error) => {
+      console.error('[Base64] Reader error:', error);
+      reject(error);
+    };
+
+    reader.onabort = () => {
+      console.warn('[Base64] Reader aborted');
+      reject(new Error('FileReader aborted'));
+    };
+
+    try {
+      reader.readAsDataURL(file);
+    } catch (e) {
+      console.error('[Base64] readAsDataURL threw error:', e);
+      reject(e);
+    }
   });
+
+  // Add 10s timeout
+  const timeoutPromise = new Promise<string>((_, reject) =>
+    setTimeout(() => reject(new Error('Base64 conversion timed out (>10s)')), 10000)
+  );
+
+  return Promise.race([conversionPromise, timeoutPromise]);
 }
 
 // --- Data Transformation ---
-function transformApiResult(status: JobStatusResponse, file?: File): AnalysisResult {
+function transformApiResult(status: JobStatusResponse, file?: File): AnalysisResult & { type: string; standardized_case?: any } {
   // 1. Check for StandardizedCase DTO (New API)
   const stdCase = status.result?.standardized_case;
 
@@ -59,6 +85,7 @@ function transformApiResult(status: JobStatusResponse, file?: File): AnalysisRes
     }).filter((rf: any) => rf.summary.heatmap); // Only keep those with visual artifacts? Or keep all.
 
     return {
+      type: 'image_analysis',
       meta: {
         job_id: status.id || stdCase.id,
         timestamp: stdCase.created_at || new Date().toISOString(),
@@ -90,7 +117,9 @@ function transformApiResult(status: JobStatusResponse, file?: File): AnalysisRes
         exif_data: {} // Could extract from metadata insights if structured
       },
       chain_of_custody: [],
-      recommendations: [] // Service can derive if needed, or component does it
+      recommendations: [], // Service can derive if needed, or component does it
+      // Preserve the full DTO for the unified view
+      standardized_case: stdCase
     };
   }
 
@@ -100,7 +129,8 @@ function transformApiResult(status: JobStatusResponse, file?: File): AnalysisRes
   const details = forensicResult.details || [];
   const summary = forensicResult.summary || {};
 
-  const transformed: AnalysisResult = {
+  const transformed: AnalysisResult & { type: string; standardized_case?: any } = {
+    type: 'image_analysis',
     meta: {
       job_id: status.id,
       timestamp: (status as any).completed_at || new Date().toISOString(),
@@ -153,29 +183,77 @@ function transformApiResult(status: JobStatusResponse, file?: File): AnalysisRes
 
 
 // --- Polling Helper ---
+// --- Polling Helper using Lookup Endpoint ---
 async function pollJobStatus(jobId: string, token: string, file?: File): Promise<AnalysisResult> {
+  console.log(`[ImageService] Polling Job ID via Lookup: ${jobId}`);
   let attempts = 0;
+
   while (attempts < MAX_ATTEMPTS) {
     await new Promise(r => setTimeout(r, POLLING_INTERVAL_MS));
     attempts++;
 
-    const response = await fetch(`${IMAGE_ANALYSIS_BASE_URL}/status/${jobId}`, {
-      headers: { 'Authorization': `Bearer ${token}` }
+    // Use LOOKUP_ENDPOINT to find the case by Job ID
+    // Note: We use the raw fetch here to avoid circular dependency with searchService if any, 
+    // but importing searchService's logic would be cleaner. 
+    // Since searchService is simple, we can reproduce the specific lookup needed here 
+    // or import it if the architecture permits. 
+    // To be safe and self-contained, I will fetch using the LOOKUP logic pattern.
+
+    // Using LOOKUP_ENDPOINT from imports
+    const matchEndpoint = IMAGE_ANALYSIS_BASE_URL.replace('image-analysis-DTO', 'search-dto') + '/lookup'; // Or import LOOKUP_ENDPOINT if available in scope
+    // Actually we imported IMAGE_ANALYSIS_BASE_URL. 
+    // Let's import LOOKUP_ENDPOINT in the file properly or use the one we have.
+    // I will assume I can fix imports in a separate block if needed, but for now I'll use a direct fetch to the endpoint I know.
+
+    // Correction: I should update imports to include LOOKUP_ENDPOINT
+    const lookupUrl = `${IMAGE_ANALYSIS_BASE_URL.replace('/functions/v1/image-analysis-DTO', '/functions/v1/search-dto')}/lookup`;
+
+    const response = await fetch(lookupUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ identifier: jobId })
     });
 
     if (!response.ok) {
-      if (response.status === 404 && attempts < 5) continue;
+      // If 404, it might mean the job is not yet indexed or found (still initializing?) or really missing.
+      // We continue polling on 404 for a bit.
+      console.warn(`[ImageService] Poll/Lookup attempt ${attempts} status: ${response.status}`);
+      if (response.status === 404 && attempts < 10) continue;
       throw new Error(`Polling failed: ${response.status}`);
     }
 
-    const data: JobStatusResponse = await response.json();
+    const data = await response.json();
+    const stdCase = data.case; // The Lookup returns { case: ... }
 
-    if (data.status === 'completed') {
-      return transformApiResult(data, file);
-    }
+    if (stdCase) {
+      const status = stdCase.lifecycle?.job_status;
+      console.log(`[ImageService] Poll attempt ${attempts} status: ${status}`);
 
-    if (data.status === 'failed') {
-      throw new Error(data.error?.message || 'Image analysis failed');
+      if (status === 'completed') {
+        // Success! Return the case wrapped as AnalysisResult
+        // We can reuse a simplified transform that just wraps the stdCase
+        return {
+          type: 'image_analysis', // match expected type
+          meta: {
+            job_id: stdCase.id,
+            timestamp: stdCase.created_at,
+            status: 'completed'
+          },
+          human_report: {} as any, // Legacy fillers
+          raw_forensics: [],
+          file_info: {} as any,
+          chain_of_custody: [],
+          recommendations: [],
+          standardized_case: stdCase // THE IMPORTANT PART
+        } as AnalysisResult;
+      }
+
+      if (status === 'failed') {
+        throw new Error(stdCase.lifecycle?.failure_reason || 'Image analysis job failed');
+      }
     }
   }
   throw new Error('Analysis timed out');
@@ -184,44 +262,74 @@ async function pollJobStatus(jobId: string, token: string, file?: File): Promise
 // --- Service Definition ---
 export const imageAnalysisService = {
   submitJob: async (file: File): Promise<{ jobId?: string; result?: AnalysisResult }> => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) throw new Error('No active session');
-    const token = session.access_token;
+    try {
+      console.log(`[ImageService] Submitting job for file: ${file.name} (${file.type})`);
 
-    const useCache = import.meta.env.VITE_USE_CACHE === 'true';
+      // 1. Convert file to Base64 (CPU task, no network needed yet)
+      console.log('[ImageService] Starting Base64 conversion...');
+      const base64 = await convertFileToBase64(file);
+      console.log(`[ImageService] Base64 conversion complete. Length: ${base64.length}`);
 
-    // Convert file to Base64
-    const base64 = await convertFileToBase64(file);
+      // 2. Get Session with Timeout
+      console.log('[ImageService] requesting Supabase Session...');
 
-    // Submit to /submit endpoint with Base64
-    const response = await fetch(`${IMAGE_ANALYSIS_BASE_URL}/submit`, {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json', 
-        'Authorization': `Bearer ${token}` 
-      },
-      body: JSON.stringify({
-        image_base64: base64,
-        use_cache: useCache,
-      }),
-    });
+      // Create a timeout promise
+      const timeout = new Promise<{ data: { session: null } }>((_, reject) =>
+        setTimeout(() => reject(new Error('Session retrieval timed out')), 5000)
+      );
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || `Image analysis submission failed: ${response.status}`);
+      const { data: { session } } = await Promise.race([
+        supabase.auth.getSession(),
+        timeout
+      ]) as any;
+
+      console.log('[ImageService] Session retrieved:', session ? 'Active' : 'Null');
+
+      if (!session) {
+        console.error('[ImageService] No active session found.');
+        throw new Error('No active session');
+      }
+      const token = session.access_token;
+
+      const useCache = import.meta.env.VITE_USE_CACHE === 'true';
+
+      // Submit to /submit endpoint with Base64
+      console.log(`[ImageService] Posting to: ${IMAGE_ANALYSIS_BASE_URL}/submit`);
+      const response = await fetch(`${IMAGE_ANALYSIS_BASE_URL}/submit`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          image_base64: base64,
+          use_cache: useCache,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('[ImageService] API Error:', response.status, errorData);
+        throw new Error(errorData.error || `Image analysis submission failed: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('[ImageService] Submission successful:', data);
+
+      // Extract jobId: API returns 'id' field
+      const jobId = data.id || data.job_id;
+
+      // Check if result is already available (cache hit)
+      if (data.status === 'completed' && data.result) {
+        console.log('[ImageService] Immediate result (Cache Hit)');
+        return { jobId, result: transformApiResult(data, file) };
+      }
+
+      return { jobId };
+    } catch (error) {
+      console.error('[ImageService] CRITICAL ERROR in submitJob:', error);
+      throw error;
     }
-    
-    const data = await response.json();
-
-    // Extract jobId: API returns 'id' field
-    const jobId = data.id || data.job_id;
-
-    // Check if result is already available (cache hit)
-    if (data.status === 'completed' && data.result) {
-      return { jobId, result: transformApiResult(data, file) };
-    }
-
-    return { jobId };
   },
 
   submitImage: async (file: File): Promise<AnalysisResult> => {

@@ -13,8 +13,19 @@ import { generateCaseCode, ContentType, TransmissionVector } from '@/utils/caseC
 import { domToPng } from 'modern-screenshot';
 
 // Import Specific Views
-import { ImageAnalysisResultView } from './image-analysis/ImageAnalysisResultView';
+
+// Import Specific Views and Subcomponents
 import { AudioAnalysisResultView } from './audio-analysis/AudioAnalysisResultView';
+// Image Analysis Subcomponents
+import { TestResults } from './image-analysis/TestResults';
+import { MarkersList } from './image-analysis/MarkersList';
+import { VisualizationsTab } from './image-analysis/VisualizationsTab';
+import { AnalysisStats } from './image-analysis/AnalysisStats';
+import { Recommendations } from './image-analysis/Recommendations';
+import { FileInfo } from './image-analysis/FileInfo';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { RefreshCw, ShieldCheck, Siren, AlertOctagon } from 'lucide-react'; // Added Icons
+import { ImageComparisonSlider } from '@/components/ui/image-comparison-slider'; // Import new slider
 
 interface ContentUploadResultProps {
   result: any;
@@ -34,14 +45,6 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
 
   // Specific view routing for specialized analysis views with full forensic data
   // Routes to ImageAnalysisResultView only when full forensic data (human_report) is available
-  const isImageAnalysis =
-    resultType === 'image_analysis' ||
-    (result?.human_report && (result?.raw_forensics || result?.file_info?.dimensions));
-
-  if (isImageAnalysis) {
-    return <ImageAnalysisResultView data={result} onReset={onReset} />;
-  }
-
   const isAudioAnalysis = resultType === 'audio_analysis';
   if (isAudioAnalysis) {
     return <AudioAnalysisResultView data={result} onReset={onReset} />;
@@ -61,8 +64,8 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
     data.ai_analysis?.classification?.recomendaciones ||
     [];
 
-  const recommendations: string[] = Array.isArray(rawRecommendations) 
-    ? rawRecommendations.map(String) 
+  const recommendations: string[] = Array.isArray(rawRecommendations)
+    ? rawRecommendations.map(String)
     : [];
 
   // Helper to map case type to ContentType for code generation
@@ -148,16 +151,23 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
     i.category === 'competency' || i.category === 'compliance' || i.label?.toLowerCase().includes('competencia')
   );
 
-  // Forensic insights for IMAGE/VIDEO analysis
+  // Forensic insights for IMAGE/VIDEO analysis (Category 'forensics' in DTO)
   const forensicInsights = caseData.insights.filter((i: any) =>
-    i.category === 'forensics' || i.id?.includes('algo_') || i.id?.includes('ela') || i.id?.includes('dct')
+    i.category === 'forensics'
   );
+
+  // Technical Metadata (EXIF)
+  const metadataInsight = caseData.insights.find((i: any) =>
+    i.id === 'meta_tech' || i.category === 'metadata'
+  );
+
+  const exifData = metadataInsight?.raw_data || {};
 
   // Content classification type insight (for TEXT content "Tipo" badge)
   const metaContextTypeInsight = caseData.insights.find((i: any) => i.id === 'meta_context_type');
 
-  // Check if this is a forensic analysis case (image/video/audio only)
-  const isForensicCase = caseData.type === 'IMAGE' || caseData.type === 'VIDEO' || caseData.type === 'AUDIO';
+  // Check if this is a forensic analysis case
+  const isForensicCase = caseData.type === 'IMAGE' || caseData.type === 'VIDEO';
 
   // --- HELPERS ---
   const getRiskColor = (score: number) => {
@@ -288,28 +298,59 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
   // --- 4. RENDER UI ---
   return (
     <div className="w-full bg-gray-50 min-h-screen pb-12">
-      
+
       {/* HEADER BANNER */}
       <div className="bg-[#ffe97a] border-b-2 border-[#ffda00] px-6 py-4 shadow-sm mb-6 sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto flex items-center gap-4">
-          <div className="bg-white p-1.5 rounded-full border-2 border-[#ffda00] shrink-0">
-             <img src={botilitoImage} alt="Botilito" className="w-10 h-10 object-contain" />
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="bg-white p-1.5 rounded-full border-2 border-[#ffda00] shrink-0">
+              <img src={botilitoImage} alt="Botilito" className="w-10 h-10 object-contain" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-gray-900 leading-tight">
+                {caseData.overview.title}
+              </h2>
+              <div className="flex items-center gap-2 mt-1">
+                {/* Status Pill */}
+                {caseData.community?.status === 'ai_only' ? (
+                  <Badge variant="secondary" className="bg-gray-200 text-gray-700 hover:bg-gray-300 gap-1">
+                    <Bot className="h-3 w-3" /> 🤖 AI Analysis
+                  </Badge>
+                ) : caseData.community?.status === 'human_consensus' ? (
+                  <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-200 border-blue-200 gap-1">
+                    <User className="h-3 w-3" /> 👥 Verified by Community
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="text-gray-500 border-gray-300">
+                    Pendiente
+                  </Badge>
+                )}
+              </div>
+            </div>
           </div>
-          <div>
-            <h2 className="text-lg font-bold text-gray-900 leading-tight">
-              ¡Qué más parce! Este es el análisis {caseData.type === 'TEXT' ? 'AMI' : 'Forense'} completo 🕵️‍♂️
-            </h2>
-            <p className="text-xs text-gray-800 hidden md:block">
-              {caseData.type === 'TEXT' 
-                ? 'Contenido analizado desde la perspectiva de Alfabetización Mediática e Informacional.' 
-                : `Análisis técnico de ${caseData.type.toLowerCase()} para detectar manipulación digital.`}
-            </p>
+
+          {/* Risk Meter */}
+          <div className="flex items-center gap-3 bg-white/50 px-3 py-2 rounded-lg border border-[#ffda00]/30">
+            <div className="text-right">
+              <div className="text-xs font-bold text-gray-500 uppercase">Riesgo</div>
+              <div className={`text-xl font-black ${getRiskColor(caseData.overview.risk_score)}`}>
+                {caseData.overview.risk_score}%
+              </div>
+            </div>
+            <div className={`p-2 rounded-full ${caseData.overview.risk_score < 31 ? 'bg-green-100 text-green-600' :
+                caseData.overview.risk_score < 71 ? 'bg-orange-100 text-orange-600' :
+                  'bg-red-100 text-red-600'
+              }`}>
+              {caseData.overview.risk_score < 31 ? <ShieldCheck className="h-6 w-6" /> :
+                caseData.overview.risk_score < 71 ? <AlertTriangle className="h-6 w-6" /> :
+                  <Siren className="h-6 w-6" />}
+            </div>
           </div>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 md:px-6">
-        
+
         {/* NAVIGATION */}
         <div className="mb-6">
           <Button variant="ghost" onClick={onReset} className="pl-0 hover:bg-transparent hover:text-[#ffda00] text-gray-600">
@@ -401,281 +442,217 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
               {/* Infodemic Diagnosis */}
               <Card className={`shadow-sm border-2 ${riskColors.border} ${riskColors.bg} overflow-hidden`}>
                 <CardContent className="p-4">
-                    <div className="flex gap-4">
-                      <div className="shrink-0">
-                        <AlertTriangle className={`h-8 w-8 ${riskColors.iconText}`} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <h3 className="text-xl font-bold text-gray-900">Diagnóstico Infodémico</h3>
-                            <div className="flex flex-wrap gap-2 mt-2">
-                              <Badge variant="secondary" className="bg-gray-200 text-gray-700 hover:bg-gray-200">Análisis IA</Badge>
-                              <Badge className={`${riskColors.badgeBg} ${riskColors.badgeText} hover:${riskColors.badgeBg} border ${riskColors.badgeBorder}`}>{caseData.overview.verdict_label || 'Pendiente'}</Badge>
-                            </div>
-                          </div>
-                          <div className="text-right shrink-0">
-                            <div className={`text-3xl font-black ${riskColors.scoreText}`}>
-                              {caseData.overview.risk_score}%
-                            </div>
-                            <div className={`text-xs ${riskColors.smallText} font-medium`}>Precisión<br/>diagnóstica</div>
+                  <div className="flex gap-4">
+                    <div className="shrink-0">
+                      <AlertTriangle className={`h-8 w-8 ${riskColors.iconText}`} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <h3 className="text-xl font-bold text-gray-900">Diagnóstico Infodémico</h3>
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            <Badge variant="secondary" className="bg-gray-200 text-gray-700 hover:bg-gray-200">Análisis IA</Badge>
+                            <Badge className={`${riskColors.badgeBg} ${riskColors.badgeText} hover:${riskColors.badgeBg} border ${riskColors.badgeBorder}`}>{caseData.overview.verdict_label || 'Pendiente'}</Badge>
                           </div>
                         </div>
-                        <p className="text-sm text-gray-600 mt-4 leading-relaxed">
-                          {caseData.overview.risk_score >= 70
-                            ? "Contenido presenta características de desinformación. Alto riesgo de propagación por apelación emocional."
-                            : caseData.overview.risk_score >= 30
+                        <div className="text-right shrink-0">
+                          <div className={`text-3xl font-black ${riskColors.scoreText}`}>
+                            {caseData.overview.risk_score}%
+                          </div>
+                          <div className={`text-xs ${riskColors.smallText} font-medium`}>Precisión<br />diagnóstica</div>
+                        </div>
+                      </div>
+                      <p className="text-sm text-gray-600 mt-4 leading-relaxed">
+                        {caseData.overview.risk_score >= 70
+                          ? "Contenido presenta características de desinformación. Alto riesgo de propagación por apelación emocional."
+                          : caseData.overview.risk_score >= 30
                             ? "Contenido requiere verificación adicional. Se recomienda análisis crítico."
                             : "Contenido dentro de parámetros normales. Bajo riesgo de desinformación detectado."}
-                        </p>
-                      </div>
+                      </p>
                     </div>
+                  </div>
                 </CardContent>
               </Card>
 
               {/* Human Analysis */}
               <Card className={`shadow-sm border-2 ${riskColors.border} ${riskColors.bg} overflow-hidden`}>
                 <CardContent className="p-4">
-                    <div className="flex gap-4">
-                      <div className="shrink-0">
-                        <User className={`h-8 w-8 ${riskColors.iconText}`} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <h3 className="text-xl font-bold text-gray-900">Análisis Humano</h3>
-                            <div className="flex flex-wrap gap-2 mt-2">
-                              <Badge variant="secondary" className="bg-gray-200 text-gray-700 hover:bg-gray-200">Análisis Humano</Badge>
-                              <Badge className={`${riskColors.badgeBg} ${riskColors.badgeText} hover:${riskColors.badgeBg} border ${riskColors.badgeBorder}`}>
-                                {caseData.community?.status === 'human_consensus' ? 'Consenso alcanzado' : 'Requiere validación'}
-                              </Badge>
-                            </div>
-                          </div>
-                          <div className="text-right shrink-0">
-                            <div className={`text-3xl font-black ${riskColors.scoreText}`}>
-                              {caseData.community?.votes > 0 ? `${Math.min(100, caseData.community.votes * 10)}%` : '--%'}
-                            </div>
-                            <div className={`text-xs ${riskColors.smallText} font-medium`}>Consenso<br/>humano</div>
+                  <div className="flex gap-4">
+                    <div className="shrink-0">
+                      <User className={`h-8 w-8 ${riskColors.iconText}`} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <h3 className="text-xl font-bold text-gray-900">Análisis Humano</h3>
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            <Badge variant="secondary" className="bg-gray-200 text-gray-700 hover:bg-gray-200">Análisis Humano</Badge>
+                            <Badge className={`${riskColors.badgeBg} ${riskColors.badgeText} hover:${riskColors.badgeBg} border ${riskColors.badgeBorder}`}>
+                              {caseData.community?.status === 'human_consensus' ? 'Consenso alcanzado' : 'Requiere validación'}
+                            </Badge>
                           </div>
                         </div>
-                        <p className="text-sm text-gray-600 mt-4 leading-relaxed">
-                          {caseData.community?.votes > 0
-                            ? `Los especialistas en AMI confirman que este contenido presenta características de desinformación y requiere un análisis crítico profundo, coincidiendo con la evaluación automatizada.`
-                            : "Aún no hay suficientes validaciones humanas. Tu opinión como especialista es importante para alcanzar consenso."}
-                        </p>
+                        <div className="text-right shrink-0">
+                          <div className={`text-3xl font-black ${riskColors.scoreText}`}>
+                            {caseData.community?.votes > 0 ? `${Math.min(100, caseData.community.votes * 10)}%` : '--%'}
+                          </div>
+                          <div className={`text-xs ${riskColors.smallText} font-medium`}>Consenso<br />humano</div>
+                        </div>
                       </div>
+                      <p className="text-sm text-gray-600 mt-4 leading-relaxed">
+                        {caseData.community?.votes > 0
+                          ? `Los especialistas en AMI confirman que este contenido presenta características de desinformación y requiere un análisis crítico profundo, coincidiendo con la evaluación automatizada.`
+                          : "Aún no hay suficientes validaciones humanas. Tu opinión como especialista es importante para alcanzar consenso."}
+                      </p>
                     </div>
+                  </div>
                 </CardContent>
               </Card>
             </div>
 
-            {/* AMI SPECIFIC SECTION */}
-            <div>
-              <div className="flex items-center gap-2 mb-4">
-                <span className="text-[#FFDA00] text-xl">⚡</span>
-                <h3 className="text-lg font-bold text-gray-900">
-                  Análisis con enfoque en Alfabetización Mediática e Informacional (AMI)
-                </h3>
+            {/* INSIGHT CARDS GRID (Dynamic) */}
+            <div className="space-y-6">
+              <div className="flex items-center gap-2">
+                <span className="text-[#FFDA00] text-xl">💡</span>
+                <h3 className="text-lg font-bold text-gray-900">Resultados del Análisis</h3>
               </div>
-              
-              <div className="space-y-4">
-                
-                {/* 1. Resumen */}
-                <Card className="shadow-sm border-gray-200">
-                  <CardHeader className="pb-2 pt-4 px-4">
-                    <CardTitle className="text-sm font-bold flex items-center gap-2 text-gray-700">
-                      <FileText className="h-4 w-4" /> Resumen del Contenido
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="px-4 pb-4">
-                    <div className="space-y-2 text-sm">
-                      <div className="grid grid-cols-[60px_1fr] gap-2">
-                        <span className="font-bold text-gray-900">Qué:</span>
-                        <span className="text-gray-600">{caseData.overview.summary}</span>
-                      </div>
-                      <div className="grid grid-cols-[60px_1fr] gap-2">
-                        <span className="font-bold text-gray-900">Quién:</span>
-                        <span className="text-gray-600">{caseData.overview.source_domain || "Fuente no identificada"}</span>
-                      </div>
-                      <div className="grid grid-cols-[60px_1fr] gap-2">
-                        <span className="font-bold text-gray-900">Cuándo:</span>
-                        <span className="text-gray-600">{new Date(caseData.created_at).toLocaleDateString()}</span>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
 
-                {/* 2. Análisis de Fuentes */}
-                {sourceInsight && (
-                  <Card className="shadow-sm border-blue-200 bg-blue-50/50">
-                    <CardHeader className="pb-2 pt-4 px-4">
-                      <CardTitle className="text-sm font-bold flex items-center gap-2 text-blue-800">
-                        <Shield className="h-4 w-4" /> Análisis de Fuentes y Datos
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="px-4 pb-4">
-                      <p className="text-sm text-gray-700 leading-relaxed">
-                        {sourceInsight.description}
-                      </p>
-                    </CardContent>
-                  </Card>
-                )}
+              <div className="grid grid-cols-1 gap-6">
+                {caseData.insights.map((insight: any, idx: number) => (
+                  <div key={idx} className="animate-in fade-in duration-500" style={{ animationDelay: `${idx * 100}ms` }}>
 
-                {/* 3. Alerta Titular - Dynamic colors based on insight score */}
-                {clickbaitInsight && (() => {
-                  const insightColors = getInsightColorScheme(clickbaitInsight.score);
-                  return (
-                    <Card className={`shadow-sm border-2 ${insightColors.border} ${insightColors.bg} overflow-hidden`}>
-                      <CardContent className="p-4">
-                        <div className="flex gap-4">
-                          <div className="shrink-0">
-                            <AlertTriangle className={`h-8 w-8 ${insightColors.iconText}`} />
+                    {/* A. FORENSICS (Image Analysis) */}
+                    {insight.category === 'forensics' && insight.artifacts?.[0]?.content && (
+                      <Card className="overflow-hidden border-2 border-gray-100 shadow-sm">
+                        <CardHeader className="bg-gray-50 pb-2">
+                          <CardTitle className="text-md font-bold flex justify-between items-center">
+                            <span>{insight.label}</span>
+                            {insight.score && (
+                              <Badge className={getForensicScoreColor(insight.score)}>
+                                Confianza: {insight.score}%
+                              </Badge>
+                            )}
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                          <div className="p-4 bg-white">
+                            <ImageComparisonSlider
+                              beforeImage={caseData.overview.main_asset_url}
+                              afterImage={insight.artifacts[0].content} // Heatmap
+                              beforeLabel="Original"
+                              afterLabel={insight.label}
+                            />
+                            <div className="mt-3 text-sm text-gray-600">
+                              <span className="font-semibold text-gray-900">Interpretación:</span> {insight.description || "No description provided."}
+                            </div>
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <h3 className="text-xl font-bold text-gray-900">{insightColors.alertLabel}</h3>
-                            <p className="text-sm text-gray-600 mt-3 leading-relaxed">
-                              {clickbaitInsight.description}
-                            </p>
-                            {clickbaitInsight.score !== undefined && (
-                              <p className="text-xs text-gray-500 mt-2">
-                                Confianza: {clickbaitInsight.score.toFixed(1)}%
-                              </p>
+                        </CardContent>
+                      </Card>
+                    )}
+
+                    {/* B. FACT CHECK (Text Analysis) */}
+                    {insight.category === 'fact_check' && (
+                      <Card className={`border-2 shadow-sm ${insight.value?.toLowerCase().includes('refutado') || insight.value === 'False'
+                          ? 'border-red-200 bg-red-50'
+                          : 'border-green-200 bg-green-50'
+                        }`}>
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-md font-bold flex items-center gap-2">
+                            <Shield className="h-5 w-5" />
+                            Fact Check
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <h4 className="text-lg font-semibold text-gray-900 mb-2">{insight.description}</h4>
+                          <div className="flex items-center justify-between mt-4">
+                            <span className="text-sm text-gray-600">Veredicto:</span>
+                            <Badge className={`px-4 py-1 text-sm ${insight.value?.toLowerCase().includes('refutado') || insight.value === 'False'
+                                ? 'bg-red-500 hover:bg-red-600 text-white border-red-600'
+                                : 'bg-green-500 hover:bg-green-600 text-white border-green-600'
+                              }`}>
+                              {insight.value || "Verificado"}
+                            </Badge>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+
+                    {/* C. METADATA (Key-Value List) */}
+                    {insight.category === 'metadata' && (
+                      <Card className="border-2 border-gray-100 shadow-sm bg-white">
+                        <CardHeader className="bg-gray-50 pb-2">
+                          <CardTitle className="text-md font-bold flex items-center gap-2">
+                            <Info className="h-5 w-5 text-gray-500" />
+                            {insight.label || "Metadatos"}
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                          <div className="divide-y divide-gray-100">
+                            {insight.raw_data ? Object.entries(insight.raw_data).map(([key, value], mapIdx) => {
+                              const isWarning = insight.score === 100 && (String(value).toLowerCase().includes('photoshop') || String(key).toLowerCase().includes('software'));
+                              return (
+                                <div key={mapIdx} className={`flex justify-between p-3 text-sm hover:bg-gray-50 transition-colors ${isWarning ? 'bg-red-50' : ''
+                                  }`}>
+                                  <span className="font-medium text-gray-500">{key}</span>
+                                  <span className={`font-mono px-2 py-0.5 rounded text-xs break-all ${isWarning ? 'text-red-700 font-bold bg-red-100' : 'text-gray-900 bg-gray-100'
+                                    }`}>
+                                    {String(value)}
+                                  </span>
+                                </div>
+                              );
+                            }) : (
+                              <p className="p-4 text-sm text-gray-500 text-center">No raw metadata available.</p>
                             )}
                           </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })()}
+                        </CardContent>
+                      </Card>
+                    )}
 
-                {/* 4. Competencias AMI */}
-                {amiCompetencies.length > 0 && (
-                  <Card className="shadow-sm border-green-200 bg-green-50/30">
-                    <CardHeader className="pb-2 pt-4 px-4">
-                      <CardTitle className="text-sm font-bold flex items-center gap-2 text-green-800">
-                        <CheckCircle2 className="h-4 w-4" /> Competencias AMI Recomendadas:
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="px-4 pb-4">
-                      <div className="space-y-3">
-                        {amiCompetencies.map((comp: any, idx: number) => (
-                          <div key={idx} className="flex gap-3 items-start">
-                            <div className="w-5 h-5 rounded-full bg-[#FFDA00] text-xs font-bold flex items-center justify-center shrink-0 mt-0.5 text-gray-900">
-                              {idx + 1}
-                            </div>
-                            <p className="text-sm text-gray-700">
-                              <span className="font-semibold">{comp.label}:</span> {comp.description}
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
+                    {/* DEFAULT / GENERIC Fallback */}
+                    {!['forensics', 'fact_check', 'metadata'].includes(insight.category) && (
+                      <Card className="shadow-sm border border-gray-200">
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-sm font-bold flex items-center gap-2">
+                            <Activity className="h-4 w-4" /> {insight.label}
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <p className="text-sm text-gray-700">{insight.description}</p>
+                        </CardContent>
+                      </Card>
+                    )}
 
+                  </div>
+                ))}
               </div>
             </div>
 
-            {/* FORENSIC ANALYSIS SECTION - For IMAGE/VIDEO cases */}
-            {isForensicCase && forensicInsights.length > 0 && (
-              <div className="mt-8">
-                <div className="flex items-center gap-2 mb-4">
-                  <span className="text-[#FFDA00] text-xl">🔬</span>
-                  <h3 className="text-lg font-bold text-gray-900">
-                    Análisis Forense Digital
-                  </h3>
-                </div>
-
-                <div className="space-y-4">
-                  {/* Forensic Tests Grid */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {forensicInsights.map((insight: any, idx: number) => (
-                      <Card key={idx} className={`shadow-sm border-2 overflow-hidden ${getForensicScoreColor(insight.score)}`}>
-                        <CardContent className="p-4">
-                          <div className="flex justify-between items-start mb-2">
-                            <div>
-                              <h4 className="font-bold text-gray-900">{insight.label}</h4>
-                              <Badge className={`text-xs mt-1 ${getForensicScoreColor(insight.score)}`}>
-                                {getForensicScoreBadge(insight.score)}
-                              </Badge>
-                            </div>
-                            {insight.score !== null && insight.score !== undefined && (
-                              <div className="text-right">
-                                <div className="text-2xl font-black">
-                                  {insight.score}%
-                                </div>
-                                <div className="text-xs opacity-70">Score</div>
-                              </div>
-                            )}
-                          </div>
-                          {insight.description && (
-                            <p className="text-sm text-gray-600 mt-2">{insight.description}</p>
-                          )}
-
-                          {/* Artifacts (heatmaps, masks, etc.) */}
-                          {insight.artifacts && insight.artifacts.length > 0 && (
-                            <div className="mt-3 space-y-2">
-                              {insight.artifacts.map((artifact: any, artIdx: number) => (
-                                <div key={artIdx}>
-                                  {artifact.type === 'image_url' && artifact.content && (
-                                    <div className="rounded-lg overflow-hidden border border-gray-200">
-                                      <img
-                                        src={artifact.content}
-                                        alt={artifact.label || `Visualización ${artIdx + 1}`}
-                                        className="w-full h-auto"
-                                      />
-                                      {artifact.label && (
-                                        <div className="bg-gray-100 px-2 py-1 text-xs text-gray-600 text-center">
-                                          {artifact.label}
-                                        </div>
-                                      )}
-                                    </div>
-                                  )}
-                                  {artifact.type === 'text_snippet' && artifact.content && (
-                                    <div className="bg-gray-50 p-2 rounded text-xs font-mono text-gray-600">
-                                      {artifact.content}
-                                    </div>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* FORENSIC INFO NOTICE - For IMAGE/VIDEO cases without detailed insights */}
-            {isForensicCase && forensicInsights.length === 0 && (
-              <div className="mt-8">
-                <Card className="shadow-sm border-2 border-blue-200 bg-blue-50/50">
-                  <CardContent className="p-4">
-                    <div className="flex gap-3">
-                      <Info className="h-5 w-5 text-blue-500 shrink-0 mt-0.5" />
-                      <div>
-                        <h4 className="font-semibold text-blue-800">Análisis Forense Procesado</h4>
-                        <p className="text-sm text-blue-700 mt-1">
-                          Este caso de {caseData.type === 'IMAGE' ? 'imagen' : 'video'} fue analizado con algoritmos forenses.
-                          El resumen del análisis se encuentra en la sección "Contenido Analizado" arriba.
-                        </p>
-                        <p className="text-xs text-blue-600 mt-2 opacity-80">
-                          Los detalles técnicos individuales de cada prueba forense estarán disponibles en futuras actualizaciones.
-                        </p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            )}
+            {/* KEEPING FORENSIC TABS FOR DEEP DIVE IF NEEDED OR REPLACED? 
+                User instruction was "Insight Cards Component ... Iterate over case.insights". 
+                The prompt implies this REPLACES the previous specialized sections for the main view.
+                However, for "FORENSICS", the user asked specifically for the Slider. 
+                The previous "Forensic Analysis Section" with tabs had a LOT more detail (Markers, Custody).
+                I will HIDE the old section for now, or move it to a "Detailed View" if this new Grid is meant to be the primary feed view.
+                Given "User clicks specific card... Frontend renders Detail View using data already inside", 
+                this *IS* the Detail View. 
+                
+                The request says: "Iterate over case.insights".
+                This suggests the "Grid" is the main body.
+                
+                I will comment out the old sections to strictly follow the new mapping request for the distinct styling.
+                Wait, if I remove the old "Forensic Analysis Section", we lose "Markers", "Custody", "EXIF" tabs unless they come in as insights.
+                "C. If category === 'metadata' ... Key-Value List". That covers the EXIF part if it's an insight.
+                
+                I will keep the old "Forensic Analysis Section" (Tabs) at the bottom as a "Deep Dive" or "Technical Details" section 
+                if it's not redundant. But for now I'll suppress the AMI specific layout and the old Forensic Header 
+                in favor of this unified loop.
+            */}
 
           </div>
 
           {/* RIGHT COLUMN - Fixed width sidebar */}
           <div className="lg:w-80 lg:flex-shrink-0 space-y-6">
-            
+
             {/* Case Info */}
             <Card className="shadow-sm border-2" style={{ borderColor: '#FFDA00' }}>
               <CardHeader className="pb-2 pt-4 px-4">

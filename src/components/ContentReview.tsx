@@ -78,7 +78,11 @@ export function ContentReview() {
       setDetailError(null);
       lookupCase(selectedCaseId)
         .then(data => {
-          if (!data) throw new Error("Datos no encontrados");
+          console.log(`[ContentReview] Data received for ${selectedCaseId}:`, data);
+          if (!data) {
+            console.error('[ContentReview] Data is null/undefined!');
+            throw new Error("Datos no encontrados");
+          }
           setFullCaseData(data);
         })
         .catch(err => {
