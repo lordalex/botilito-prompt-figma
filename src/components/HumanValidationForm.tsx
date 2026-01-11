@@ -13,6 +13,7 @@ interface HumanValidationFormProps {
   caseId: string;
   aiVerdictLabel: string;
   aiRiskScore: number;
+  caseType?: string; // 'TEXT', 'IMAGE', 'VIDEO', 'AUDIO'
   onVoteSuccess?: () => void;
 }
 
@@ -20,6 +21,7 @@ export function HumanValidationForm({
   caseId,
   aiVerdictLabel,
   aiRiskScore,
+  caseType = 'TEXT',
   onVoteSuccess
 }: HumanValidationFormProps) {
   const { toast } = useToast();
@@ -28,20 +30,59 @@ export function HumanValidationForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const OPTIONS = [
+  // Text/URL case options (AMI-focused)
+  const TEXT_OPTIONS = [
     {
       id: 'desarrolla-ami',
       value: 'Desarrolla las premisas AMI',
       label: 'Desarrolla las premisas AMI',
-      description: 'El contenido cumple con los criterios de Alfabetización Mediática'
+      description: 'El contenido cumple con los criterios de Alfabetización Mediática',
+      icon: '✅'
     },
     {
       id: 'requiere-ami',
       value: 'Requiere un enfoque AMI',
       label: 'Requiere un enfoque AMI',
-      description: 'El contenido requiere aplicar premisas de Alfabetización Mediática'
+      description: 'El contenido requiere aplicar premisas de Alfabetización Mediática',
+      icon: '⚠️'
     }
   ];
+
+  // Image/Video case options (Forensic-focused)
+  const IMAGE_OPTIONS = [
+    {
+      id: 'sin-alteraciones',
+      value: 'Sin alteraciones',
+      label: '✔ Sin alteraciones',
+      description: 'El contenido es auténtico y no presenta manipulación',
+      icon: '✅'
+    },
+    {
+      id: 'manipulado-digitalmente',
+      value: 'Manipulado Digitalmente',
+      label: '✘ Manipulado Digitalmente',
+      description: 'Detectadas alteraciones mediante herramientas de edición',
+      icon: '✘'
+    },
+    {
+      id: 'generado-ia',
+      value: 'Generado por IA',
+      label: '🤖 Generado por IA',
+      description: 'Contenido creado completamente por inteligencia artificial',
+      icon: '🤖'
+    },
+    {
+      id: 'deepfake',
+      value: 'Deepfake',
+      label: '👤 Deepfake',
+      description: 'Suplantación de identidad mediante IA',
+      icon: '👤'
+    }
+  ];
+
+  // Select options based on case type
+  const isForensicCase = caseType === 'IMAGE' || caseType === 'VIDEO' || caseType === 'AUDIO';
+  const OPTIONS = isForensicCase ? IMAGE_OPTIONS : TEXT_OPTIONS;
 
   const handleSubmit = async () => {
     setError(null);
@@ -130,8 +171,8 @@ export function HumanValidationForm({
                     key={option.id}
                     htmlFor={option.id}
                     className={`flex items-center gap-3 p-4 rounded-lg border-2 cursor-pointer transition-all w-full ${isSelected
-                        ? 'border-[#FFDA00] bg-[#FFFCE8]'
-                        : 'border-gray-200 bg-white hover:border-[#FFE97A] hover:bg-[#FFFCE8]/50'
+                      ? 'border-[#FFDA00] bg-[#FFFCE8]'
+                      : 'border-gray-200 bg-white hover:border-[#FFE97A] hover:bg-[#FFFCE8]/50'
                       }`}
                   >
                     <RadioGroupItem

@@ -863,6 +863,7 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
               caseId={caseData.id}
               aiVerdictLabel={caseData.overview.verdict_label}
               aiRiskScore={caseData.overview.risk_score}
+              caseType={caseData.type}
               onVoteSuccess={onReset}
             />
           </div>
@@ -1341,6 +1342,7 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
               caseId={caseData.id}
               aiVerdictLabel={caseData.overview.verdict_label}
               aiRiskScore={caseData.overview.risk_score}
+              caseType={caseData.type}
               onVoteSuccess={onReset}
             />
           </div>
