@@ -251,6 +251,62 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
     return 'MANIPULADO';
   };
 
+  // Get color scheme for TEXT/AMI analysis (INVERTED from forensic!)
+  // For AMI: LOW score = content has issues (WARNING), HIGH score = content is good (SAFE)
+  // Per USAGE_GUI_DTO_RESPONSE.md:
+  //   0-30: Requiere enfoque AMI (RED - warning)
+  //   31-70: Cumplimiento parcial (YELLOW/ORANGE - caution)
+  //   71-100: Desarrolla las premisas AMI (GREEN - safe)
+  const getAMIColorScheme = (score: number) => {
+    if (score <= 30) {
+      // Low score = Requires AMI approach = WARNING (red/rose)
+      return {
+        border: 'border-rose-500',
+        bg: 'bg-rose-50',
+        iconText: 'text-rose-500',
+        scoreText: 'text-rose-600',
+        smallText: 'text-rose-400',
+        badgeBg: 'bg-rose-100',
+        badgeText: 'text-rose-700',
+        badgeBorder: 'border-rose-200'
+      };
+    }
+    if (score <= 70) {
+      // Medium score = Partial compliance = CAUTION (orange/yellow)
+      return {
+        border: 'border-orange-500',
+        bg: 'bg-orange-50',
+        iconText: 'text-orange-500',
+        scoreText: 'text-orange-600',
+        smallText: 'text-orange-400',
+        badgeBg: 'bg-orange-100',
+        badgeText: 'text-orange-700',
+        badgeBorder: 'border-orange-200'
+      };
+    }
+    // High score (>70) = Develops AMI premises = SAFE (green/emerald)
+    return {
+      border: 'border-emerald-500',
+      bg: 'bg-emerald-50',
+      iconText: 'text-emerald-500',
+      scoreText: 'text-emerald-600',
+      smallText: 'text-emerald-400',
+      badgeBg: 'bg-emerald-100',
+      badgeText: 'text-emerald-700',
+      badgeBorder: 'border-emerald-200'
+    };
+  };
+
+  // Get verdict label for TEXT/AMI cases based on score
+  const getAMIVerdictLabel = (score: number, existingLabel?: string) => {
+    // If we have a specific label from the backend, use it
+    if (existingLabel && existingLabel !== 'Pendiente') return existingLabel;
+    // Otherwise derive from score
+    if (score <= 30) return 'Requiere un enfoque AMI';
+    if (score <= 70) return 'Cumplimiento parcial AMI';
+    return 'Desarrolla las premisas AMI';
+  };
+
   // Get color scheme for insight cards based on confidence score
   // Higher score = better/green (content is coherent), lower score = red (alert/mismatch)
   const getInsightColorScheme = (score: number | null | undefined) => {
@@ -315,6 +371,23 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
           </Button>
         </div>
 
+        {/* BOTILITO BANNER - AMI Analysis Introduction */}
+        <div className="bg-[#ffe97a] border-b-2 border-[#ffda00] px-4 md:px-6 py-4">
+          <div className="max-w-7xl mx-auto flex items-center gap-4">
+            <div className="bg-white p-1.5 rounded-full border-2 border-[#ffda00] shrink-0">
+              <img src={botilitoImage} alt="Botilito" className="w-10 h-10 object-contain" />
+            </div>
+            <div>
+              <p className="text-base md:text-lg font-bold text-gray-900">
+                ¡Qué más parce! Este es el análisis AMI de tu contenido 🔍
+              </p>
+              <p className="text-xs md:text-sm text-gray-700 mt-0.5">
+                Revisamos las fuentes, el contexto y las competencias de Alfabetización Mediática e Informacional
+              </p>
+            </div>
+          </div>
+        </div>
+
         <div className="max-w-7xl mx-auto px-4 md:px-6 py-6" ref={contentRef}>
           <div className="flex flex-col lg:flex-row gap-8">
             {/* LEFT COLUMN (Main) */}
@@ -376,65 +449,91 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
               </div>
 
               {/* 3. DIAGNOSIS CARDS (Infodemic & Human) */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Infodemic / Forensic Diagnosis */}
-                <div className={`rounded-xl border-2 p-4 flex flex-col justify-between ${caseData.overview.risk_score < 30 ? 'bg-green-50 border-green-200' :
-                  caseData.overview.risk_score < 70 ? 'bg-orange-50 border-orange-200' :
-                    'bg-red-50 border-red-200'
-                  }`}>
-                  <div className="flex justify-between items-start mb-4">
-                    <div className="flex items-center gap-2 text-gray-900 font-bold">
-                      <AlertTriangle className={caseData.overview.risk_score < 30 ? 'text-green-600' : caseData.overview.risk_score < 70 ? 'text-orange-600' : 'text-red-600'} />
-                      {isForensicCase || isAudio ? 'Diagnóstico Forense' : 'Diagnóstico Infodémico'}
-                    </div>
-                    <div className="text-right">
-                      <div className="text-2xl font-black text-gray-900">{caseData.overview.risk_score}%</div>
-                      <div className="text-[10px] uppercase text-gray-500 font-bold">Precisión diagnóstica</div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="font-mono text-xs font-bold text-gray-500 uppercase">Análisis IA</div>
-                    <Badge variant="outline" className={`border bg-white ${caseData.overview.risk_score < 30 ? 'text-green-700 border-green-200' :
-                      caseData.overview.risk_score < 70 ? 'text-orange-700 border-orange-200' :
-                        'text-red-700 border-red-200'
-                      }`}>
-                      {isForensicCase
-                        ? (caseData.overview.risk_score > 50 ? 'Manipulado Digitalmente' : 'Auténtico')
-                        : 'requiere un enfoque AMI'}
-                    </Badge>
-                  </div>
-                  <p className="text-xs text-gray-600 mt-2">
-                    {isForensicCase
-                      ? (caseData.overview.risk_score > 50
-                        ? "Se detectaron patrones de edición digital que sugieren manipulación del contenido original."
-                        : "No se encontraron evidencias significativas de alteración digital en el archivo analizado.")
-                      : "Contenido presenta desinformación médica grave. Alto riesgo de propagación por apelación emocional y falsa autoridad científica."}
-                  </p>
-                </div>
+              {(() => {
+                // Use AMI color scheme for TEXT cases (inverted logic)
+                const amiColors = getAMIColorScheme(caseData.overview.risk_score);
+                const verdictLabel = getAMIVerdictLabel(caseData.overview.risk_score, caseData.overview.verdict_label);
 
-                {/* Human */}
-                <div className="rounded-xl border-2 border-red-100 bg-red-50 p-4 flex flex-col justify-between">
-                  <div className="flex justify-between items-start mb-4">
-                    <div className="flex items-center gap-2 text-gray-900 font-bold">
-                      <User className="text-red-600" />
-                      Análisis Humano
+                // Calculate human consensus from actual community data
+                const hasHumanVotes = caseData.community?.votes > 0;
+                const humanConsensusPercent = hasHumanVotes
+                  ? Math.min(Math.round((caseData.community.votes / 3) * 100), 100) // 3 votes = 100%
+                  : 0;
+                const humanStatus = caseData.community?.status || 'ai_only';
+
+                // Human card colors based on consensus status
+                const humanColors = humanStatus === 'human_consensus'
+                  ? { border: 'border-emerald-200', bg: 'bg-emerald-50', iconText: 'text-emerald-600', badgeText: 'text-emerald-700', badgeBorder: 'border-emerald-200' }
+                  : hasHumanVotes
+                    ? { border: 'border-orange-200', bg: 'bg-orange-50', iconText: 'text-orange-600', badgeText: 'text-orange-700', badgeBorder: 'border-orange-200' }
+                    : { border: 'border-gray-200', bg: 'bg-gray-50', iconText: 'text-gray-500', badgeText: 'text-gray-600', badgeBorder: 'border-gray-300' };
+
+                return (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* AI Diagnosis Card */}
+                    <div className={`rounded-xl border-2 p-4 flex flex-col justify-between ${amiColors.bg} ${amiColors.border}`}>
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="flex items-center gap-2 text-gray-900 font-bold">
+                          <AlertTriangle className={amiColors.iconText} />
+                          Diagnóstico Infodémico
+                        </div>
+                        <div className="text-right">
+                          <div className={`text-2xl font-black ${amiColors.scoreText}`}>{caseData.overview.risk_score}%</div>
+                          <div className="text-[10px] uppercase text-gray-500 font-bold">Nivel de Riesgo</div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="font-mono text-xs font-bold text-gray-500 uppercase">Análisis IA</div>
+                        <Badge variant="outline" className={`border bg-white ${amiColors.badgeText} ${amiColors.badgeBorder}`}>
+                          {verdictLabel}
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-gray-600 mt-2">
+                        {caseData.overview.risk_score <= 30
+                          ? "Contenido requiere evaluación crítica. Se detectaron indicadores que sugieren la necesidad de aplicar competencias AMI."
+                          : caseData.overview.risk_score <= 70
+                            ? "Contenido con cumplimiento parcial de premisas AMI. Se recomienda verificación adicional."
+                            : "Contenido desarrolla las premisas de Alfabetización Mediática e Informacional de manera adecuada."}
+                      </p>
                     </div>
-                    <div className="text-right">
-                      <div className="text-2xl font-black text-gray-900">{caseData.community?.votes ? Math.min(caseData.community.votes * 10, 100) : 92}%</div>
-                      <div className="text-[10px] uppercase text-gray-500 font-bold">Consenso humano</div>
+
+                    {/* Human Analysis Card */}
+                    <div className={`rounded-xl border-2 p-4 flex flex-col justify-between ${humanColors.bg} ${humanColors.border}`}>
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="flex items-center gap-2 text-gray-900 font-bold">
+                          <User className={humanColors.iconText} />
+                          Análisis Humano
+                        </div>
+                        <div className="text-right">
+                          <div className={`text-2xl font-black ${hasHumanVotes ? humanColors.iconText : 'text-gray-400'}`}>
+                            {hasHumanVotes ? `${humanConsensusPercent}%` : '--%'}
+                          </div>
+                          <div className="text-[10px] uppercase text-gray-500 font-bold">Consenso humano</div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="font-mono text-xs font-bold text-gray-500 uppercase">
+                          {caseData.community?.votes || 0} validador{(caseData.community?.votes || 0) !== 1 ? 'es' : ''}
+                        </div>
+                        <Badge variant="outline" className={`border bg-white ${humanColors.badgeText} ${humanColors.badgeBorder}`}>
+                          {humanStatus === 'human_consensus'
+                            ? 'Consenso alcanzado'
+                            : hasHumanVotes
+                              ? 'En proceso de validación'
+                              : 'Pendiente de validación'}
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-gray-600 mt-2">
+                        {humanStatus === 'human_consensus'
+                          ? "Los especialistas en AMI han alcanzado consenso sobre la clasificación de este contenido."
+                          : hasHumanVotes
+                            ? `${caseData.community.votes} validador${caseData.community.votes !== 1 ? 'es' : ''} ha${caseData.community.votes !== 1 ? 'n' : ''} revisado este caso. Se requieren más opiniones para alcanzar consenso.`
+                            : "Este caso aún no ha sido validado por especialistas humanos. ¡Tu opinión es importante!"}
+                      </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <div className="font-mono text-xs font-bold text-gray-500 uppercase">Análisis humano</div>
-                    <Badge variant="outline" className="text-red-700 border-red-200 bg-white">
-                      requiere un enfoque AMI
-                    </Badge>
-                  </div>
-                  <p className="text-xs text-gray-600 mt-2">
-                    Los especialistas en AMI confirman que este contenido presenta características de desinformación y requiere un análisis crítico profundo.
-                  </p>
-                </div>
-              </div>
+                );
+              })()}
 
               {/* 4. AMI ANALYSIS SECTION */}
               <div className="space-y-4">
@@ -467,33 +566,57 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
                   </CardContent>
                 </Card>
 
-                {/* B. Análisis de Fuentes (Blue) */}
-                <Card className="bg-blue-50 border-none shadow-none ring-1 ring-blue-100">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-bold flex items-center gap-2 text-blue-800">
-                      <Globe className="h-4 w-4" /> Análisis de Fuentes y Datos
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-blue-900">
-                      {sourceInsight?.description || "El contenido proviene de fuentes que requieren verificación adicional. Se recomienda contrastar con medios verificados."}
-                    </p>
-                  </CardContent>
-                </Card>
+                {/* B. Análisis de Fuentes (Dynamic: Blue=reliable, Orange=needs verification) */}
+                {(() => {
+                  const sourceScore = sourceInsight?.confidence_score ?? 50; // Default to medium if no score
+                  const isReliable = sourceScore >= 70;
+                  const sourceColors = isReliable
+                    ? { bg: 'bg-blue-50', ring: 'ring-blue-100', title: 'text-blue-800', text: 'text-blue-900', icon: 'text-blue-600' }
+                    : { bg: 'bg-orange-50', ring: 'ring-orange-100', title: 'text-orange-800', text: 'text-orange-900', icon: 'text-orange-600' };
+                  return (
+                    <Card className={`${sourceColors.bg} border-none shadow-none ring-1 ${sourceColors.ring}`}>
+                      <CardHeader className="pb-2">
+                        <CardTitle className={`text-sm font-bold flex items-center gap-2 ${sourceColors.title}`}>
+                          <Globe className={`h-4 w-4 ${sourceColors.icon}`} /> Análisis de Fuentes y Datos
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className={`text-sm ${sourceColors.text}`}>
+                          {sourceInsight?.description || (isReliable
+                            ? "El contenido proviene de fuentes verificables. Se recomienda igualmente contrastar con otras fuentes."
+                            : "El contenido proviene de fuentes que requieren verificación adicional. Se recomienda contrastar con medios verificados.")}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  );
+                })()}
 
-                {/* C. Alerta Clickbait (Red) */}
-                <Card className="bg-red-50 border-none shadow-none ring-1 ring-red-100">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-bold flex items-center gap-2 text-red-700">
-                      <AlertTriangle className="h-4 w-4" /> Alerta: Titular vs. Contenido
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-red-800 font-medium">
-                      ⚠️ {clickbaitInsight?.description || "El titular presenta características de clickbait o sensacionalismo que no corresponden completamente con el contenido real."}
-                    </p>
-                  </CardContent>
-                </Card>
+                {/* C. Alerta Clickbait (Dynamic: Green=coherent, Red=clickbait) */}
+                {(() => {
+                  const clickbaitScore = clickbaitInsight?.confidence_score ?? 30; // Default to low (clickbait alert) if no score
+                  const isCoherent = clickbaitScore >= 70;
+                  const clickbaitColors = isCoherent
+                    ? { bg: 'bg-green-50', ring: 'ring-green-100', title: 'text-green-800', text: 'text-green-900', icon: 'text-green-600' }
+                    : { bg: 'bg-red-50', ring: 'ring-red-100', title: 'text-red-700', text: 'text-red-800', icon: 'text-red-600' };
+                  const alertIcon = isCoherent ? '✓' : '⚠️';
+                  const titleText = isCoherent ? 'Coherencia: Titular vs. Contenido' : 'Alerta: Titular vs. Contenido';
+                  return (
+                    <Card className={`${clickbaitColors.bg} border-none shadow-none ring-1 ${clickbaitColors.ring}`}>
+                      <CardHeader className="pb-2">
+                        <CardTitle className={`text-sm font-bold flex items-center gap-2 ${clickbaitColors.title}`}>
+                          <AlertTriangle className={`h-4 w-4 ${clickbaitColors.icon}`} /> {titleText}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className={`text-sm ${clickbaitColors.text} ${!isCoherent ? 'font-medium' : ''}`}>
+                          {alertIcon} {clickbaitInsight?.description || (isCoherent
+                            ? "El titular y el contenido son coherentes. No se detectaron características de clickbait o sensacionalismo."
+                            : "El titular presenta características de clickbait o sensacionalismo que no corresponden completamente con el contenido real.")}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  );
+                })()}
 
                 {/* D. Competencias AMI (Green) */}
                 <Card className="bg-green-50 border-none shadow-none ring-1 ring-green-100">
@@ -525,6 +648,10 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
                             <span className="bg-yellow-400 text-yellow-900 text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shrink-0">3</span>
                             <span>Comprensión del contexto: Entender el contexto histórico, social y político de la información</span>
                           </li>
+                          <li className="flex gap-3 text-sm text-green-900">
+                            <span className="bg-yellow-400 text-yellow-900 text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shrink-0">4</span>
+                            <span>Producción responsable: Compartir información verificada y evitar la propagación de desinformación</span>
+                          </li>
                         </>
                       )}
                     </ul>
@@ -536,6 +663,19 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
               <div className="pt-4">
                 <DigitalIABanner />
               </div>
+
+              {/* 6. HUMAN VALIDATION FORM */}
+              {!hideVoting && (
+                <div className="pt-6">
+                  <HumanValidationForm
+                    caseId={caseData.id}
+                    caseType={caseData.type}
+                    onValidationSubmit={() => {
+                      console.log('[ContentUploadResult] Validation submitted for case:', caseData.id);
+                    }}
+                  />
+                </div>
+              )}
 
             </div>
 
