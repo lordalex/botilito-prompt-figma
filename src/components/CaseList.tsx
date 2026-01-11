@@ -206,18 +206,18 @@ export function CaseList({
         <div className="flex flex-col">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg text-primary">
-                <Layers className="h-5 w-5 text-gray-800" />
+              <div className="p-0">
+                {/* Stacked icon look with yellow tint */}
+                <Layers className="h-5 w-5 text-[#FFDA00]" />
               </div>
               <div>
-                <CardTitle className="text-xl font-bold">{title}</CardTitle>
+                <CardTitle className="text-xl font-bold text-gray-900">{title}</CardTitle>
               </div>
             </div>
             <div className="flex items-center gap-2">
               <Badge
-                variant="outline"
-                className="text-sm font-medium px-3 py-1 bg-white"
-                style={{ borderColor: 'var(--accent)', color: 'var(--color-yellow-700)', backgroundColor: 'var(--color-yellow-50)' }}
+                variant="secondary"
+                className="text-xs font-bold px-3 py-1 bg-[#FFF9C4] text-yellow-800 hover:bg-[#FFF59D] border-none"
               >
                 {isLoading ? (
                   <span className="flex items-center gap-1.5">
@@ -230,15 +230,14 @@ export function CaseList({
               </Badge>
               {onRefresh && (
                 <Button
-                  variant="outline"
-                  size="sm"
+                  variant="ghost"
+                  size="icon"
                   onClick={onRefresh}
                   disabled={isRefreshing || isLoading}
-                  className="flex items-center gap-1.5 h-7 px-2"
+                  className="h-8 w-8 text-gray-400 hover:text-gray-600"
                   title="Actualizar lista"
                 >
-                  <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
-                  <span className="hidden sm:inline text-xs">Actualizar</span>
+                  <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
                 </Button>
               )}
             </div>
