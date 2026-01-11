@@ -5,6 +5,7 @@ import { ContentUploadResult } from '@/components/ContentUploadResult';
 import { Button } from '@/components/ui/button';
 import { AlertCircle } from 'lucide-react';
 import { GlobalLoader } from '@/components/ui/GlobalLoader';
+import { BotilitoValidationBanner } from '@/components/ui/botilito-validation-banner';
 
 export function HumanVerification() {
   const { cases, isLoading, handleSelectCase, goToPage, page, totalPages, hasMore, refreshCases } = useHumanVerification();
@@ -48,12 +49,17 @@ export function HumanVerification() {
   }
 
   return (
-    <div className="relative min-h-[60vh]">
+    <div className="relative min-h-[60vh] max-w-7xl mx-auto">
       {isLoading && <GlobalLoader message="Cargando casos para valoración..." />}
 
       <div className={`p-6 transition-opacity duration-300 ${isLoading ? 'opacity-20 pointer-events-none' : 'opacity-100'}`}>
-        <h1 className="text-2xl font-bold mb-4">Validación Humana</h1>
-        <p className="text-gray-600 mb-6">Revisa y vota en los casos pendientes para ayudar a la comunidad.</p>
+
+        <BotilitoValidationBanner />
+
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-gray-900">Validación Humana</h1>
+          <p className="text-gray-600">Revisa y valida los diagnósticos realizados por la IA para mejorar la precisión del sistema</p>
+        </div>
 
         <CaseList
           cases={cases}

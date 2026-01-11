@@ -40,7 +40,6 @@
  */
 
 import React, { useState } from 'react';
-import botilitoImage from '@/assets/botilito-mascot.png';
 import {
   Bot, CheckCircle, Clock, AlertTriangle, Fingerprint, RefreshCcw, AlertCircle
 } from 'lucide-react';
@@ -49,6 +48,7 @@ import { Button } from '@/components/ui/button';
 import { useCaseHistory } from '@/hooks/useCaseHistory';
 import { CaseList } from './CaseList';
 import { ContentUploadResult } from '@/components/ContentUploadResult';
+import { BotilitoValidationBanner } from '@/components/ui/botilito-validation-banner';
 
 import { GlobalLoader } from '@/components/ui/GlobalLoader';
 
@@ -111,23 +111,16 @@ export function ContentReview() {
       <div className={`w-full space-y-6 px-6 pt-6 transition-opacity duration-300 ${loading ? 'opacity-20 pointer-events-none' : 'opacity-100'}`}>
 
         {/* Mensaje de Botilito */}
-        <div className="bg-[#ffe97a] border-2 border-[#ffda00] rounded-lg p-4 shadow-lg">
-          <div className="flex items-center space-x-4">
-            <img
-              src={botilitoImage}
-              alt="Botilito"
-              className="w-24 h-24 object-contain mt-[0px] mr-[16px] mb-[-18px] ml-[0px]"
-            />
-            <div className="flex-1">
-              <p className="text-xl">
-                ¡Qué más parce! Acá está el historial completo de casos
-              </p>
-              <p className="text-sm mt-1 opacity-80">
+        <BotilitoValidationBanner
+          title={
+            <div className="flex flex-col items-start gap-1">
+              <span>¡Qué más parce! Acá está el historial completo de casos</span>
+              <span className="text-sm font-normal opacity-90">
                 Todos los contenidos analizados, desde multimedia forense hasta desinformación. ¡Revisa, filtra y comparte!
-              </p>
+              </span>
             </div>
-          </div>
-        </div>
+          }
+        />
 
         {/* Título */}
         <div className="flex justify-between items-start">
@@ -227,7 +220,7 @@ export function ContentReview() {
         {/* Cases List - Using shared CaseList component (same as HumanVerification) */}
         {!error && (
           <CaseList
-            cases={cases}
+            cases={cases as any}
             onViewTask={handleSelectCase}
             isLoading={false} // Disable internal loading to avoid double spinners
             isEnrichedFormat={true}
