@@ -40,12 +40,19 @@ export const useHumanVerification = () => {
             const summary = await fetchVerificationSummary(newPage, 10);
 
             setCases(summary.cases); // REPLACE cases, do not append
-            setHasMore(summary.pagination.hasMore);
             setPage(newPage);
 
+            const pageSize = 10;
             const total = summary.pagination.totalItems || summary.summary?.total;
             if (total) {
-                setTotalPages(Math.ceil(total / 10));
+                setTotalPages(Math.ceil(total / pageSize));
+                const calculatedHasMore = newPage < Math.ceil(total / pageSize);
+                setHasMore(summary.pagination.hasMore || calculatedHasMore);
+            } else {
+                // Heuristic: if we got exactly pageSize results, assume there might be more
+                const returnedCount = summary.pagination.returnedCount ?? summary.cases?.length ?? 0;
+                const inferredHasMore = returnedCount >= pageSize;
+                setHasMore(summary.pagination.hasMore || inferredHasMore);
             }
         } catch (e: any) {
             console.error("Error loading page:", e);
@@ -70,11 +77,18 @@ export const useHumanVerification = () => {
             ]);
 
             setCases(summary.cases);
-            setHasMore(summary.pagination.hasMore);
             setPage(1);
+            const pageSize = 10;
             const total = summary.pagination.totalItems || summary.summary?.total;
             if (total) {
-                setTotalPages(Math.ceil(total / 10));
+                setTotalPages(Math.ceil(total / pageSize));
+                const calculatedHasMore = 1 < Math.ceil(total / pageSize);
+                setHasMore(summary.pagination.hasMore || calculatedHasMore);
+            } else {
+                // Heuristic: if we got exactly pageSize results, assume there might be more
+                const returnedCount = summary.pagination.returnedCount ?? summary.cases?.length ?? 0;
+                const inferredHasMore = returnedCount >= pageSize;
+                setHasMore(summary.pagination.hasMore || inferredHasMore);
             }
             if (stats) {
                 setUserStats(stats);
@@ -130,10 +144,17 @@ export const useHumanVerification = () => {
                 ]);
 
                 setCases(summary.cases);
-                setHasMore(summary.pagination.hasMore);
+                const pageSize = 10;
                 const total = summary.pagination.totalItems || summary.summary?.total;
                 if (total) {
-                    setTotalPages(Math.ceil(total / 10));
+                    setTotalPages(Math.ceil(total / pageSize));
+                    const calculatedHasMore = 1 < Math.ceil(total / pageSize);
+                    setHasMore(summary.pagination.hasMore || calculatedHasMore);
+                } else {
+                    // Heuristic: if we got exactly pageSize results, assume there might be more
+                    const returnedCount = summary.pagination.returnedCount ?? summary.cases?.length ?? 0;
+                    const inferredHasMore = returnedCount >= pageSize;
+                    setHasMore(summary.pagination.hasMore || inferredHasMore);
                 }
                 setUserStats(stats);
 
