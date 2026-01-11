@@ -72,6 +72,12 @@ export async function searchCases(
 /**
  * Uses /lookup endpoint for single case details.
  * Returns either StandardizedCase (new format) or EnrichedCase (legacy).
+ *
+ * Handles multiple API response formats:
+ * - result.case (expected by LookupResultPayload type)
+ * - result.standardized_case (per DTO documentation)
+ * - result.cases[0] (array format from some endpoints)
+ * - result directly if it has id and overview (direct case object)
  */
 export async function lookupCase(identifier: string): Promise<EnrichedCase | StandardizedCase | null> {
   const { data: submitData, error: submitError } = await supabase.functions.invoke(`${FUNCTION_NAME}/lookup`, {
@@ -82,8 +88,36 @@ export async function lookupCase(identifier: string): Promise<EnrichedCase | Sta
   if (submitError) throw submitError;
   const job = submitData as VectorJobResponse;
 
-  const result = await pollJobStatus<LookupResultPayload>(job.job_id);
-  return result.case || null;
+  const result = await pollJobStatus<any>(job.job_id);
+
+  // Debug: Log the actual API response structure
+  console.log('[lookupCase] API result:', JSON.stringify(result, null, 2));
+  console.log('[lookupCase] Result keys:', Object.keys(result || {}));
+
+  // Handle multiple response formats from the API
+  let caseData = null;
+
+  if (result.case) {
+    // Standard LookupResultPayload format
+    console.log('[lookupCase] Found result.case');
+    caseData = result.case;
+  } else if (result.standardized_case) {
+    // DTO documentation format: { standardized_case: {...} }
+    console.log('[lookupCase] Found result.standardized_case');
+    caseData = result.standardized_case;
+  } else if (result.cases && Array.isArray(result.cases) && result.cases.length > 0) {
+    // Array format from search-like endpoints
+    console.log('[lookupCase] Found result.cases array');
+    caseData = result.cases[0];
+  } else if (result.id && result.overview) {
+    // Direct case object (result IS the case)
+    console.log('[lookupCase] Result is direct case object');
+    caseData = result;
+  } else {
+    console.log('[lookupCase] No matching format found');
+  }
+
+  return caseData;
 }
 
 /**
