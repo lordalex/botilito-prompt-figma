@@ -294,13 +294,13 @@ export const api = {
             }),
     },
     /**
-     * Historial API - Fetches cases that have been voted on (Ya Votados).
-     * Uses /search endpoint with consensus_filter: "present" per API guide.
+     * Historial API - Fetches ALL analyzed cases for history view.
+     * Shows all cases regardless of consensus status.
      */
     historial: {
         /**
-         * Get cases with human consensus for history view.
-         * Uses consensus_filter: "present" to get already-voted cases.
+         * Get all cases for history view (both AI-only and human-verified).
+         * No consensus_filter = returns all cases.
          * @param session - Active Supabase session
          * @param page - Page number (1-indexed)
          * @param pageSize - Number of items per page
@@ -309,10 +309,9 @@ export const api = {
             fetchClient(session, apiEndpoints.SEARCH_ENDPOINT, {
                 method: 'POST',
                 body: JSON.stringify({
-                    consensus_filter: "present",
                     page,
                     limit: pageSize,
-                    select_fields: ["id", "created_at", "type", "overview", "community"]
+                    select_fields: ["id", "created_at", "type", "overview", "community", "insights"]
                 }),
             }),
     }
