@@ -1,6 +1,7 @@
 
 import React from 'react';
 import botilitoImage from '@/assets/e27a276e6ff0e187a67cf54678c265c1c38adbf7.png';
+import botilitoInspector from '@/assets/botilito-mascot.png';
 
 interface BotilitoValidationBannerProps {
     variant?: 'list' | 'detail';
@@ -24,7 +25,7 @@ export function BotilitoValidationBanner({ variant = 'list', title }: BotilitoVa
         <div className="bg-[#ffe97a] border-2 border-[#ffda00] rounded-lg p-4 shadow-lg mb-6">
             <div className="flex items-center space-x-4">
                 <img
-                    src={botilitoImage}
+                    src={title ? botilitoImage : botilitoInspector}
                     alt="Detective Botilito"
                     className="w-24 h-24 object-contain mt-[0px] mr-[16px] mb-[-18px] ml-[0px]"
                 />
