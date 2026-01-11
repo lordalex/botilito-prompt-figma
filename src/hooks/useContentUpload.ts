@@ -74,110 +74,118 @@ export function useContentUpload(initialJobId?: string, initialJobType?: string)
         const file = files[0];
         setFileName(file.name);
         setFileSize(file.size);
-        const fileType = file.type.toLowerCase();
-        const fileName = file.name.toLowerCase();
+        switch (contentType) {
+          case 'audio': {
+            // --- AUDIO FLOW ---
+            console.log('[useContentUpload] Starting Audio Flow');
+            setStatus('polling');
+            startFakeProgress();
 
-        // Detect if it's an audio file
-        const isAudioFile = fileType.startsWith('audio/') ||
-          fileName.endsWith('.wav') ||
-          fileName.endsWith('.mp3') ||
-          fileName.endsWith('.ogg') ||
-          fileName.endsWith('.m4a') ||
-          fileName.endsWith('.flac');
+            const { jobId, result: fastResult } = await audioAnalysisService.submitJob(file);
 
-        if (isAudioFile) {
-          // --- AUDIO FLOW ---
-          setStatus('polling');
-          startFakeProgress();
+            let finalResult = fastResult;
 
-          const { jobId, result: fastResult } = await audioAnalysisService.submitJob(file);
-
-          // Note: Server automatically registers this job in notifications system
-          // No need to call registerTask - removed for v1.3.0 Lazy Polling
-
-          let finalResult = fastResult;
-
-          // Poll for result if not immediately available
-          if (!finalResult && jobId) {
-            const poll = async () => {
-              while (true) {
-                await new Promise(r => setTimeout(r, 2000));
-                const status = await audioAnalysisService.getJobStatus(jobId);
-                if (status.status === 'completed') {
-                  return await audioAnalysisService.getAudioAnalysisResult(jobId);
+            // Poll for result if not immediately available
+            if (!finalResult && jobId) {
+              const poll = async () => {
+                while (true) {
+                  await new Promise(r => setTimeout(r, 2000));
+                  const status = await audioAnalysisService.getJobStatus(jobId);
+                  if (status.status === 'completed') {
+                    return await audioAnalysisService.getAudioAnalysisResult(jobId);
+                  }
+                  if (status.status === 'failed') throw new Error(status.error?.message || 'Failed');
                 }
-                if (status.status === 'failed') throw new Error(status.error?.message || 'Failed');
-              }
-            };
-            finalResult = await poll();
-          }
-
-          // Add local audio URL for playback
-          if (finalResult && file) {
-            try {
-              const objectUrl = URL.createObjectURL(file);
-              finalResult = {
-                ...finalResult,
-                local_audio_url: objectUrl
               };
-            } catch (e) {
-              console.error("Failed to create object URL for audio", e);
+              finalResult = await poll();
             }
+
+            // Add local audio URL for playback
+            if (finalResult && file) {
+              try {
+                const objectUrl = URL.createObjectURL(file);
+                finalResult = {
+                  ...finalResult,
+                  local_audio_url: objectUrl
+                };
+              } catch (e) {
+                console.error("Failed to create object URL for audio", e);
+              }
+            }
+
+            stopFakeProgress();
+            setResult(finalResult);
+            setProgress(100);
+            setStatus('complete');
+            break;
           }
+          case 'imagen': {
+            // --- IMAGE FLOW ---
+            console.log('[useContentUpload] Starting Image Flow');
+            setStatus('polling');
+            startFakeProgress();
 
-          stopFakeProgress();
-          setResult(finalResult);
-          setProgress(100);
-          setStatus('complete');
-        } else {
-          // --- IMAGE FLOW ---
-          setStatus('polling');
-          startFakeProgress();
+            try {
+              console.log('[useContentUpload] Awaiting imageAnalysisService.submitJob...');
+              const { jobId, result: fastResult } = await imageAnalysisService.submitJob(file);
+              console.log('[useContentUpload] imageAnalysisService.submitJob RESOLVED. Job ID:', jobId);
+              console.log('[useContentUpload] Image Job Submitted:', jobId, fastResult ? 'Has Result' : 'Pending');
 
-          const { jobId, result: fastResult } = await imageAnalysisService.submitJob(file);
+              let finalResult = fastResult;
 
-          // Note: Server automatically registers this job in notifications system
-          // No need to call registerTask - removed for v1.3.0 Lazy Polling
+              if (!finalResult && jobId) {
+                console.log('[useContentUpload] Polling for Image Job...');
+                const poll = async () => {
+                  while (true) {
+                    await new Promise(r => setTimeout(r, 2000));
+                    const status = await imageAnalysisService.getJobStatus(jobId);
+                    console.log('[useContentUpload] Poll Status:', status.status);
+                    if (status.status === 'completed') {
+                      return await imageAnalysisService.getAnalysisResult(jobId);
+                    }
+                    if (status.status === 'failed') throw new Error(typeof status.error === 'string' ? status.error : status.error?.message || 'Failed');
+                  }
+                };
+                finalResult = await poll();
+              }
 
-          let finalResult = fastResult;
-
-          if (!finalResult && jobId) {
-            const poll = async () => {
-              while (true) {
-                await new Promise(r => setTimeout(r, 2000));
-                const status = await imageAnalysisService.getJobStatus(jobId);
-                if (status.status === 'completed') {
-                  return await imageAnalysisService.getAnalysisResult(jobId);
+              if (finalResult && file) {
+                try {
+                  const objectUrl = URL.createObjectURL(file);
+                  finalResult = {
+                    ...finalResult,
+                    local_image_url: objectUrl,
+                    jobId // Preserve jobId in the result
+                  };
+                } catch (e) {
+                  console.error("Failed to create object URL", e);
                 }
-                if (status.status === 'failed') throw new Error(typeof status.error === 'string' ? status.error : status.error?.message || 'Failed');
+              } else if (finalResult) {
+                // Even if no file, preserve jobId
+                finalResult = {
+                  ...finalResult,
+                  jobId
+                };
               }
-            };
-            finalResult = await poll();
-          }
 
-          if (finalResult && file) {
-            try {
-              const objectUrl = URL.createObjectURL(file);
-              finalResult = {
-                ...finalResult,
-                local_image_url: objectUrl,
-                jobId // Preserve jobId in the result
-              };
-            } catch (e) {
-              console.error("Failed to create object URL", e);
+              stopFakeProgress();
+              setResult(finalResult);
+              setProgress(100);
+              setStatus('complete');
+            } catch (imgErr) {
+              console.error('[useContentUpload] Image Analysis Error:', imgErr);
+              throw imgErr;
             }
-          } else if (finalResult) {
-            // Even if no file, preserve jobId
-            finalResult = {
-              ...finalResult,
-              jobId
-            };
+            break;
           }
-
-          stopFakeProgress();
-          setResult(finalResult);
-          setProgress(100);
-          setStatus('complete');
+          case 'video': {
+            // --- VIDEO FLOW (Not implemented) ---
+            console.warn('[useContentUpload] Video flow not implemented yet.');
+            throw new Error('El análisis de video no está implementado.');
+          }
+          default:
+            console.warn(`[useContentUpload] Unexpected content type with file: ${contentType}`);
+            throw new Error(`Tipo de contenido inesperado con archivo: ${contentType}`);
         }
       } else {
         // --- TEXT/URL FLOW ---

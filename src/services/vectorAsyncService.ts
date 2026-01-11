@@ -19,21 +19,33 @@ import {
 const FUNCTION_NAME = 'search-dto';
 
 // Helper for polling
+// Helper for polling (Now strictly uses Lookup logic or is deprecated)
+// Since the new Lookup endpoint provides the case directly, we only poll if we suspect async processing is still active.
+// However, the `search-dto/lookup` IS the unified way to get data.
+// If we need to "poll" a job until it's done, we do it by calling lookup repeatedly.
+
 async function pollJobStatus<T>(jobId: string, interval = 2000, timeout = 60000): Promise<T> {
   const start = Date.now();
+  console.log(`[VectorAsync] Polling Job via Lookup: ${jobId}`);
+
   while (Date.now() - start < timeout) {
-    const { data, error } = await supabase.functions.invoke(`${FUNCTION_NAME}/status/${jobId}`, { method: 'GET' });
+    // USE LOOKUP, NOT STATUS
+    const { data, error } = await supabase.functions.invoke(`${FUNCTION_NAME}/lookup`, {
+      method: 'POST',
+      body: { identifier: jobId }
+    });
 
-    if (error) throw new Error(error.message || JSON.stringify(error));
-
-    const response = data as JobStatusResponse;
-
-    if (response.status === 'completed') {
-      return response.result as T;
-    }
-
-    if (response.status === 'failed') {
-      throw new Error(response.error?.message || 'Job failed');
+    if (error) {
+      // If 404, might be initializing
+      console.warn(`[VectorAsync] Lookup failed: ${error.message}`);
+      if (Date.now() - start > 10000) throw error; // Allow 10s grace for 404s
+    } else if (data && data.case) {
+      const status = data.case.lifecycle?.job_status;
+      if (status === 'completed') {
+        return data.case as T; // Return StandardizedCase
+      } else if (status === 'failed') {
+        throw new Error(data.case.lifecycle?.failure_reason || 'Job failed');
+      }
     }
 
     await new Promise(resolve => setTimeout(resolve, interval));
@@ -80,41 +92,55 @@ export async function searchCases(
  * - result directly if it has id and overview (direct case object)
  */
 export async function lookupCase(identifier: string): Promise<EnrichedCase | StandardizedCase | null> {
-  const { data: submitData, error: submitError } = await supabase.functions.invoke(`${FUNCTION_NAME}/lookup`, {
+  if (!identifier) {
+    console.warn("lookupCase called with empty identifier");
+    return null;
+  }
+  // Direct Lookup for sync retrieval
+  const { data, error } = await supabase.functions.invoke(`${FUNCTION_NAME}/lookup`, {
     method: 'POST',
     body: { identifier },
   });
 
-  if (submitError) throw submitError;
-  const job = submitData as VectorJobResponse;
+  if (error) throw error;
 
-  const result = await pollJobStatus<any>(job.job_id);
-
-  // Debug: Log the actual API response structure
-  console.log('[lookupCase] API result:', JSON.stringify(result, null, 2));
-  console.log('[lookupCase] Result keys:', Object.keys(result || {}));
+  // Parse response if it's a string
+  let parsedData = data;
+  if (typeof data === 'string') {
+    try {
+      parsedData = JSON.parse(data);
+    } catch (e) {
+      console.error('[VectorAsync] Failed to parse data string:', e);
+    }
+  }
 
   // Handle multiple response formats from the API
   let caseData = null;
 
-  if (result.case) {
+  if (parsedData?.case) {
     // Standard LookupResultPayload format
-    console.log('[lookupCase] Found result.case');
-    caseData = result.case;
-  } else if (result.standardized_case) {
+    console.log('[VectorAsync] Found parsedData.case');
+    caseData = parsedData.case;
+  } else if (parsedData?.standardized_case) {
     // DTO documentation format: { standardized_case: {...} }
-    console.log('[lookupCase] Found result.standardized_case');
-    caseData = result.standardized_case;
-  } else if (result.cases && Array.isArray(result.cases) && result.cases.length > 0) {
+    console.log('[VectorAsync] Found parsedData.standardized_case');
+    caseData = parsedData.standardized_case;
+  } else if (parsedData?.cases && Array.isArray(parsedData.cases) && parsedData.cases.length > 0) {
     // Array format from search-like endpoints
-    console.log('[lookupCase] Found result.cases array');
-    caseData = result.cases[0];
-  } else if (result.id && result.overview) {
+    console.log('[VectorAsync] Found parsedData.cases array');
+    caseData = parsedData.cases[0];
+  } else if (parsedData?.id && parsedData?.overview) {
     // Direct case object (result IS the case)
-    console.log('[lookupCase] Result is direct case object');
-    caseData = result;
+    console.log('[VectorAsync] parsedData is direct case object');
+    caseData = parsedData;
+  } else if (parsedData?.job_id) {
+    // Legacy path: poll if we got a job_id
+    console.log('[VectorAsync] Falling back to job polling');
+    return await pollJobStatus<StandardizedCase>(parsedData.job_id);
   } else {
-    console.log('[lookupCase] No matching format found');
+    console.warn('[VectorAsync] No matching format found', {
+      dataKeys: parsedData ? Object.keys(parsedData) : 'null'
+    });
   }
 
   return caseData;
