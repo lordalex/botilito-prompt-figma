@@ -159,82 +159,67 @@ export function CaseListItem({ caseItem, onClick, className = '' }: CaseListItem
   return (
     <div
       onClick={() => onClick(caseItem.id, caseItem.contentType)}
-      className={`group relative flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 rounded-xl bg-white border border-gray-100 shadow-sm hover:shadow-md transition-all cursor-pointer ${className}`}
+      className={`group relative flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg sm:rounded-xl bg-white border border-gray-200 hover:shadow-md transition-all cursor-pointer ${className}`}
     >
-      {/* 1. ICONO (Always Yellow Square) */}
-      <div className="shrink-0">
-        <div className="w-12 h-12 flex items-center justify-center rounded-lg bg-[#FFF59D] border border-[#FFDA00]">
-          <ContentIcon className="h-6 w-6 text-gray-800" />
-        </div>
+      {/* Column 1: Icon (shrink-0) */}
+      <div className="shrink-0 p-1.5 sm:p-2 rounded-md sm:rounded-lg bg-[var(--accent)]">
+        <ContentIcon className="h-5 w-5 sm:h-6 sm:w-6 text-gray-800" />
       </div>
 
-      {/* 2. MAIN CONTENT */}
-      <div className="flex-1 min-w-0 space-y-2">
+      {/* Column 2: Case Code (shrink-0) - Per documentation: separate column */}
+      <div className="shrink-0">
+        <span className="text-xs sm:text-sm font-mono px-2 py-0.5 border-2 rounded-md sm:rounded-lg bg-white text-gray-700 whitespace-nowrap" style={{ borderColor: 'var(--accent)' }}>
+          Caso: {caseItem.caseCode}
+        </span>
+      </div>
 
-        {/* Row 1: ID | Badges | Title */}
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="font-mono text-xs font-bold text-gray-500 bg-gray-100 px-2 py-1 rounded">
-            Caso: {caseItem.caseCode}
-          </span>
+      {/* Column 3: Main Info (flex-1, min-w-0) */}
+      <div className="flex-1 min-w-0 space-y-1.5 sm:space-y-1">
+        {/* Line 1: Theme Badge (optional) */}
+        {themeConfig && (
+          <Badge variant="secondary" className={`${themeConfig.className} px-2 py-0.5 text-[10px] uppercase tracking-wide inline-flex items-center gap-1`}>
+            {themeConfig.icon === 'sparkles' ? <Sparkles className="h-3 w-3" /> : <Wand2 className="h-3 w-3" />}
+            {themeConfig.label}
+          </Badge>
+        )}
 
-          {/* Theme Badge (Desinfodémico/Forense) */}
-          {themeConfig && (
-            <Badge variant="secondary" className={`${themeConfig.className} px-2 py-0.5 text-[10px] uppercase tracking-wide flex items-center gap-1`}>
-              {themeConfig.icon === 'sparkles' ? <Sparkles className="h-3 w-3" /> : <Wand2 className="h-3 w-3" />}
-              {themeConfig.label}
-            </Badge>
-          )}
-
-          {/* Title (Truncated) */}
-          <h3 className="font-bold text-gray-900 text-sm truncate max-w-[300px] sm:max-w-md hidden sm:block">
-            {caseItem.title}
-          </h3>
-        </div>
-
-        {/* Title for Mobile (Full width) */}
-        <h3 className="font-bold text-gray-900 text-sm sm:hidden line-clamp-2">
+        {/* Line 2: Title */}
+        <h3 className="text-xs sm:text-sm font-semibold text-gray-900 line-clamp-2">
           {caseItem.title}
         </h3>
 
-        {/* Row 2: Metadata */}
-        <div className="flex flex-wrap items-center gap-4 text-xs text-gray-500">
-          <div className="flex items-center gap-1.5">
-            <Calendar className="h-3.5 w-3.5" />
-            {formatDate(caseItem.createdAt)}
+        {/* Line 3: Metadata (horizontal on desktop, can wrap on mobile) */}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] sm:text-xs text-gray-500">
+          <div className="flex items-center gap-1">
+            <Calendar className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+            <span>{formatDate(caseItem.createdAt)}</span>
           </div>
-          <div className="flex items-center gap-1.5">
-            <User className="h-3.5 w-3.5" />
-            Reportado por: {caseItem.reportedBy}
+          <div className="flex items-center gap-1">
+            <User className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+            <span>Reportado por: {caseItem.reportedBy}</span>
           </div>
-
-          {/* Validators Count */}
-          <div className="flex items-center gap-1.5">
-            <Shield className={`h-3.5 w-3.5 ${caseItem.humanValidatorsCount > 0 ? 'text-green-600' : 'text-gray-400'}`} />
-            <span className={caseItem.humanValidatorsCount > 0 ? 'text-green-700 font-bold' : ''}>
+          <div className="flex items-center gap-1">
+            <Shield className={`h-3 w-3 sm:h-3.5 sm:w-3.5 ${caseItem.humanValidatorsCount > 0 ? 'text-green-600' : 'text-gray-400'}`} />
+            <span className={caseItem.humanValidatorsCount > 0 ? 'text-green-700 font-medium' : ''}>
               {caseItem.humanValidatorsCount} validadores humanos
             </span>
           </div>
         </div>
       </div>
 
-      {/* 3. ACTION / STATUS BADGE (Right Side) */}
-      <div className="sm:ml-auto shrink-0 pt-2 sm:pt-0 w-full sm:w-auto border-t sm:border-t-0 border-gray-100 mt-2 sm:mt-0 sm:pl-4">
+      {/* Column 4: AMI Badge (shrink-0, ml-auto, pl-4) */}
+      <div className="shrink-0 sm:ml-auto sm:pl-4">
         {amiConfig && AmiIcon ? (
-          <div className={`px-4 py-2 rounded-lg border flex items-center justify-center gap-2 w-full sm:w-auto ${amiConfig.labelShort === 'Requiere AMI' ? 'bg-orange-50 border-orange-200 text-orange-700' :
-              amiConfig.labelShort === 'Manipulado' ? 'bg-red-50 border-red-200 text-red-700' :
-                amiConfig.labelShort === 'Sin alteración' ? 'bg-green-50 border-green-200 text-green-700' :
-                  'bg-gray-50 border-gray-200 text-gray-700'
-            }`}>
-            <AmiIcon className="h-4 w-4" />
-            <span className="font-bold text-xs">{amiConfig.label}</span>
+          <div className={`text-[10px] sm:text-xs font-medium px-2 py-0.5 sm:px-3 sm:py-1.5 rounded-lg border-2 flex items-center gap-1.5 ${amiConfig.className}`}>
+            <AmiIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+            <span>{amiConfig.label}</span>
           </div>
         ) : (
-          <div className="px-4 py-2 rounded-lg border border-gray-200 bg-gray-50 text-gray-500 flex items-center justify-center gap-2">
-            <span className="font-bold text-xs">Pendiente de Análisis</span>
+          <div className="text-[10px] sm:text-xs font-medium px-2 py-0.5 sm:px-3 sm:py-1.5 rounded-lg border-2 border-gray-200 bg-gray-50 text-gray-500 flex items-center gap-1.5">
+            <span>Pendiente de Análisis</span>
           </div>
         )}
       </div>
-
     </div>
   );
 }
