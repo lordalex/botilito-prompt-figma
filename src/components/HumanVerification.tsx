@@ -65,6 +65,7 @@ export function HumanVerification() {
         result={fullCaseData}
         onReset={() => setSelectedCaseId(null)}
         backLabel="Volver al listado"
+        hideVoting={false}
       />
     );
   }

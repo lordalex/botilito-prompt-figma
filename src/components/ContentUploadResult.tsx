@@ -20,9 +20,10 @@ interface ContentUploadResultProps {
   result: any;
   onReset: () => void;
   backLabel?: string;
+  hideVoting?: boolean;
 }
 
-export function ContentUploadResult({ result, onReset, backLabel = "Volver al listado" }: ContentUploadResultProps) {
+export function ContentUploadResult({ result, onReset, backLabel = "Volver al listado", hideVoting = false }: ContentUploadResultProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   // --- GUARD CLAUSE ---
@@ -772,15 +773,16 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
         </div>
       </div>
 
-      {/* HUMAN VALIDATION FORM */}
-      <div className="max-w-7xl mx-auto px-6">
-        <HumanValidationForm
-          caseId={caseData.id}
-          aiVerdictLabel={caseData.overview.verdict_label}
-          aiRiskScore={caseData.overview.risk_score}
-          onVoteSuccess={onReset}
-        />
-      </div>
+      {!hideVoting && (
+        <div className="max-w-7xl mx-auto px-6">
+          <HumanValidationForm
+            caseId={caseData.id}
+            aiVerdictLabel={caseData.overview.verdict_label}
+            aiRiskScore={caseData.overview.risk_score}
+            onVoteSuccess={onReset}
+          />
+        </div>
+      )}
 
       {/* FOOTER */}
       <div className="py-8 text-center bg-white border-t border-gray-100 mt-12">

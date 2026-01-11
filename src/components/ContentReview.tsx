@@ -124,6 +124,7 @@ export function ContentReview() {
         result={fullCaseData}
         onReset={() => setSelectedCaseId(null)}
         backLabel="Volver al Historial"
+        hideVoting={true}
       />
     );
   }

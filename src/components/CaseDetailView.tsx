@@ -150,7 +150,7 @@ export function CaseDetailView({
             onReset={onBackToList}
             onSubmitDiagnosis={handleSubmitDiagnosis}
             isSubmittingDiagnosis={isSubmitting}
-            hideVoting={mode === 'ai'}
+            hideVoting={true}
         />
     );
 }
