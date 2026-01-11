@@ -73,13 +73,17 @@ export interface AnalysisJob {
 export interface UserProfileData {
   id: string; // Corresponds to the user's auth ID
   full_name?: string;
+  nombre_completo?: string; // v1.2.0 compatibility
   phone_number?: string;
   state_province?: string;
+  departamento?: string; // v1.2.0 compatibility
   city?: string;
+  ciudad?: string; // v1.2.0 compatibility
   birth_date?: string; // Stored as a string for simplicity, e.g., 'YYYY-MM-DD'
   email?: string;
   photo?: string;      // Maps to avatar_url in v1.2.0
   avatar?: string;     // Maps to avatar_url in v1.2.0
+  avatar_url?: string; // v1.2.0 compatibility
   // Note: 'password', 'role', etc., are intentionally omitted for security.
 }
 
