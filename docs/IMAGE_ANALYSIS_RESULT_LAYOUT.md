@@ -190,95 +190,254 @@ This document defines the layout for **IMAGE** type results within the unified a
 
 ---
 
-### 4. Pruebas Tab Content (Test Results)
+### 4. Pruebas Tab Content (6 Forensic Test Cards)
+
+The Pruebas tab displays **6 forensic test cards** in a vertical stack. Each card is a reusable `ForensicTestCard` component.
+
+---
+
+#### 4.1 ForensicTestCard Component
 
 ```
-+--------------------------------------------------------------+
-|  Análisis de Nivel de Error (ELA)                [MANIPULADO]|
-|  Detecta áreas con diferentes niveles de                     |
-|  compresión que indican manipulación                         |
-|                                                              |
-|  Precisión diagnóstica                                       |
-|  [██████████████████████████████░░░░░]  89%                  |
-|                                                              |
-|  Tiempo de ejecución                                   0.8s  |
-+--------------------------------------------------------------+
-
-+--------------------------------------------------------------+
-|  Análisis de Metadatos EXIF                      [MODIFICADO]|
-|  Analiza metadatos EXIF del archivo para                     |
-|  detectar inconsistencias                                    |
-|                                                              |
-|  Precisión diagnóstica                                       |
-|  [████████████████████████████████░░░]  92%                  |
-|                                                              |
-|  Tiempo de ejecución                                   0.3s  |
-+--------------------------------------------------------------+
-
-+--------------------------------------------------------------+
-|  Análisis de Patrón de Ruido                     [MANIPULADO]|
-|  Examina patrones de ruido para detectar                     |
-|  regiones editadas o generadas                               |
-|                                                              |
-|  Precisión diagnóstica                                       |
-|  [█████████████████████████████░░░░░░]  87%                  |
-|                                                              |
-|  Tiempo de ejecución                                   1.2s  |
-+--------------------------------------------------------------+
-
-+--------------------------------------------------------------+
-|  Detección de Artefactos de IA                      [LIMPIO] |
-|  Busca artefactos característicos de                         |
-|  generación por IA                                           |
-|                                                              |
-|  Precisión diagnóstica                                       |
-|  [██████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░]  18%                  |
-|                                                              |
-|  Tiempo de ejecución                                   2.1s  |
-+--------------------------------------------------------------+
-
-+--------------------------------------------------------------+
-|  Detección de Copiar-Mover (Clonación)           [MANIPULADO]|
-|  Algoritmos SIFT/ORB para detectar regiones                  |
-|  duplicadas mediante stamp cloning                           |
-|                                                              |
-|  Precisión diagnóstica                                       |
-|  [█████████████████████████████████░░]  91%                  |
-|                                                              |
-|  Tiempo de ejecución                                   5.1s  |
-+--------------------------------------------------------------+
-
-+--------------------------------------------------------------+
-|  Detección de Empalmes                           [MANIPULADO]|
-|  Detecta empalmes de múltiples imágenes                      |
-|  mediante análisis de bordes e iluminación                   |
-|                                                              |
-|  Precisión diagnóstica                                       |
-|  [██████████████████████░░░░░░░░░░░░░]  67%                  |
-|                                                              |
-|  Tiempo de ejecución                                   4.9s  |
-+--------------------------------------------------------------+
++------------------------------------------------------------------------+
+|                                                                        |
+|  Detección de Empalmes                                   [MANIPULADO]  |
+|  Detecta empalmes de múltiples imágenes mediante                       |
+|  análisis de bordes e iluminación                                      |
+|                                                                        |
+|  Precisión diagnóstica                                            67%  |
+|  [███████████████████████████████████████████░░░░░░░░░░░░░░░░░░░░░░░]  |
+|                                                                        |
+|  Tiempo de ejecución                                             4.9s  |
+|                                                                        |
++------------------------------------------------------------------------+
 ```
 
-**Test Card Structure:**
+**Component Structure (ASCII):**
 ```
-+--------------------------------------------------------------+
-|  [Test Name]                                     [BADGE]     |
-|  [Description - what the test detects]                       |
-|                                                              |
-|  Precisión diagnóstica                                       |
-|  [Progress Bar]                                   XX%        |
-|                                                              |
-|  Tiempo de ejecución                              X.Xs       |
-+--------------------------------------------------------------+
++------------------------------------------------------------------------+
+|  padding: p-4 (16px)                                                   |
+|  +--------------------------------------------------------------------+|
+|  |  HEADER ROW (flex justify-between)                                 ||
+|  |  +--------------------------------------------+  +---------------+ ||
+|  |  | Test Name (h3, text-sm, font-medium)       |  | BADGE         | ||
+|  |  | e.g., "Detección de Empalmes"              |  | (text-[10px]) | ||
+|  |  +--------------------------------------------+  +---------------+ ||
+|  +--------------------------------------------------------------------+|
+|  |  DESCRIPTION (p, text-xs, text-gray-600)                           ||
+|  |  e.g., "Detecta empalmes de múltiples imágenes..."                 ||
+|  +--------------------------------------------------------------------+|
+|  |  METRIC 1: Precisión diagnóstica (mt-3)                            ||
+|  |  +--------------------------------------------+  +---------------+ ||
+|  |  | Label (text-xs, text-gray-600)             |  | Value (text-sm)| ||
+|  |  | "Precisión diagnóstica"                    |  | "67%"         | ||
+|  |  +--------------------------------------------+  +---------------+ ||
+|  |  +----------------------------------------------------------------+||
+|  |  | PROGRESS BAR (h-2, bg-gray-200, rounded-full)                  |||
+|  |  | [████████████████████████████████████████░░░░░░░░░░░░░░░░░░░] |||
+|  |  | (inner div: h-full, dynamic bg color, width: confidence%)      |||
+|  |  +----------------------------------------------------------------+||
+|  +--------------------------------------------------------------------+|
+|  |  METRIC 2: Tiempo de ejecución (mt-3)                              ||
+|  |  +--------------------------------------------+  +---------------+ ||
+|  |  | Label (text-xs, text-gray-600)             |  | Value (text-xs)| ||
+|  |  | "Tiempo de ejecución"                      |  | "4.9s"        | ||
+|  |  +--------------------------------------------+  +---------------+ ||
+|  +--------------------------------------------------------------------+|
++------------------------------------------------------------------------+
+```
+
+---
+
+#### 4.2 ForensicTestCard TypeScript Interface
+
+```typescript
+interface ForensicTest {
+  id: string;                    // e.g., 'forensic_splice'
+  name: string;                  // e.g., 'Detección de Empalmes'
+  description: string;           // e.g., 'Detecta empalmes de múltiples imágenes...'
+  badge: TestBadge;              // 'MANIPULATED' | 'SYNTHETIC' | 'AUTHENTIC' | 'CLEAN' | 'UNCERTAIN'
+  badgeColor: string;            // Tailwind classes, e.g., 'bg-orange-500'
+  confidence: number;            // 0-100, e.g., 67
+  executionTime: string;         // e.g., '4.9s'
+}
+
+type TestBadge = 'MANIPULATED' | 'SYNTHETIC' | 'AUTHENTIC' | 'CLEAN' | 'UNCERTAIN';
+```
+
+---
+
+#### 4.3 ForensicTestCard JSX Implementation
+
+```tsx
+<Card className="border border-gray-200 rounded-lg shadow-sm">
+  <CardContent className="p-4">
+    <div className="space-y-3">
+      {/* Header: Test Name + Badge */}
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex-1">
+          <div className="flex items-center justify-between mb-1">
+            <h3 className="text-sm font-medium">{test.name}</h3>
+            <Badge className={`${test.badgeColor} text-white text-[10px] px-2 py-0.5`}>
+              {translateBadge(test.badge)}
+            </Badge>
+          </div>
+          <p className="text-xs text-gray-600">{test.description}</p>
+        </div>
+      </div>
+
+      {/* Metric 1: Precisión diagnóstica */}
+      <div>
+        <div className="flex items-center justify-between mb-1.5">
+          <span className="text-xs text-gray-600">Precisión diagnóstica</span>
+          <span className="text-sm font-medium">{test.confidence}%</span>
+        </div>
+        <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+          <div
+            className={`h-full ${getProgressBarColor(test.badge)} transition-all duration-500`}
+            style={{ width: `${test.confidence}%` }}
+          />
+        </div>
+      </div>
+
+      {/* Metric 2: Tiempo de ejecución */}
+      <div className="flex items-center justify-between">
+        <span className="text-xs text-gray-600">Tiempo de ejecución</span>
+        <span className="text-xs">{test.executionTime}</span>
+      </div>
+    </div>
+  </CardContent>
+</Card>
+```
+
+---
+
+#### 4.4 Badge & Progress Bar Color Logic
+
+**Badge Translation (Spanish):**
+```typescript
+const translateBadge = (badge: TestBadge): string => {
+  const translations: Record<TestBadge, string> = {
+    'MANIPULATED': 'MANIPULADO',
+    'SYNTHETIC': 'SINTÉTICO',
+    'AUTHENTIC': 'AUTÉNTICO',
+    'CLEAN': 'LIMPIO',
+    'UNCERTAIN': 'INCIERTO'
+  };
+  return translations[badge] || badge;
+};
 ```
 
 **Badge Colors:**
-| Result | Badge | Progress Bar Color |
-|--------|-------|-------------------|
-| MANIPULADO | `bg-red-500 text-white` | `bg-orange-500` |
-| MODIFICADO | `bg-orange-500 text-white` | `bg-orange-500` |
-| LIMPIO | `bg-green-500 text-white` | `bg-green-500` |
+| Badge | Spanish | Badge Tailwind Classes |
+|-------|---------|------------------------|
+| MANIPULATED | MANIPULADO | `bg-orange-500 text-white` |
+| SYNTHETIC | SINTÉTICO | `bg-red-600 text-white` |
+| AUTHENTIC | AUTÉNTICO | `bg-green-500 text-white` |
+| CLEAN | LIMPIO | `bg-green-500 text-white` |
+| UNCERTAIN | INCIERTO | `bg-yellow-500 text-white` |
+
+**Progress Bar Color Logic:**
+```typescript
+const getProgressBarColor = (badge: TestBadge): string => {
+  if (badge === 'MANIPULATED' || badge === 'SYNTHETIC') {
+    return 'bg-red-500';
+  }
+  if (badge === 'AUTHENTIC' || badge === 'CLEAN') {
+    return 'bg-green-500';
+  }
+  return 'bg-yellow-500'; // UNCERTAIN
+};
+```
+
+| Badge Result | Progress Bar Color |
+|--------------|-------------------|
+| MANIPULATED / SYNTHETIC | `bg-red-500` |
+| AUTHENTIC / CLEAN | `bg-green-500` |
+| UNCERTAIN | `bg-yellow-500` |
+
+---
+
+#### 4.5 The 6 Forensic Tests
+
+All 6 cards render in a vertical stack with `space-y-4` (16px gap):
+
+```
++------------------------------------------------------------------------+
+|  1. Análisis de Nivel de Error (ELA)                      [MANIPULADO] |
+|     Detecta áreas con diferentes niveles de compresión                 |
+|     que indican manipulación                                           |
+|     Precisión: 89%  |  Tiempo: 0.8s                                    |
++------------------------------------------------------------------------+
+                              ↓ (gap: 16px)
++------------------------------------------------------------------------+
+|  2. Análisis de Metadatos EXIF                            [MODIFICADO] |
+|     Analiza metadatos EXIF del archivo para detectar                   |
+|     inconsistencias                                                    |
+|     Precisión: 92%  |  Tiempo: 0.3s                                    |
++------------------------------------------------------------------------+
+                              ↓ (gap: 16px)
++------------------------------------------------------------------------+
+|  3. Análisis de Patrón de Ruido                           [MANIPULADO] |
+|     Examina patrones de ruido para detectar regiones                   |
+|     editadas o generadas                                               |
+|     Precisión: 87%  |  Tiempo: 1.2s                                    |
++------------------------------------------------------------------------+
+                              ↓ (gap: 16px)
++------------------------------------------------------------------------+
+|  4. Detección de Artefactos de IA                              [LIMPIO]|
+|     Busca artefactos característicos de generación por IA              |
+|     Precisión: 18%  |  Tiempo: 2.1s                                    |
++------------------------------------------------------------------------+
+                              ↓ (gap: 16px)
++------------------------------------------------------------------------+
+|  5. Detección de Copiar-Mover (Clonación)                 [MANIPULADO] |
+|     Algoritmos SIFT/ORB para detectar regiones duplicadas              |
+|     mediante stamp cloning                                             |
+|     Precisión: 91%  |  Tiempo: 5.1s                                    |
++------------------------------------------------------------------------+
+                              ↓ (gap: 16px)
++------------------------------------------------------------------------+
+|  6. Detección de Empalmes                                 [MANIPULADO] |
+|     Detecta empalmes de múltiples imágenes mediante                    |
+|     análisis de bordes e iluminación                                   |
+|     Precisión: 67%  |  Tiempo: 4.9s                                    |
++------------------------------------------------------------------------+
+```
+
+---
+
+#### 4.6 Forensic Test Definitions
+
+| # | Test ID | Test Name (ES) | Description (ES) | Algorithm |
+|---|---------|----------------|------------------|-----------|
+| 1 | `forensic_ela` | Análisis de Nivel de Error (ELA) | Detecta áreas con diferentes niveles de compresión que indican manipulación | Error Level Analysis |
+| 2 | `forensic_exif` | Análisis de Metadatos EXIF | Analiza metadatos EXIF del archivo para detectar inconsistencias | EXIF Parser |
+| 3 | `forensic_noise` | Análisis de Patrón de Ruido | Examina patrones de ruido para detectar regiones editadas o generadas | Noise Analysis |
+| 4 | `forensic_ai` | Detección de Artefactos de IA | Busca artefactos característicos de generación por IA | GAN/AI Detection |
+| 5 | `forensic_clone` | Detección de Copiar-Mover (Clonación) | Algoritmos SIFT/ORB para detectar regiones duplicadas mediante stamp cloning | SIFT/ORB |
+| 6 | `forensic_splice` | Detección de Empalmes | Detecta empalmes de múltiples imágenes mediante análisis de bordes e iluminación | Edge/Illumination |
+
+---
+
+#### 4.7 Container Layout (Pruebas Tab)
+
+```tsx
+<TabsContent value="pruebas" className="space-y-4">
+  {forensicTests.map((test) => (
+    <ForensicTestCard key={test.id} test={test} />
+  ))}
+</TabsContent>
+```
+
+**CSS:**
+```css
+.pruebas-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem; /* space-y-4 */
+}
+```
 
 ---
 
