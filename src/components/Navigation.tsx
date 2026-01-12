@@ -59,7 +59,7 @@ export function Navigation({ activeTab, onTabChange, onLogout, onViewTask, onVie
       requiredFeature: RestrictedFeature.HUMAN_VERIFICATION 
     },
     { id: 'review', label: 'Historial', icon: Bot },
-    { id: 'mapa', label: 'Mapa Desinfodémico', icon: Map },
+    { id: 'mapa', label: 'Mapa Infodémico', icon: Map },
     { id: 'profile', label: 'Mi Perfil', icon: User },
   ];
 

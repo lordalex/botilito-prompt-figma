@@ -184,9 +184,9 @@ async function pollJobStatus(jobId: string): Promise<any> {
 /**
  * Determine theme based on case type
  */
-function determineTheme(type: string): 'Forense' | 'Desinformódico' {
+function determineTheme(type: string): 'Forense' | 'Infodémico' {
   const forensicTypes = ['image', 'video', 'audio'];
-  return forensicTypes.includes(type?.toLowerCase()) ? 'Forense' : 'Desinformódico';
+  return forensicTypes.includes(type?.toLowerCase()) ? 'Forense' : 'Infodémico';
 }
 
 /**
@@ -242,14 +242,14 @@ function transformStandardizedToEnriched(std: any): CaseEnriched {
     .map((i: any) => i.label || i.value)
     .filter((l: any) => typeof l === 'string');
 
-  // [Refinement] Map categories to UI Themes (Forense, Desinformódico)
+  // [Refinement] Map categories to UI Themes (Forense, Infodémico)
   // This ensures Historial.tsx picks up the correct theme
   const categories = new Set((std.insights || []).map((i: any) => i.category));
   if (categories.has('forensics') || categories.has('technical_analysis')) {
     if (!diagnostic_labels.includes('Forense')) diagnostic_labels.push('Forense');
   }
   if (categories.has('fact_check') || categories.has('content_analysis')) {
-    if (!diagnostic_labels.includes('Desinformódico')) diagnostic_labels.push('Desinformódico');
+    if (!diagnostic_labels.includes('Infodémico')) diagnostic_labels.push('Infodémico');
   }
 
   // Map community data to human_votes
@@ -282,7 +282,7 @@ function transformStandardizedToEnriched(std: any): CaseEnriched {
     metadata: {
       screenshotUrl: std.overview?.main_asset_url,
       reported_by: std.reporter, // Map reporter to metadata.reported_by for list display
-      theme: determineTheme(std.type), // Theme badge: "Forense" or "Desinformódico"
+      theme: determineTheme(std.type), // Theme badge: "Forense" or "Infodémico"
       amiLevel: determineAmiLevel(std), // AMI compliance level badge
       ...std.metadata
     },

@@ -136,9 +136,9 @@ export function ContentUpload({ jobId, jobType, onReset }: ContentUploadProps) {
 
     const detectedType = detectContentType();
 
-    // Determine analysis type: texto/url = Desinfodémico, imagen/video/audio = Forense
+    // Determine analysis type: texto/url = Infodémico, imagen/video/audio = Forense
     const getAnalysisType = (type: string) => {
-      if (type === 'texto' || type === 'url') return 'Desinfodémico';
+      if (type === 'texto' || type === 'url') return 'Infodémico';
       return 'Forense';
     };
 

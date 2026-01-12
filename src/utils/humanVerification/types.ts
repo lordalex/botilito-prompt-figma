@@ -233,8 +233,8 @@ export const DIAGNOSTIC_LABELS: Record<string, {
     virulencia: 0,
     descripcion: 'Análisis técnico forense de archivos multimedia'
   },
-  'Desinformódico': {
-    label: 'Desinformódico',
+  'Infodémico': {
+    label: 'Infodémico',
     color: 'text-red-700',
     bg: 'bg-red-50',
     border: 'border-red-200',

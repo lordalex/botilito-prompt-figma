@@ -284,7 +284,7 @@ const principal = Object.entries(porPlataforma).sort((a,b) => b[1]-a[1])[0];`
             <div>
               <h1 className="text-3xl">Documentación de Indicadores Epidemiológicos</h1>
               <p className="text-muted-foreground">
-                Guía completa para entender y calcular cada métrica del Mapa Desinfodémico
+                Guía completa para entender y calcular cada métrica del Mapa Infodémico
               </p>
             </div>
           </div>
@@ -714,7 +714,7 @@ const POBLACION_REGIONES = {
               { termino: 'Virulencia', definicion: 'Nivel de peligrosidad/daño' },
               { termino: 'R₀', definicion: 'Tasa de reproducción básica' },
               { termino: 'Consenso', definicion: 'Acuerdo entre diagnósticos' },
-              { termino: 'Desinfodémico', definicion: 'Epidemia de desinformación' }
+              { termino: 'Infodémico', definicion: 'Epidemia de desinformación' }
             ].map((item, idx) => (
               <div key={idx} className="p-3 bg-white rounded-lg border">
                 <div className="font-medium text-sm text-primary">{item.termino}</div>
