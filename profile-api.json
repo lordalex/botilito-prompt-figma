@@ -1,18 +1,18 @@
 {
   "openapi": "3.0.3",
   "info": {
-    "title": "API Digitalia (Search DTO & Perfiles)",
-    "description": "API unificada para la plataforma Digitalia. Gestiona dos dominios principales:\n\n1. **Análisis y Búsqueda (Search DTO):** Orquestación de IA para analizar contenido, normalización de datos en DTOs y búsqueda avanzada con filtros de consenso.\n2. **Gestión de Usuarios (Profile):** Perfiles de usuario, estadísticas de gamificación (XP, Reputación, Rachas) y administración de logros.",
-    "version": "3.0.0",
+    "title": "API de Gestión de Perfiles y Gamificación (Digitalia)",
+    "description": "Especificación detallada para la Edge Function `profileCRUD`. Este servicio gestiona los perfiles de usuario, calcula estadísticas en tiempo real, procesa la lógica de gamificación (rachas, experiencia, insignias) y permite la administración de retos.",
+    "version": "2.1.0",
     "contact": {
-      "name": "Equipo de Desarrollo Digitalia",
-      "email": "dev@digitalia.gov.co"
+      "name": "Soporte Digitalia",
+      "email": "soporte@digitalia.gov.co"
     }
   },
   "servers": [
     {
-      "url": "https://mdkswlgcqsmgfmcuorxq.supabase.co/functions/v1",
-      "description": "Gateway de Producción (Supabase Edge Functions)"
+      "url": "https://mdkswlgcqsmgfmcuorxq.supabase.co/functions/v1/profileCRUD",
+      "description": "Servidor de Producción (Supabase Edge Function)"
     }
   ],
   "components": {
@@ -21,114 +21,51 @@
         "type": "http",
         "scheme": "bearer",
         "bearerFormat": "JWT",
-        "description": "Token JWT de Supabase Auth. Obligatorio para identificar al usuario."
-      },
-      "apiKey": {
-        "type": "apiKey",
-        "in": "header",
-        "name": "apikey",
-        "description": "Clave pública (anon) o de servicio (service_role) de Supabase."
+        "description": "Token JWT de Supabase Auth del usuario autenticado."
       }
     },
     "schemas": {
-      "UserProfileResponse": {
-        "type": "object",
-        "description": "Respuesta completa del perfil de usuario, incluyendo estadísticas agregadas para el dashboard.",
-        "properties": {
-          "data": {
-            "$ref": "#/components/schemas/UserProfile"
-          },
-          "challenges_progress": {
-            "type": "array",
-            "description": "Lista de logros/insignias disponibles y el progreso actual del usuario en cada uno.",
-            "items": {
-              "$ref": "#/components/schemas/ChallengeProgress"
-            }
-          }
-        }
-      },
       "UserProfile": {
         "type": "object",
+        "description": "Objeto completo del perfil de usuario enriquecido con estadísticas y estado de gamificación.",
         "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid"
+          "id": { "type": "string", "format": "uuid", "description": "Identificador único del usuario." },
+          "email": { "type": "string", "format": "email", "description": "Correo electrónico del usuario." },
+          "role": { "type": "string", "description": "Rol del sistema (ej. 'admin', 'user')." },
+          "nombre_completo": { "type": "string", "description": "Nombre completo del usuario." },
+          "numero_telefono": { "type": "string", "description": "Número de contacto." },
+          "departamento": { "type": "string", "description": "Departamento geográfico de residencia." },
+          "ciudad": { "type": "string", "description": "Ciudad de residencia. Crítico para el cálculo de zona horaria de las rachas." },
+          "fecha_nacimiento": { "type": "string", "format": "date", "description": "Fecha de nacimiento (YYYY-MM-DD)." },
+          "reputation": { "type": "integer", "description": "Puntos de reputación acumulados." },
+          "xp": { "type": "integer", "description": "Puntos de Inteligencia (PI) o Experiencia acumulada. Se actualiza dinámicamente con las rachas." },
+          "badges": { 
+            "type": "array", 
+            "items": { "type": "string" }, 
+            "description": "Lista de nombres de insignias desbloqueadas." 
           },
-          "email": {
-            "type": "string",
-            "format": "email"
-          },
-          "nombre_completo": {
-            "type": "string"
-          },
-          "reputation": {
-            "type": "integer",
-            "description": "Puntos de reputación acumulados."
-          },
-          "xp": {
-            "type": "integer",
-            "description": "Puntos de experiencia (PI) totales."
-          },
-          "current_streak": {
-            "type": "integer",
-            "description": "Días consecutivos de actividad."
-          },
-          "best_streak": {
-            "type": "integer",
-            "description": "Récord histórico de racha."
-          },
-          "badges": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "description": "Lista de IDs de insignias ya ganadas."
-          },
-          "stats": {
-            "$ref": "#/components/schemas/UserStats",
-            "description": "Estadísticas calculadas en tiempo real para el dashboard visual."
-          }
+          "current_streak": { "type": "integer", "description": "Racha actual de días consecutivos reportando casos." },
+          "best_streak": { "type": "integer", "description": "Mejor racha histórica alcanzada." },
+          "last_activity_at": { "type": "string", "format": "date-time", "description": "Marca de tiempo del último reporte de caso procesado para la racha." },
+          "photo": { "type": "string", "nullable": true, "description": "Cadena Base64 de la foto de perfil (o URL)." },
+          "avatar": { "type": "string", "nullable": true, "description": "Cadena Base64 del avatar (o URL)." },
+          "stats": { "$ref": "#/components/schemas/UserStats" }
         }
       },
       "UserStats": {
         "type": "object",
+        "description": "Estadísticas calculadas en tiempo real para el dashboard.",
         "properties": {
-          "cases_registered": {
-            "type": "integer",
-            "description": "Total de documentos/casos enviados por el usuario.",
-            "example": 127
-          },
-          "validations_performed": {
-            "type": "integer",
-            "description": "Total de votos o validaciones realizadas en casos de otros.",
-            "example": 18
-          },
-          "global_ranking": {
-            "type": "integer",
-            "description": "Posición actual en la tabla de clasificación global (basado en XP).",
-            "example": 156
-          },
-          "total_users": {
-            "type": "integer",
-            "description": "Total de usuarios en la plataforma (para contexto del ranking).",
-            "example": 5432
-          },
+          "cases_registered": { "type": "integer", "description": "Total de documentos/casos reportados por el usuario." },
+          "validations_performed": { "type": "integer", "description": "Total de votos o validaciones realizadas." },
+          "global_ranking": { "type": "integer", "description": "Posición actual en el ranking global basado en XP." },
+          "total_users": { "type": "integer", "description": "Número total de usuarios registrados en la plataforma." },
           "next_rank_progress": {
             "type": "object",
-            "description": "Datos para la barra de progreso de nivel.",
             "properties": {
-              "current": {
-                "type": "integer",
-                "example": 2350
-              },
-              "target": {
-                "type": "integer",
-                "example": 2500
-              },
-              "label": {
-                "type": "string",
-                "example": "Cibernauta Centinela"
-              }
+              "current": { "type": "integer", "description": "XP actual." },
+              "target": { "type": "integer", "description": "XP necesaria para el siguiente rango." },
+              "label": { "type": "string", "description": "Nombre del rango actual (ej. 'Cibernauta Centinela')." }
             }
           }
         }
@@ -136,374 +73,205 @@
       "ChallengeProgress": {
         "type": "object",
         "properties": {
-          "id": {
-            "type": "string"
-          },
-          "title": {
-            "type": "string",
-            "example": "Maestro Multimedia"
-          },
-          "description": {
-            "type": "string",
-            "example": "Analiza al menos un caso de cada tipo."
-          },
-          "completed": {
-            "type": "boolean"
-          },
-          "percent": {
-            "type": "integer",
-            "description": "Progreso 0-100 para mostrar en barras de UI."
-          },
-          "reward_display": {
-            "type": "string",
-            "example": "150 PI"
-          }
+          "id": { "type": "string", "format": "uuid" },
+          "title": { "type": "string" },
+          "description": { "type": "string" },
+          "badge_name": { "type": "string" },
+          "completed": { "type": "boolean", "description": "Indica si el usuario ya completó este reto." },
+          "percent": { "type": "integer", "description": "Porcentaje de progreso (0-100)." },
+          "reward_display": { "type": "string", "description": "Texto formateado de la recompensa (ej. '400 PI')." }
         }
       },
-      "SearchPayload": {
+      "UpdateProfileRequest": {
         "type": "object",
-        "description": "Cuerpo de la petición para filtrar casos.",
+        "description": "Campos permitidos para actualizar. Todos son opcionales.",
         "properties": {
-          "consensus_filter": {
-            "type": "string",
-            "enum": [
-              "missing",
-              "present"
-            ],
-            "description": "**missing**: Devuelve casos 'Por Revisar' (sin votos humanos).\n**present**: Devuelve el 'Historial' (casos ya votados/validados)."
-          },
-          "page": {
-            "type": "integer",
-            "default": 1
-          },
-          "limit": {
-            "type": "integer",
-            "default": 10
-          },
-          "select_fields": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "description": "Lista de campos a devolver para optimizar la respuesta (ej. 'overview.title').",
-            "example": [
-              "id",
-              "overview",
-              "community"
-            ]
-          }
+          "nombre_completo": { "type": "string" },
+          "numero_telefono": { "type": "string" },
+          "departamento": { "type": "string" },
+          "ciudad": { "type": "string", "description": "Actualizar esto puede cambiar la zona horaria para el cálculo de rachas." },
+          "fecha_nacimiento": { "type": "string", "format": "date" },
+          "photo": { "type": "string", "description": "Imagen en formato Base64. Máximo 2MB." },
+          "avatar": { "type": "string", "description": "Imagen en formato Base64. Máximo 2MB." }
         }
       },
-      "SearchResponse": {
+      "ConversionRequest": {
+        "type": "object",
+        "required": ["amount", "from"],
+        "properties": {
+          "amount": { "type": "number", "description": "Cantidad a convertir." },
+          "from": { "type": "string", "enum": ["xp", "reputation"], "description": "Unidad de origen." }
+        }
+      },
+      "ConversionResponse": {
         "type": "object",
         "properties": {
-          "pagination": {
+          "input": { 
             "type": "object",
-            "properties": {
-              "page": {
-                "type": "integer"
-              },
-              "count": {
-                "type": "integer"
-              }
-            }
+            "properties": { "amount": { "type": "number" }, "unit": { "type": "string" } }
           },
-          "cases": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/StandardizedCase"
-            }
-          }
-        }
-      },
-      "StandardizedCase": {
-        "type": "object",
-        "description": "DTO Unificado que representa un análisis completo.",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "type": {
-            "type": "string",
-            "enum": [
-              "text",
-              "image"
-            ]
-          },
-          "lifecycle": {
+          "conversion": { 
             "type": "object",
-            "properties": {
-              "job_status": {
-                "type": "string",
-                "example": "completed"
-              },
-              "custody_status": {
-                "type": "string",
-                "example": "ai_processed"
-              }
-            }
-          },
-          "overview": {
-            "type": "object",
-            "properties": {
-              "title": {
-                "type": "string"
-              },
-              "summary": {
-                "type": "string"
-              },
-              "verdict_label": {
-                "type": "string",
-                "example": "Desarrolla las estrategias AMI"
-              },
-              "risk_score": {
-                "type": "number",
-                "example": 85
-              },
-              "main_asset_url": {
-                "type": "string"
-              }
-            }
-          },
-          "insights": {
-            "type": "array",
-            "description": "Lista polimórfica de hallazgos (Contexto, Hechos, AMI).",
-            "items": {
-              "$ref": "#/components/schemas/GenericInsight"
-            }
-          },
-          "community": {
-            "type": "object",
-            "properties": {
-              "votes": {
-                "type": "integer",
-                "description": "Cantidad de votos humanos."
-              },
-              "status": {
-                "type": "string",
-                "description": "'ai_only' si votes=0, 'human_consensus' si votes>0."
-              }
-            }
-          }
-        }
-      },
-      "GenericInsight": {
-        "type": "object",
-        "description": "Unidad de análisis (ej. un Fact-Check o una Clasificación de Contexto).",
-        "properties": {
-          "id": {
-            "type": "string",
-            "example": "meta_context_type"
-          },
-          "category": {
-            "type": "string",
-            "enum": [
-              "metadata",
-              "content_quality",
-              "fact_check"
-            ]
-          },
-          "label": {
-            "type": "string",
-            "example": "Clasificación de Contexto"
-          },
-          "value": {
-            "type": "string",
-            "example": "Hecho"
-          },
-          "description": {
-            "type": "string"
-          },
-          "artifacts": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "label": {
-                  "type": "string"
-                },
-                "content": {
-                  "type": "string"
-                },
-                "type": {
-                  "type": "string",
-                  "enum": [
-                    "text_snippet"
-                  ]
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  },
-  "tags": [
-    {
-      "name": "Profile",
-      "description": "Gestión de usuarios y gamificación"
-    },
-    {
-      "name": "Search",
-      "description": "Búsqueda y filtrado de casos"
-    },
-    {
-      "name": "Analysis",
-      "description": "Ingesta y estado de trabajos"
-    }
-  ],
-  "paths": {
-    "/profile": {
-      "get": {
-        "tags": [
-          "Profile"
-        ],
-        "summary": "Obtener Perfil y Estadísticas",
-        "description": "Devuelve los datos del usuario autenticado (o del ID especificado), incluyendo estadísticas calculadas en tiempo real (Racha, Ranking, Casos) y el progreso de gamificación.",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "query",
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "description": "Opcional. ID del usuario a consultar. Si se omite, usa el usuario del token."
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Perfil encontrado",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/UserProfileResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Token inválido o faltante."
-          },
-          "404": {
-            "description": "Usuario no encontrado."
-          }
-        }
-      },
-      "put": {
-        "tags": [
-          "Profile"
-        ],
-        "summary": "Actualizar Perfil",
-        "description": "Actualiza campos personales (nombre, foto, ciudad). Las imágenes deben enviarse en Base64 (max 2MB).",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "nombre_completo": {
-                    "type": "string"
-                  },
-                  "ciudad": {
-                    "type": "string"
-                  },
-                  "avatar": {
-                    "type": "string",
-                    "description": "Base64 string"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Perfil actualizado."
-          }
-        }
-      }
-    },
-    "/search-dto/search": {
-      "post": {
-        "tags": [
-          "Search"
-        ],
-        "summary": "Buscar Casos (Filtro Consenso)",
-        "description": "Endpoint principal para listar casos. Permite separar la cola de trabajo ('missing') del historial ('present').",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SearchPayload"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Resultados de búsqueda",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SearchResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/search-dto/status/{jobId}": {
-      "get": {
-        "tags": [
-          "Analysis"
-        ],
-        "summary": "Consultar Estado de Trabajo",
-        "parameters": [
-          {
-            "name": "jobId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Estado o Resultado Final",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "status": {
-                      "type": "string",
-                      "enum": [
-                        "processing",
-                        "completed"
-                      ]
-                    },
-                    "result": {
-                      "$ref": "#/components/schemas/SearchResponse"
-                    }
-                  }
-                }
-              }
-            }
+            "properties": { "amount": { "type": "number" }, "unit": { "type": "string" } }
           }
         }
       }
     }
   },
   "security": [
-    {
-      "bearerAuth": []
+    { "bearerAuth": [] }
+  ],
+  "paths": {
+    "/": {
+      "get": {
+        "summary": "Obtener Perfil y Calcular Racha",
+        "description": "Recupera los detalles del perfil del usuario. **IMPORTANTE:** Este endpoint dispara el motor de cálculo de rachas ('Streak Engine'). Verifica si se han reportado nuevos casos desde la última actividad, calcula la diferencia de días basándose en la zona horaria de la ciudad del usuario, actualiza la racha actual, y otorga recompensas (XP) e insignias automáticamente si corresponde.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "uuid" },
+            "description": "UUID del usuario objetivo. Si se omite, retorna el perfil del usuario autenticado (token)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Perfil recuperado exitosamente con cálculo de racha actualizado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": { "$ref": "#/components/schemas/UserProfile" },
+                    "challenges_progress": { 
+                      "type": "array", 
+                      "items": { "$ref": "#/components/schemas/ChallengeProgress" } 
+                    }
+                  }
+                },
+                "example": {
+                  "data": {
+                    "id": "a1b2c3d4...",
+                    "email": "usuario@ejemplo.com",
+                    "xp": 1520,
+                    "reputation": 50,
+                    "current_streak": 5,
+                    "best_streak": 10,
+                    "ciudad": "Bogotá",
+                    "badges": ["Plata - Compromiso Inquebrantable"],
+                    "stats": {
+                      "cases_registered": 45,
+                      "validations_performed": 12,
+                      "global_ranking": 3,
+                      "total_users": 150,
+                      "next_rank_progress": { "current": 1520, "target": 3001, "label": "Cibernauta Centinela" }
+                    }
+                  },
+                  "challenges_progress": [
+                    { "id": "...", "title": "Misión Inicial", "completed": true, "percent": 100, "reward_display": "100 PI" }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "description": "No autorizado. Token faltante o inválido." },
+          "404": { "description": "Perfil de usuario no encontrado." }
+        }
+      },
+      "put": {
+        "summary": "Actualizar Información del Perfil",
+        "description": "Permite al usuario actualizar su información personal. Incluye validación estricta para imágenes en Base64 (Límite de 2MB). Si la ciudad se actualiza, el cálculo de la racha futura se ajustará a la nueva zona horaria.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpdateProfileRequest" },
+              "example": {
+                "nombre_completo": "Juan Pérez",
+                "ciudad": "Medellín",
+                "photo": "data:image/jpeg;base64,/9j/4AAQSkZJRg..."
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Perfil actualizado correctamente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "data": { "$ref": "#/components/schemas/UserProfile" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "description": "Error de validación (ej. imagen > 2MB o JSON malformado)." },
+          "500": { "description": "Error interno de base de datos." }
+        }
+      }
     },
-    {
-      "apiKey": []
+    "/convert": {
+      "post": {
+        "summary": "Convertir Divisas (PI <-> Reputación)",
+        "description": "Utilidad pública para calcular el cambio entre Puntos de Inteligencia (XP) y Reputación. La tasa actual es 1 Reputación = 25 XP.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ConversionRequest" },
+              "example": { "amount": 100, "from": "xp" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Cálculo exitoso.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ConversionResponse" },
+                "example": {
+                  "input": { "amount": 100, "unit": "xp" },
+                  "conversion": { "amount": 4, "unit": "reputation" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/challenges": {
+      "post": {
+        "summary": "Crear Reto de Gamificación (Admin)",
+        "description": "Permite a los administradores definir nuevos retos y recompensas. Estos retos se verifican automáticamente cuando los usuarios consultan su perfil. Requiere que el usuario tenga el rol 'admin' en la tabla `perfiles_usuario`.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["title", "badge_name"],
+                "properties": {
+                  "title": { "type": "string", "example": "Cazador de Mitos" },
+                  "description": { "type": "string", "example": "Valida 50 noticias falsas." },
+                  "badge_name": { "type": "string", "example": "Insignia de Cazador" },
+                  "required_xp": { "type": "integer", "example": 1000 },
+                  "required_reputation": { "type": "integer", "example": 20 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Reto creado exitosamente." },
+          "403": { "description": "Prohibido. El usuario no es administrador." }
+        }
+      }
     }
-  ]
+  }
 }
+

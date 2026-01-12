@@ -112,6 +112,7 @@ export function useContentUpload(initialJobId?: string, initialJobType?: string)
             setStatus('complete');
             break;
           }
+          case 'video': 
           case 'imagen': {
             // --- IMAGE FLOW (No Polling - Notifications handle status) ---
             console.log('[useContentUpload] Starting Image Flow (Submit Only)');
@@ -150,11 +151,6 @@ export function useContentUpload(initialJobId?: string, initialJobType?: string)
               throw imgErr;
             }
             break;
-          }
-          case 'video': {
-            // --- VIDEO FLOW (Not implemented) ---
-            console.warn('[useContentUpload] Video flow not implemented yet.');
-            throw new Error('El análisis de video no está implementado.');
           }
           default:
             console.warn(`[useContentUpload] Unexpected content type with file: ${contentType}`);
