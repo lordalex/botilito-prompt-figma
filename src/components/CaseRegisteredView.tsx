@@ -68,10 +68,12 @@ function formatDate(dateString: string): string {
 
 import { getJobStatus } from '../utils/aiAnalysis';
 import { imageAnalysisService } from '@/services/imageAnalysisService';
+import { useNotifications } from '@/providers/NotificationProvider';
 
 export function CaseRegisteredView({ caseData, onReportAnother, jobId }: CaseRegisteredViewProps) {
   const ContentIcon = contentTypeIcons[caseData.contentType];
-  const [analysisStatus, setAnalysisStatus] = React.useState<'pending' | 'processing' | 'completed' | 'failed' | null>(null);
+  const { notifications } = useNotifications();
+  const [analysisStatus, setAnalysisStatus] = React.useState<'pending' | 'processing' | 'completed' | 'failed' | null>('processing');
 
   console.log('[CaseRegisteredView] Props received:', { 
     jobId, 
@@ -79,62 +81,19 @@ export function CaseRegisteredView({ caseData, onReportAnother, jobId }: CaseReg
     caseCode: caseData.caseCode
   });
 
-  // Polling for job status if jobId is provided
+  // Listen for updates from the NotificationProvider
   React.useEffect(() => {
-    // Skip polling silently if jobId not yet available (expected during initial render)
     if (!jobId) return;
 
-    let intervalId: NodeJS.Timeout | null = null;
-    let isActive = true;
-
-    const checkStatus = async () => {
-      try {
-        // Use imageAnalysisService for image content type
-        if (caseData.contentType === 'imagen') {
-          console.log('[CaseRegisteredView] Checking image status for jobId:', jobId);
-          const response = await imageAnalysisService.getJobStatus(jobId);
-          console.log('[CaseRegisteredView] Image status response:', response);
-          if (isActive) {
-            setAnalysisStatus(response.status);
-            
-            // Stop polling if completed or failed
-            if (response.status === 'completed' || response.status === 'failed') {
-              console.log('[CaseRegisteredView] Image analysis finished:', response.status);
-              if (intervalId) clearInterval(intervalId);
-            }
-          }
-        } else {
-          // Use text-analysis for other content types
-          console.log('[CaseRegisteredView] Checking text/url status for jobId:', jobId);
-          const response = await getJobStatus(jobId);
-          console.log('[CaseRegisteredView] Text/URL status response:', response);
-          if (isActive) {
-            setAnalysisStatus(response.status);
-            
-            // Stop polling if completed or failed
-            if (response.status === 'completed' || response.status === 'failed') {
-              console.log('[CaseRegisteredView] Text/URL analysis finished:', response.status);
-              if (intervalId) clearInterval(intervalId);
-            }
-          }
-        }
-      } catch (err) {
-        console.error("[CaseRegisteredView] Error checking job status", err);
-        if (intervalId) clearInterval(intervalId);
+    const relevantNotif = notifications.find(n => n.metadata?.job_id === jobId);
+    if (relevantNotif) {
+      const newStatus = relevantNotif.metadata?.new_status || relevantNotif.metadata?.status;
+      if (newStatus && newStatus !== analysisStatus) {
+        console.log(`[CaseRegisteredView] Status update from notification for job ${jobId}: ${newStatus}`);
+        setAnalysisStatus(newStatus);
       }
-    };
-
-    // Initial check
-    checkStatus();
-
-    // Start polling every 15 seconds
-    intervalId = setInterval(checkStatus, 15000);
-
-    return () => {
-      isActive = false;
-      if (intervalId) clearInterval(intervalId);
-    };
-  }, [jobId, caseData.contentType]);
+    }
+  }, [notifications, jobId, analysisStatus]);
 
   const isAnalysisComplete = analysisStatus === 'completed';
   const isAnalysisProcessing = analysisStatus === 'processing' || analysisStatus === 'pending';

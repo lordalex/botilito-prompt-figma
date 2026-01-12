@@ -16,12 +16,13 @@ import AdminDashboard from './components/AdminDashboard'; // Default export
 import { NotificationsView } from './components/NotificationsView';
 import { useAnalysisPolling } from './hooks/useAnalysisPolling';
 import { transformTextAnalysisToUI } from './services/analysisPresentationService';
+import { searchService } from './services/searchService';
 import { useAuth } from './providers/AuthProvider'; // Import the hook
 
 type ViewState = 'upload' | 'verification' | 'review' | 'caseDetail' | 'mapa' | 'docs' | 'profile' | 'extension' | 'admin' | 'notifications';
 
 export default function App() {
-  const { isAuthenticated, isLoading, signOut, profileComplete, profileChecked, checkUserProfile, isPasswordRecovery, clearPasswordRecovery } = useAuth();
+  const { isAuthenticated, isLoading, signOut, profileComplete, profileChecked, checkUserProfile, isPasswordRecovery, clearPasswordRecovery, profile } = useAuth();
   const [showRegister, setShowRegister] = useState(false);
   const [activeTab, setActiveTab] = useState<ViewState>('upload');
   const [currentJobId, setCurrentJobId] = useState<string | undefined>();
@@ -167,17 +168,52 @@ export default function App() {
     }
   };
 
-  const handleViewTask = (jobId: string, type: string, status?: string) => {
+  const handleViewTask = async (jobId: string, type: string, status?: string) => {
+    console.log('[handleViewTask] ===== NAVIGATION START =====');
+    console.log('[handleViewTask] Input:', { jobId, type, status });
+    console.log('[handleViewTask] Profile:', profile);
+    console.log('[handleViewTask] User Role:', profile?.role);
+
     setCurrentJobId(jobId);
     setCurrentJobType(type);
 
-    // If task is completed (status 'completed' or 'success'), go to Case Detail (Historial style)
+    const userRole = profile?.role;
+    const isCibernauta = userRole === 'Cibernauta';
+    console.log('[handleViewTask] isCibernauta:', isCibernauta);
+
     if (status === 'completed' || status === 'success') {
-      setActiveTab('caseDetail');
+      console.log('[handleViewTask] Status is COMPLETED/SUCCESS');
+      if (isCibernauta) {
+        try {
+          // For Cibernauta, we need to check if the case has votes
+          const caseData = await searchService.lookupCase(jobId, ['community']);
+          if (caseData?.community?.votes > 0) {
+            console.log('[handleViewTask] Cibernauta & votes > 0 -> caseDetail');
+            setActiveTab('caseDetail');
+          } else {
+            console.log('[handleViewTask] Cibernauta & no votes -> upload (loading frame)');
+            setActiveTab('upload');
+          }
+        } catch (error) {
+          console.error('[handleViewTask] Case lookup failed for Cibernauta, falling back to upload view:', error);
+          setActiveTab('upload');
+        }
+      } else {
+        // For other roles, always go to the detailed view for validation.
+        console.log('[handleViewTask] Non-Cibernauta -> caseDetail');
+        setActiveTab('caseDetail');
+      }
+    } else if (status === 'failed') {
+      console.log('[handleViewTask] Status is FAILED -> upload');
+      setActiveTab('upload');
+    } else if (status === 'processing') {
+      console.log('[handleViewTask] Status is PROCESSING -> upload');
+      setActiveTab('upload');
     } else {
-      // Otherwise (pending, processing, etc), go to Upload View (Tracking style)
+      console.log('[handleViewTask] Status is UNKNOWN/PENDING -> upload');
       setActiveTab('upload');
     }
+    console.log('[handleViewTask] ===== NAVIGATION END =====');
   };
 
   return (

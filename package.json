@@ -22,6 +22,7 @@
             "@radix-ui/react-tooltip": "^1.1.8",
             "class-variance-authority": "^0.7.1",
             "clsx": "*",
+            "file64": "^1.0.5",
             "jspdf": "^3.0.4",
             "lucide-react": "^0.487.0",
             "modern-screenshot": "^4.6.7",

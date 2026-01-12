@@ -48,7 +48,7 @@ async function fetchClient(session: Session | null, url: string, options: Reques
             return response.json();
         }
 
-        return {}; // Return empty object for non-json responses
+        return null; // Return null for non-json responses
     } catch (error) {
         console.error('API request failed:', error);
         throw error;

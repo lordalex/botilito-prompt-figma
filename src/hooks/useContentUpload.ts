@@ -71,105 +71,78 @@ export function useContentUpload(initialJobId?: string, initialJobType?: string)
 
     try {
       if (files && files.length > 0) {
-        const file = files[0];
+        const originalFile = files[0];
+
+        // Reconstruct the file object to work around potential environment/dev server issues
+        console.log('[useContentUpload] Reconstructing File object to avoid potential environment issues.');
+        const file = new File([originalFile], originalFile.name, { type: originalFile.type });
+
         setFileName(file.name);
         setFileSize(file.size);
         switch (contentType) {
           case 'audio': {
-            // --- AUDIO FLOW ---
-            console.log('[useContentUpload] Starting Audio Flow');
-            setStatus('polling');
+            // --- AUDIO FLOW (No Polling - Notifications handle status) ---
+            console.log('[useContentUpload] Starting Audio Flow (Submit Only)');
             startFakeProgress();
 
             const { jobId, result: fastResult } = await audioAnalysisService.submitJob(file);
+            console.log('[useContentUpload] Audio Job Submitted:', jobId);
 
-            let finalResult = fastResult;
+            // Build result object with job metadata for informational display
+            const audioResult: any = fastResult || {
+              jobId,
+              status: 'pending',
+              type: 'audio_analysis',
+              fileName: file.name,
+              fileSize: file.size,
+              submittedAt: new Date().toISOString(),
+            };
 
-            // Poll for result if not immediately available
-            if (!finalResult && jobId) {
-              const poll = async () => {
-                while (true) {
-                  await new Promise(r => setTimeout(r, 2000));
-                  const status = await audioAnalysisService.getJobStatus(jobId);
-                  if (status.status === 'completed') {
-                    return await audioAnalysisService.getAudioAnalysisResult(jobId);
-                  }
-                  if (status.status === 'failed') throw new Error(status.error?.message || 'Failed');
-                }
-              };
-              finalResult = await poll();
-            }
-
-            // Add local audio URL for playback
-            if (finalResult && file) {
-              try {
-                const objectUrl = URL.createObjectURL(file);
-                finalResult = {
-                  ...finalResult,
-                  local_audio_url: objectUrl
-                };
-              } catch (e) {
-                console.error("Failed to create object URL for audio", e);
-              }
+            // Add local audio URL for playback preview
+            try {
+              const objectUrl = URL.createObjectURL(file);
+              audioResult.local_audio_url = objectUrl;
+            } catch (e) {
+              console.error("Failed to create object URL for audio", e);
             }
 
             stopFakeProgress();
-            setResult(finalResult);
+            setResult(audioResult);
             setProgress(100);
             setStatus('complete');
             break;
           }
           case 'imagen': {
-            // --- IMAGE FLOW ---
-            console.log('[useContentUpload] Starting Image Flow');
-            setStatus('polling');
+            // --- IMAGE FLOW (No Polling - Notifications handle status) ---
+            console.log('[useContentUpload] Starting Image Flow (Submit Only)');
             startFakeProgress();
 
             try {
               console.log('[useContentUpload] Awaiting imageAnalysisService.submitJob...');
               const { jobId, result: fastResult } = await imageAnalysisService.submitJob(file);
-              console.log('[useContentUpload] imageAnalysisService.submitJob RESOLVED. Job ID:', jobId);
-              console.log('[useContentUpload] Image Job Submitted:', jobId, fastResult ? 'Has Result' : 'Pending');
+              console.log('[useContentUpload] Image Job Submitted:', jobId);
 
-              let finalResult = fastResult;
+              // Build result object with job metadata for informational display
+              const imageResult: any = fastResult || {
+                jobId,
+                status: 'pending',
+                type: 'image_analysis',
+                fileName: file.name,
+                fileSize: file.size,
+                submittedAt: new Date().toISOString(),
+              };
 
-              if (!finalResult && jobId) {
-                console.log('[useContentUpload] Polling for Image Job...');
-                const poll = async () => {
-                  while (true) {
-                    await new Promise(r => setTimeout(r, 2000));
-                    const status = await imageAnalysisService.getJobStatus(jobId);
-                    console.log('[useContentUpload] Poll Status:', status.status);
-                    if (status.status === 'completed') {
-                      return await imageAnalysisService.getAnalysisResult(jobId);
-                    }
-                    if (status.status === 'failed') throw new Error(typeof status.error === 'string' ? status.error : status.error?.message || 'Failed');
-                  }
-                };
-                finalResult = await poll();
-              }
-
-              if (finalResult && file) {
-                try {
-                  const objectUrl = URL.createObjectURL(file);
-                  finalResult = {
-                    ...finalResult,
-                    local_image_url: objectUrl,
-                    jobId // Preserve jobId in the result
-                  };
-                } catch (e) {
-                  console.error("Failed to create object URL", e);
-                }
-              } else if (finalResult) {
-                // Even if no file, preserve jobId
-                finalResult = {
-                  ...finalResult,
-                  jobId
-                };
+              // Add local image URL for preview
+              try {
+                const objectUrl = URL.createObjectURL(file);
+                imageResult.local_image_url = objectUrl;
+                imageResult.jobId = jobId; // Preserve jobId
+              } catch (e) {
+                console.error("Failed to create object URL", e);
               }
 
               stopFakeProgress();
-              setResult(finalResult);
+              setResult(imageResult);
               setProgress(100);
               setStatus('complete');
             } catch (imgErr) {
@@ -208,7 +181,7 @@ export function useContentUpload(initialJobId?: string, initialJobType?: string)
         // Note: Server automatically registers text analysis jobs in notifications system
         if (textResult && 'jobId' in textResult && textResult.status === 'pending') {
           setResult(textResult);
-          setStatus('polling'); // Triggers success view (CaseRegisteredView) immediately as per logic
+          setStatus('complete'); // Triggers success view (CaseRegisteredView) immediately as per logic
         } else {
           setResult(textResult);
           setStatus('complete');

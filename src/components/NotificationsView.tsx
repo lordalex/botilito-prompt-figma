@@ -78,94 +78,88 @@ export function NotificationsView({ onViewTask }: NotificationsViewProps) {
      * 3. Fallback to existing metadata if fetch fails or no URL
      */
     const handleNotificationClick = async (notification: Notification) => {
+        console.log('[NotificationClick] ===== CLICK START =====');
+        console.log('[NotificationClick] Notification:', notification);
+        console.log('[NotificationClick] Metadata:', notification.metadata);
+
         if (!notification.is_read) {
             markAsRead(notification.id);
         }
 
         const metadata = notification.metadata;
-        if (!metadata?.job_id) return;
+        if (!metadata?.job_id) {
+            console.log('[NotificationClick] No job_id in metadata, returning');
+            return;
+        }
 
-        // PRIORITY 1: Always check fresh status via status_url if available
-        // This prevents using stale 'doc_id' from metadata which causes "Case not found"
-        if (metadata.status_url && session) {
-            try {
-                setIsLoadingDetails(notification.id);
-                const freshStatus = await api.generic.get(session, metadata.status_url);
-
-                // Check if job is now completed
-                if (freshStatus.status === 'completed') {
-                    // Edge case: Job completed but returned an error result (e.g. "Not found")
-                    if (freshStatus.result?.error) {
-                        console.error("Job completed with internal error:", freshStatus.result.error);
-                        onViewTask(metadata.job_id, 'error', 'failed');
-                        return;
-                    }
-
-                    // Extract ID - commonly result.id, doc_id, or case_id
-                    const validId = freshStatus.result?.id || freshStatus.result?.case_id || freshStatus.result?.resolved_case_id || freshStatus.doc_id || metadata.doc_id;
-
-                    if (validId) {
-                        onViewTask(validId, 'analysis', 'completed');
-                        return;
-                    }
-                } else if (freshStatus.status === 'failed') {
-                    onViewTask(metadata.job_id, 'error', 'failed');
-                    return;
+        const getJobTypeFromMetadata = (metadata: any): string => {
+            if (metadata.service === 'forensics') {
+                if (notification.message.toLowerCase().includes('imagen')) {
+                    return 'image_analysis';
                 }
-            } catch (error) {
-                console.error("Failed to fetch fresh job status:", error);
-                // Fall through to fallback behavior below on error
-            } finally {
-                setIsLoadingDetails(null);
+                if (notification.message.toLowerCase().includes('audio')) {
+                    return 'audio_analysis';
+                }
+                // Fallback for forensics
+                return 'image_analysis';
             }
-        }
+            if (metadata.service) {
+                return metadata.service;
+            }
+            if (metadata.status_url) {
+                if (metadata.status_url.includes('image-analysis')) return 'image_analysis';
+                if (metadata.status_url.includes('audio-analysis')) return 'audio_analysis';
+                if (metadata.status_url.includes('text-analysis')) return 'text_analysis';
+            }
+            return 'analysis'; // fallback
+        };
 
-        // PRIORITY 2: Fallback to existing metadata (Optimistic / Offline)
-        if (metadata.status === 'completed' && metadata.doc_id) {
-            onViewTask(metadata.doc_id, 'analysis', 'completed');
-            return;
-        }
+        const jobType = getJobTypeFromMetadata(metadata);
+        const effectiveStatus = metadata.new_status || metadata.status;
+        const effectiveDocId = metadata.case_id || metadata.doc_id || metadata.job_id;
 
-        if (metadata.status === 'failed' && metadata.error) {
-            onViewTask(metadata.job_id, 'error', 'failed');
-            return;
-        }
+        console.log('[NotificationClick] Determined jobType:', jobType);
+        onViewTask(effectiveDocId, jobType, effectiveStatus);
 
-        // Fallback: Navigation based on existing metadata
-        const status = metadata.status;
-        const jobId = metadata.job_id;
-
-        if (status === 'processing') {
-            onViewTask(jobId, 'status', 'processing');
-        } else {
-            // Default fallback
-            onViewTask(jobId, 'analysis', status || 'unknown');
-        }
+        console.log('[NotificationClick] ===== CLICK END =====');
     };
 
 
     return (
-        <div className="container mx-auto px-4 py-8 max-w-4xl">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+        <div className="container mx-auto px-4 py-8 max-w-6xl">
+            {/* Yellow accent header banner */}
+            <div className="bg-[#ffe97a] rounded-xl px-6 py-4 mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-sm">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight">Centro de Notificaciones</h1>
-                    <p className="text-muted-foreground">Gestiona tus alertas y actualizaciones del sistema.</p>
+                    <h1 className="text-xl md:text-2xl font-bold tracking-tight text-gray-900 flex items-center gap-2">
+                        <Bell className="h-6 w-6" />
+                        Centro de Notificaciones
+                    </h1>
+                    <p className="text-sm text-gray-700 mt-1">Gestiona tus alertas y actualizaciones del sistema.</p>
                 </div>
                 <div className="flex items-center gap-2">
                     {unreadCount > 0 && (
-                        <Button variant="outline" size="sm" onClick={handleMarkAllRead}>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleMarkAllRead}
+                            className="bg-white hover:bg-gray-50 border-gray-300"
+                        >
                             <Check className="mr-2 h-4 w-4" /> Marcar todo como leído
                         </Button>
                     )}
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <div className="md:col-span-1">
-                    <Card>
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                {/* Filters Sidebar */}
+                <div className="lg:col-span-1">
+                    <Card className="border-2 shadow-sm sticky top-4" style={{ borderColor: '#FFDA00' }}>
                         <CardHeader className="pb-3">
-                            <CardTitle className="text-sm font-medium flex items-center">
-                                <Filter className="mr-2 h-4 w-4" /> Filtros
+                            <CardTitle className="text-sm font-bold flex items-center gap-2">
+                                <div className="bg-yellow-100 p-1.5 rounded-full">
+                                    <Filter className="h-4 w-4 text-[#FFDA00]" />
+                                </div>
+                                Filtros
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="grid gap-1">
@@ -175,37 +169,43 @@ export function NotificationsView({ onViewTask }: NotificationsViewProps) {
                                 onClick={() => setFilter('all')}
                             >
                                 Todas
-                                <Badge variant="secondary" className="ml-auto text-xs bg-white/50">{notifications.length}</Badge>
+                                <Badge variant="secondary" className="ml-auto text-xs bg-gray-100">{notifications.length}</Badge>
                             </Button>
                             <Button
                                 variant={filter === 'unread' ? 'secondary' : 'ghost'}
-                                className="justify-start"
+                                className={`justify-start ${filter === 'unread' ? 'bg-[#FFD700] hover:bg-[#fae255] text-black font-medium' : ''}`}
                                 onClick={() => setFilter('unread')}
                             >
                                 No leídas
                                 {unreadCount > 0 && <Badge variant="destructive" className="ml-auto text-xs">{unreadCount}</Badge>}
                             </Button>
-                            <div className="my-2 border-t" />
-                            <Button variant={filter === 'info' ? 'secondary' : 'ghost'} className="justify-start text-xs" onClick={() => setFilter('info')}>
+                            <div className="my-2 border-t border-gray-200" />
+                            <Button variant={filter === 'info' ? 'secondary' : 'ghost'} className={`justify-start text-xs ${filter === 'info' ? 'bg-blue-50' : ''}`} onClick={() => setFilter('info')}>
                                 <Info className="mr-2 h-3 w-3 text-blue-500" /> Información
                             </Button>
-                            <Button variant={filter === 'success' ? 'secondary' : 'ghost'} className="justify-start text-xs" onClick={() => setFilter('success')}>
+                            <Button variant={filter === 'success' ? 'secondary' : 'ghost'} className={`justify-start text-xs ${filter === 'success' ? 'bg-green-50' : ''}`} onClick={() => setFilter('success')}>
                                 <CheckCircle className="mr-2 h-3 w-3 text-green-500" /> Éxito
                             </Button>
-                            <Button variant={filter === 'warning' ? 'secondary' : 'ghost'} className="justify-start text-xs" onClick={() => setFilter('warning')}>
+                            <Button variant={filter === 'warning' ? 'secondary' : 'ghost'} className={`justify-start text-xs ${filter === 'warning' ? 'bg-yellow-50' : ''}`} onClick={() => setFilter('warning')}>
                                 <AlertTriangle className="mr-2 h-3 w-3 text-yellow-500" /> Advertencia
                             </Button>
-                            <Button variant={filter === 'error' ? 'secondary' : 'ghost'} className="justify-start text-xs" onClick={() => setFilter('error')}>
+                            <Button variant={filter === 'error' ? 'secondary' : 'ghost'} className={`justify-start text-xs ${filter === 'error' ? 'bg-red-50' : ''}`} onClick={() => setFilter('error')}>
                                 <AlertCircle className="mr-2 h-3 w-3 text-red-500" /> Error
                             </Button>
                         </CardContent>
                     </Card>
                 </div>
 
-                <div className="md:col-span-3">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="text-lg">Bandeja de Entrada</CardTitle>
+                {/* Inbox */}
+                <div className="lg:col-span-3">
+                    <Card className="border-2 shadow-sm" style={{ borderColor: '#FFDA00' }}>
+                        <CardHeader className="border-b border-gray-100">
+                            <CardTitle className="text-lg font-bold flex items-center gap-2">
+                                <div className="bg-yellow-100 p-1.5 rounded-full">
+                                    <Bell className="h-4 w-4 text-[#FFDA00]" />
+                                </div>
+                                Bandeja de Entrada
+                            </CardTitle>
                             <CardDescription>
                                 {filteredNotifications.length === 0
                                     ? "No hay notificaciones que coincidan con el filtro."
@@ -213,54 +213,61 @@ export function NotificationsView({ onViewTask }: NotificationsViewProps) {
                                 }
                             </CardDescription>
                         </CardHeader>
-                        <CardContent>
+                        <CardContent className="p-4">
                             {filteredNotifications.length === 0 ? (
-                                <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
-                                    <Bell className="h-12 w-12 mb-4 opacity-20" />
-                                    <p>No tienes notificaciones en esta vista.</p>
+                                <div className="flex flex-col items-center justify-center py-16 text-center text-muted-foreground">
+                                    <div className="bg-gray-100 p-4 rounded-full mb-4">
+                                        <Bell className="h-12 w-12 opacity-30" />
+                                    </div>
+                                    <p className="text-lg font-medium">No tienes notificaciones</p>
+                                    <p className="text-sm mt-1">Las nuevas alertas aparecerán aquí</p>
                                 </div>
                             ) : (
-                                <div className="space-y-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                                     {filteredNotifications.map((notification) => (
                                         <div
                                             key={notification.id}
-                                            className={`flex items-start p-4 rounded-xl border transition-all cursor-pointer hover:shadow-sm ${!notification.is_read ? 'bg-white border-l-4 border-l-[#FFD700]' : 'bg-white border-gray-100'
+                                            className={`flex flex-col p-4 rounded-xl border-2 transition-all cursor-pointer hover:shadow-md hover:scale-[1.01] ${!notification.is_read
+                                                    ? 'bg-white border-[#FFD700] shadow-sm'
+                                                    : 'bg-gray-50 border-gray-200 hover:border-gray-300'
                                                 }`}
                                             onClick={() => handleNotificationClick(notification)}
                                         >
-                                            <div className="mr-4 mt-1">
-                                                {getIcon(notification.type)}
-                                            </div>
-                                            <div className="flex-1 space-y-1">
-                                                <div className="flex flex-col mb-1">
-                                                    <p className={`text-sm font-medium leading-tight ${!notification.is_read ? 'text-black' : ''}`}>
+                                            <div className="flex items-start gap-3 mb-2">
+                                                <div className={`shrink-0 p-2 rounded-full ${notification.type === 'success' ? 'bg-green-100' :
+                                                        notification.type === 'warning' ? 'bg-yellow-100' :
+                                                            notification.type === 'error' ? 'bg-red-100' : 'bg-blue-100'
+                                                    }`}>
+                                                    {getIcon(notification.type)}
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className={`text-sm font-semibold leading-tight truncate ${!notification.is_read ? 'text-gray-900' : 'text-gray-600'}`}>
                                                         {notification.title}
                                                     </p>
-                                                    <span className="text-[10px] text-muted-foreground mt-1">
+                                                    <span className="text-[10px] text-muted-foreground">
                                                         {new Date(notification.created_at).toLocaleString()}
                                                     </span>
                                                 </div>
-                                                <p className="text-sm text-muted-foreground">
-                                                    {notification.message}
-                                                </p>
-                                                {notification.metadata?.job_id && (
-                                                    <Button
-                                                        variant="link"
-                                                        className="px-0 h-auto text-xs mt-2 text-[#FFD700] hover:text-[#e6c200] font-medium"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            handleNotificationClick(notification);
-                                                        }}
-                                                        disabled={isLoadingDetails === notification.id}
-                                                    >
-                                                        {isLoadingDetails === notification.id ? 'Cargando status...' : 'Ver detalles →'}
-                                                    </Button>
+                                                {!notification.is_read && (
+                                                    <div className="h-2 w-2 rounded-full bg-[#FFD700] shrink-0" />
                                                 )}
                                             </div>
-                                            {!notification.is_read && (
-                                                <div className="ml-4 flex-shrink-0 self-center">
-                                                    <div className="h-2 w-2 rounded-full bg-blue-500" />
-                                                </div>
+                                            <p className="text-xs text-muted-foreground line-clamp-2 mb-3 flex-1">
+                                                {notification.message}
+                                            </p>
+                                            {notification.metadata?.job_id && (
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="w-full text-xs border-[#FFD700] text-gray-700 hover:bg-[#ffe97a] hover:text-gray-900"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleNotificationClick(notification);
+                                                    }}
+                                                    disabled={isLoadingDetails === notification.id}
+                                                >
+                                                    {isLoadingDetails === notification.id ? 'Cargando...' : 'Ver detalles →'}
+                                                </Button>
                                             )}
                                         </div>
                                     ))}

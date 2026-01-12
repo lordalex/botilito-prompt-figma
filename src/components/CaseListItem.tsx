@@ -59,25 +59,16 @@ const contentTypeIcons = {
   url: Link2,
 } as const;
 
-// Configuración de colores de fondo por tipo de contenido
-const contentTypeIconBg = {
-  texto: 'bg-amber-300',
-  imagen: 'bg-amber-300',
-  video: 'bg-amber-300',
-  audio: 'bg-amber-300',
-  url: 'bg-amber-300',
-} as const;
-
-// Configuración de badges por tema
+// Configuración de badges por tema - CLEANER LOOK (No borders)
 const themeBadges: Record<string, { label: string; className: string; icon: 'sparkles' | 'wand' }> = {
   Desinformódico: {
     label: 'Desinformódico',
-    className: 'bg-red-50 text-red-700 border-2 border-red-600',
+    className: 'bg-red-50 text-red-700 border-none', // Removed border
     icon: 'sparkles',
   },
   Forense: {
     label: 'Forense',
-    className: 'bg-purple-50 text-purple-700 border-2 border-purple-600',
+    className: 'bg-purple-50 text-purple-700 border-none', // Removed border
     icon: 'wand',
   },
 };
@@ -88,33 +79,33 @@ const amiBadges: Record<
   { label: string; labelShort: string; className: string; icon: 'check' | 'alert' | 'bot' | 'wand' }
 > = {
   'Desarrolla las estrategias AMI': {
-    label: 'Desarrolla AMI',
+    label: 'Desarrolla las premisas AMI', // Match Figma
     labelShort: 'Desarrolla AMI',
-    className: 'bg-green-50 text-green-700 border-2 border-green-600',
+    className: 'bg-green-50 text-green-700 border border-green-200',
     icon: 'check',
   },
   'Cumple las premisas AMI': {
     label: 'Sin alteraciones',
     labelShort: 'Sin alteración',
-    className: 'bg-green-50 text-green-700 border-2 border-green-600',
+    className: 'bg-green-50 text-green-700 border border-green-200',
     icon: 'check',
   },
   'Requiere un enfoque AMI': {
-    label: 'Requiere AMI',
+    label: 'Requiere un enfoque AMI', // Match Figma
     labelShort: 'Requiere AMI',
-    className: 'bg-orange-50 text-orange-700 border-2 border-orange-600',
+    className: 'bg-orange-50 text-orange-700 border border-orange-200',
     icon: 'alert',
   },
   'No cumple las premisas AMI': {
-    label: 'Manipulado',
+    label: 'Manipulado Digitalmente', // Match Figma
     labelShort: 'Manipulado',
-    className: 'bg-red-50 text-red-700 border-2 border-red-600',
+    className: 'bg-red-50 text-red-700 border border-red-200',
     icon: 'wand',
   },
   'Generado por IA': {
     label: 'Generado por IA',
     labelShort: 'IA',
-    className: 'bg-purple-50 text-purple-700 border-2 border-purple-600',
+    className: 'bg-purple-50 text-purple-700 border border-purple-200',
     icon: 'bot',
   },
 };
@@ -156,60 +147,62 @@ export function CaseListItem({ caseItem, onClick, className = '' }: CaseListItem
   const amiConfig = caseItem.amiLevel ? amiBadges[caseItem.amiLevel] : null;
   const AmiIcon = amiConfig ? getAmiIcon(amiConfig.icon) : null;
 
+  // Determine if this is a "Manipulated" or "Warning" case that needs the yellow highlight
+  const isManipulated = amiConfig?.labelShort === 'Manipulado';
+
   return (
     <div
       onClick={() => onClick(caseItem.id, caseItem.contentType)}
-      className={`group relative flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 rounded-xl bg-white border border-gray-100 shadow-sm hover:shadow-md transition-all cursor-pointer ${className}`}
+      className={`group relative flex flex-row items-center gap-4 p-4 rounded-xl shadow-sm hover:shadow-md hover:bg-secondary transition-all cursor-pointer ${isManipulated
+        ? 'bg-secondary border border-transparent' // Yellow background, no border
+        : 'bg-gray-50 border border-gray-100'        // Standard white background
+        } ${className}`}
     >
-      {/* 1. ICONO (Always Yellow Square) */}
-      <div className="shrink-0">
-        <div className="w-12 h-12 flex items-center justify-center rounded-lg bg-[#FFF59D] border border-[#FFDA00]">
-          <ContentIcon className="h-6 w-6 text-gray-800" />
+      {/* 1. ICONO (Always Yellow Square) - Fixed Width */}
+      <div className="shrink-0 flex justify-center">
+        <div className="w-12 h-12 flex items-center justify-center rounded-lg bg-secondary hover:bg-primary border border-primary">
+          {/* Darker icon color for contrast */}
+          <ContentIcon className="h-6 w-6 text-gray-900" />
         </div>
       </div>
 
-      {/* 2. MAIN CONTENT */}
-      <div className="flex-1 min-w-0 space-y-2">
+      {/* 2. MAIN CONTENT - Flexible grow */}
+      <div className="grow min-w-0 flex flex-col justify-center gap-1">
 
         {/* Row 1: ID | Badges | Title */}
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="font-mono text-xs font-bold text-gray-500 bg-gray-100 px-2 py-1 rounded">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <span className="text-xs px-1.5 py-0.5 rounded whitespace-nowrap border border-secondary rounded-md bg-white">
             Caso: {caseItem.caseCode}
           </span>
 
-          {/* Theme Badge (Desinfodémico/Forense) */}
+          {/* Theme Badge (Borderless) */}
           {themeConfig && (
-            <Badge variant="secondary" className={`${themeConfig.className} px-2 py-0.5 text-[10px] uppercase tracking-wide flex items-center gap-1`}>
+            <Badge variant="secondary" className={`${themeConfig.className} px-1.5 py-0.5 text-[10px] uppercase tracking-wide flex items-center gap-1 whitespace-nowrap`}>
               {themeConfig.icon === 'sparkles' ? <Sparkles className="h-3 w-3" /> : <Wand2 className="h-3 w-3" />}
               {themeConfig.label}
             </Badge>
           )}
 
-          {/* Title (Truncated) */}
-          <h3 className="font-bold text-gray-900 text-sm truncate max-w-[300px] sm:max-w-md hidden sm:block">
+          {/* Title - Truncate safely */}
+          <h3 className="font-bold text-gray-900 text-sm truncate flex-1 min-w-[150px]">
             {caseItem.title}
           </h3>
         </div>
 
-        {/* Title for Mobile (Full width) */}
-        <h3 className="font-bold text-gray-900 text-sm sm:hidden line-clamp-2">
-          {caseItem.title}
-        </h3>
-
-        {/* Row 2: Metadata */}
-        <div className="flex flex-wrap items-center gap-4 text-xs text-gray-500">
-          <div className="flex items-center gap-1.5">
-            <Calendar className="h-3.5 w-3.5" />
+        {/* Row 2: Metadata - Tightest gap possible */}
+        <div className="flex items-center gap-2 text-xs text-gray-500 overflow-hidden">
+          <div className="flex items-center gap-1 whitespace-nowrap shrink-0">
+            <Calendar className="h-3 w-3 text-gray-400" />
             {formatDate(caseItem.createdAt)}
           </div>
-          <div className="flex items-center gap-1.5">
-            <User className="h-3.5 w-3.5" />
-            Reportado por: {caseItem.reportedBy}
+
+          <div className="flex items-center gap-1 whitespace-nowrap overflow-hidden max-w-[120px]">
+            <User className="h-3 w-3 text-gray-400 shrink-0" />
+            <span className="truncate">Reportado por: {caseItem.reportedBy}</span>
           </div>
 
-          {/* Validators Count */}
-          <div className="flex items-center gap-1.5">
-            <Shield className={`h-3.5 w-3.5 ${caseItem.humanValidatorsCount > 0 ? 'text-green-600' : 'text-gray-400'}`} />
+          <div className="flex items-center gap-1 whitespace-nowrap shrink-0">
+            <Shield className={`h-3 w-3 ${caseItem.humanValidatorsCount > 0 ? 'text-green-600' : 'text-gray-400'}`} />
             <span className={caseItem.humanValidatorsCount > 0 ? 'text-green-700 font-bold' : ''}>
               {caseItem.humanValidatorsCount} validadores humanos
             </span>
@@ -217,19 +210,21 @@ export function CaseListItem({ caseItem, onClick, className = '' }: CaseListItem
         </div>
       </div>
 
-      {/* 3. ACTION / STATUS BADGE (Right Side) */}
-      <div className="sm:ml-auto shrink-0 pt-2 sm:pt-0 w-full sm:w-auto border-t sm:border-t-0 border-gray-100 mt-2 sm:mt-0 sm:pl-4">
+      {/* 3. ACTION / STATUS BADGE (Right Side) - Fixed Width, Pushed Right */}
+      <div className="shrink-0 ml-auto flex justify-end">
         {amiConfig && AmiIcon ? (
-          <div className={`px-4 py-2 rounded-lg border flex items-center justify-center gap-2 w-full sm:w-auto ${amiConfig.labelShort === 'Requiere AMI' ? 'bg-orange-50 border-orange-200 text-orange-700' :
-              amiConfig.labelShort === 'Manipulado' ? 'bg-red-50 border-red-200 text-red-700' :
-                amiConfig.labelShort === 'Sin alteración' ? 'bg-green-50 border-green-200 text-green-700' :
-                  'bg-gray-50 border-gray-200 text-gray-700'
+          // If manually checking style props inside the map, or use custom override
+          <div className={`px-4 py-2 rounded-lg flex items-center justify-center gap-2 w-auto whitespace-nowrap ${
+            // Override for Yellow Background rows: Use White Pill
+            isManipulated
+              ? 'bg-white border border-white text-red-700 shadow-sm'
+              : amiConfig.className // Standard style for white rows
             }`}>
             <AmiIcon className="h-4 w-4" />
             <span className="font-bold text-xs">{amiConfig.label}</span>
           </div>
         ) : (
-          <div className="px-4 py-2 rounded-lg border border-gray-200 bg-gray-50 text-gray-500 flex items-center justify-center gap-2">
+          <div className="px-4 py-2 rounded-lg border border-gray-200 bg-gray-50 text-gray-500 flex items-center justify-center gap-2 whitespace-nowrap">
             <span className="font-bold text-xs">Pendiente de Análisis</span>
           </div>
         )}
