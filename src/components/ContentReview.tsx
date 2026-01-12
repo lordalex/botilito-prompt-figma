@@ -188,7 +188,7 @@ export function ContentReview() {
                 </div>
                 <div>
                   <p className="text-2xl font-bold">{stats.misinformation}</p>
-                  <p className="text-sm text-muted-foreground">Desinfodémico</p>
+                  <p className="text-sm text-muted-foreground">Infodémico</p>
                 </div>
               </div>
             </CardContent>
