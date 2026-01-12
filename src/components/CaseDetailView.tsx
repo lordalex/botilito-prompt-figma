@@ -1,80 +1,23 @@
-import React, { useState, useMemo } from 'react';
+import React from 'react';
 import { useCaseDetail } from '@/hooks/useCaseDetail';
-import { transformHumanCaseToUI } from '@/services/analysisPresentationService';
-import { generateDisplayId } from '@/utils/humanVerification/api';
-import { UnifiedAnalysisView } from './UnifiedAnalysisView';
-import { useToast } from '@/hooks/use-toast';
-import { Button } from './ui/button';
+import { ContentUploadResult } from './ContentUploadResult';
+import { useAuth } from '@/providers/AuthProvider';
 import { Loader2, ArrowLeft, AlertTriangle } from 'lucide-react';
-import { supabase } from '@/utils/supabase/client';
+import { Button } from './ui/button';
 
 interface CaseDetailViewProps {
     caseId: string;
     onBackToList: () => void;
     onVerificationSuccess?: (caseId: string) => void;
-    mode?: 'ai' | 'human';
 }
 
-/**
- * CaseDetailView - Entry point for viewing case details from Historial.
- * 
- * Uses:
- * - useCaseDetail hook (behavior) for data fetching
- * - transformHumanCaseToUI (service) for data transformation
- * - UnifiedAnalysisView (UI) for presentation
- */
 export function CaseDetailView({
     caseId,
     onBackToList,
-    onVerificationSuccess,
-    mode = 'ai'  // Default to AI view for historial
 }: CaseDetailViewProps) {
-    const { caseDetail, loading, error, reload } = useCaseDetail(caseId);
-    const { toast } = useToast();
-    const [isSubmitting, setIsSubmitting] = useState(false);
+    const { caseDetail, loading, error } = useCaseDetail(caseId);
+    const { profile } = useAuth();
 
-    // Transform case data for UnifiedAnalysisView
-    const transformedData = useMemo(() => {
-        if (!caseDetail) return null;
-        return transformHumanCaseToUI(caseDetail);
-    }, [caseDetail]);
-
-    // Handle diagnosis submission (if in human mode)
-    const handleSubmitDiagnosis = async (diagnosis: any) => {
-        setIsSubmitting(true);
-        try {
-            const { data: user } = await supabase.auth.getUser();
-            if (!user.user) throw new Error('No user found');
-
-            const { error } = await supabase.functions.invoke('human-diagnosis', {
-                body: {
-                    caseId: caseId,
-                    diagnosis: diagnosis,
-                    userId: user.user.id
-                }
-            });
-
-            if (error) throw error;
-
-            toast({
-                title: "Diagnóstico Enviado",
-                description: "Tu diagnóstico humano ha sido registrado exitosamente.",
-            });
-
-            onVerificationSuccess?.(caseId);
-        } catch (error: any) {
-            console.error('Error submitting diagnosis:', error);
-            toast({
-                title: "Error",
-                description: error.message || "No se pudo enviar el diagnóstico.",
-                variant: "destructive"
-            });
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
-
-    // Loading state
     if (loading) {
         return (
             <div className="flex flex-col items-center justify-center h-96 gap-4">
@@ -84,7 +27,6 @@ export function CaseDetailView({
         );
     }
 
-    // Error state
     if (error || !caseDetail) {
         return (
             <div className="text-center p-8 space-y-4">
@@ -98,60 +40,18 @@ export function CaseDetailView({
         );
     }
 
-    // Determine content type from case data
-    // The API might return different values for submission_type
-    const getContentType = (): 'text' | 'image' | 'audio' => {
-        const detail = caseDetail as any;
-        // Check if it's forensic analysis with image/audio data
-        const isForensic = transformedData?.raw?.metadata?.is_forensic || detail.metadata?.is_forensic;
-        if (isForensic) {
-            const hasImageDetails = transformedData?.raw?.all_documents?.[0]?.result?.details?.[0]?.original_frame;
-            if (hasImageDetails) return 'image';
-
-            // Check for audio in submission_type when forensic
-            if (detail.submission_type?.toLowerCase?.().includes('audio')) return 'audio';
-        }
-
-        // Check submission_type
-        const submissionType = detail.submission_type?.toLowerCase?.() || '';
-        if (submissionType.includes('image') || submissionType === 'media') return 'image';
-        if (submissionType.includes('audio')) return 'audio';
-
-        return 'text';
-    };
-    const contentType = getContentType();
-
-    const detail = caseDetail as any;
-
-    // Extract screenshot URL from either StandardizedCase or legacy format
-    const getScreenshotUrl = () => {
-        // StandardizedCase format: overview.main_asset_url
-        if (detail.overview?.main_asset_url) {
-            return detail.overview.main_asset_url;
-        }
-        // Legacy format: metadata.screenshot
-        if (detail.metadata?.screenshot) {
-            return detail.metadata.screenshot;
-        }
-        // Transformed data fallback
-        return transformedData?.mainAssetUrl || transformedData?.metadata?.screenshot;
-    };
+    const isCibernauta = profile?.role === 'Cibernauta';
+    
+    // For non-cibernauta, voting is shown.
+    // For cibernauta, it's hidden.
+    const hideVoting = isCibernauta;
 
     return (
-        <UnifiedAnalysisView
-            data={transformedData}
-            contentType={contentType}
-            mode={mode}
-            title={detail.title || detail.overview?.title || 'Detalle del Caso'}
-            caseNumber={generateDisplayId(detail)}
-            timestamp={detail.created_at}
-            reportedBy={detail.metadata?.reported_by?.name || detail.reporter?.name || 'Comunidad'}
-            screenshot={getScreenshotUrl()}
+        <ContentUploadResult
+            result={caseDetail}
             onReset={onBackToList}
-            onSubmitDiagnosis={handleSubmitDiagnosis}
-            isSubmittingDiagnosis={isSubmitting}
-            hideVoting={true}
+            hideVoting={hideVoting}
+            backLabel="Volver"
         />
     );
 }
-

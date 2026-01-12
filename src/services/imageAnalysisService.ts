@@ -1,4 +1,5 @@
 import { supabase } from '../utils/supabase/client';
+import { fileToBase64 } from 'file64';
 import { IMAGE_ANALYSIS_BASE_URL } from '@/lib/apiEndpoints';
 import { AnalysisResult, JobStatusResponse } from '@/types/imageAnalysis';
 
@@ -10,43 +11,17 @@ const MAX_ATTEMPTS = 60; // 2 minutes max
 
 // --- Base64 Conversion Utility ---
 export async function convertFileToBase64(file: File): Promise<string> {
-  console.log(`[Base64] Starting conversion for ${file.name} size=${file.size}`);
-
-  const conversionPromise = new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-
-    reader.onload = () => {
-      console.log('[Base64] Reader onload fired');
-      const result = reader.result as string;
-      const base64 = result.split(',')[1] || result;
-      console.log(`[Base64] Resolved string length: ${base64.length}`);
-      resolve(base64);
-    };
-
-    reader.onerror = (error) => {
-      console.error('[Base64] Reader error:', error);
-      reject(error);
-    };
-
-    reader.onabort = () => {
-      console.warn('[Base64] Reader aborted');
-      reject(new Error('FileReader aborted'));
-    };
-
-    try {
-      reader.readAsDataURL(file);
-    } catch (e) {
-      console.error('[Base64] readAsDataURL threw error:', e);
-      reject(e);
-    }
-  });
-
-  // Add 10s timeout
-  const timeoutPromise = new Promise<string>((_, reject) =>
-    setTimeout(() => reject(new Error('Base64 conversion timed out (>10s)')), 10000)
-  );
-
-  return Promise.race([conversionPromise, timeoutPromise]);
+  console.log(`[Base64] Starting conversion for ${file.name} size=${file.size} (using file64 library)`);
+  try {
+    const base64 = await fileToBase64(file);
+    // The library returns the full data URL (e.g., "data:image/jpeg;base64,..."), so we strip the prefix.
+    const pureBase64 = base64.split(',')[1] || base64;
+    console.log(`[Base64] Conversion successful. Length: ${pureBase64.length}`);
+    return pureBase64;
+  } catch (error) {
+    console.error('[Base64] Error using file64 library:', error);
+    throw error;
+  }
 }
 
 // --- Data Transformation ---

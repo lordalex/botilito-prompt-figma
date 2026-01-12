@@ -71,14 +71,18 @@ export function useContentUpload(initialJobId?: string, initialJobType?: string)
 
     try {
       if (files && files.length > 0) {
-        const file = files[0];
+        const originalFile = files[0];
+
+        // Reconstruct the file object to work around potential environment/dev server issues
+        console.log('[useContentUpload] Reconstructing File object to avoid potential environment issues.');
+        const file = new File([originalFile], originalFile.name, { type: originalFile.type });
+
         setFileName(file.name);
         setFileSize(file.size);
         switch (contentType) {
           case 'audio': {
             // --- AUDIO FLOW (No Polling - Notifications handle status) ---
             console.log('[useContentUpload] Starting Audio Flow (Submit Only)');
-            setStatus('polling');
             startFakeProgress();
 
             const { jobId, result: fastResult } = await audioAnalysisService.submitJob(file);
@@ -111,7 +115,6 @@ export function useContentUpload(initialJobId?: string, initialJobType?: string)
           case 'imagen': {
             // --- IMAGE FLOW (No Polling - Notifications handle status) ---
             console.log('[useContentUpload] Starting Image Flow (Submit Only)');
-            setStatus('polling');
             startFakeProgress();
 
             try {
@@ -178,7 +181,7 @@ export function useContentUpload(initialJobId?: string, initialJobType?: string)
         // Note: Server automatically registers text analysis jobs in notifications system
         if (textResult && 'jobId' in textResult && textResult.status === 'pending') {
           setResult(textResult);
-          setStatus('polling'); // Triggers success view (CaseRegisteredView) immediately as per logic
+          setStatus('complete'); // Triggers success view (CaseRegisteredView) immediately as per logic
         } else {
           setResult(textResult);
           setStatus('complete');

@@ -43,9 +43,28 @@ export function ContentUpload({ jobId, jobType, onReset }: ContentUploadProps) {
     );
   }
 
-  // Mostrar vista de caso registrado automáticamente cuando el análisis está completo o en progreso (polling)
-  // User requested to skip the loader/polling view and show success immediately after submission
-  if ((status === 'complete' && result) || status === 'polling' || status === 'uploading') {
+  // LOADER: Show progress while uploading or polling WITHOUT a jobId yet
+  // This covers the Base64 conversion, network upload, etc.
+  const hasJobId = result?.jobId || result?.meta?.job_id || jobId;
+
+  if ((status === 'uploading') || (status === 'polling' && !hasJobId)) {
+    const statusMessage =
+      progress < 30 ? 'Preparando archivo...' :
+        progress < 60 ? 'Subiendo contenido...' :
+          'Registrando caso...';
+
+    return (
+      <ContentUploadProgress
+        step="upload"
+        status={statusMessage}
+        progress={progress}
+        fileName={fileName}
+      />
+    );
+  }
+
+  // FRAME: Show CaseRegisteredView when we have a jobId (complete or polling with ID)
+  if ((status === 'complete' && result) || (status === 'polling' && hasJobId)) {
     // Determine info from result OR local state if result is pending
     const extractedFilename =
       fileName ||
@@ -127,7 +146,8 @@ export function ContentUpload({ jobId, jobType, onReset }: ContentUploadProps) {
       caseCode:
         result?.caseNumber ||
         result?.fullResult?.displayId ||
-        `PENDING-${new Date().toISOString().slice(11, 19).replace(/:/g, '')}`, // Temp ID if polling
+        hasJobId?.slice(0, 8) ||
+        `PENDING-${new Date().toISOString().slice(11, 19).replace(/:/g, '')}`,
       createdAt: result?.fullResult?.created_at || result?.meta?.timestamp || new Date().toISOString(),
       contentType: detectedType,
       analysisType: result?.theme || getAnalysisType(detectedType),
@@ -137,24 +157,14 @@ export function ContentUpload({ jobId, jobType, onReset }: ContentUploadProps) {
     };
 
     console.log('[ContentUpload] Rendering CaseRegisteredView with:', {
-      jobId: result?.jobId,
+      jobId: hasJobId,
       resultKeys: result ? Object.keys(result) : [],
       metaJobId: result?.meta?.job_id,
-      fullResult: result
+      status
     });
 
-    return <CaseRegisteredView caseData={caseData} onReportAnother={handleReset} jobId={result?.jobId} />;
+    return <CaseRegisteredView caseData={caseData} onReportAnother={handleReset} jobId={hasJobId} />;
   }
-
-  // Loader view is now effectively bypassed by the logic above. 
-  // We keep this block only as a theoretical fallback or for states not covered (though currently covered).
-  // If we wanted to remove it completely:
-  /* 
-  if (status === 'uploading' || status === 'polling') {
-    return <ContentUploadProgress ... />;
-  } 
-  */
-
 
   return <ContentUploadForm onSubmit={submitContent} isSubmitting={status !== 'idle'} />;
 }
