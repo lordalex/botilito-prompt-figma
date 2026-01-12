@@ -191,7 +191,7 @@ export function ContentReview() {
                 </div>
                 <div>
                   <p className="text-2xl font-bold">{stats.verified}</p>
-                  <p className="text-sm text-muted-foreground">Verificados</p>
+                  <p className="text-sm text-muted-foreground">Validados</p>
                 </div>
               </div>
             </CardContent>
