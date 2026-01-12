@@ -67,7 +67,7 @@ export function MapaDesinfodemico() {
               className="w-24 h-24 object-contain mt-[0px] mr-[16px] mb-[-18px] ml-[0px]"
             />
             <div className="flex-1">
-              <p className="text-xl">¡Qué hubo parce! 🗺️ Este es el Mapa Infodémico en tiempo real</p>
+              <p className="text-xl">¡Qué hubo parce! 🗺️ Este es el Mapa Desinfodémico en tiempo real</p>
               <p className="text-sm mt-1 opacity-80">
                 Acá podés ver el panorama epidemiológico de la desinformación: casos activos por región,
                 indicadores de magnitud/alcance/impacto, rankings de colaboradores, y todo el análisis forense
