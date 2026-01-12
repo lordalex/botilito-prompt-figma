@@ -87,8 +87,10 @@ export default defineConfig({
     headers: {
       'Cache-Control': 'no-store',
     },
-    // Disable HMR to prevent WebSocket errors on deployed servers behind reverse proxy
-    hmr: false,
+    // HMR enabled for local development (disable in production if behind reverse proxy)
+    hmr: {
+      overlay: true,
+    },
   },
   ...vitestConfig,
 });
