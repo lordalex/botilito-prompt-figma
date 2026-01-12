@@ -162,7 +162,6 @@ export function HumanValidationForm({
             <RadioGroup
               value={selectedOption}
               onValueChange={setSelectedOption}
-              className="space-y-3"
             >
               {OPTIONS.map((option) => {
                 const isSelected = selectedOption === option.value;
@@ -171,14 +170,14 @@ export function HumanValidationForm({
                     key={option.id}
                     htmlFor={option.id}
                     className={`flex items-center gap-3 p-4 rounded-lg border-2 cursor-pointer transition-all w-full ${isSelected
-                      ? 'border-[#FFDA00] bg-[#FFFCE8]'
+                      ? 'border-primary bg-primary/20'
                       : 'border-gray-200 bg-white hover:border-[#FFE97A] hover:bg-[#FFFCE8]/50'
                       }`}
                   >
                     <RadioGroupItem
                       value={option.value}
                       id={option.id}
-                      className="border-[#FFDA00] text-[#FFDA00] focus:ring-[#FFDA00]"
+                      className="border-primary text-primary focus:ring-primary"
                     />
                     <div className="flex flex-col">
                       <span className="font-bold text-gray-900">{option.label}</span>

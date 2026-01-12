@@ -1,6 +1,6 @@
 import React, { useRef, useMemo } from 'react';
 import botilitoImage from '@/assets/e27a276e6ff0e187a67cf54678c265c1c38adbf7.png';
-import botilitoMascot from '@/assets/botilito-mascot.png';
+import botilitoMascot from '@/assets/e27a276e6ff0e187a67cf54678c265c1c38adbf7.png';
 import {
   Bot, User, FileText, Globe, AlertTriangle, Shield, Activity,
   Hash, Download, ArrowLeft, CheckCircle2, Camera, Mic, Info
@@ -391,7 +391,7 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
 
               {/* 1. IMAGE HEADER */}
               {caseData.overview.main_asset_url && (
-                <div className="relative rounded-xl overflow-hidden border border-black shadow-sm group">
+                <div className="relative rounded-xl overflow-hidden border border-black shadow-sm group h-96">
                   <div className="absolute top-4 left-4 z-10">
                     <Badge className="bg-black/80 hover:bg-black/90 text-white border-none gap-2 pl-2">
                       <Camera className="h-3 w-3" /> Captura Original
@@ -400,12 +400,13 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
                   <img
                     src={caseData.overview.main_asset_url}
                     alt="Captura"
-                    className="w-full h-auto object-cover max-h-[400px]"
+                    className="w-full h-full object-cover"
                   />
                 </div>
               )}
 
-              {/* 2. TITLE & META */}
+              {/* 2. TITLE & META - Only for Text Cases */}
+              {isTextCase && (
               <div className="space-y-4">
                 <div className="flex items-center gap-2 text-gray-500">
                   <FileText className="h-4 w-4" />
@@ -443,6 +444,7 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
                   )}
                 </div>
               </div>
+              )}
 
               {/* 3. DIAGNOSIS CARDS (Infodemic & Human) */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -451,7 +453,7 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
                   caseData.overview.risk_score < 70 ? 'bg-orange-50 border-orange-200' :
                     'bg-red-50 border-red-200'
                   }`}>
-                  <div className="flex justify-between items-start mb-4">
+                  <div className="flex justify-between mb-2">
                     <div className="flex items-center gap-2 text-gray-900 font-bold">
                       <AlertTriangle className={caseData.overview.risk_score < 30 ? 'text-green-600' : caseData.overview.risk_score < 70 ? 'text-orange-600' : 'text-red-600'} />
                       {isForensicCase || isAudio ? 'Diagnóstico Forense' : 'Diagnóstico Infodémico'}
@@ -462,13 +464,13 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="font-mono text-xs font-bold text-gray-500 uppercase">Análisis IA</div>
+                    <Badge className="bg-transparent text-black border border-gray text-xs font-semibold">Análisis IA</Badge>
                     <Badge variant="outline" className={`border bg-white ${caseData.overview.risk_score < 30 ? 'text-green-700 border-green-200' :
                       caseData.overview.risk_score < 70 ? 'text-orange-700 border-orange-200' :
                         'text-red-700 border-red-200'
                       }`}>
                       {isForensicCase
-                        ? (caseData.overview.risk_score > 50 ? 'Manipulado Digitalmente' : 'Auténtico')
+                        ? (caseData.overview.risk_score > 50 ? 'Manipulado Digitalmente' : '✓ Sin alteraciones')
                         : 'requiere un enfoque AMI'}
                     </Badge>
                   </div>
@@ -483,7 +485,7 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
 
                 {/* Human */}
                 <div className="rounded-xl border-2 border-red-100 bg-red-50 p-4 flex flex-col justify-between">
-                  <div className="flex justify-between items-start mb-4">
+                  <div className="flex justify-between mb-2">
                     <div className="flex items-center gap-2 text-gray-900 font-bold">
                       <User className="text-red-600" />
                       Análisis Humano
@@ -494,7 +496,7 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="font-mono text-xs font-bold text-gray-500 uppercase">Análisis humano</div>
+                    <Badge className="bg-transparent text-black border border-gray text-xs font-semibold">Análisis Humano</Badge>
                     <Badge variant="outline" className="text-red-700 border-red-200 bg-white">
                       requiere un enfoque AMI
                     </Badge>
@@ -605,7 +607,8 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
               )}
 
 
-              {/* 5. INSIGHTS SECTION - Tabbed (Pruebas / Evidencias) */}
+              {/* 5. INSIGHTS SECTION - Tabbed (Pruebas / Evidencias) - Only for Forensic Cases */}
+              {isForensicCase && (
               <div className="space-y-4">
                 <Tabs defaultValue="pruebas" className="w-full">
                   <TabsList className="bg-gray-100 p-1 rounded-lg">
@@ -618,62 +621,51 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
                   </TabsList>
 
                   {/* PRUEBAS TAB */}
-                  <TabsContent value="pruebas" className="mt-4 space-y-4">
+                  <TabsContent value="pruebas" className="mt-6 space-y-3">
                     {caseData.insights
                       .filter((i: any) => i.category === 'forensics')
                       .map((insight: any, idx: number) => {
                         const score = insight.score || 0;
                         let statusLabel = 'LIMPIO';
-                        let statusColor = 'bg-green-100 text-green-700 border-green-200';
-                        let barColor = 'bg-green-500';
+                        let statusColor = 'bg-green-500 text-white';
 
                         if (score >= 80) {
-                          statusLabel = insight.label.toLowerCase().includes('clon') ? 'CLONADO' :
-                            insight.label.toLowerCase().includes('espect') ? 'ANOMALÍAS' : 'ALTAMENTE SOSPECHOSO';
-                          statusColor = 'bg-red-100 text-red-700 border-red-200';
-                          barColor = 'bg-red-500';
+                          statusLabel = 'MANIPULADO';
+                          statusColor = 'bg-orange-500 text-white';
                         } else if (score >= 40) {
                           statusLabel = 'MODIFICADO';
-                          statusColor = 'bg-[#FFF9C4] text-yellow-800 border-[#FFDA00]';
-                          barColor = 'bg-[#FFDA00]';
+                          statusColor = 'bg-orange-500 text-white';
                         }
-
                         return (
-                          <div key={idx} className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-                            <div className="flex justify-between items-start mb-2">
-                              <div>
-                                <h4 className="text-sm font-bold text-gray-900">{insight.label}</h4>
-                                <p className="text-xs text-gray-500">{insight.description}</p>
+                            <div
+                              key={idx}
+                              className="bg-gray-100 border border-transparent hover:border-2 hover:border-primary rounded-lg p-4 shadow-sm transition-all duration-200 hover:shadow-md"
+                            >
+                            <div className="flex justify-between items-start mb-3">
+                              <div className="flex-1 pr-3">
+                                <h4 className="text-sm font-semibold text-gray-900 mb-0.5">{insight.label}</h4>
+                                <p className="text-xs text-gray-600 leading-relaxed">{insight.description}</p>
                               </div>
-                              <Badge className={`border px-2 py-0.5 text-[10px] font-black tracking-wider ${statusColor}`}>
+                              <Badge className={`shrink-0 text-xs uppercase tracking-wide rounded-md ${statusColor}`}>
                                 {statusLabel}
                               </Badge>
                             </div>
 
-                            {/* Image Comparison Slider if artifact exists */}
-                            {insight.artifacts?.[0]?.content && (
-                              <div className="my-3 rounded-lg overflow-hidden border border-gray-100">
-                                <ImageComparisonSlider
-                                  beforeImage={caseData.overview.main_asset_url}
-                                  afterImage={insight.artifacts[0].content}
-                                  beforeLabel="Original"
-                                  afterLabel="Mapa de Calor"
+                            {/* Progress Bar Section */}
+                            <div className="space-y-1.5">
+                              <div className="flex justify-between items-center">
+                                <span className="text-xs text-gray-600">Precisión diagnóstica</span>
+                                <span className="text-sm font-semibold text-gray-900">{score}%</span>
+                              </div>
+                              <div className="h-2 w-full bg-gray-200 rounded-sm overflow-hidden">
+                                <div 
+                                  className="h-full transition-all duration-700 ease-out"
+                                  style={{ width: `${score}%`, backgroundColor: `var(--color-yellow-500)` }} 
                                 />
                               </div>
-                            )}
-
-                            {/* Progress Bar */}
-                            <div className="mt-3">
-                              <div className="flex justify-between text-[10px] mb-1 text-gray-400 font-medium">
-                                <span>Precisión diagnóstica</span>
-                                <span>{score}%</span>
-                              </div>
-                              <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
-                                <div className={`h-full rounded-full transition-all duration-1000 ${barColor}`} style={{ width: `${score}%` }} />
-                              </div>
-                              <div className="flex justify-between text-[10px] mt-1 text-gray-400">
-                                <span>Tiempo de ejecución</span>
-                                <span>1.5s</span>
+                              <div className="flex justify-between items-center pt-0.5">
+                                <span className="text-xs text-gray-600">Tiempo de ejecución</span>
+                                <span className="text-xs text-gray-900">{insight.execution_time || '1.5s'}</span>
                               </div>
                             </div>
                           </div>
@@ -707,6 +699,7 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
                   </TabsContent>
                 </Tabs>
               </div>
+              )}
 
 
             </div>
@@ -717,19 +710,15 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
               <Card className="shadow-sm border-2 mb-6" style={{ borderColor: '#FFDA00' }}>
                 <CardHeader className="pb-2 pt-4 px-4">
                   <CardTitle className="text-sm font-bold flex items-center gap-2">
-                    <div className="bg-yellow-100 p-1 rounded-full"><Info className="h-3 w-3 text-[#FFDA00]" /></div>
+                    <Info className="h-5 w-5 text-primary" />
                     Información del Caso
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="px-4 pb-4 space-y-4">
                   <div className="flex justify-between text-xs"><span className="text-gray-500 font-medium">Caso</span><span className="font-mono">{caseData.display_id}</span></div>
-                  <Separator />
                   <div className="flex justify-between text-xs"><span className="text-gray-500 font-medium">Tipo</span><span className="font-bold">{caseData.type}</span></div>
-                  <Separator />
                   <div className="flex justify-between text-xs"><span className="text-gray-500 font-medium">Vector de transmisión</span><span>{caseData.metadata?.vector || 'Web'}</span></div>
-                  <Separator />
-                  <div className="flex justify-between text-xs"><span className="text-gray-500 font-medium">Reportado por</span><span>{caseData.reporter?.name || 'Usuario_123'}</span></div>
-                  <Separator />
+                  <div className="flex justify-between text-xs"><span className="text-gray-500 font-medium">Reportado por</span><span>{caseData.reporter?.name || '-'}</span></div>
                   <div className="flex justify-between text-xs"><span className="text-gray-500 font-medium">Fecha</span><span>{new Date(caseData.created_at).toLocaleDateString()}</span></div>
                 </CardContent>
               </Card>
@@ -739,7 +728,7 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
                 <Card className="shadow-sm border-2 mb-6" style={{ borderColor: '#FFDA00' }}>
                   <CardHeader className="pb-2 pt-4 px-4">
                     <CardTitle className="text-sm font-bold flex items-center gap-2">
-                      <div className="bg-yellow-100 p-1 rounded-full"><Camera className="h-3 w-3 text-[#FFDA00]" /></div> Metadatos del Archivo
+                      <Camera className="h-5 w-5 text-primary" /> Metadatos del Archivo
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="px-4 pb-4 space-y-4">
@@ -747,12 +736,10 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
                       <span className="text-gray-500 font-medium">Tipo de archivo</span>
                       <span className="font-bold">{caseData.type}</span>
                     </div>
-                    <Separator />
                     <div className="flex justify-between text-xs">
                       <span className="text-gray-500 font-medium">Tamaño</span>
                       <span>{((caseData.metadata?.file_size || 0) / 1024).toFixed(1)} KB</span>
                     </div>
-                    <Separator />
                     <div className="flex justify-between text-xs">
                       <span className="text-gray-500 font-medium">Resolución</span>
                       <span>{caseData.metadata?.dimensions?.width || '1920'}x{caseData.metadata?.dimensions?.height || '1080'}</span>
@@ -774,81 +761,117 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
               <Card className="shadow-sm border-2 mb-6" style={{ borderColor: '#FFDA00' }}>
                 <CardHeader className="pb-2 pt-4 px-4">
                   <CardTitle className="text-sm font-bold flex items-center gap-2">
-                    <div className="bg-yellow-100 p-1 rounded-full"><Activity className="h-3 w-3 text-[#FFDA00]" /></div> Estadísticas del Análisis
+                    <Activity className="h-5 w-5 text-primary" /> Estadísticas del Análisis
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="px-4 pb-4 space-y-4">
                   <div className="flex justify-between text-xs"><span className="text-gray-500 font-medium">Pruebas realizadas</span><span className="font-bold">{caseData.insights.length || 1}</span></div>
-                  <Separator />
                   <div className="flex justify-between text-xs"><span className="text-gray-500 font-medium">Tiempo total</span><span className="font-bold">12.0s</span></div>
-                  <Separator />
                   <div className="flex justify-between text-xs"><span className="text-gray-500 font-medium">Nivel de precisión diagnóstica</span><span className="font-bold">{caseData.overview.risk_score > 0 ? '92%' : '0%'}</span></div>
                 </CardContent>
               </Card>
 
               {/* Cadena de Custodia */}
-              <Card className="shadow-sm border-2 mb-6" style={{ borderColor: '#FFDA00' }}>
-                <CardHeader className="pb-2 pt-4 px-4">
-                  <CardTitle className="text-sm font-bold flex items-center gap-2">
-                    <div className="bg-yellow-100 p-1 rounded-full"><ShieldCheck className="h-3 w-3 text-[#FFDA00]" /></div> Cadena de Custodia
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="px-4 pb-4">
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-[24px_1fr] gap-1 items-start">
-                      <div className="flex justify-center pt-1">
-                        <div className="w-3 h-3 bg-[#FFDA00] rounded-full shadow-sm ring-1 ring-white"></div>
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-xs font-bold text-gray-900 uppercase tracking-wide">Caso creado</span>
-                        <span className="text-[10px] text-gray-500">{new Date(caseData.created_at).toLocaleString()} - Sistema Botilito</span>
-                      </div>
-                    </div>
-                    <Separator className="opacity-50" />
-                    <div className="grid grid-cols-[24px_1fr] gap-1 items-start">
-                      <div className="flex justify-center pt-1">
-                        <div className="w-3 h-3 bg-[#FFDA00] rounded-full shadow-sm ring-1 ring-white"></div>
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-xs font-bold text-gray-900 uppercase tracking-wide">Análisis desinfodémico ejecutado</span>
-                        <span className="text-[10px] text-gray-500">{new Date(caseData.created_at).toLocaleString()} - 1 prueba completada</span>
-                      </div>
-                    </div>
-                    <Separator className="opacity-50" />
-                    <div className="grid grid-cols-[24px_1fr] gap-1 items-start">
-                      <div className="flex justify-center pt-1">
-                        <div className="w-3 h-3 bg-[#FFDA00] rounded-full shadow-sm ring-1 ring-white"></div>
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-xs font-bold text-gray-900 uppercase tracking-wide">Diagnóstico generado</span>
-                        <span className="text-[10px] text-gray-500">{new Date(caseData.created_at).toLocaleString()} - Requiere un enfoque AMI</span>
-                      </div>
+            <Card className="shadow-sm border-2 rounded-xl" style={{ borderColor: '#FFDA00' }}>
+                <CardHeader className="pt-4 px-4">
+                <CardTitle className="text-base font-bold flex items-center gap-2 text-gray-900">
+                  <Shield className="h-5 w-5 text-primary" /> Cadena de Custodia
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="px-6 pb-6">
+                <div className="space-y-0">
+                  {/* Event 1: Case Created */}
+                  <div className="flex gap-3 py-4">
+                    <div className="shrink-0 w-3 h-3 rounded-full mt-1" style={{ backgroundColor: '#FFDA00' }}></div>
+                    <div className="flex flex-col gap-1 flex-1">
+                      <span className="text-sm font-bold text-gray-900">Caso creado</span>
+                      <span className="text-xs text-gray-600">
+                        {new Date(caseData.created_at).toLocaleDateString('es-CO', { 
+                          day: 'numeric', 
+                          month: 'long', 
+                          year: 'numeric' 
+                        })} a las {new Date(caseData.created_at).toLocaleTimeString('es-CO', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          second: '2-digit',
+                          hour12: true
+                        })} - Sistema Botilito
+                      </span>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
+
+                  <Separator className="bg-gray-200" />
+
+                  {/* Event 2: Analysis Executed */}
+                  <div className="flex gap-3 py-4">
+                    <div className="shrink-0 w-3 h-3 rounded-full mt-1" style={{ backgroundColor: '#FFDA00' }}></div>
+                    <div className="flex flex-col gap-1 flex-1">
+                      <span className="text-sm font-bold text-gray-900">
+                        {caseData.type === 'TEXT' || caseData.type === 'URL' 
+                          ? 'Análisis desinfodémico ejecutado' 
+                          : 'Análisis forense ejecutado'}
+                      </span>
+                      <span className="text-xs text-gray-600">
+                        {new Date(caseData.created_at).toLocaleDateString('es-CO', { 
+                          day: 'numeric', 
+                          month: 'long', 
+                          year: 'numeric' 
+                        })} a las {new Date(new Date(caseData.created_at).getTime() + 5000).toLocaleTimeString('es-CO', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          second: '2-digit',
+                          hour12: true
+                        })} - {caseData.insights.length} {caseData.insights.length === 1 ? 'prueba completada' : 'pruebas completadas'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <Separator className="bg-gray-200" />
+
+                  {/* Event 3: Diagnosis Generated */}
+                  <div className="flex gap-3 py-4">
+                    <div className="shrink-0 w-3 h-3 rounded-full mt-1" style={{ backgroundColor: '#FFDA00' }}></div>
+                    <div className="flex flex-col gap-1 flex-1">
+                      <span className="text-sm font-bold text-gray-900">Diagnóstico generado</span>
+                      <span className="text-xs text-gray-600">
+                        {new Date(caseData.created_at).toLocaleDateString('es-CO', { 
+                          day: 'numeric', 
+                          month: 'long', 
+                          year: 'numeric' 
+                        })} a las {new Date(new Date(caseData.created_at).getTime() + 12000).toLocaleTimeString('es-CO', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          second: '2-digit',
+                          hour12: true
+                        })} - {caseData.overview.verdict_label || 'Análisis completado'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
               {/* Recomendaciones */}
-              <div className="bg-[#FFF9C4] border-2 border-[#FFDA00] rounded-lg p-6 shadow-sm">
+              <div className="border-2 border-[#FFDA00] rounded-lg p-6 shadow-sm" style={{ borderColor: '#FFDA00', backgroundColor: '#fffbeb' }}>
                 <div className="flex items-center gap-3 mb-4">
                   <img src={botilitoMascot} alt="Botilito Detective" className="w-12 h-12 object-contain drop-shadow-sm" />
                   <h3 className="font-bold text-gray-900 text-base">Recomendaciones</h3>
                 </div>
                 <ul className="space-y-3">
                   <li className="text-xs text-gray-800 flex gap-3 items-start font-medium leading-relaxed">
-                    <span className="text-[#FFDA00] text-2xl leading-[0.5] mt-[2px]">•</span>
+                    <span className="text-primary text-1xl leading-[0.5] mt-[2px]">•</span>
                     <span>Verificar las fuentes citadas en el contenido</span>
                   </li>
                   <li className="text-xs text-gray-800 flex gap-3 items-start font-medium leading-relaxed">
-                    <span className="text-[#FFDA00] text-2xl leading-[0.5] mt-[2px]">•</span>
+                    <span className="text-primary text-1xl leading-[0.5] mt-[2px]">•</span>
                     <span>Contrastar con medios de comunicación confiables</span>
                   </li>
                   <li className="text-xs text-gray-800 flex gap-3 items-start font-medium leading-relaxed">
-                    <span className="text-[#FFDA00] text-2xl leading-[0.5] mt-[2px]">•</span>
+                    <span className="text-primary text-1xl leading-[0.5] mt-[2px]">•</span>
                     <span>Desarrollar pensamiento crítico mediante las competencias AMI</span>
                   </li>
                   <li className="text-xs text-gray-800 flex gap-3 items-start font-medium leading-relaxed">
-                    <span className="text-[#FFDA00] text-2xl leading-[0.5] mt-[2px]">•</span>
+                    <span className="text-primary text-1xl leading-[0.5] mt-[2px]">•</span>
                     <span>No compartir contenido sin verificar primero</span>
                   </li>
                 </ul>

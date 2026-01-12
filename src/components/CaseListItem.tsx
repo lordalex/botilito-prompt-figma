@@ -153,14 +153,14 @@ export function CaseListItem({ caseItem, onClick, className = '' }: CaseListItem
   return (
     <div
       onClick={() => onClick(caseItem.id, caseItem.contentType)}
-      className={`group relative flex flex-row items-center gap-3 p-4 rounded-xl shadow-sm hover:shadow-md transition-all cursor-pointer ${isManipulated
-        ? 'bg-[#FFF9C4] border border-transparent' // Yellow background, no border
-        : 'bg-white border border-gray-100'        // Standard white background
+      className={`group relative flex flex-row items-center gap-4 p-4 rounded-xl shadow-sm hover:shadow-md hover:bg-secondary transition-all cursor-pointer ${isManipulated
+        ? 'bg-secondary border border-transparent' // Yellow background, no border
+        : 'bg-gray-50 border border-gray-100'        // Standard white background
         } ${className}`}
     >
       {/* 1. ICONO (Always Yellow Square) - Fixed Width */}
       <div className="shrink-0 flex justify-center">
-        <div className="w-12 h-12 flex items-center justify-center rounded-lg bg-[#FFF59D] border border-[#FFDA00]">
+        <div className="w-12 h-12 flex items-center justify-center rounded-lg bg-secondary hover:bg-primary border border-primary">
           {/* Darker icon color for contrast */}
           <ContentIcon className="h-6 w-6 text-gray-900" />
         </div>
@@ -170,8 +170,8 @@ export function CaseListItem({ caseItem, onClick, className = '' }: CaseListItem
       <div className="grow min-w-0 flex flex-col justify-center gap-1">
 
         {/* Row 1: ID | Badges | Title */}
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <span className="font-mono text-[11px] font-bold text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded whitespace-nowrap">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <span className="text-xs px-1.5 py-0.5 rounded whitespace-nowrap border border-secondary rounded-md bg-white">
             Caso: {caseItem.caseCode}
           </span>
 
