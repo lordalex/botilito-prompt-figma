@@ -563,7 +563,7 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
                     </CardHeader>
                     <CardContent>
                       <p className="text-sm text-red-800 font-medium">
-                        ⚠️ {clickbaitInsight?.description || "El titular presenta características de clickbait o sensacionalismo que no corresponden completamente con el contenido real."}
+                        ⚠️ {clickbaitInsight?.description || "El Titular presenta características que no corresponden completamente con  el contenido real. La recomendación central según AMI es leer, contrastar y reflexionar antes de compartir, aplicando pensamiento crítico y reconociendo la función del titular como parte de la construcción mediática."}
                       </p>
                     </CardContent>
                   </Card>
@@ -718,7 +718,7 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
                   <div className="flex justify-between text-xs"><span className="text-gray-500 font-medium">Caso</span><span className="font-mono">{caseData.display_id}</span></div>
                   <div className="flex justify-between text-xs"><span className="text-gray-500 font-medium">Tipo</span><span className="font-bold">{caseData.type}</span></div>
                   <div className="flex justify-between text-xs"><span className="text-gray-500 font-medium">Vector de transmisión</span><span>{caseData.metadata?.vector || 'Web'}</span></div>
-                  <div className="flex justify-between text-xs"><span className="text-gray-500 font-medium">Reportado por</span><span>{caseData.reporter?.name || '-'}</span></div>
+                  <div className="flex justify-between text-xs"><span className="text-gray-500 font-medium">Registrado por</span><span>{caseData.reporter?.name || '-'}</span></div>
                   <div className="flex justify-between text-xs"><span className="text-gray-500 font-medium">Fecha</span><span>{new Date(caseData.created_at).toLocaleDateString()}</span></div>
                 </CardContent>
               </Card>
@@ -766,7 +766,6 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
                 </CardHeader>
                 <CardContent className="px-4 pb-4 space-y-4">
                   <div className="flex justify-between text-xs"><span className="text-gray-500 font-medium">Pruebas realizadas</span><span className="font-bold">{caseData.insights.length || 1}</span></div>
-                  <div className="flex justify-between text-xs"><span className="text-gray-500 font-medium">Tiempo total</span><span className="font-bold">12.0s</span></div>
                   <div className="flex justify-between text-xs"><span className="text-gray-500 font-medium">Nivel de precisión diagnóstica</span><span className="font-bold">{caseData.overview.risk_score > 0 ? '92%' : '0%'}</span></div>
                 </CardContent>
               </Card>
