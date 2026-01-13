@@ -61,12 +61,12 @@ const contentTypeIcons = {
 
 // Configuración de badges por tema - CLEANER LOOK (No borders)
 const themeBadges: Record<string, { label: string; className: string; icon: 'sparkles' | 'wand' }> = {
-  Infodemico: {
-    label: 'Infodemico',
+  'Infodémico': {
+    label: 'Infodémico',
     className: 'bg-red-50 text-red-700 border-none', // Removed border
     icon: 'sparkles',
   },
-  Forense: {
+  'Forense': {
     label: 'Forense',
     className: 'bg-purple-50 text-purple-700 border-none', // Removed border
     icon: 'wand',
