@@ -120,6 +120,9 @@ export interface ValidationCaseDTO {
         indiceCumplimientoAMI?: AMIComplianceDTO;
       };
     };
+    // Added for UI compatibility
+    theme?: string;
+    amiLevel?: AMIComplianceLevel;
   };
 }
 
@@ -140,6 +143,11 @@ export interface ValidationCaseListItemDTO {
   amiScore?: number;
   amiLevel?: AMIComplianceLevel;
   screenshotUrl?: string;
+  // Make metadata properties accessible
+  metadata?: {
+    theme?: string;
+    amiLevel?: AMIComplianceLevel;
+  }
 }
 
 /**
@@ -236,6 +244,9 @@ export interface CaseEnrichedCompatible {
         indiceCumplimientoAMI?: { nivel: AMIComplianceLevel; score: number };
       };
     };
+    // Added for UI compatibility
+    theme?: string;
+    amiLevel?: AMIComplianceLevel;
   };
 }
 
@@ -319,6 +330,10 @@ export interface StandardizedCase {
     name: string;
     reputation?: number;
   };
+  community?: {
+    votes: number;
+    status: string;
+  };
 }
 
 /**
@@ -345,6 +360,62 @@ function mapRiskToAMILevel(score: number): AMIComplianceLevel {
 }
 
 /**
+ * Helper to determine evaluation (AMI Level) based on case type and insights.
+ * Implements Polymorphic logic:
+ * - Forensic: Uses verdict_label or forensic insights.
+ * - Text/URL: Uses content_quality insights (AMI criteria).
+ */
+export function getEvaluationFromInsights(
+  type: string,
+  overview: StandardizedCase['overview'],
+  insights: any[] = []
+): AMIComplianceLevel {
+  const normalizedType = type?.toLowerCase() || 'text';
+  const isForensic = ['image', 'video', 'audio'].includes(normalizedType);
+
+  // 1. FORENSIC LOGIC
+  if (isForensic) {
+    // Check verdict label first (Source of Truth)
+    const label = overview?.verdict_label?.toUpperCase() || '';
+    if (label.includes('MANIPULADO') || label.includes('MODIFICADO') || label.includes('EDITADO')) {
+      return 'No cumple las premisas AMI'; // UI: Manipulado Digitalmente
+    }
+    if (label.includes('AUTÉNTICO') || label.includes('ORIGINAL') || label.includes('SIN ALTERACIONES')) {
+      return 'Cumple las premisas AMI'; // UI: Sin alteraciones
+    }
+    if (label.includes('GENERADO') || label.includes('SINTÉTICO') || label.includes('IA')) {
+      return 'No cumple las premisas AMI'; // Could be mapped to a specific AI class if needed, utilizing "No cumple" for now or existing map
+    }
+
+    // Fallback: Check insights if verdict is ambiguous or missing
+    const forensicInsights = insights.filter(i => i.category === 'forensics');
+    const hasHighManipulationScore = forensicInsights.some(i => (i.score || 0) > 50);
+
+    if (hasHighManipulationScore) {
+      return 'No cumple las premisas AMI';
+    }
+    return 'Cumple las premisas AMI'; // Default to clean if no evidence found
+  }
+
+  // 2. TEXT/URL LOGIC (AMI Criteria)
+  const amiInsights = insights.filter((i: any) =>
+    i.id?.startsWith('ami_crit') || i.category === 'content_quality'
+  );
+
+  if (amiInsights.length > 0) {
+    const avgScore = amiInsights.reduce((sum: number, i: any) => sum + (i.score || 0), 0) / amiInsights.length;
+
+    if (avgScore >= 80) return 'Desarrolla las estrategias AMI';
+    if (avgScore >= 60) return 'Cumple las premisas AMI';
+    if (avgScore >= 40) return 'Requiere un enfoque AMI';
+    return 'No cumple las premisas AMI';
+  }
+
+  // Fallback based on risk score if no specific insights
+  return mapRiskToAMILevel(overview?.risk_score || 0);
+}
+
+/**
  * Transform StandardizedCase to ValidationCaseListItemDTO
  */
 export function transformStandardizedCaseToListItem(stdCase: StandardizedCase): ValidationCaseListItemDTO {
@@ -352,7 +423,7 @@ export function transformStandardizedCaseToListItem(stdCase: StandardizedCase): 
   const date = new Date(stdCase.created_at);
   const dateStr = date.toISOString().slice(0, 10).replace(/-/g, '');
   const idSuffix = stdCase.id ? stdCase.id.slice(-3).toUpperCase() : '000';
-  const prefix = stdCase.type.charAt(0).toUpperCase();
+  const prefix = (stdCase.type || 'text').charAt(0).toUpperCase();
   const caseCode = `${prefix}-${dateStr}-${idSuffix}`;
 
   return {
@@ -362,16 +433,25 @@ export function transformStandardizedCaseToListItem(stdCase: StandardizedCase): 
     title: stdCase.overview.title || 'Sin Título',
     summary: stdCase.overview.summary || '',
     createdAt: stdCase.created_at,
+    // REPORTER: Use explicit reporter name or fallback
     reportedBy: stdCase.reporter?.name || 'Sistema',
-    humanValidatorsCount: 0, // DTO doesn't strictly have this yet, default to 0
-    consensusState: 'ai_only', // Default state
-    theme: 'General', // Could extract from insights if needed
+    humanValidatorsCount: stdCase.community?.votes || 0,
+    consensusState: stdCase.community?.status as ConsensusState || 'ai_only',
+    theme: determineTheme(stdCase.type),
     amiScore: stdCase.overview.risk_score,
-    amiLevel: mapRiskToAMILevel(stdCase.overview.risk_score),
+    // EVALUATION: Use the new helper
+    amiLevel: getEvaluationFromInsights(stdCase.type, stdCase.overview, stdCase.insights),
     screenshotUrl: stdCase.overview.main_asset_url || undefined
   };
 }
 
 export function transformStandardizedCasesToListItems(cases: StandardizedCase[]): ValidationCaseListItemDTO[] {
   return cases.map(transformStandardizedCaseToListItem);
+}
+
+// Helper needed for determineTheme since it was local in api.ts but useful here
+function determineTheme(type: string): string {
+  const t = type?.toLowerCase() || '';
+  if (['image', 'video', 'audio'].includes(t)) return 'Forense';
+  return 'Infodémico';
 }

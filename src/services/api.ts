@@ -211,7 +211,7 @@ export const api = {
                     consensus_filter: "missing",
                     page,
                     limit: pageSize,
-                    select_fields: ["id", "created_at", "type", "overview", "community"]
+                    select_fields: ["id", "created_at", "type", "overview", "community", "reporter", "insights"]
                 }),
             }),
         /**
@@ -312,7 +312,7 @@ export const api = {
                     consensus_filter: "present",
                     page,
                     limit: pageSize,
-                    select_fields: ["id", "created_at", "type", "overview", "community"]
+                    select_fields: ["id", "created_at", "type", "overview", "community", "reporter", "insights"]
                 }),
             }),
     }
