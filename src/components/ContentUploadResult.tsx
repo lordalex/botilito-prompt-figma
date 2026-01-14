@@ -130,7 +130,8 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
       verdict_label: stdCase.overview?.verdict_label || data.overview?.verdict_label || data.metadata?.global_verdict || "Pendiente",
       risk_score: stdCase.overview?.risk_score ?? data.overview?.risk_score ?? data.metadata?.risk_score ?? 0,
       main_asset_url: stdCase.overview?.main_asset_url || data.overview?.main_asset_url || data.main_asset_url || data.url,
-      source_domain: stdCase.overview?.source_domain || data.overview?.source_domain || data.source_domain
+      source_domain: stdCase.overview?.source_domain || data.overview?.source_domain || data.source_domain,
+      source_url: stdCase.overview?.source_url || data.overview?.source_url || data.source_url || data.url
     },
     insights: Array.isArray(rawInsights) ? rawInsights : [],
     reporter: data.reporter || stdCase.reporter,
@@ -155,6 +156,11 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
 
   const amiCompetencies = caseData.insights.filter((i: any) =>
     i.category === 'competency' || i.category === 'compliance' || i.label?.toLowerCase().includes('competencia')
+  );
+
+  // Extract recommendations from insights array (category 'recommendation')
+  const recommendationInsights = caseData.insights.filter((i: any) =>
+    i.category === 'recommendation'
   );
 
   // Forensic insights for IMAGE/VIDEO analysis (Category 'forensics' in DTO)
@@ -407,43 +413,54 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
 
               {/* 2. TITLE & META - Only for Text Cases */}
               {isTextCase && (
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 text-gray-500">
-                  <FileText className="h-4 w-4" />
-                  <span className="text-xs font-bold uppercase tracking-wider">Titular</span>
-                </div>
-                <h1 className="text-2xl md:text-3xl font-bold text-gray-900 leading-tight">
-                  {caseData.overview.title}
-                </h1>
-
-                {/* Description / Summary Block */}
-                <div className="space-y-1">
+                <div className="space-y-4">
                   <div className="flex items-center gap-2 text-gray-500">
-                    <FileText className="h-3 w-3" />
-                    <span className="text-xs font-bold uppercase tracking-wider">Contenido Analizado</span>
+                    <FileText className="h-4 w-4" />
+                    <span className="text-xs font-bold uppercase tracking-wider">Titular</span>
                   </div>
-                  <p className="text-gray-600 text-sm leading-relaxed">
-                    {caseData.overview.summary}
-                  </p>
-                </div>
+                  <h1 className="text-2xl md:text-3xl font-bold text-gray-900 leading-tight">
+                    {caseData.overview.title}
+                  </h1>
 
-                {/* TAGS ROW */}
-                <div className="flex flex-wrap gap-2 pt-2">
-                  {caseData.overview.source_domain && (
-                    <Badge variant="secondary" className="bg-red-50 text-red-700 hover:bg-red-100 border-red-100 gap-1">
-                      Fuente: <strong>{caseData.overview.source_domain}</strong>
+                  {/* Description / Summary Block */}
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 text-gray-500">
+                      <FileText className="h-3 w-3" />
+                      <span className="text-xs font-bold uppercase tracking-wider">Contenido Analizado</span>
+                    </div>
+                    <p className="text-gray-600 text-sm leading-relaxed">
+                      {caseData.overview.summary}
+                    </p>
+                  </div>
+
+                  {/* TAGS ROW */}
+                  <div className="flex flex-wrap items-center gap-2 pt-2">
+                    {caseData.overview.source_domain && (
+                      <Badge variant="secondary" className="bg-red-50 text-red-700 hover:bg-red-100 border-red-100 gap-1">
+                        Fuente: <strong>{caseData.overview.source_domain}</strong>
+                      </Badge>
+                    )}
+                    <Badge variant="secondary" className="bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-100 gap-1">
+                      Tipo: <strong>{metaContextTypeInsight?.value || 'Hecho'}</strong>
                     </Badge>
-                  )}
-                  <Badge variant="secondary" className="bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-100 gap-1">
-                    Tipo: <strong>{metaContextTypeInsight?.value || 'Hecho'}</strong>
-                  </Badge>
-                  {caseData.metadata?.theme && (
-                    <Badge variant="secondary" className="bg-gray-100 text-gray-700 hover:bg-gray-200 border-gray-200 gap-1">
-                      Tema: <strong>{caseData.metadata.theme}</strong>
-                    </Badge>
-                  )}
+                    {caseData.metadata?.theme && (
+                      <Badge variant="secondary" className="bg-gray-100 text-gray-700 hover:bg-gray-200 border-gray-200 gap-1">
+                        Tema: <strong>{caseData.metadata.theme}</strong>
+                      </Badge>
+                    )}
+                    {caseData.overview.source_url && (
+                      <a
+                        href={caseData.overview.source_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-sm text-primary hover:text-primary/80 font-medium transition-colors"
+                      >
+                        <Globe className="h-3 w-3" />
+                        Ver contenido original →
+                      </a>
+                    )}
+                  </div>
                 </div>
-              </div>
               )}
 
               {/* 3. DIAGNOSIS CARDS (Infodemic & Human) */}
@@ -609,96 +626,96 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
 
               {/* 5. INSIGHTS SECTION - Tabbed (Pruebas / Evidencias) - Only for Forensic Cases */}
               {isForensicCase && (
-              <div className="space-y-4">
-                <Tabs defaultValue="pruebas" className="w-full">
-                  <TabsList className="bg-gray-100 p-1 rounded-lg">
-                    <TabsTrigger value="pruebas" className="text-sm font-bold data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-md px-4 py-2">
-                      Pruebas ({caseData.insights.filter((i: any) => i.category === 'forensics').length})
-                    </TabsTrigger>
-                    <TabsTrigger value="evidencias" className="text-sm font-bold data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-md px-4 py-2">
-                      Evidencias
-                    </TabsTrigger>
-                  </TabsList>
+                <div className="space-y-4">
+                  <Tabs defaultValue="pruebas" className="w-full">
+                    <TabsList className="bg-gray-100 p-1 rounded-lg">
+                      <TabsTrigger value="pruebas" className="text-sm font-bold data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-md px-4 py-2">
+                        Pruebas ({caseData.insights.filter((i: any) => i.category === 'forensics').length})
+                      </TabsTrigger>
+                      <TabsTrigger value="evidencias" className="text-sm font-bold data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-md px-4 py-2">
+                        Evidencias
+                      </TabsTrigger>
+                    </TabsList>
 
-                  {/* PRUEBAS TAB */}
-                  <TabsContent value="pruebas" className="mt-6 space-y-3">
-                    {caseData.insights
-                      .filter((i: any) => i.category === 'forensics')
-                      .map((insight: any, idx: number) => {
-                        const score = insight.score || 0;
-                        let statusLabel = 'LIMPIO';
-                        let statusColor = 'bg-green-500 text-white';
+                    {/* PRUEBAS TAB */}
+                    <TabsContent value="pruebas" className="mt-6 space-y-3">
+                      {caseData.insights
+                        .filter((i: any) => i.category === 'forensics')
+                        .map((insight: any, idx: number) => {
+                          const score = insight.score || 0;
+                          let statusLabel = 'LIMPIO';
+                          let statusColor = 'bg-green-500 text-white';
 
-                        if (score >= 80) {
-                          statusLabel = 'MANIPULADO';
-                          statusColor = 'bg-orange-500 text-white';
-                        } else if (score >= 40) {
-                          statusLabel = 'MODIFICADO';
-                          statusColor = 'bg-orange-500 text-white';
-                        }
-                        return (
+                          if (score >= 80) {
+                            statusLabel = 'MANIPULADO';
+                            statusColor = 'bg-orange-500 text-white';
+                          } else if (score >= 40) {
+                            statusLabel = 'MODIFICADO';
+                            statusColor = 'bg-orange-500 text-white';
+                          }
+                          return (
                             <div
                               key={idx}
                               className="bg-gray-100 border border-transparent hover:border-2 hover:border-primary rounded-lg p-4 shadow-sm transition-all duration-200 hover:shadow-md"
                             >
-                            <div className="flex justify-between items-start mb-3">
-                              <div className="flex-1 pr-3">
-                                <h4 className="text-sm font-semibold text-gray-900 mb-0.5">{insight.label}</h4>
-                                <p className="text-xs text-gray-600 leading-relaxed">{insight.description}</p>
+                              <div className="flex justify-between items-start mb-3">
+                                <div className="flex-1 pr-3">
+                                  <h4 className="text-sm font-semibold text-gray-900 mb-0.5">{insight.label}</h4>
+                                  <p className="text-xs text-gray-600 leading-relaxed">{insight.description}</p>
+                                </div>
+                                <Badge className={`shrink-0 text-xs uppercase tracking-wide rounded-md ${statusColor}`}>
+                                  {statusLabel}
+                                </Badge>
                               </div>
-                              <Badge className={`shrink-0 text-xs uppercase tracking-wide rounded-md ${statusColor}`}>
-                                {statusLabel}
+
+                              {/* Progress Bar Section */}
+                              <div className="space-y-1.5">
+                                <div className="flex justify-between items-center">
+                                  <span className="text-xs text-gray-600">Precisión diagnóstica</span>
+                                  <span className="text-sm font-semibold text-gray-900">{score}%</span>
+                                </div>
+                                <div className="h-2 w-full bg-gray-200 rounded-sm overflow-hidden">
+                                  <div
+                                    className="h-full transition-all duration-700 ease-out"
+                                    style={{ width: `${score}%`, backgroundColor: `var(--color-yellow-500)` }}
+                                  />
+                                </div>
+                                <div className="flex justify-between items-center pt-0.5">
+                                  <span className="text-xs text-gray-600">Tiempo de ejecución</span>
+                                  <span className="text-xs text-gray-900">{insight.execution_time || '1.5s'}</span>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                    </TabsContent>
+
+                    {/* EVIDENCIAS TAB */}
+                    <TabsContent value="evidencias" className="mt-4 space-y-4">
+                      {caseData.insights
+                        .filter((i: any) => i.category !== 'forensics')
+                        .map((insight: any, idx: number) => (
+                          <div key={idx} className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+                            <div className="flex justify-between items-start mb-2">
+                              <div className="flex items-center gap-2">
+                                <Info className="h-4 w-4 text-gray-400" />
+                                <h4 className="font-bold text-gray-900 text-sm">{insight.label}</h4>
+                              </div>
+                              <Badge variant="outline" className="bg-gray-50 text-gray-600 border-gray-200 text-[10px]">
+                                {insight.value || "INFO"}
                               </Badge>
                             </div>
-
-                            {/* Progress Bar Section */}
-                            <div className="space-y-1.5">
-                              <div className="flex justify-between items-center">
-                                <span className="text-xs text-gray-600">Precisión diagnóstica</span>
-                                <span className="text-sm font-semibold text-gray-900">{score}%</span>
-                              </div>
-                              <div className="h-2 w-full bg-gray-200 rounded-sm overflow-hidden">
-                                <div 
-                                  className="h-full transition-all duration-700 ease-out"
-                                  style={{ width: `${score}%`, backgroundColor: `var(--color-yellow-500)` }} 
-                                />
-                              </div>
-                              <div className="flex justify-between items-center pt-0.5">
-                                <span className="text-xs text-gray-600">Tiempo de ejecución</span>
-                                <span className="text-xs text-gray-900">{insight.execution_time || '1.5s'}</span>
-                              </div>
-                            </div>
+                            <p className="text-sm text-gray-600 font-mono bg-gray-50 p-2 rounded border border-gray-100">
+                              {insight.description || "Sin descripción"}
+                            </p>
                           </div>
-                        );
-                      })}
-                  </TabsContent>
-
-                  {/* EVIDENCIAS TAB */}
-                  <TabsContent value="evidencias" className="mt-4 space-y-4">
-                    {caseData.insights
-                      .filter((i: any) => i.category !== 'forensics')
-                      .map((insight: any, idx: number) => (
-                        <div key={idx} className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-                          <div className="flex justify-between items-start mb-2">
-                            <div className="flex items-center gap-2">
-                              <Info className="h-4 w-4 text-gray-400" />
-                              <h4 className="font-bold text-gray-900 text-sm">{insight.label}</h4>
-                            </div>
-                            <Badge variant="outline" className="bg-gray-50 text-gray-600 border-gray-200 text-[10px]">
-                              {insight.value || "INFO"}
-                            </Badge>
-                          </div>
-                          <p className="text-sm text-gray-600 font-mono bg-gray-50 p-2 rounded border border-gray-100">
-                            {insight.description || "Sin descripción"}
-                          </p>
-                        </div>
-                      ))}
-                    {caseData.insights.filter((i: any) => i.category !== 'forensics').length === 0 && (
-                      <p className="text-sm text-gray-500 text-center py-4">No hay evidencias adicionales disponibles.</p>
-                    )}
-                  </TabsContent>
-                </Tabs>
-              </div>
+                        ))}
+                      {caseData.insights.filter((i: any) => i.category !== 'forensics').length === 0 && (
+                        <p className="text-sm text-gray-500 text-center py-4">No hay evidencias adicionales disponibles.</p>
+                      )}
+                    </TabsContent>
+                  </Tabs>
+                </div>
               )}
 
 
@@ -772,84 +789,84 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
               </Card>
 
               {/* Cadena de Custodia */}
-            <Card className="shadow-sm border-2 rounded-xl" style={{ borderColor: '#FFDA00' }}>
+              <Card className="shadow-sm border-2 rounded-xl" style={{ borderColor: '#FFDA00' }}>
                 <CardHeader className="pt-4 px-4">
-                <CardTitle className="text-base font-bold flex items-center gap-2 text-gray-900">
-                  <Shield className="h-5 w-5 text-primary" /> Cadena de Custodia
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="px-6 pb-6">
-                <div className="space-y-0">
-                  {/* Event 1: Case Created */}
-                  <div className="flex gap-3 py-4">
-                    <div className="shrink-0 w-3 h-3 rounded-full mt-1" style={{ backgroundColor: '#FFDA00' }}></div>
-                    <div className="flex flex-col gap-1 flex-1">
-                      <span className="text-sm font-bold text-gray-900">Caso creado</span>
-                      <span className="text-xs text-gray-600">
-                        {new Date(caseData.created_at).toLocaleDateString('es-CO', { 
-                          day: 'numeric', 
-                          month: 'long', 
-                          year: 'numeric' 
-                        })} a las {new Date(caseData.created_at).toLocaleTimeString('es-CO', {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                          second: '2-digit',
-                          hour12: true
-                        })} - Sistema Botilito
-                      </span>
+                  <CardTitle className="text-base font-bold flex items-center gap-2 text-gray-900">
+                    <Shield className="h-5 w-5 text-primary" /> Cadena de Custodia
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="px-6 pb-6">
+                  <div className="space-y-0">
+                    {/* Event 1: Case Created */}
+                    <div className="flex gap-3 py-4">
+                      <div className="shrink-0 w-3 h-3 rounded-full mt-1" style={{ backgroundColor: '#FFDA00' }}></div>
+                      <div className="flex flex-col gap-1 flex-1">
+                        <span className="text-sm font-bold text-gray-900">Caso creado</span>
+                        <span className="text-xs text-gray-600">
+                          {new Date(caseData.created_at).toLocaleDateString('es-CO', {
+                            day: 'numeric',
+                            month: 'long',
+                            year: 'numeric'
+                          })} a las {new Date(caseData.created_at).toLocaleTimeString('es-CO', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            second: '2-digit',
+                            hour12: true
+                          })} - Sistema Botilito
+                        </span>
+                      </div>
+                    </div>
+
+                    <Separator className="bg-gray-200" />
+
+                    {/* Event 2: Analysis Executed */}
+                    <div className="flex gap-3 py-4">
+                      <div className="shrink-0 w-3 h-3 rounded-full mt-1" style={{ backgroundColor: '#FFDA00' }}></div>
+                      <div className="flex flex-col gap-1 flex-1">
+                        <span className="text-sm font-bold text-gray-900">
+                          {caseData.type === 'TEXT' || caseData.type === 'URL'
+                            ? 'Análisis desinfodémico ejecutado'
+                            : 'Análisis forense ejecutado'}
+                        </span>
+                        <span className="text-xs text-gray-600">
+                          {new Date(caseData.created_at).toLocaleDateString('es-CO', {
+                            day: 'numeric',
+                            month: 'long',
+                            year: 'numeric'
+                          })} a las {new Date(new Date(caseData.created_at).getTime() + 5000).toLocaleTimeString('es-CO', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            second: '2-digit',
+                            hour12: true
+                          })} - {caseData.insights.length} {caseData.insights.length === 1 ? 'prueba completada' : 'pruebas completadas'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <Separator className="bg-gray-200" />
+
+                    {/* Event 3: Diagnosis Generated */}
+                    <div className="flex gap-3 py-4">
+                      <div className="shrink-0 w-3 h-3 rounded-full mt-1" style={{ backgroundColor: '#FFDA00' }}></div>
+                      <div className="flex flex-col gap-1 flex-1">
+                        <span className="text-sm font-bold text-gray-900">Diagnóstico generado</span>
+                        <span className="text-xs text-gray-600">
+                          {new Date(caseData.created_at).toLocaleDateString('es-CO', {
+                            day: 'numeric',
+                            month: 'long',
+                            year: 'numeric'
+                          })} a las {new Date(new Date(caseData.created_at).getTime() + 12000).toLocaleTimeString('es-CO', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            second: '2-digit',
+                            hour12: true
+                          })} - {caseData.overview.verdict_label || 'Análisis completado'}
+                        </span>
+                      </div>
                     </div>
                   </div>
-
-                  <Separator className="bg-gray-200" />
-
-                  {/* Event 2: Analysis Executed */}
-                  <div className="flex gap-3 py-4">
-                    <div className="shrink-0 w-3 h-3 rounded-full mt-1" style={{ backgroundColor: '#FFDA00' }}></div>
-                    <div className="flex flex-col gap-1 flex-1">
-                      <span className="text-sm font-bold text-gray-900">
-                        {caseData.type === 'TEXT' || caseData.type === 'URL' 
-                          ? 'Análisis desinfodémico ejecutado' 
-                          : 'Análisis forense ejecutado'}
-                      </span>
-                      <span className="text-xs text-gray-600">
-                        {new Date(caseData.created_at).toLocaleDateString('es-CO', { 
-                          day: 'numeric', 
-                          month: 'long', 
-                          year: 'numeric' 
-                        })} a las {new Date(new Date(caseData.created_at).getTime() + 5000).toLocaleTimeString('es-CO', {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                          second: '2-digit',
-                          hour12: true
-                        })} - {caseData.insights.length} {caseData.insights.length === 1 ? 'prueba completada' : 'pruebas completadas'}
-                      </span>
-                    </div>
-                  </div>
-
-                  <Separator className="bg-gray-200" />
-
-                  {/* Event 3: Diagnosis Generated */}
-                  <div className="flex gap-3 py-4">
-                    <div className="shrink-0 w-3 h-3 rounded-full mt-1" style={{ backgroundColor: '#FFDA00' }}></div>
-                    <div className="flex flex-col gap-1 flex-1">
-                      <span className="text-sm font-bold text-gray-900">Diagnóstico generado</span>
-                      <span className="text-xs text-gray-600">
-                        {new Date(caseData.created_at).toLocaleDateString('es-CO', { 
-                          day: 'numeric', 
-                          month: 'long', 
-                          year: 'numeric' 
-                        })} a las {new Date(new Date(caseData.created_at).getTime() + 12000).toLocaleTimeString('es-CO', {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                          second: '2-digit',
-                          hour12: true
-                        })} - {caseData.overview.verdict_label || 'Análisis completado'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
 
               {/* Recomendaciones */}
               <div className="border-2 border-[#FFDA00] rounded-lg p-6 shadow-sm" style={{ borderColor: '#FFDA00', backgroundColor: '#fffbeb' }}>
@@ -858,22 +875,40 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
                   <h3 className="font-bold text-gray-900 text-base">Recomendaciones</h3>
                 </div>
                 <ul className="space-y-3">
-                  <li className="text-xs text-gray-800 flex gap-3 items-start font-medium leading-relaxed">
-                    <span className="text-primary text-1xl leading-[0.5] mt-[2px]">•</span>
-                    <span>Verificar las fuentes citadas en el contenido</span>
-                  </li>
-                  <li className="text-xs text-gray-800 flex gap-3 items-start font-medium leading-relaxed">
-                    <span className="text-primary text-1xl leading-[0.5] mt-[2px]">•</span>
-                    <span>Contrastar con medios de comunicación confiables</span>
-                  </li>
-                  <li className="text-xs text-gray-800 flex gap-3 items-start font-medium leading-relaxed">
-                    <span className="text-primary text-1xl leading-[0.5] mt-[2px]">•</span>
-                    <span>Desarrollar pensamiento crítico mediante las competencias AMI</span>
-                  </li>
-                  <li className="text-xs text-gray-800 flex gap-3 items-start font-medium leading-relaxed">
-                    <span className="text-primary text-1xl leading-[0.5] mt-[2px]">•</span>
-                    <span>No compartir contenido sin verificar primero</span>
-                  </li>
+                  {recommendationInsights.length > 0 ? (
+                    recommendationInsights.map((rec: any, index: number) => (
+                      <li key={index} className="text-xs text-gray-800 flex gap-3 items-start font-medium leading-relaxed">
+                        <span className="text-primary text-1xl leading-[0.5] mt-[2px]">•</span>
+                        <span>{rec.description || rec.label || rec.value}</span>
+                      </li>
+                    ))
+                  ) : caseData.recommendations.length > 0 ? (
+                    caseData.recommendations.map((rec: string, index: number) => (
+                      <li key={index} className="text-xs text-gray-800 flex gap-3 items-start font-medium leading-relaxed">
+                        <span className="text-primary text-1xl leading-[0.5] mt-[2px]">•</span>
+                        <span>{rec}</span>
+                      </li>
+                    ))
+                  ) : (
+                    <>
+                      <li className="text-xs text-gray-800 flex gap-3 items-start font-medium leading-relaxed">
+                        <span className="text-primary text-1xl leading-[0.5] mt-[2px]">•</span>
+                        <span>Verificar las fuentes citadas en el contenido</span>
+                      </li>
+                      <li className="text-xs text-gray-800 flex gap-3 items-start font-medium leading-relaxed">
+                        <span className="text-primary text-1xl leading-[0.5] mt-[2px]">•</span>
+                        <span>Contrastar con medios de comunicación confiables</span>
+                      </li>
+                      <li className="text-xs text-gray-800 flex gap-3 items-start font-medium leading-relaxed">
+                        <span className="text-primary text-1xl leading-[0.5] mt-[2px]">•</span>
+                        <span>Desarrollar pensamiento crítico mediante las competencias AMI</span>
+                      </li>
+                      <li className="text-xs text-gray-800 flex gap-3 items-start font-medium leading-relaxed">
+                        <span className="text-primary text-1xl leading-[0.5] mt-[2px]">•</span>
+                        <span>No compartir contenido sin verificar primero</span>
+                      </li>
+                    </>
+                  )}
                 </ul>
               </div>
             </div>
