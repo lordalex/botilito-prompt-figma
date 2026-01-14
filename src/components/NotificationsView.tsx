@@ -115,8 +115,16 @@ export function NotificationsView({ onViewTask }: NotificationsViewProps) {
         };
 
         const jobType = getJobTypeFromMetadata(metadata);
-        const effectiveStatus = metadata.new_status || metadata.status;
+        let effectiveStatus = metadata.new_status || metadata.status;
         const effectiveDocId = metadata.case_id || metadata.doc_id || metadata.job_id;
+
+        // If status is missing, but we have a job_id and not a final doc_id,
+        // assume it's still processing. This handles cases where the notification
+        // was created before the status was available.
+        if (!effectiveStatus && metadata.job_id && !metadata.doc_id && !metadata.case_id) {
+            effectiveStatus = 'processing';
+            console.log('[NotificationClick] Status inferred as "processing"');
+        }
 
         console.log('[NotificationClick] Determined jobType:', jobType);
         onViewTask(effectiveDocId, jobType, effectiveStatus);

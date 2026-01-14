@@ -31,7 +31,7 @@
  *     ↓
  * CaseList receives cases + pagination props (hasMore, onLoadMore, isLoadingMore)
  *     ↓
- * onViewTask callback → lookupCase → ContentUploadResult
+ * onViewTask callback → useCaseDetail hook → lookupCase → ContentUploadResult
  * ```
  *
  * @see useCaseHistory.ts - Data fetching hook
@@ -41,18 +41,23 @@
 
 import React, { useState } from 'react';
 import {
-  Bot, CheckCircle, Clock, AlertTriangle, Fingerprint, RefreshCcw, AlertCircle
+  Bot, CheckCircle, Clock, AlertTriangle, Fingerprint, RefreshCcw, AlertCircle, Loader2
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useCaseHistory } from '@/hooks/useCaseHistory';
+import { useCaseDetail } from '@/hooks/useCaseDetail';
 import { CaseList } from './CaseList';
 import { ContentUploadResult } from '@/components/ContentUploadResult';
 import { BotilitoValidationBanner } from '@/components/ui/botilito-validation-banner';
 
 import { GlobalLoader } from '@/components/ui/GlobalLoader';
 
-export function ContentReview() {
+interface ContentReviewProps {
+  onViewTask?: (jobId: string, type: string, status?: string) => void;
+}
+
+export function ContentReview({ onViewTask: externalOnViewTask }: ContentReviewProps) {
   const {
     cases,
     loading,
@@ -66,35 +71,43 @@ export function ContentReview() {
 
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
 
+  // Use useCaseDetail to fetch FULL case data via lookup when a case is selected
+  const { caseDetail, loading: caseLoading, error: caseError } = useCaseDetail(selectedCaseId);
+
   const handleSelectCase = (caseId: string, contentType: string) => {
+    console.log('[ContentReview] handleSelectCase called with caseId:', caseId);
     setSelectedCaseId(caseId);
   };
 
-  // Find the selected case from the already-loaded cases array
-  // Each case has standardized_case with full DTO data
-  const selectedCase = selectedCaseId
-    ? cases.find(c => c.id === selectedCaseId)
-    : null;
+  // Case Detail View
+  if (selectedCaseId) {
+    console.log('[ContentReview] selectedCaseId:', selectedCaseId, 'caseLoading:', caseLoading, 'caseDetail:', caseDetail);
 
-  // Use the embedded standardized_case (full DTO) or fall back to the enriched case itself
-  const fullCaseData = selectedCase?.standardized_case || selectedCase;
+    // Loading state for case details
+    if (caseLoading) {
+      return (
+        <div className="flex flex-col items-center justify-center min-h-[50vh] p-6">
+          <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
+          <p className="text-gray-500">Cargando detalles del caso...</p>
+        </div>
+      );
+    }
 
-  // Case not found in loaded cases array
-  if (selectedCaseId && !fullCaseData) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[50vh] p-6">
-        <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
-        <h3 className="text-lg font-bold">Error</h3>
-        <p className="text-gray-500 mb-4">No se pudo encontrar el caso en la lista.</p>
-        <Button onClick={() => setSelectedCaseId(null)} variant="outline">Volver al Historial</Button>
-      </div>
-    );
-  }
+    // Error or case not found
+    if (caseError || !caseDetail) {
+      return (
+        <div className="flex flex-col items-center justify-center min-h-[50vh] p-6">
+          <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
+          <h3 className="text-lg font-bold">Error</h3>
+          <p className="text-gray-500 mb-4">{caseError || 'No se pudo encontrar el caso.'}</p>
+          <Button onClick={() => setSelectedCaseId(null)} variant="outline">Volver al Historial</Button>
+        </div>
+      );
+    }
 
-  if (selectedCaseId && fullCaseData) {
     return (
       <ContentUploadResult
-        result={fullCaseData}
+        result={caseDetail}
         onReset={() => setSelectedCaseId(null)}
         backLabel="Volver al Historial"
         hideVoting={true}

@@ -15,6 +15,7 @@ import { DocumentacionIndicadores } from './components/DocumentacionIndicadores'
 import AdminDashboard from './components/AdminDashboard'; // Default export
 import { NotificationsView } from './components/NotificationsView';
 import { JobStatusViewer } from './components/JobStatusViewer';
+import { BannerExamples } from './components/BannerExamples';
 import { useAnalysisPolling } from './hooks/useAnalysisPolling';
 import { transformTextAnalysisToUI } from './services/analysisPresentationService';
 import { searchService } from './services/searchService';

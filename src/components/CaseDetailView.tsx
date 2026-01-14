@@ -18,6 +18,17 @@ export function CaseDetailView({
     const { caseDetail, loading, error } = useCaseDetail(caseId);
     const { profile } = useAuth();
 
+    console.log('[CaseDetailView] DEBUG: Mounting view for caseId:', caseId);
+
+    React.useEffect(() => {
+        console.log('[CaseDetailView] DEBUG: useEffect triggered for caseDetail update', {
+            caseId,
+            hasData: !!caseDetail,
+            loading,
+            error
+        });
+    }, [caseDetail, loading, error, caseId]);
+
     if (loading) {
         return (
             <div className="flex flex-col items-center justify-center h-96 gap-4">
@@ -41,10 +52,11 @@ export function CaseDetailView({
     }
 
     const isCibernauta = profile?.role === 'Cibernauta';
-    
+
     // For non-cibernauta, voting is shown.
     // For cibernauta, it's hidden.
     const hideVoting = isCibernauta;
+consoile.log({caseDetail});
 
     return (
         <ContentUploadResult

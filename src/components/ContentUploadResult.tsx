@@ -10,9 +10,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { HumanValidationForm } from '@/components/HumanValidationForm';
-import { BotilitoValidationBanner } from '@/components/ui/botilito-validation-banner';
+import { BotilitoBanner, BotilitoValidationBanner } from '@/components/ui/botilito-validation-banner';
 import { generateCaseCode, ContentType, TransmissionVector } from '@/utils/caseCodeGenerator';
 import { domToPng } from 'modern-screenshot';
+import { logger } from '@/utils/logger';
 
 // Import Specific Views
 
@@ -44,6 +45,8 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
   // --- GUARD CLAUSE ---
   if (!result) return null;
 
+  logger.debug("ContentUploadResult Received Result:", result);
+
   // --- 1. TYPE DETECTION ---
   const resultType = result?.type || result?.meta?.type;
 
@@ -58,6 +61,8 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
   // Handle both direct StandardizedCase and EnrichedCase with nested standardized_case
   const rawData = result.fullResult || result;
   const stdCase = rawData.standardized_case || rawData;
+  console.log({ rawData, stdCase });
+  ;
   // Handle nested 'case' (common in VectorAsync) which might wrap the actual standardized case data
   const innerCase = rawData.case || stdCase;
   const data = { ...rawData, ...stdCase, ...innerCase }; // Merge everything
@@ -119,6 +124,16 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
     rawData.insights ||
     [];
 
+  // Dynamic Execution Time logic (approximate if not provided)
+  let executionTime = "N/A";
+  if (data.metadata?.processing_time) {
+    executionTime = `${data.metadata.processing_time.toFixed(1)}s`;
+  } else if (data.created_at && (data.completed_at || stdCase.completed_at)) {
+    const start = new Date(data.created_at).getTime();
+    const end = new Date(data.completed_at || stdCase.completed_at).getTime();
+    executionTime = `${((end - start) / 1000).toFixed(1)}s`;
+  }
+
   const caseData = {
     id: data.id || stdCase.id || "Unknown",
     display_id: displayId,
@@ -137,7 +152,8 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
     reporter: data.reporter || stdCase.reporter,
     community: data.community || stdCase.community || { votes: data.human_votes_count || 0, status: data.consensus?.state || 'pending' },
     metadata: data.metadata || { theme: data.theme, region: data.region, vector: caseVector },
-    recommendations: recommendations
+    recommendations: recommendations,
+    execution_time: executionTime
   };
 
   // Logic to determine if we show an Image or Audio player
@@ -146,13 +162,15 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
   const isVisual = !isAudio && !!caseData.overview.main_asset_url;
 
   // --- 3. INSIGHT FILTERING ---
-  const sourceInsight = caseData.insights.find((i: any) =>
-    i.id?.includes('source') || i.category === 'metadata' || i.label?.toLowerCase().includes('fuente')
-  );
+  const sourceInsight = caseData.insights.find((i: any) => i.id === 'tech_sources') ||
+    caseData.insights.find((i: any) =>
+      i.id?.includes('source') || i.category === 'metadata' || i.label?.toLowerCase().includes('fuente')
+    );
 
-  const clickbaitInsight = caseData.insights.find((i: any) =>
-    i.id?.includes('clickbait') || i.id?.includes('titular') || i.label?.toLowerCase().includes('titular')
-  );
+  const clickbaitInsight = caseData.insights.find((i: any) => i.id === 'tech_clickbait') ||
+    caseData.insights.find((i: any) =>
+      i.id?.includes('clickbait') || i.id?.includes('titular') || i.label?.toLowerCase().includes('titular')
+    );
 
   const amiCompetencies = caseData.insights.filter((i: any) =>
     i.category === 'competency' || i.category === 'compliance' || i.label?.toLowerCase().includes('competencia')
@@ -211,7 +229,21 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
   // Treat URL cases as TEXT for the purpose of the AMI layout
   const isTextCase = caseData.type === 'TEXT' || caseData.type === 'URL';
 
-  console.log('[ContentUploadResult] Rendering Case:', { id: caseData.id, type: caseData.type, isTextCase, isForensicCase });
+  console.log('[ContentUploadResult] DEBUG: Rendering Case:', {
+    id: caseData.id,
+    type: caseData.type,
+    isTextCase,
+    isForensicCase,
+    summaryLen: caseData.overview.summary?.length,
+    insightsCount: caseData.insights.length
+  });
+
+  console.log('[ContentUploadResult] DEBUG: Extracted Data:', {
+    resumenContenido,
+    sourceInsight: sourceInsight ? { id: sourceInsight.id, hasDescription: !!sourceInsight.description } : 'MISSING',
+    clickbaitInsight: clickbaitInsight ? { id: clickbaitInsight.id, hasRawData: !!clickbaitInsight.raw_data } : 'MISSING',
+    orientacionUsuarioLen: orientacionUsuario.length
+  });
 
 
   // --- HELPERS ---
@@ -417,15 +449,15 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
 
         <div className="max-w-7xl mx-auto px-4 md:px-6 py-6" ref={contentRef}>
           {/* BOTILITO BANNER */}
-          <BotilitoValidationBanner variant="detail" />
+          <BotilitoBanner variant="detail" />
 
           <div className="flex flex-col lg:flex-row gap-8">
             {/* LEFT COLUMN (Main) */}
-            <div className="flex-1 min-w-0 space-y-6">
+            <div className="flex-4 space-y-4 lg:flex-shrink-4">
 
               {/* 1. IMAGE HEADER */}
               {caseData.overview.main_asset_url && (
-                <div className="relative rounded-xl overflow-hidden border border-black shadow-sm group h-96">
+                <div className="relative rounded-xl overflow-hidden border border-black shadow-sm group aspect-video w-full max-h-[400px]">
                   <div className="absolute top-4 left-4 z-10">
                     <Badge className="bg-black/80 hover:bg-black/90 text-white border-none gap-2 pl-2">
                       <Camera className="h-3 w-3" /> Captura Original
@@ -536,18 +568,20 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
                       Análisis Humano
                     </div>
                     <div className="text-right">
-                      <div className="text-2xl font-black text-gray-900">{caseData.community?.votes ? Math.min(caseData.community.votes * 10, 100) : 92}%</div>
+                      <div className="text-2xl font-black text-gray-900">{caseData.community?.votes ? Math.min(caseData.community.votes * 10, 100) : 0}%</div>
                       <div className="text-[10px] uppercase text-gray-500 font-bold">Consenso humano</div>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <Badge className="bg-transparent text-black border border-gray text-xs font-semibold">Análisis Humano</Badge>
-                    <Badge variant="outline" className="text-red-700 border-red-200 bg-white">
-                      requiere un enfoque AMI
+                    <Badge variant="outline" className={`bg-white ${caseData.community?.votes > 0 ? 'text-red-700 border-red-200' : 'text-gray-500 border-gray-200'}`}>
+                      {caseData.community?.votes > 0 ? 'requiere un enfoque AMI' : 'Pendiente de validación'}
                     </Badge>
                   </div>
                   <p className="text-xs text-gray-600 mt-2">
-                    Los especialistas en AMI confirman que este contenido presenta características de desinformación y requiere un análisis crítico profundo.
+                    {caseData.community?.votes > 0
+                      ? "Los especialistas en AMI confirman que este contenido presenta características de desinformación."
+                      : "Aún no hay suficientes validaciones humanas para este caso."}
                   </p>
                 </div>
               </div>
@@ -556,105 +590,100 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
               {/* 4. AMI ANALYSIS SECTION (Text Only) */}
               {isTextCase && (
                 <div className="space-y-4">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1">
                     <span className="text-[#FFDA00]">✨</span>
                     <h3 className="font-bold text-gray-900">Análisis con enfoque en Alfabetización Mediática e Informacional (AMI)</h3>
                   </div>
 
-                  {/* A. Resumen del Contenido */}
-                  <Card className="bg-gray-50 border-none shadow-none ring-1 ring-gray-200">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm font-bold flex items-center gap-2 text-gray-700">
-                        <FileText className="h-4 w-4" /> Resumen del Contenido
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-2">
-                      <div className="grid grid-cols-[60px_1fr] gap-2 text-sm">
-                        <span className="font-bold text-gray-500">Qué:</span>
-                        <span className="text-gray-800">
-                          {resumenContenido.que || caseData.overview.summary?.split('.')[0] + '.' || 'Sin información disponible.'}
-                        </span>
+                  {/* AMI Cards - Grid Layout */}
+                  <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
+                    {/* A. Resumen del Contenido */}
+                    <Card className="bg-gray-50 border-none shadow-none ring-1 ring-gray-200 h-full">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-bold flex items-center gap-2 text-gray-700">
+                          <FileText className="h-4 w-4" /> Resumen del Contenido
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="grid grid-cols-[80px_1fr] gap-x-4 gap-y-2 text-sm">
+                          <span className="font-bold text-gray-500">Qué:</span>
+                          <span className="text-gray-800">{resumenContenido.que || caseData.overview.summary || 'Sin información disponible.'}</span>
 
-                        <span className="font-bold text-gray-500">Quién:</span>
-                        <span className="text-gray-800">
-                          {resumenContenido.quien || caseData.overview.source_domain || 'Desconocido'}
-                        </span>
+                          <span className="font-bold text-gray-500">Quién:</span>
+                          <span className="text-gray-800">{resumenContenido.quien || caseData.overview.source_domain || 'Desconocido'}</span>
 
-                        <span className="font-bold text-gray-500">Cuándo:</span>
-                        <span className="text-gray-800">
-                          {resumenContenido.cuando || new Date(caseData.created_at).toLocaleDateString()}
-                        </span>
+                          <span className="font-bold text-gray-500">Cuándo:</span>
+                          <span className="text-gray-800">{resumenContenido.cuando || "No mencionado"}</span>
 
-                        <span className="font-bold text-gray-500">Dónde:</span>
-                        <span className="text-gray-800">
-                          {resumenContenido.donde || getTransmissionVector(caseData.metadata?.vector)}
-                        </span>
-                      </div>
-                    </CardContent>
-                  </Card>
+                          <span className="font-bold text-gray-500">Dónde:</span>
+                          <span className="text-gray-800">{resumenContenido.donde || getTransmissionVector(caseData.metadata?.vector)}</span>
+                        </div>
+                      </CardContent>
+                    </Card>
 
-                  {/* B. Análisis de Fuentes (Blue) */}
-                  <Card className="bg-blue-50 border-none shadow-none ring-1 ring-blue-100">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm font-bold flex items-center gap-2 text-blue-800">
-                        <Globe className="h-4 w-4" /> Análisis de Fuentes y Datos
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-sm text-blue-900">
-                        {sourceInsight?.description || "El contenido proviene de fuentes que requieren verificación adicional. Se recomienda contrastar con medios verificados."}
-                      </p>
-                    </CardContent>
-                  </Card>
-
-                  {/* C. Alerta Clickbait (Red) */}
-                  <Card className="bg-red-50 border-none shadow-none ring-1 ring-red-100">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm font-bold flex items-center gap-2 text-red-700">
-                        <AlertTriangle className="h-4 w-4" /> Alerta: Titular vs. Contenido
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-sm text-red-800 font-medium">
-                        ⚠️ {clickbaitInsight?.description || "El titular presenta características de clickbait o sensacionalismo que no corresponden completamente con el contenido real."}
-                      </p>
-                    </CardContent>
-                  </Card>
-
-                  {/* D. Competencias AMI (Green) */}
-                  <Card className="bg-green-50 border-none shadow-none ring-1 ring-green-100">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm font-bold flex items-center gap-2 text-green-800">
-                        <ShieldCheck className="h-4 w-4" /> Competencias AMI Recomendadas:
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <ul className="space-y-3">
-                        {orientacionUsuario.length > 0 ? orientacionUsuario.map((orientacion: string, i: number) => (
-                          <li key={i} className="flex gap-3 text-sm text-green-900">
-                            <span className="bg-yellow-400 text-yellow-900 text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shrink-0">
-                              {i + 1}
-                            </span>
-                            <span>{orientacion}</span>
-                          </li>
-                        )) : amiCompetencies.length > 0 ? amiCompetencies.map((comp: any, i: number) => (
-                          <li key={i} className="flex gap-3 text-sm text-green-900">
-                            <span className="bg-yellow-400 text-yellow-900 text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shrink-0">
-                              {i + 1}
-                            </span>
-                            <span>{comp.description}</span>
-                          </li>
-                        )) : (
-                          <li className="text-sm text-green-900">No hay competencias AMI disponibles para este análisis.</li>
-                        )}
-                      </ul>
-                      {conclusionAMI && (
-                        <p className="text-xs text-green-800 mt-4 pt-3 border-t border-green-200">
-                          {conclusionAMI}
+                    {/* B. Análisis de Fuentes (Blue) */}
+                    <Card className="bg-blue-50 border-none shadow-none ring-1 ring-blue-100 h-full">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-bold flex items-center gap-2 text-blue-800">
+                          <Globe className="h-4 w-4" /> Análisis de Fuentes y Datos
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-sm text-blue-900 leading-relaxed">
+                          {sourceInsight?.description || sourceInsight?.value || "El contenido proviene de fuentes que requieren verificación adicional. Se recomienda contrastar con medios verificados."}
                         </p>
-                      )}
-                    </CardContent>
-                  </Card>
+                      </CardContent>
+                    </Card>
+
+                    {/* C. Alerta Clickbait (Red) */}
+                    <Card className="bg-red-50 border-none shadow-none ring-1 ring-red-100 h-full">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-bold flex items-center gap-2 text-red-700">
+                          <AlertTriangle className="h-4 w-4" /> Alerta: Titular vs. Contenido
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-sm text-red-800 font-medium leading-relaxed">
+                          ⚠️ {clickbaitInsight?.raw_data?.analisis_ami || clickbaitInsight?.description || "El titular presenta características de clickbait o sensacionalismo que no corresponden completamente con el contenido real."}
+                        </p>
+                      </CardContent>
+                    </Card>
+
+                    {/* D. Competencias AMI (Green) */}
+                    <Card className="bg-green-50 border-none shadow-none ring-1 ring-green-100 h-full">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-bold flex items-center gap-2 text-green-800">
+                          <ShieldCheck className="h-4 w-4" /> Competencias AMI Recomendadas:
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <ul className="space-y-2">
+                          {orientacionUsuario.length > 0 ? orientacionUsuario.map((orientacion: string, i: number) => (
+                            <li key={i} className="flex gap-3 text-sm text-green-900">
+                              <span className="bg-yellow-400 text-yellow-900 text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shrink-0">
+                                {i + 1}
+                              </span>
+                              <span>{orientacion}</span>
+                            </li>
+                          )) : amiCompetencies.length > 0 ? amiCompetencies.map((comp: any, i: number) => (
+                            <li key={i} className="flex gap-3 text-sm text-green-900">
+                              <span className="bg-yellow-400 text-yellow-900 text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shrink-0">
+                                {i + 1}
+                              </span>
+                              <span>{comp.description}</span>
+                            </li>
+                          )) : (
+                            <li className="text-sm text-green-900">No hay competencias AMI disponibles para este análisis.</li>
+                          )}
+                        </ul>
+                        {conclusionAMI && (
+                          <p className="text-xs text-green-800 mt-4 pt-3 border-t border-green-200">
+                            {conclusionAMI}
+                          </p>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </div>
                 </div>
               )}
 
@@ -757,10 +786,10 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
             </div>
 
             {/* RIGHT COLUMN (Sidebar) */}
-            <div className="lg:w-96 lg:flex-shrink-0 space-y-6">
+            <div className="flex flex-col gap-8 lg:w-1/4">
               {/* Información del Caso */}
-              <Card className="shadow-sm border-2 mb-6" style={{ borderColor: '#FFDA00' }}>
-                <CardHeader className="pb-2 pt-4 px-4">
+              <Card className="shadow-sm border-2 mb-8" style={{ borderColor: '#FFDA00' }}>
+                <CardHeader className="pb-4 pt-4 px-4">
                   <CardTitle className="text-sm font-bold flex items-center gap-2">
                     <Info className="h-5 w-5 text-primary" />
                     Información del Caso
@@ -817,9 +846,9 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="px-4 pb-4 space-y-4">
-                  <div className="flex justify-between text-xs"><span className="text-gray-500 font-medium">Pruebas realizadas</span><span className="font-bold">{caseData.insights.length || 1}</span></div>
-                  <div className="flex justify-between text-xs"><span className="text-gray-500 font-medium">Tiempo total</span><span className="font-bold">12.0s</span></div>
-                  <div className="flex justify-between text-xs"><span className="text-gray-500 font-medium">Nivel de precisión diagnóstica</span><span className="font-bold">{caseData.overview.risk_score > 0 ? '92%' : '0%'}</span></div>
+                  <div className="flex justify-between text-xs"><span className="text-gray-500 font-medium">Pruebas realizadas</span><span className="font-bold">{caseData.insights.length}</span></div>
+                  <div className="flex justify-between text-xs"><span className="text-gray-500 font-medium">Tiempo total</span><span className="font-bold">{caseData.execution_time}</span></div>
+                  <div className="flex justify-between text-xs"><span className="text-gray-500 font-medium">Nivel de precisión diagnóstica</span><span className="font-bold">{caseData.overview.risk_score}%</span></div>
                 </CardContent>
               </Card>
 
@@ -1323,7 +1352,7 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
             </div>
 
             {/* RIGHT COLUMN - Fixed width sidebar */}
-            <div className="lg:w-80 lg:flex-shrink-0 space-y-6">
+            <div className="lg:w-72 lg:flex-shrink-0 space-y-6">
 
               {/* Case Info */}
               <Card className="shadow-sm border-2" style={{ borderColor: '#FFDA00' }}>

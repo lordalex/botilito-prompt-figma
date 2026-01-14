@@ -1,9 +1,9 @@
 /**
- * Search DTO Service
- * 
+ * Search DTO Service (Refactored to use fetch)
+ *
  * Provides async search, lookup, and dashboard feed functionality
  * using the unified search-dto API that returns StandardizedCase DTOs.
- * 
+ *
  * @see /search-dto.json for OpenAPI specification
  */
 import { supabase } from '@/utils/supabase/client';
@@ -15,37 +15,73 @@ import {
   SearchResultPayload,
   LookupResultPayload
 } from '@/types/vector-api';
+import * as apiEndpoints from '@/lib/apiEndpoints';
+import { logger } from '@/utils/logger';
 
-const FUNCTION_NAME = 'search-dto';
+/**
+ * Helper to get auth token from Supabase session.
+ */
+async function getAuthToken(): Promise<string | null> {
+  const { data: { session } } = await supabase.auth.getSession();
+  return session?.access_token || null;
+}
+
+/**
+ * Generic fetch wrapper for Supabase Edge Functions.
+ */
+async function fetchEdgeFunction<T>(
+  endpoint: string,
+  options: RequestInit = {}
+): Promise<T> {
+  const token = await getAuthToken();
+  if (!token) {
+    throw new Error('Authentication required: No active session.');
+  }
+
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`,
+    ...(options.headers || {}),
+  };
+
+  const response = await fetch(endpoint, {
+    ...options,
+    headers,
+    cache: 'no-store', // Disable caching
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    logger.error(`[VectorAsync] Fetch failed: ${response.status}`, errorBody);
+    throw new Error(`API Error ${response.status}: ${errorBody}`);
+  }
+
+  return response.json() as Promise<T>;
+}
 
 // Helper for polling
-// Helper for polling (Now strictly uses Lookup logic or is deprecated)
-// Since the new Lookup endpoint provides the case directly, we only poll if we suspect async processing is still active.
-// However, the `search-dto/lookup` IS the unified way to get data.
-// If we need to "poll" a job until it's done, we do it by calling lookup repeatedly.
-
 async function pollJobStatus<T>(jobId: string, interval = 2000, timeout = 60000): Promise<T> {
   const start = Date.now();
-  console.log(`[VectorAsync] Polling Job via Lookup: ${jobId}`);
+  logger.info(`[VectorAsync] Polling Job via Lookup: ${jobId}`);
 
   while (Date.now() - start < timeout) {
-    // USE LOOKUP, NOT STATUS
-    const { data, error } = await supabase.functions.invoke(`${FUNCTION_NAME}/lookup`, {
-      method: 'POST',
-      body: { identifier: jobId }
-    });
+    try {
+      const data = await fetchEdgeFunction<any>(apiEndpoints.LOOKUP_ENDPOINT, {
+        method: 'POST',
+        body: JSON.stringify({ identifier: jobId }),
+      });
 
-    if (error) {
-      // If 404, might be initializing
-      console.warn(`[VectorAsync] Lookup failed: ${error.message}`);
-      if (Date.now() - start > 10000) throw error; // Allow 10s grace for 404s
-    } else if (data && data.case) {
-      const status = data.case.lifecycle?.job_status;
-      if (status === 'completed') {
-        return data.case as T; // Return StandardizedCase
-      } else if (status === 'failed') {
-        throw new Error(data.case.lifecycle?.failure_reason || 'Job failed');
+      if (data?.case) {
+        const status = data.case.lifecycle?.job_status;
+        if (status === 'completed') {
+          return data.case as T;
+        } else if (status === 'failed') {
+          throw new Error(data.case.lifecycle?.failure_reason || 'Job failed');
+        }
       }
+    } catch (err: any) {
+      logger.warn(`[VectorAsync] Lookup poll failed: ${err.message}`);
+      if (Date.now() - start > 10000) throw err;
     }
 
     await new Promise(resolve => setTimeout(resolve, interval));
@@ -62,23 +98,18 @@ export async function searchCases(
   page: number = 1,
   pageSize: number = 10
 ): Promise<SearchResultPayload> {
-  // Fix: The API requires a non-empty query. 
-  // We use "*" to represent "fetch all" (depending on backend implementation) or a generic term.
   const effectiveQuery = query.trim() === "" ? "*" : query;
 
-  const { data: submitData, error: submitError } = await supabase.functions.invoke(`${FUNCTION_NAME}/search`, {
+  const submitData = await fetchEdgeFunction<VectorJobResponse>(apiEndpoints.SEARCH_ENDPOINT, {
     method: 'POST',
-    body: {
+    body: JSON.stringify({
       query: effectiveQuery,
       page,
       pageSize
-    },
+    }),
   });
 
-  if (submitError) throw submitError;
-  const job = submitData as VectorJobResponse;
-
-  return await pollJobStatus<SearchResultPayload>(job.job_id);
+  return await pollJobStatus<SearchResultPayload>(submitData.job_id);
 }
 
 /**
@@ -93,52 +124,39 @@ export async function searchCases(
  */
 export async function lookupCase(identifier: string): Promise<EnrichedCase | StandardizedCase | null> {
   if (!identifier) {
-    console.warn("lookupCase called with empty identifier");
+    logger.warn("[VectorAsync] lookupCase called with empty identifier");
     return null;
   }
-  // Direct Lookup for sync retrieval
-  const { data, error } = await supabase.functions.invoke(`${FUNCTION_NAME}/lookup`, {
+
+  logger.debug('[VectorAsync] Calling lookupCase with identifier:', identifier);
+
+  const parsedData = await fetchEdgeFunction<any>(apiEndpoints.LOOKUP_ENDPOINT, {
     method: 'POST',
-    body: { identifier },
+    body: JSON.stringify({ identifier }),
   });
 
-  if (error) throw error;
-
-  // Parse response if it's a string
-  let parsedData = data;
-  if (typeof data === 'string') {
-    try {
-      parsedData = JSON.parse(data);
-    } catch (e) {
-      console.error('[VectorAsync] Failed to parse data string:', e);
-    }
-  }
+  logger.debug('[VectorAsync] Lookup Response:', parsedData);
 
   // Handle multiple response formats from the API
   let caseData = null;
 
   if (parsedData?.case) {
-    // Standard LookupResultPayload format
-    console.log('[VectorAsync] Found parsedData.case');
+    logger.info('[VectorAsync] Found parsedData.case');
     caseData = parsedData.case;
   } else if (parsedData?.standardized_case) {
-    // DTO documentation format: { standardized_case: {...} }
-    console.log('[VectorAsync] Found parsedData.standardized_case');
+    logger.info('[VectorAsync] Found parsedData.standardized_case');
     caseData = parsedData.standardized_case;
   } else if (parsedData?.cases && Array.isArray(parsedData.cases) && parsedData.cases.length > 0) {
-    // Array format from search-like endpoints
-    console.log('[VectorAsync] Found parsedData.cases array');
+    logger.info('[VectorAsync] Found parsedData.cases array');
     caseData = parsedData.cases[0];
   } else if (parsedData?.id && parsedData?.overview) {
-    // Direct case object (result IS the case)
-    console.log('[VectorAsync] parsedData is direct case object');
+    logger.info('[VectorAsync] parsedData is direct case object');
     caseData = parsedData;
   } else if (parsedData?.job_id) {
-    // Legacy path: poll if we got a job_id
-    console.log('[VectorAsync] Falling back to job polling');
+    logger.info('[VectorAsync] Falling back to job polling');
     return await pollJobStatus<StandardizedCase>(parsedData.job_id);
   } else {
-    console.warn('[VectorAsync] No matching format found', {
+    logger.warn('[VectorAsync] No matching format found', {
       dataKeys: parsedData ? Object.keys(parsedData) : 'null'
     });
   }
@@ -153,12 +171,9 @@ export async function fetchHistorialSummary(
   page: number = 1,
   pageSize: number = 10
 ): Promise<SearchResultPayload> {
-  const { data: submitData, error: submitError } = await supabase.functions.invoke(`${FUNCTION_NAME}/summary?page=${page}&pageSize=${pageSize}`, {
+  const submitData = await fetchEdgeFunction<VectorJobResponse>(`${apiEndpoints.SUMMARY_ENDPOINT}?page=${page}&pageSize=${pageSize}`, {
     method: 'POST',
   });
 
-  if (submitError) throw submitError;
-  const job = submitData as VectorJobResponse;
-
-  return await pollJobStatus<SearchResultPayload>(job.job_id);
+  return await pollJobStatus<SearchResultPayload>(submitData.job_id);
 }
