@@ -451,9 +451,9 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
           {/* BOTILITO BANNER */}
           <BotilitoBanner variant="detail" />
 
-          <div className="flex flex-col lg:flex-row gap-8">
+          <div className="grid grid-cols-4 gap-2">
             {/* LEFT COLUMN (Main) */}
-            <div className="flex-4 space-y-4 lg:flex-shrink-4">
+            <div className="flex flex-col space-y-5 col-span-3">
 
               {/* 1. IMAGE HEADER */}
               {caseData.overview.main_asset_url && (
@@ -494,7 +494,7 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
                   </div>
 
                   {/* TAGS ROW */}
-                  <div className="flex flex-wrap items-center gap-2 pt-2">
+                  <div className="flex flex-wrap items-center gap-8 pt-3">
                     {caseData.overview.source_domain && (
                       <Badge variant="secondary" className="bg-red-50 text-red-700 hover:bg-red-100 border-red-100 gap-1">
                         Fuente: <strong>{caseData.overview.source_domain}</strong>
@@ -524,7 +524,7 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
               )}
 
               {/* 3. DIAGNOSIS CARDS (Infodemic & Human) */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 {/* Infodemic / Forensic Diagnosis */}
                 <div className={`rounded-xl border-2 p-4 flex flex-col justify-between ${caseData.overview.risk_score < 30 ? 'bg-green-50 border-green-200' :
                   caseData.overview.risk_score < 70 ? 'bg-orange-50 border-orange-200' :
@@ -589,14 +589,14 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
               {/* 4. AMI ANALYSIS SECTION */}
               {/* 4. AMI ANALYSIS SECTION (Text Only) */}
               {isTextCase && (
-                <div className="space-y-4">
+                <div className="space-y-4" style={{ width: '80%' }}>
                   <div className="flex items-center gap-1">
                     <span className="text-[#FFDA00]">✨</span>
                     <h3 className="font-bold text-gray-900">Análisis con enfoque en Alfabetización Mediática e Informacional (AMI)</h3>
                   </div>
 
                   {/* AMI Cards - Grid Layout */}
-                  <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-1 gap-4 max-w-[95%] mx-auto">
                     {/* A. Resumen del Contenido */}
                     <Card className="bg-gray-50 border-none shadow-none ring-1 ring-gray-200 h-full">
                       <CardHeader className="pb-2">
@@ -786,7 +786,7 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
             </div>
 
             {/* RIGHT COLUMN (Sidebar) */}
-            <div className="flex flex-col gap-8 lg:w-1/4">
+            <div className="flex flex-col space-y-5 lg:col-span-1" >
               {/* Información del Caso */}
               <Card className="shadow-sm border-2 mb-8" style={{ borderColor: '#FFDA00' }}>
                 <CardHeader className="pb-4 pt-4 px-4">
@@ -799,7 +799,7 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
                   <div className="flex justify-between text-xs"><span className="text-gray-500 font-medium">Caso</span><span className="font-mono">{caseData.display_id}</span></div>
                   <div className="flex justify-between text-xs"><span className="text-gray-500 font-medium">Tipo</span><span className="font-bold">{caseData.type}</span></div>
                   <div className="flex justify-between text-xs"><span className="text-gray-500 font-medium">Vector de transmisión</span><span>{caseData.metadata?.vector || 'Web'}</span></div>
-                  <div className="flex justify-between text-xs"><span className="text-gray-500 font-medium">Reportado por</span><span>{caseData.reporter?.name || '-'}</span></div>
+                  <div className="flex justify-between text-xs"><span className="text-gray-500 font-medium">Registrado por</span><span>{caseData.reporter?.name || '-'}</span></div>
                   <div className="flex justify-between text-xs"><span className="text-gray-500 font-medium">Fecha</span><span>{new Date(caseData.created_at).toLocaleDateString()}</span></div>
                 </CardContent>
               </Card>
@@ -970,7 +970,7 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
               </div>
             </div>
           </div>
-        </div>
+        </div >
 
         {!hideVoting && (
           <div className="max-w-7xl mx-auto px-6 mt-6">
@@ -982,8 +982,9 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
               onVoteSuccess={onReset}
             />
           </div>
-        )}
-      </div>
+        )
+        }
+      </div >
     );
   }
 

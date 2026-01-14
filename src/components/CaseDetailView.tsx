@@ -56,7 +56,7 @@ export function CaseDetailView({
     // For non-cibernauta, voting is shown.
     // For cibernauta, it's hidden.
     const hideVoting = isCibernauta;
-consoile.log({caseDetail});
+    console.log({ caseDetail });
 
     return (
         <ContentUploadResult
