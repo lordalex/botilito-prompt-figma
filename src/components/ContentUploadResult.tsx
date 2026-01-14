@@ -178,6 +178,34 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
   // Content classification type insight (for TEXT content "Tipo" badge)
   const metaContextTypeInsight = caseData.insights.find((i: any) => i.id === 'meta_context_type');
 
+  // Extract raw_data from meta_context_type for content summary
+  const metaContextRawData = metaContextTypeInsight?.raw_data || {};
+
+  // SUPPORT FOR OLD SCHEMA (analisis_hecho) and NEW SCHEMA (estructura_hecho)
+  const resumenOld = metaContextRawData.analisis_hecho?.resumen || {};
+  const resumenNewHecho = metaContextRawData.estructura_hecho || {};
+  const resumenNewOpinion = metaContextRawData.estructura_opinion || {};
+  const resumenNewInvestigacion = metaContextRawData.estructura_investigacion || {};
+
+  // Unify summary data
+  const resumenContenido = {
+    que: resumenNewHecho.que || resumenNewOpinion.tesis_central || resumenNewInvestigacion.hipotesis_investigativa || resumenOld.que_sucedio,
+    quien: resumenNewHecho.quien || resumenNewOpinion.postura_autor || resumenOld.quien_involucrado,
+    cuando: resumenNewHecho.cuando || resumenOld.cuando_ocurrio,
+    donde: resumenNewHecho.donde || resumenNewInvestigacion.tipos_evidencia_usada?.join(', ') || resumenOld.donde_sucedio
+  };
+
+  // Find Botilito/AMI Personality Insight (New Schema)
+  const amiInsight = caseData.insights.find((i: any) =>
+    i.raw_data?.recomendaciones && Array.isArray(i.raw_data.recomendaciones)
+  ) || metaContextTypeInsight; // Fallback to meta if it has orientacion_usuario (old schema)
+
+  const amiRawData = amiInsight?.raw_data || {};
+  // New schema uses 'recomendaciones', old used 'orientacion_usuario'
+  const orientacionUsuario: string[] = amiRawData.recomendaciones || amiRawData.orientacion_usuario || [];
+  const conclusionAMI = amiRawData.diagnosticoAMI || amiRawData.conclusion || '';
+  const invitacionAMI = amiRawData.invitacion || '';
+
   // Check if this is a forensic analysis case
   const isForensicCase = caseData.type === 'IMAGE' || caseData.type === 'VIDEO';
   // Treat URL cases as TEXT for the purpose of the AMI layout
@@ -543,16 +571,24 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
                     <CardContent className="space-y-2">
                       <div className="grid grid-cols-[60px_1fr] gap-2 text-sm">
                         <span className="font-bold text-gray-500">Qué:</span>
-                        <span className="text-gray-800">{caseData.overview.summary?.split('.')[0]}.</span>
+                        <span className="text-gray-800">
+                          {resumenContenido.que || caseData.overview.summary?.split('.')[0] + '.' || 'Sin información disponible.'}
+                        </span>
 
                         <span className="font-bold text-gray-500">Quién:</span>
-                        <span className="text-gray-800">{caseData.overview.source_domain || 'Desconocido'}</span>
+                        <span className="text-gray-800">
+                          {resumenContenido.quien || caseData.overview.source_domain || 'Desconocido'}
+                        </span>
 
                         <span className="font-bold text-gray-500">Cuándo:</span>
-                        <span className="text-gray-800">{new Date(caseData.created_at).toLocaleDateString()}</span>
+                        <span className="text-gray-800">
+                          {resumenContenido.cuando || new Date(caseData.created_at).toLocaleDateString()}
+                        </span>
 
                         <span className="font-bold text-gray-500">Dónde:</span>
-                        <span className="text-gray-800">{getTransmissionVector(caseData.metadata?.vector)}</span>
+                        <span className="text-gray-800">
+                          {resumenContenido.donde || getTransmissionVector(caseData.metadata?.vector)}
+                        </span>
                       </div>
                     </CardContent>
                   </Card>
@@ -594,7 +630,14 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
                     </CardHeader>
                     <CardContent>
                       <ul className="space-y-3">
-                        {amiCompetencies.length > 0 ? amiCompetencies.map((comp: any, i: number) => (
+                        {orientacionUsuario.length > 0 ? orientacionUsuario.map((orientacion: string, i: number) => (
+                          <li key={i} className="flex gap-3 text-sm text-green-900">
+                            <span className="bg-yellow-400 text-yellow-900 text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shrink-0">
+                              {i + 1}
+                            </span>
+                            <span>{orientacion}</span>
+                          </li>
+                        )) : amiCompetencies.length > 0 ? amiCompetencies.map((comp: any, i: number) => (
                           <li key={i} className="flex gap-3 text-sm text-green-900">
                             <span className="bg-yellow-400 text-yellow-900 text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shrink-0">
                               {i + 1}
@@ -602,22 +645,14 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
                             <span>{comp.description}</span>
                           </li>
                         )) : (
-                          <>
-                            <li className="flex gap-3 text-sm text-green-900">
-                              <span className="bg-yellow-400 text-yellow-900 text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shrink-0">1</span>
-                              <span>Acceso a la información: Identificar y acceder a fuentes confiables y verificables</span>
-                            </li>
-                            <li className="flex gap-3 text-sm text-green-900">
-                              <span className="bg-yellow-400 text-yellow-900 text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shrink-0">2</span>
-                              <span>Evaluación crítica: Analizar la credibilidad de las fuentes y la veracidad del contenido</span>
-                            </li>
-                            <li className="flex gap-3 text-sm text-green-900">
-                              <span className="bg-yellow-400 text-yellow-900 text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shrink-0">3</span>
-                              <span>Comprensión del contexto: Entender el contexto histórico, social y político de la información</span>
-                            </li>
-                          </>
+                          <li className="text-sm text-green-900">No hay competencias AMI disponibles para este análisis.</li>
                         )}
                       </ul>
+                      {conclusionAMI && (
+                        <p className="text-xs text-green-800 mt-4 pt-3 border-t border-green-200">
+                          {conclusionAMI}
+                        </p>
+                      )}
                     </CardContent>
                   </Card>
                 </div>
@@ -722,7 +757,7 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
             </div>
 
             {/* RIGHT COLUMN (Sidebar) */}
-            <div className="lg:w-80 lg:flex-shrink-0 space-y-6">
+            <div className="lg:w-96 lg:flex-shrink-0 space-y-6">
               {/* Información del Caso */}
               <Card className="shadow-sm border-2 mb-6" style={{ borderColor: '#FFDA00' }}>
                 <CardHeader className="pb-2 pt-4 px-4">
@@ -875,7 +910,14 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
                   <h3 className="font-bold text-gray-900 text-base">Recomendaciones</h3>
                 </div>
                 <ul className="space-y-3">
-                  {recommendationInsights.length > 0 ? (
+                  {orientacionUsuario.length > 0 ? (
+                    orientacionUsuario.map((orientacion: string, index: number) => (
+                      <li key={index} className="text-xs text-gray-800 flex gap-3 items-start font-medium leading-relaxed">
+                        <span className="text-primary text-1xl leading-[0.5] mt-[2px]">•</span>
+                        <span>{orientacion}</span>
+                      </li>
+                    ))
+                  ) : recommendationInsights.length > 0 ? (
                     recommendationInsights.map((rec: any, index: number) => (
                       <li key={index} className="text-xs text-gray-800 flex gap-3 items-start font-medium leading-relaxed">
                         <span className="text-primary text-1xl leading-[0.5] mt-[2px]">•</span>
@@ -890,24 +932,10 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
                       </li>
                     ))
                   ) : (
-                    <>
-                      <li className="text-xs text-gray-800 flex gap-3 items-start font-medium leading-relaxed">
-                        <span className="text-primary text-1xl leading-[0.5] mt-[2px]">•</span>
-                        <span>Verificar las fuentes citadas en el contenido</span>
-                      </li>
-                      <li className="text-xs text-gray-800 flex gap-3 items-start font-medium leading-relaxed">
-                        <span className="text-primary text-1xl leading-[0.5] mt-[2px]">•</span>
-                        <span>Contrastar con medios de comunicación confiables</span>
-                      </li>
-                      <li className="text-xs text-gray-800 flex gap-3 items-start font-medium leading-relaxed">
-                        <span className="text-primary text-1xl leading-[0.5] mt-[2px]">•</span>
-                        <span>Desarrollar pensamiento crítico mediante las competencias AMI</span>
-                      </li>
-                      <li className="text-xs text-gray-800 flex gap-3 items-start font-medium leading-relaxed">
-                        <span className="text-primary text-1xl leading-[0.5] mt-[2px]">•</span>
-                        <span>No compartir contenido sin verificar primero</span>
-                      </li>
-                    </>
+                    <li className="text-xs text-gray-800 flex gap-3 items-start font-medium leading-relaxed">
+                      <span className="text-primary text-1xl leading-[0.5] mt-[2px]">•</span>
+                      <span>No hay recomendaciones disponibles para este análisis.</span>
+                    </li>
                   )}
                 </ul>
               </div>
