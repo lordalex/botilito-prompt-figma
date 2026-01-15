@@ -20,7 +20,7 @@ import { useAnalysisPolling } from './hooks/useAnalysisPolling';
 import { transformTextAnalysisToUI } from './services/analysisPresentationService';
 import { searchService } from './services/searchService';
 import { useAuth } from './providers/AuthProvider'; // Import the hook
-import { ProfilePage } from './components/profile/ProfilePage';
+import ProfilePage from './components/profile/ProfilePage';
 
 type ViewState = 'upload' | 'verification' | 'review' | 'caseDetail' | 'mapa' | 'docs' | 'profile' | 'extension' | 'admin' | 'notifications' | 'status';
 

@@ -7,6 +7,7 @@ import { ProfileHeader } from './ProfileHeader';
 import { BadgesAndKPI } from './BadgesAndKPI';
 import { ProfileTabs } from './ProfileTabs';
 import type { ProfileData } from './types';
+import { Separator } from '../ui/separator';
 
 // Mock data para desarrollo (según plan)
 const mockProfile: ProfileData = {
@@ -96,14 +97,17 @@ const ProfilePage: React.FC = () => {
       </div>
 
       {/* Composición principal */}
-      <ProfileHeader {...profile.user} {...profile.gamification} />
-      <div className="mt-8">
-        <BadgesAndKPI badges={profile.badges} stats={{
-          casesRegistered: profile.stats.casesRegistered,
-          validations: profile.stats.validations,
-          currentStreak: profile.gamification.currentStreak,
-          ranking: profile.gamification.ranking,
-        }} />
+      <div className="rounded-lg p-6 border-primary border-2">
+        <ProfileHeader {...profile.user} {...profile.gamification} />
+        <Separator />
+        <div className="mt-8">
+          <BadgesAndKPI badges={profile.badges} stats={{
+            casesRegistered: profile.stats.casesRegistered,
+            validations: profile.stats.validations,
+            currentStreak: profile.gamification.currentStreak,
+            ranking: profile.gamification.ranking,
+          }} />
+        </div>
       </div>
       <div className="mt-8">
         <ProfileTabs />
