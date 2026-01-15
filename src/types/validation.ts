@@ -144,6 +144,11 @@ export interface ValidationCaseListItemDTO {
   amiLevel?: AMIComplianceLevel;
   screenshotUrl?: string;
   // Make metadata properties accessible
+  community?: {
+    votes: number;
+    status: string;
+    breakdown: Record<string, unknown>;
+  };
   metadata?: {
     theme?: string;
     amiLevel?: AMIComplianceLevel;
@@ -234,6 +239,11 @@ export interface CaseEnrichedCompatible {
   consensus?: {
     state: 'human_consensus' | 'ai_only';
     final_labels: string[];
+  };
+  community?: {
+    votes: number;
+    status: string;
+    breakdown: Record<string, unknown>;
   };
   metadata?: {
     screenshot?: string;
@@ -333,6 +343,7 @@ export interface StandardizedCase {
   community?: {
     votes: number;
     status: string;
+    breakdown: Record<string, unknown>;
   };
 }
 

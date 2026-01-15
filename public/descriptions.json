@@ -1,0 +1,77 @@
+{
+  "forensic_labels": {
+    "✓ Sin alteraciones": "Contenido original auténtico.",
+    "✂️ Manipulado Digitalmente": "Editado con software.",
+    "🤖 Generado por IA": "Creado completamente por inteligencia artificial.",
+    "👤 Deepfake": "Rostros o voces suplantados mediante IA."
+  },
+  "infodemic_labels": {
+    "Desarrolla las premisas AMI": "El contenido promueve pensamiento crítico y alfabetización mediática.",
+    "⚠️ Requiere un enfoque AMI": "El contenido necesita análisis crítico y contextualización."
+  },
+  "diagnosis_descriptions": {
+    "forensic_manipulated": "Se detectaron patrones de edición digital que sugieren manipulación del contenido original.",
+    "forensic_clean": "No se encontraron evidencias significativas de alteración digital en el archivo analizado.",
+    "infodemic_high_risk": "Contenido presenta desinformación médica grave. Alto riesgo de propagación por apelación emocional y falsa autoridad científica."
+  },
+  "forensic_algorithms": {
+    "image": {
+      "title": "Análisis Forense de Imágenes",
+      "description": "Se examina la imagen en busca de inconsistencias a nivel de píxeles, metadatos (EXIF), y compresiones. El objetivo es detectar si la imagen ha sido alterada, editada o si su origen es sintético (generada por IA).",
+      "algorithms": [
+        {
+          "name": "Análisis de Nivel de Error (ELA)",
+          "finding": "Revela áreas con diferentes niveles de compresión JPEG, lo que puede indicar que partes de la imagen fueron añadidas o modificadas."
+        },
+        {
+          "name": "Análisis de Metadatos",
+          "finding": "Busca inconsistencias o la ausencia de metadatos EXIF, que a menudo son eliminados o alterados por software de edición."
+        },
+        {
+          "name": "Detección de Ruido Inconsistente",
+          "finding": "Analiza el patrón de ruido de la cámara. Una imagen auténtica debería tener un patrón de ruido consistente. Las áreas alteradas pueden mostrar un patrón de ruido diferente."
+        },
+        {
+          "name": "Detección de Clonación (Copy-Move)",
+          "finding": "Identifica regiones de la imagen que han sido copiadas y pegadas en otra parte de la misma imagen para ocultar o duplicar objetos."
+        }
+      ]
+    },
+    "video": {
+      "title": "Análisis Forense de Videos",
+      "description": "Se analiza el video cuadro por cuadro y en su conjunto para detectar manipulaciones, como deepfakes, ediciones o cortes no naturales. Se evalúa la consistencia de la luz, sombras, y el movimiento.",
+      "algorithms": [
+        {
+          "name": "Análisis de Flujo Óptico",
+          "finding": "Detecta inconsistencias en el movimiento de los objetos entre cuadros, lo que puede señalar una manipulación."
+        },
+        {
+          "name": "Detección de Deepfake",
+          "finding": "Utiliza modelos de IA para identificar artefactos visuales sutiles que son comunes en los videos deepfake, como parpadeo no natural, inconsistencias en el vello facial o reflejos en los ojos."
+        },
+        {
+          "name": "Análisis de Compresión de Video",
+          "finding": "Al igual que en las imágenes, las manipulaciones pueden dejar rastros en la estructura de compresión del video (ej. en los cuadros I, P, B de MPEG)."
+        }
+      ]
+    },
+    "audio": {
+      "title": "Análisis Forense de Audio",
+      "description": "Se examina la onda de audio y su espectrograma para encontrar evidencia de edición, empalmes, o si el audio ha sido generado o clonado por IA.",
+      "algorithms": [
+        {
+          "name": "Análisis Espectral",
+          "finding": "Busca anomalías en el espectrograma, como cortes abruptos de frecuencia o ruido de fondo inconsistente, que pueden indicar que se han unido diferentes grabaciones de audio."
+        },
+        {
+          "name": "Detección de Ruido de Red Eléctrica (ENF)",
+          "finding": "Compara el zumbido de fondo de la red eléctrica (50/60 Hz) en la grabación con una base de datos de referencia para verificar la hora y fecha de la grabación y detectar si hay discontinuidades."
+        },
+        {
+          "name": "Detección de Voz Sintética/Clonada",
+          "finding": "Analiza las características de la voz para encontrar patrones no humanos o artefactos típicos de los modelos de texto a voz o de clonación de voz."
+        }
+      ]
+    }
+  }
+}

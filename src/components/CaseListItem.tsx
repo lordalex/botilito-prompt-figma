@@ -212,22 +212,62 @@ export function CaseListItem({ caseItem, onClick, className = '' }: CaseListItem
 
       {/* 3. ACTION / STATUS BADGE (Right Side) - Fixed Width, Pushed Right */}
       <div className="shrink-0 ml-auto flex justify-end">
-        {amiConfig && AmiIcon ? (
-          // If manually checking style props inside the map, or use custom override
-          <div className={`px-4 py-2 rounded-lg flex items-center justify-center gap-2 w-auto whitespace-nowrap ${
-            // Override for Yellow Background rows: Use White Pill
-            isManipulated
-              ? 'bg-white border border-white text-red-700 shadow-sm'
-              : amiConfig.className // Standard style for white rows
-            }`}>
-            <AmiIcon className="h-4 w-4" />
-            <span className="font-bold text-xs">{amiConfig.label}</span>
-          </div>
-        ) : (
-          <div className="px-4 py-2 rounded-lg border border-gray-200 bg-gray-50 text-gray-500 flex items-center justify-center gap-2 whitespace-nowrap">
-            <span className="font-bold text-xs">Pendiente de Análisis</span>
-          </div>
-        )}
+        {(() => {
+          const getBadgeLabels = (caseItem: any) => {
+            console.log({ caseItem });
+            if (caseItem.community?.breakdown) {
+              const breakdown = caseItem.community.breakdown;
+              const entries = Object.entries(breakdown);
+              if (entries.length === 0) return [];
+              const maxVotes = Math.max(...entries.map(([, votes]) => votes as number));
+              return entries.filter(([, votes]) => votes === maxVotes).map(([label]) => label);
+            }
+            if (caseItem.consensusState === 'human_consensus' && caseItem.amiLevel) {
+              return [caseItem.amiLevel];
+            }
+            return [];
+          };
+
+          const labels = getBadgeLabels(caseItem);
+          console.log({ labels });
+          if (labels.length === 0) {
+            return (
+              <div className="px-4 py-2 rounded-lg border border-gray-200 bg-gray-50 text-gray-500 flex items-center justify-center gap-2 whitespace-nowrap">
+                <span className="font-bold text-xs">Pendiente de Análisis</span>
+              </div>
+            );
+          }
+
+          const AMI_CONFIGS: Record<string, { label: string, className: string }> = {
+            "Sin alteraciones": { label: "Sin Alteraciones", className: "bg-green-100 text-green-800 border border-green-200" },
+            "Manipulado Digitalmente": { label: "Manipulado", className: "bg-red-100 text-red-800 border border-red-200" },
+            "Generado por IA": { label: "Generado IA", className: "bg-blue-100 text-blue-800 border border-blue-200" },
+            "Deepfake": { label: "Deepfake", className: "bg-purple-100 text-purple-800 border border-purple-200" },
+            "Desarrolla las premisas AMI": { label: "Premisas AMI", className: "bg-yellow-100 text-yellow-800 border border-yellow-200" },
+            "⚠️ Requiere un enfoque AMI": { label: "Requiere AMI", className: "bg-orange-100 text-orange-800 border border-orange-200" },
+            "No cumple las premisas AMI": { label: "No Cumple AMI", className: "bg-red-100 text-red-800 border border-red-200" }
+          };
+
+          const getAmiConfig = (label: string) => AMI_CONFIGS[label] || { label: label, className: "bg-gray-100 text-gray-800" };
+
+          return (
+            <div className="flex gap-2">
+              {labels.map(label => {
+                const amiConfig = getAmiConfig(label);
+                const badgeClassName = isManipulated
+                  ? 'bg-white border border-white text-red-700 shadow-sm'
+                  : amiConfig.className;
+
+                return (
+                  <div key={label} className={`px-4 py-2 rounded-lg flex items-center justify-center gap-2 w-auto whitespace-nowrap ${badgeClassName}`}>
+                    <AmiIcon className="h-4 w-4" />
+                    <span className="font-bold text-xs">{amiConfig.label}</span>
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })()}
       </div>
 
     </div>

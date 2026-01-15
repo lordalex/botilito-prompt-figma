@@ -1,4 +1,4 @@
-import React, { useRef, useMemo } from 'react';
+import React, { useRef, useMemo, useState, useEffect } from 'react';
 import botilitoImage from '@/assets/e27a276e6ff0e187a67cf54678c265c1c38adbf7.png';
 import botilitoMascot from '@/assets/e27a276e6ff0e187a67cf54678c265c1c38adbf7.png';
 import {
@@ -40,6 +40,15 @@ interface ContentUploadResultProps {
 }
 
 export function ContentUploadResult({ result, onReset, backLabel = "Volver al listado", hideVoting = false }: ContentUploadResultProps) {
+  const [descriptions, setDescriptions] = useState<any>(null);
+
+  useEffect(() => {
+    fetch('/descriptions.json')
+      .then(response => response.json())
+      .then(data => setDescriptions(data))
+      .catch(error => console.error('Error loading descriptions:', error));
+  }, []);
+
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   // --- GUARD CLAUSE ---
@@ -134,6 +143,19 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
     executionTime = `${((end - start) / 1000).toFixed(1)}s`;
   }
 
+  let riskScore;
+  const insightsWithScore = (Array.isArray(rawInsights) ? rawInsights : []).filter(
+    (i: any) => typeof i.score === 'number'
+  );
+
+  if (insightsWithScore.length > 0) {
+    const sumOfScores = insightsWithScore.reduce((sum, insight) => sum + insight.score, 0);
+    const averageScore = sumOfScores / insightsWithScore.length;
+    riskScore = 100 - averageScore;
+  } else {
+    riskScore = 75;
+  }
+
   const caseData = {
     id: data.id || stdCase.id || "Unknown",
     display_id: displayId,
@@ -143,7 +165,7 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
       title: data.title || stdCase.overview?.title || data.overview?.title || "Sin título",
       summary: data.summary || stdCase.overview?.summary || data.overview?.summary || "Sin resumen disponible.",
       verdict_label: stdCase.overview?.verdict_label || data.overview?.verdict_label || data.metadata?.global_verdict || "Pendiente",
-      risk_score: stdCase.overview?.risk_score ?? data.overview?.risk_score ?? data.metadata?.risk_score ?? 0,
+      risk_score: riskScore,
       main_asset_url: stdCase.overview?.main_asset_url || data.overview?.main_asset_url || data.main_asset_url || data.url,
       source_domain: stdCase.overview?.source_domain || data.overview?.source_domain || data.source_domain,
       source_url: stdCase.overview?.source_url || data.overview?.source_url || data.source_url || data.url
@@ -535,7 +557,7 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
                       {isForensicCase || isAudio ? 'Diagnóstico Forense' : 'Diagnóstico Infodémico'}
                     </div>
                     <div className="text-right">
-                      <div className="text-2xl font-black text-gray-900">{caseData.overview.risk_score}%</div>
+                      <div className="text-2xl font-black text-gray-900">{isForensicCase ? caseData.overview.risk_score : 100 - caseData.overview.risk_score}%</div>
                       <div className="text-[10px] uppercase text-gray-500 font-bold">Precisión diagnóstica</div>
                     </div>
                   </div>
@@ -546,16 +568,16 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
                         'text-red-700 border-red-200'
                       }`}>
                       {isForensicCase
-                        ? (caseData?.verdict_label || (caseData?.overview.risk_score > 50 ? 'Manipulado Digitalmente' : '✓ Sin alteraciones'))
-                        : caseData?.verdict_label || 'Requiere un enfoque AMI'}
+                        ? (caseData?.overview.verdict_label || (caseData?.overview.risk_score > 50 ? 'Manipulado Digitalmente' : '✓ Sin alteraciones'))
+                        : caseData?.overview.verdict_label || 'Requiere un enfoque AMI'}
                     </Badge>
                   </div>
                   <p className="text-xs text-gray-600 mt-2">
-                    {isForensicCase
+                    {descriptions ? (isForensicCase
                       ? (caseData.overview.risk_score > 50
-                        ? "Se detectaron patrones de edición digital que sugieren manipulación del contenido original."
-                        : "No se encontraron evidencias significativas de alteración digital en el archivo analizado.")
-                      : "Contenido presenta desinformación médica grave. Alto riesgo de propagación por apelación emocional y falsa autoridad científica."}
+                        ? descriptions.diagnosis_descriptions.forensic_manipulated
+                        : descriptions.diagnosis_descriptions.forensic_clean)
+                      : descriptions.diagnosis_descriptions.infodemic_high_risk) : "Cargando descripción..."}
                   </p>
                 </div>
 
@@ -567,7 +589,7 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
                       Análisis Humano
                     </div>
                     <div className="text-right">
-                      <div className="text-2xl font-black text-gray-900">{caseData.community?.votes ? Math.min(caseData.community.votes * 10, 100) : 0}%</div>
+                      <div className="text-2xl font-black text-gray-900">{caseData.community?.votes ? (caseData.community.status != 'human_consensus' ? Math.min(100 / caseData.community.votes) : 100) : 0}%</div>
                       <div className="text-[10px] uppercase text-gray-500 font-bold">Consenso humano</div>
                     </div>
                   </div>
