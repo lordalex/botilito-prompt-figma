@@ -1,8 +1,21 @@
-// BadgesAndKPI.tsx
-// Fase 3: BadgesAndKPI
-// Archivo generado según el plan de desarrollo
-
 import React from 'react';
+import {
+  Target,
+  Calendar,
+  BookOpen,
+  Shield,
+  CheckCircle,
+  Eye,
+  Users,
+  TrendingUp,
+  Zap,
+  Award,
+  Star,
+  Crown,
+  Gem,
+  Lock,
+  Flame,
+} from 'lucide-react';
 import { Badge } from './types';
 
 export interface BadgesAndKPIProps {
@@ -17,13 +30,28 @@ export interface BadgesAndKPIProps {
 
 // Utilidad para contar PI total de insignias desbloqueadas
 function getTotalPI(badges: Badge[]) {
-  return badges.filter(b => b.unlocked).reduce((acc, b) => acc + b.piReward, 0);
+  return badges.filter((b) => b.unlocked).reduce((acc, b) => acc + b.piReward, 0);
 }
 
 export const BadgesAndKPI: React.FC<BadgesAndKPIProps> = ({ badges, stats }) => {
-  const totalBadges = badges.length;
-  const unlockedBadges = badges.filter(b => b.unlocked).length;
-  const totalPI = getTotalPI(badges);
+  // Si no hay badges del API, generar placeholders grises (15 por defecto según el plan)
+  const displayBadges =
+    badges.length > 0
+      ? badges
+      : Array.from({ length: 15 }, (_, idx) => ({
+          id: `placeholder-${idx}`,
+          name: `Insignia ${idx + 1}`,
+          icon: '',
+          tier: 'bronze' as const,
+          unlocked: false,
+          piReward: 0,
+          description: '',
+          requirement: '',
+        }));
+
+  const totalBadges = displayBadges.length;
+  const unlockedBadges = displayBadges.filter((b) => b.unlocked).length;
+  const totalPI = getTotalPI(displayBadges);
 
   // Colores por tier
   const tierColors: Record<string, string> = {
@@ -51,41 +79,66 @@ export const BadgesAndKPI: React.FC<BadgesAndKPIProps> = ({ badges, stats }) => 
 
       {/* Badge icons strip */}
       <div className="flex gap-3 mb-4 flex-wrap">
-        {badges.map((badge, idx) => (
-          <div
-            key={badge.id || idx}
-            className={`w-10 h-10 rounded-full flex items-center justify-center border-2 ${badge.unlocked ? tierColors[badge.tier] : tierColors.locked} ${badge.unlocked ? 'border-yellow-400' : 'border-gray-300'} shadow`}
-            title={badge.name}
-          >
-            {/* Icono: si hay, mostrar; si no, inicial */}
-            {badge.icon ? (
-              <img src={badge.icon} alt={badge.name} className="w-6 h-6" />
-            ) : (
-              <span className="text-xs font-bold text-gray-700">{badge.name[0]}</span>
-            )}
-          </div>
-        ))}
+        {displayBadges.map((badge, idx) => {
+          // Mapeo de iconos por índice
+          const icons = [
+            Target,
+            Calendar,
+            BookOpen,
+            Shield,
+            CheckCircle,
+            Eye,
+            Users,
+            TrendingUp,
+            Zap,
+            Award,
+            Star,
+            Crown,
+            Gem,
+            Lock,
+          ];
+          const IconComponent = icons[idx % icons.length];
+
+          return (
+            <div
+              key={badge.id || idx}
+              className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                badge.unlocked ? tierColors[badge.tier] : tierColors.locked
+              } shadow-md`}
+              title={badge.name}
+            >
+              <IconComponent
+                className={`w-6 h-6 ${badge.unlocked ? 'text-white' : 'text-gray-400'}`}
+                strokeWidth={2.5}
+              />
+            </div>
+          );
+        })}
       </div>
 
       {/* Quick Stats grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex flex-col items-center">
-          <span className="text-2xl font-bold text-blue-700">{stats.casesRegistered}</span>
-          <span className="text-xs text-gray-700 mt-1">Casos Registrados</span>
+          <Target className="w-8 h-8 text-blue-600 mb-2" strokeWidth={2} />
+          <span className="text-2xl font-bold">{stats.casesRegistered}</span>
+          <span className="text-xs text-gray-700 mt-2">Casos Registrados</span>
         </div>
         <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex flex-col items-center">
-          <span className="text-2xl font-bold text-green-700">{stats.validations}</span>
-          <span className="text-xs text-gray-700 mt-1">Validaciones</span>
+          <Users className="w-8 h-8 text-green-600 mb-2" strokeWidth={2} />
+          <span className="text-2xl font-bold">{stats.validations}</span>
+          <span className="text-xs text-gray-700 mt-2">Validaciones</span>
         </div>
         <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 flex flex-col items-center">
-          <span className="text-2xl font-bold text-orange-700">{stats.currentStreak}</span>
-          <span className="text-xs text-gray-700 mt-1">Racha Actual</span>
+          <Flame className="w-8 h-8 text-orange-600 mb-2" strokeWidth={2} />
+          <span className="text-2xl font-bold">{stats.currentStreak}</span>
+          <span className="text-xs text-gray-700 mt-2">Racha Actual</span>
         </div>
         <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 flex flex-col items-center">
-          <span className="text-2xl font-bold text-purple-700">#{stats.ranking}</span>
-          <span className="text-xs text-gray-700 mt-1">Ranking</span>
+          <Award className="w-8 h-8 text-purple-600 mb-2" strokeWidth={2} />
+          <span className="text-2xl font-bold">#{stats.ranking}</span>
+          <span className="text-xs text-gray-700 mt-2">Ranking</span>
         </div>
       </div>
     </div>
   );
-}
+};
