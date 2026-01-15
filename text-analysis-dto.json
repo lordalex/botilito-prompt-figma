@@ -1,544 +1,45 @@
 {
   "openapi": "3.0.3",
   "info": {
-    "title": "Botilito Text Analysis API",
-    "description": "The core analysis engine for text-based content. It orchestrates a Python AI pipeline (LLM + Forensics + Fact-Checking) and returns results in a **Unified DTO** format.\n\n### Authentication & Caching Model\nThis API implements a **Hybrid Auth** strategy to support public verification of already-known content while protecting resources for new analysis.\n\n1. **Public/Anonymous Access:**\n   - Allowed ONLY on `POST /submit` when `use_cache: true`.\n   - If the URL exists in the DB, it returns `200 OK` with the result.\n   - If the URL is NOT found, it returns `404 Not Found` (Client should then prompt user to login).\n\n2. **Authenticated Access:**\n   - Required for `POST /submit` when `use_cache: false` (Fresh Analysis).\n   - Required for `POST /submit` on a Cache Miss (to trigger new job).\n   - Required for `GET /status/{id}` (to view results).",
-    "version": "2.9.0",
+    "title": "API de Orquestación de Análisis de Texto (Supabase Function)",
+    "description": "Esta API, implementada como una Supabase Edge Function, actúa como un Backend-For-Frontend (BFF). Orquesta el proceso de análisis de texto, gestionando la comunicación entre el cliente (frontend) y el servicio de análisis de IA (Python). Proporciona endpoints para iniciar trabajos, consultar su estado y recibir un DTO (Data Transfer Object) estandarizado y listo para consumir.",
+    "version": "1.3.0",
     "contact": {
-      "name": "API Support",
-      "email": "dev@botilito.dev"
+      "name": "Soporte Técnico",
+      "email": "soporte@example.com"
     }
   },
   "servers": [
     {
-      "url": "https://mdkswlgcqsmgfmcuorxq.supabase.co/functions/v1/text-analysis",
-      "description": "Production Edge Function"
+      "url": "https://<project-ref>.supabase.co/functions/v1",
+      "description": "Servidor de producción de Supabase"
+    },
+    {
+      "url": "http://localhost:54321/functions/v1",
+      "description": "Servidor local de Supabase (para desarrollo)"
     }
   ],
-  "components": {
-    "securitySchemes": {
-      "bearerAuth": {
-        "type": "http",
-        "scheme": "bearer",
-        "bearerFormat": "JWT",
-        "description": "Supabase User JWT Token. Required for initiating new analysis jobs or accessing private data."
-      }
-    },
-    "schemas": {
-      "SubmitRequest": {
-        "type": "object",
-        "description": "Payload to initiate analysis or check the cache.",
-        "properties": {
-          "url": {
-            "type": "string",
-            "format": "uri",
-            "description": "The full URL of the web content to analyze. If provided, the backend will scrape the text and capture a screenshot.",
-            "example": "https://www.bbc.com/mundo/noticias-685321"
-          },
-          "text": {
-            "type": "string",
-            "description": "Raw text content to analyze directly. Used if `url` is not provided (e.g., WhatsApp chain message).",
-            "example": "URGENTE: Se confirma la llegada de naves extraterrestres al centro de Bogotá..."
-          },
-          "use_cache": {
-            "type": "boolean",
-            "default": false,
-            "description": "Flag to control caching behavior.\n- `true`: Checks the database for an existing result for this URL. If found, returns immediately. **Allows Anonymous usage**.\n- `false`: Forces a fresh re-analysis via the Python Engine, overwriting previous results. **Requires Authentication**."
-          }
-        },
-        "required": [
-          "vector_de_transmision"
-        ]
-      },
-      "JobResponse": {
-        "type": "object",
-        "description": "Standard response wrapper for job creation or status polling.",
-        "properties": {
-          "job_id": {
-            "type": "string",
-            "format": "uuid",
-            "description": "Unique identifier for the analysis job.",
-            "example": "a1b2c3d4-e5f6-7890-1234-567890abcdef"
-          },
-          "status": {
-            "type": "string",
-            "enum": [
-              "queued",
-              "processing",
-              "completed",
-              "failed"
-            ],
-            "description": "Current technical state of the analysis pipeline.",
-            "example": "completed"
-          },
-          "cached": {
-            "type": "boolean",
-            "description": "Indicates if the result was retrieved immediately from the database without invoking the AI engine.",
-            "example": true
-          },
-          "data": {
-            "$ref": "#/components/schemas/DTOContainer"
-          }
-        }
-      },
-      "DTOContainer": {
-        "type": "object",
-        "description": "Container ensuring the DTO is nested under `standardized_case` as per the unified schema contract.",
-        "properties": {
-          "standardized_case": {
-            "$ref": "#/components/schemas/StandardizedCase"
-          }
-        }
-      },
-      "StandardizedCase": {
-        "type": "object",
-        "description": "The core data model representing an analyzed case. This structure is identical across Text, Image, Audio, and Video analysis.",
-        "required": [
-          "id",
-          "type",
-          "lifecycle",
-          "overview",
-          "insights"
-        ],
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "description": "UUID of the document in the database.",
-            "example": "99f8d7c6-b5a4-4321-8765-abcdef123456"
-          },
-          "created_at": {
-            "type": "string",
-            "format": "date-time",
-            "example": "2025-12-30T10:00:00Z"
-          },
-          "type": {
-            "type": "string",
-            "enum": [
-              "text",
-              "image",
-              "video",
-              "audio"
-            ],
-            "description": "The modality of the analyzed content.",
-            "example": "text"
-          },
-          "lifecycle": {
-            "$ref": "#/components/schemas/Lifecycle"
-          },
-          "overview": {
-            "$ref": "#/components/schemas/Overview"
-          },
-          "insights": {
-            "type": "array",
-            "description": "A flat list containing all specific analytical findings. The frontend renders these based on their `category` and `raw_data` structure.",
-            "items": {
-              "oneOf": [
-                {
-                  "$ref": "#/components/schemas/Insight_AMICriterion"
-                },
-                {
-                  "$ref": "#/components/schemas/Insight_FactCheck"
-                },
-                {
-                  "$ref": "#/components/schemas/Insight_Competency"
-                },
-                {
-                  "$ref": "#/components/schemas/Insight_Forensics"
-                },
-                {
-                  "$ref": "#/components/schemas/Insight_Metadata"
-                }
-              ]
-            }
-          },
-          "reporter": {
-            "$ref": "#/components/schemas/Reporter"
-          },
-          "community": {
-            "$ref": "#/components/schemas/Community"
-          }
-        }
-      },
-      "Lifecycle": {
-        "type": "object",
-        "description": "Tracks the execution status and the business verification stage (Chain of Custody).",
-        "properties": {
-          "job_status": {
-            "type": "string",
-            "enum": [
-              "queued",
-              "processing",
-              "completed",
-              "failed"
-            ],
-            "example": "completed"
-          },
-          "custody_status": {
-            "type": "string",
-            "enum": [
-              "registered",
-              "analyzing",
-              "ai_processed",
-              "human_review",
-              "finalized"
-            ],
-            "description": "Maps to `ingestion_status` in DB. `ai_processed` means automated analysis is done and awaits human validation.",
-            "example": "ai_processed"
-          },
-          "last_update": {
-            "type": "string",
-            "format": "date-time"
-          }
-        }
-      },
-      "Overview": {
-        "type": "object",
-        "description": "High-level summary of the analysis for card display.",
-        "properties": {
-          "title": {
-            "type": "string",
-            "description": "Extracted headline or user provided title.",
-            "example": "Avistamiento de OVNIs en Bogotá"
-          },
-          "summary": {
-            "type": "string",
-            "description": "AI-generated executive summary (Medium length).",
-            "example": "El artículo reporta supuestos avistamientos de luces en el cielo de Bogotá. Sin embargo, no cita fuentes oficiales y utiliza lenguaje sensacionalista."
-          },
-          "verdict_label": {
-            "type": "string",
-            "description": "The final AMI assessment label.",
-            "example": "Necesita Estrategias AMI"
-          },
-          "risk_score": {
-            "type": "number",
-            "description": "Global compliance score (0-100). 0 is critical risk, 100 is fully compliant.",
-            "example": 45.5
-          },
-          "main_asset_url": {
-            "type": "string",
-            "format": "uri",
-            "nullable": true,
-            "description": "URL to the screenshot captured by ScreenshotMachine stored in R2.",
-            "example": "https://pub.r2.dev/jobs/a1b2c3d4/screenshot.jpg"
-          },
-          "source_domain": {
-            "type": "string",
-            "nullable": true,
-            "example": "noticias-falsas.com"
-          }
-        }
-      },
-      "Artifact": {
-        "type": "object",
-        "description": "Evidence attached to an insight.",
-        "properties": {
-          "type": {
-            "type": "string",
-            "enum": [
-              "text_snippet",
-              "image_url",
-              "link_url"
-            ]
-          },
-          "content": {
-            "type": "string",
-            "description": "The text excerpt or URL."
-          },
-          "label": {
-            "type": "string",
-            "description": "Caption for the evidence."
-          }
-        }
-      },
-      "Insight_AMICriterion": {
-        "type": "object",
-        "description": "Insight representing one of the 20 UNESCO AMI Criteria.",
-        "properties": {
-          "id": {
-            "type": "string",
-            "example": "ami_claridad_fuente"
-          },
-          "category": {
-            "type": "string",
-            "const": "content_quality"
-          },
-          "label": {
-            "type": "string",
-            "description": "Name of the criterion.",
-            "example": "Claridad de la Fuente"
-          },
-          "value": {
-            "type": "string",
-            "enum": [
-              "Cumple",
-              "Parcial",
-              "No Cumple"
-            ]
-          },
-          "score": {
-            "type": "number",
-            "enum": [
-              0,
-              50,
-              100
-            ],
-            "description": "Derived from Python score (0.0 -> 0, 0.5 -> 50, 1.0 -> 100)."
-          },
-          "description": {
-            "type": "string",
-            "description": "AI justification for the score.",
-            "example": "El artículo no identifica al autor ni al medio responsable, refiriéndose vagamente a 'redes sociales'."
-          },
-          "artifacts": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Artifact"
-            }
-          },
-          "raw_data": {
-            "type": "object",
-            "description": "Full original object from Python.",
-            "properties": {
-              "nombre": { "type": "string" },
-              "score": { "type": "number" },
-              "justificacion": { "type": "string" },
-              "cita": { "type": "string" },
-              "referencia": { "type": "string" }
-            }
-          }
-        }
-      },
-      "Insight_FactCheck": {
-        "type": "object",
-        "description": "Insight representing the internal verification of a specific claim.",
-        "properties": {
-          "id": {
-            "type": "string",
-            "example": "fc_0"
-          },
-          "category": {
-            "type": "string",
-            "const": "fact_check"
-          },
-          "label": {
-            "type": "string",
-            "const": "Verificación de Afirmación"
-          },
-          "value": {
-            "type": "string",
-            "enum": [
-              "Verificado",
-              "Refutado",
-              "No Verificable"
-            ]
-          },
-          "score": {
-            "type": "number",
-            "description": "100 (Verificado), 50 (No Verificable), 0 (Refutado)."
-          },
-          "description": {
-            "type": "string",
-            "description": "The claim text extracted from content.",
-            "example": "Se afirma que la NASA confirmó el evento."
-          },
-          "artifacts": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Artifact"
-            }
-          },
-          "raw_data": {
-            "type": "object",
-            "properties": {
-              "claim": { "type": "string" },
-              "verdict": { "type": "string" },
-              "explanation": { "type": "string", "example": "La NASA emitió un comunicado desmintiendo..." }
-            }
-          }
-        }
-      },
-      "Insight_Competency": {
-        "type": "object",
-        "description": "Insight for the 4 AMI Methodological Pillars.",
-        "properties": {
-          "id": {
-            "type": "string",
-            "example": "comp_evaluacion_critica"
-          },
-          "category": {
-            "type": "string",
-            "const": "compliance"
-          },
-          "label": {
-            "type": "string",
-            "example": "EVALUACION CRITICA"
-          },
-          "value": {
-            "type": "string",
-            "enum": [
-              "Fuerte",
-              "Débil"
-            ]
-          },
-          "score": {
-            "type": "number",
-            "description": "Python score normalized (0.8 -> 80)."
-          },
-          "description": {
-            "type": "string",
-            "example": "El texto facilita el contraste de datos..."
-          },
-          "raw_data": {
-            "type": "object",
-            "properties": {
-              "analisis": { "type": "string" },
-              "calificacion": { "type": "number" }
-            }
-          }
-        }
-      },
-      "Insight_Forensics": {
-        "type": "object",
-        "description": "Insight for technical analysis (e.g., Clickbait Detection).",
-        "properties": {
-          "id": {
-            "type": "string",
-            "example": "tech_clickbait"
-          },
-          "category": {
-            "type": "string",
-            "const": "forensics"
-          },
-          "label": {
-            "type": "string",
-            "const": "Detección de Clickbait"
-          },
-          "value": {
-            "type": "string",
-            "example": "Clickbait Detectado"
-          },
-          "score": {
-            "type": "number",
-            "description": "0 if Clickbait, 100 if Coherent."
-          },
-          "description": {
-            "type": "string",
-            "example": "El titular promete imágenes impactantes que no existen en el cuerpo."
-          },
-          "raw_data": {
-            "type": "object",
-            "properties": {
-              "es_clickbait": { "type": "boolean" },
-              "concordancia": { "type": "string" },
-              "analisis": { "type": "string" }
-            }
-          }
-        }
-      },
-      "Insight_Metadata": {
-        "type": "object",
-        "description": "Insight for source metadata analysis.",
-        "properties": {
-          "id": {
-            "type": "string",
-            "example": "tech_sources"
-          },
-          "category": {
-            "type": "string",
-            "const": "metadata"
-          },
-          "label": {
-            "type": "string",
-            "const": "Análisis de Fuentes"
-          },
-          "value": {
-            "type": "string",
-            "example": "Fuentes Débiles"
-          },
-          "score": {
-            "type": "null",
-            "description": "Qualitative analysis, no numeric score."
-          },
-          "description": {
-            "type": "string",
-            "example": "El dominio ha sido registrado hace menos de 1 mes."
-          },
-          "raw_data": {
-            "type": "object",
-            "properties": {
-              "conclusion": { "type": "string" },
-              "analisis": { "type": "string" }
-            }
-          }
-        }
-      },
-      "Reporter": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "name": {
-            "type": "string",
-            "description": "Full name or email."
-          },
-          "reputation": {
-            "type": "number",
-            "description": "User's current reputation score."
-          }
-        }
-      },
-      "Community": {
-        "type": "object",
-        "properties": {
-          "votes": {
-            "type": "integer",
-            "description": "Number of human validations received."
-          },
-          "status": {
-            "type": "string",
-            "enum": [
-              "ai_only",
-              "human_consensus",
-              "conflicted"
-            ],
-            "description": "Current state of community consensus."
-          }
-        }
-      },
-      "ErrorResponse": {
-        "type": "object",
-        "properties": {
-          "error": {
-            "type": "string",
-            "example": "Not Found"
-          },
-          "message": {
-            "type": "string",
-            "example": "This URL has not been analyzed yet. Please sign in to submit a new analysis."
-          }
-        }
-      }
-    }
-  },
-  "security": [
+  "tags": [
     {
-      "bearerAuth": []
+      "name": "Análisis de Texto",
+      "description": "Endpoints para gestionar el ciclo de vida de un análisis de texto."
     }
   ],
   "paths": {
-    "/submit": {
+    "/text-analysis-DTO/submit": {
       "post": {
-        "summary": "Submit Job / Check Cache",
-        "description": "The entry point for text analysis.\n\n**Scenario 1: Anonymous Cache Check**\n- Send `use_cache: true` with NO Auth Token.\n- Returns `200` if the URL exists in the DB (Free).\n- Returns `404` if the URL is new (Blocks anon users from running Python).\n\n**Scenario 2: Authenticated Submission**\n- Send Auth Token.\n- If `use_cache: false`, triggers a fresh Python job (`200 OK`).\n- If `use_cache: true` and miss, triggers a fresh Python job (`200 OK`).",
+        "tags": ["Análisis de Texto"],
+        "summary": "Inicia un nuevo trabajo de análisis de texto",
+        "description": "Envía una URL o un fragmento de texto para un análisis forense. La función primero verifica si existe un análisis reciente en caché para la misma URL. Si es así, devuelve el resultado completo inmediatamente. Si no, inicia un nuevo trabajo asíncrono en el backend de Python y devuelve un `job_id` para su seguimiento.",
+        "operationId": "submitAnalysis",
         "security": [
-          { "bearerAuth": [] },
-          {} 
+          {
+            "bearerAuth": []
+          }
         ],
         "requestBody": {
+          "required": true,
+          "description": "El contenido a analizar. Se debe proporcionar `url` o `text`.",
           "content": {
             "application/json": {
               "schema": {
@@ -549,70 +50,402 @@
         },
         "responses": {
           "200": {
-            "description": "Job Started OR Cached Result Retrieved",
+            "description": "Solicitud procesada. La respuesta puede ser un trabajo nuevo (`status: 'queued'`) o un resultado de caché (`status: 'completed'`).",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Cache Miss (Anonymous User)",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
+                  "$ref": "#/components/schemas/SubmitResponse"
                 }
               }
             }
           },
           "401": {
-            "description": "Unauthorized (Invalid Token)",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
+            "description": "No autorizado. El token JWT es inválido o no se proporcionó."
           }
         }
       }
     },
-    "/status/{job_id}": {
+    "/text-analysis-DTO/status/{job_id}": {
       "get": {
-        "summary": "Poll Job Status",
-        "description": "Checks the status of a specific job. If `completed`, the response includes the full `StandardizedCase` payload.",
+        "tags": ["Análisis de Texto"],
+        "summary": "Consulta el estado de un trabajo de análisis",
+        "description": "Recupera el estado de un trabajo de análisis en curso. Este endpoint debe ser consultado periódicamente (polling) hasta que el estado sea `completed` o `failed`. Una vez completado, la respuesta incluirá el DTO `StandardizedCase` con el análisis completo.",
+        "operationId": "getAnalysisStatus",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "job_id",
             "in": "path",
             "required": true,
+            "description": "El UUID único del trabajo, devuelto por el endpoint de envío.",
             "schema": {
               "type": "string",
               "format": "uuid"
-            }
+            },
+            "example": "a1b2c3d4-e5f6-7890-1234-567890abcdef"
           }
         ],
         "responses": {
           "200": {
-            "description": "Job Status (Processing or Completed)",
+            "description": "Respuesta exitosa con el estado actual del trabajo.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobResponse"
+                  "$ref": "#/components/schemas/StatusResponse"
                 }
               }
             }
           },
+          "401": {
+            "description": "No autorizado."
+          },
           "404": {
-            "description": "Job ID Not Found"
+            "description": "No se encontró ningún trabajo con el `job_id` proporcionado."
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Se requiere un token de acceso de Supabase (JWT) para la autenticación."
+      }
+    },
+    "schemas": {
+      "SubmitRequest": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "description": "La URL del contenido a analizar.",
+            "example": "https://www.example.com/news/article-to-analyze"
+          },
+          "text": {
+            "type": "string",
+            "description": "Un fragmento de texto para analizar directamente.",
+            "example": "Análisis sobre la interferencia en las elecciones de Brasil y Colombia."
+          },
+          "use_cache": {
+            "type": "boolean",
+            "description": "Si es `true`, la API intentará devolver un resultado de caché si la URL ya ha sido analizada recientemente.",
+            "default": true
+          }
+        }
+      },
+      "SubmitResponse": {
+        "type": "object",
+        "description": "La respuesta del endpoint de envío. Puede contener un `job_id` para un nuevo trabajo o el DTO completo si se encontró en caché.",
+        "properties": {
+          "job_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["queued", "completed"]
+          },
+          "data": {
+            "$ref": "#/components/schemas/DTOContainer"
+          },
+          "cached": {
+            "type": "boolean"
+          }
+        }
+      },
+      "StatusResponse": {
+        "type": "object",
+        "description": "La respuesta del endpoint de estado. Contiene el estado actual y el resultado si está completo.",
+        "properties": {
+          "job_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["queued", "processing", "completed", "failed"]
+          },
+          "data": {
+            "$ref": "#/components/schemas/DTOContainer"
+          }
+        }
+      },
+      "DTOContainer": {
+        "type": "object",
+        "properties": {
+          "standardized_case": {
+            "$ref": "#/components/schemas/StandardizedCase"
+          }
+        }
+      },
+      "StandardizedCase": {
+        "type": "object",
+        "description": "El DTO (Data Transfer Object) unificado que representa un caso de análisis completo. Este es el objeto principal que el frontend debe renderizar.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "El ID único del caso, que coincide con el `job_id`."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "La fecha y hora en que se completó y creó el caso."
+          },
+          "type": {
+            "type": "string",
+            "enum": ["text", "image", "video", "audio"],
+            "description": "El tipo de contenido analizado."
+          },
+          "lifecycle": {
+            "type": "object",
+            "properties": {
+              "job_status": {
+                "type": "string",
+                "enum": ["queued", "processing", "completed", "failed"]
+              },
+              "custody_status": {
+                "type": "string",
+                "description": "Estado interno de la custodia del análisis.",
+                "example": "ai_processed"
+              },
+              "last_update": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          },
+          "overview": {
+            "type": "object",
+            "description": "Un resumen de alto nivel del análisis, ideal para una vista de tarjeta o encabezado.",
+            "properties": {
+              "title": {
+                "type": "string",
+                "description": "El título del contenido analizado.",
+                "example": "Análisis de la situación política en América Latina"
+              },
+              "summary": {
+                "type": "string",
+                "description": "Un resumen conciso generado por la IA.",
+                "example": "El artículo discute la creciente polarización y el impacto de las redes sociales en las próximas elecciones de la región."
+              },
+              "verdict_label": {
+                "type": "string",
+                "description": "El veredicto final de la IA sobre el cumplimiento de las normas AMI.",
+                "enum": ["Desarrolla las premisas AMI", "Necesita Estrategias AMI", "Pendiente"],
+                "example": "Necesita Estrategias AMI"
+              },
+              "risk_score": {
+                "type": "number",
+                "description": "Un puntaje numérico (0-100) que representa el nivel de cumplimiento o riesgo. Un puntaje más bajo indica mayor riesgo o menor cumplimiento.",
+                "example": 35.5
+              },
+              "main_asset_url": {
+                "type": "string",
+                "nullable": true,
+                "description": "La URL de la captura de pantalla del artículo, si se generó. Ideal para usar como imagen principal.",
+                "example": "https://<r2-bucket-url>/jobs/.../screenshot.jpg"
+              },
+              "source_url": {
+                "type": "string",
+                "nullable": true,
+                "description": "La URL original del artículo que se analizó. Útil para enlazar a la fuente.",
+                "example": "https://www.example.com/news/original-article"
+              },
+              "source_domain": {
+                "type": "string",
+                "nullable": true,
+                "description": "El dominio de la URL de origen.",
+                "example": "www.example.com"
+              }
+            }
+          },
+          "insights": {
+            "type": "array",
+            "description": "Una lista de todos los hallazgos detallados del análisis. Esta es la sección principal para mostrar los resultados en profundidad. Cada hallazgo pertenece a una de las siguientes categorías: `metadata`, `content_quality`, `fact_check`, `compliance`, `forensics`, o `recommended_competency`.",
+            "items": {
+              "$ref": "#/components/schemas/GenericInsight"
+            }
+          },
+          "reporter": {
+            "type": "object",
+            "nullable": true,
+            "description": "Información sobre el usuario que reportó o inició el análisis.",
+            "properties": {
+              "id": {"type": "string", "format": "uuid"},
+              "name": {"type": "string"},
+              "reputation": {"type": "number"}
+            }
+          },
+          "community": {
+            "type": "object",
+            "properties": {
+              "votes": {"type": "number"},
+              "status": {"type": "string"}
+            }
+          }
+        },
+        "example": {
+          "id": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+          "created_at": "2026-01-15T10:00:00.000Z",
+          "type": "text",
+          "lifecycle": {
+            "job_status": "completed",
+            "custody_status": "ai_processed",
+            "last_update": "2026-01-15T10:00:00.000Z"
+          },
+          "overview": {
+            "title": "La oposición no tiene nada que ofrecer",
+            "summary": "El artículo desarrolla una tesis crítica sobre política internacional con un enfoque ideológico y argumentativo, más que informativo, sosteniendo que Venezuela enfrenta una agresión neocolonial.",
+            "verdict_label": "Necesita Estrategias AMI",
+            "risk_score": 25.0,
+            "main_asset_url": "https://<r2-bucket-url>/jobs/a1b2c3d4.../screenshot.jpg",
+            "source_url": "https://www.example.com/opinion/oposicion-critica",
+            "source_domain": "www.example.com"
+          },
+          "insights": [
+            {
+              "id": "meta_context_type",
+              "category": "metadata",
+              "label": "Clasificación de Contexto",
+              "value": "Opinión",
+              "score": null,
+              "description": "Texto argumentativo basado en juicios de valor y perspectiva subjetiva."
+            },
+            {
+              "id": "struct_thesis",
+              "category": "metadata",
+              "label": "Tesis Central",
+              "value": "La ignorancia del gobierno ante la crisis es inaceptable.",
+              "score": null,
+              "description": "El argumento principal propuesto en el texto de opinión."
+            },
+            {
+              "id": "struct_stance",
+              "category": "metadata",
+              "label": "Postura del Autor",
+              "value": "Indignación crítica y denuncia social.",
+              "score": null,
+              "description": "La perspectiva o ángulo que adopta el autor."
+            },
+            {
+              "id": "fc_0",
+              "category": "fact_check",
+              "label": "Verificación de Afirmación",
+              "value": "Refutado",
+              "score": 0,
+              "description": "Estados Unidos interferirá en las elecciones de Brasil y Colombia.",
+              "artifacts": [
+                {
+                  "type": "text_snippet",
+                  "content": "No hay evidencia pública y creíble que respalde una interferencia directa de EE.UU. en dichas elecciones en este momento.",
+                  "label": "Análisis Interno"
+                }
+              ]
+            },
+            {
+              "id": "ami_crit_9",
+              "category": "content_quality",
+              "label": "Lenguaje emocional",
+              "value": "No Cumple",
+              "score": 10,
+              "description": "Usa términos cargados como 'agresión neocolonial' y 'no tienen nada que ofrecer', buscando generar indignación y resistencia en el lector."
+            },
+            {
+              "id": "rec_comp_0",
+              "category": "recommended_competency",
+              "label": "Identificación de Sesgos y Perspectivas",
+              "value": "Recomendado",
+              "score": null,
+              "description": "Es crucial que el lector aprenda a identificar la perspectiva ideológica del autor y cómo esta influye en la presentación de la información."
+            }
+          ],
+          "reporter": {
+            "id": "user-uuid-12345",
+            "name": "Gerardo Rojas",
+            "reputation": 150
+          },
+          "community": {
+            "votes": 0,
+            "status": "ai_only"
+          }
+        }
+      },
+      "GenericInsight": {
+        "type": "object",
+        "description": "Representa un único hallazgo o punto de datos del análisis. La estructura exacta de `value` y `description` puede variar ligeramente según la categoría.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Un ID único para el hallazgo, ej. `ami_crit_9`, `fc_0`, `struct_what`.",
+            "example": "ami_crit_9"
+          },
+          "category": {
+            "type": "string",
+            "description": "La categoría a la que pertenece el hallazgo.",
+            "enum": ["forensics", "content_quality", "fact_check", "metadata", "compliance", "recommended_competency"],
+            "example": "content_quality"
+          },
+          "label": {
+            "type": "string",
+            "description": "Una etiqueta legible para el hallazgo.",
+            "example": "Lenguaje emocional"
+          },
+          "value": {
+            "type": "string",
+            "description": "El valor o resultado principal del hallazgo.",
+            "example": "No Cumple"
+          },
+          "score": {
+            "type": "number",
+            "nullable": true,
+            "description": "Un puntaje numérico (0-100) asociado con el hallazgo.",
+            "example": 20
+          },
+          "description": {
+            "type": "string",
+            "description": "Una explicación más detallada del hallazgo.",
+            "example": "El texto utiliza un lenguaje altamente sensacionalista y cargado de emociones para manipular al lector."
+          },
+          "artifacts": {
+            "type": "array",
+            "description": "Una lista de artefactos (evidencia) que respaldan el hallazgo.",
+            "items": {
+              "$ref": "#/components/schemas/Artifact"
+            }
+          },
+          "raw_data": {
+            "type": "object",
+            "description": "El fragmento de datos JSON sin procesar del backend de Python que corresponde a este hallazgo."
+          }
+        }
+      },
+      "Artifact": {
+        "type": "object",
+        "description": "Una pieza de evidencia, como una cita del texto.",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["image_url", "text_snippet", "link_url"]
+          },
+          "content": {
+            "type": "string",
+            "description": "El contenido de la evidencia.",
+            "example": "¡ESCÁNDALO! La verdad que no quieren que sepas."
+          },
+          "label": {
+            "type": "string",
+            "description": "Una etiqueta para la evidencia.",
+            "example": "Cita del Texto"
           }
         }
       }
     }
   }
 }
-

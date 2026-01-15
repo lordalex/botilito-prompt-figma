@@ -18,6 +18,7 @@ export interface Overview {
     risk_score?: number; // 0-100
     main_asset_url?: string;
     source_domain?: string | null;
+    source_url?: string | null; // Original URL for "Ver contenido original" link
 }
 
 export type InsightCategory = 'metadata' | 'forensics' | 'content_quality' | 'fact_check';

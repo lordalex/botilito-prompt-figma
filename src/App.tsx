@@ -14,12 +14,15 @@ import { MapaDesinfodemico } from './components/MapaDesinfodemico';
 import { DocumentacionIndicadores } from './components/DocumentacionIndicadores';
 import AdminDashboard from './components/AdminDashboard'; // Default export
 import { NotificationsView } from './components/NotificationsView';
+import { JobStatusViewer } from './components/JobStatusViewer';
+import { BannerExamples } from './components/BannerExamples';
 import { useAnalysisPolling } from './hooks/useAnalysisPolling';
 import { transformTextAnalysisToUI } from './services/analysisPresentationService';
 import { searchService } from './services/searchService';
 import { useAuth } from './providers/AuthProvider'; // Import the hook
+import ProfilePage from './components/profile/ProfilePage';
 
-type ViewState = 'upload' | 'verification' | 'review' | 'caseDetail' | 'mapa' | 'docs' | 'profile' | 'extension' | 'admin' | 'notifications';
+type ViewState = 'upload' | 'verification' | 'review' | 'caseDetail' | 'mapa' | 'docs' | 'profile' | 'extension' | 'admin' | 'notifications' | 'status';
 
 export default function App() {
   const { isAuthenticated, isLoading, signOut, profileComplete, profileChecked, checkUserProfile, isPasswordRecovery, clearPasswordRecovery, profile } = useAuth();
@@ -152,7 +155,9 @@ export default function App() {
         return <DocumentacionIndicadores />;
 
       case 'profile':
-        return <UserProfile />;
+        // Integración mínima: usar ProfilePage (estructura base)
+        // Fase 9: Componente orquestador según plan
+        return <ProfilePage />;
 
       case 'extension':
         return <ExtensionApp />;
@@ -162,6 +167,29 @@ export default function App() {
 
       case 'notifications':
         return <NotificationsView onViewTask={handleViewTask} />;
+
+      case 'status':
+        if (currentJobId && currentJobType) {
+          return (
+            <JobStatusViewer
+              jobId={currentJobId}
+              jobType={currentJobType}
+              onComplete={(caseId, type) => {
+                setCurrentJobId(caseId);
+                setCurrentJobType(type);
+                setActiveTab('caseDetail');
+              }}
+              onReset={() => {
+                setCurrentJobId(undefined);
+                setCurrentJobType(undefined);
+                setActiveTab('review');
+              }}
+            />
+          );
+        }
+        // Fallback to review if no job selected
+        return <ContentReview onViewTask={handleViewTask} />;
+
 
       default:
         return null;
@@ -207,8 +235,8 @@ export default function App() {
       console.log('[handleViewTask] Status is FAILED -> upload');
       setActiveTab('upload');
     } else if (status === 'processing') {
-      console.log('[handleViewTask] Status is PROCESSING -> upload');
-      setActiveTab('upload');
+      console.log('[handleViewTask] Status is PROCESSING -> status');
+      setActiveTab('status');
     } else {
       console.log('[handleViewTask] Status is UNKNOWN/PENDING -> upload');
       setActiveTab('upload');

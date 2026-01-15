@@ -10,9 +10,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { HumanValidationForm } from '@/components/HumanValidationForm';
-import { BotilitoValidationBanner } from '@/components/ui/botilito-validation-banner';
+import { BotilitoBanner, BotilitoValidationBanner } from '@/components/ui/botilito-validation-banner';
 import { generateCaseCode, ContentType, TransmissionVector } from '@/utils/caseCodeGenerator';
 import { domToPng } from 'modern-screenshot';
+import { logger } from '@/utils/logger';
 
 // Import Specific Views
 
@@ -44,6 +45,8 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
   // --- GUARD CLAUSE ---
   if (!result) return null;
 
+  logger.debug("ContentUploadResult Received Result:", result);
+
   // --- 1. TYPE DETECTION ---
   const resultType = result?.type || result?.meta?.type;
 
@@ -58,6 +61,8 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
   // Handle both direct StandardizedCase and EnrichedCase with nested standardized_case
   const rawData = result.fullResult || result;
   const stdCase = rawData.standardized_case || rawData;
+  console.log({ rawData, stdCase });
+  ;
   // Handle nested 'case' (common in VectorAsync) which might wrap the actual standardized case data
   const innerCase = rawData.case || stdCase;
   const data = { ...rawData, ...stdCase, ...innerCase }; // Merge everything
@@ -119,6 +124,16 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
     rawData.insights ||
     [];
 
+  // Dynamic Execution Time logic (approximate if not provided)
+  let executionTime = "N/A";
+  if (data.metadata?.processing_time) {
+    executionTime = `${data.metadata.processing_time.toFixed(1)}s`;
+  } else if (data.created_at && (data.completed_at || stdCase.completed_at)) {
+    const start = new Date(data.created_at).getTime();
+    const end = new Date(data.completed_at || stdCase.completed_at).getTime();
+    executionTime = `${((end - start) / 1000).toFixed(1)}s`;
+  }
+
   const caseData = {
     id: data.id || stdCase.id || "Unknown",
     display_id: displayId,
@@ -130,13 +145,15 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
       verdict_label: stdCase.overview?.verdict_label || data.overview?.verdict_label || data.metadata?.global_verdict || "Pendiente",
       risk_score: stdCase.overview?.risk_score ?? data.overview?.risk_score ?? data.metadata?.risk_score ?? 0,
       main_asset_url: stdCase.overview?.main_asset_url || data.overview?.main_asset_url || data.main_asset_url || data.url,
-      source_domain: stdCase.overview?.source_domain || data.overview?.source_domain || data.source_domain
+      source_domain: stdCase.overview?.source_domain || data.overview?.source_domain || data.source_domain,
+      source_url: stdCase.overview?.source_url || data.overview?.source_url || data.source_url || data.url
     },
     insights: Array.isArray(rawInsights) ? rawInsights : [],
     reporter: data.reporter || stdCase.reporter,
     community: data.community || stdCase.community || { votes: data.human_votes_count || 0, status: data.consensus?.state || 'pending' },
     metadata: data.metadata || { theme: data.theme, region: data.region, vector: caseVector },
-    recommendations: recommendations
+    recommendations: recommendations,
+    execution_time: executionTime
   };
 
   // Logic to determine if we show an Image or Audio player
@@ -145,16 +162,23 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
   const isVisual = !isAudio && !!caseData.overview.main_asset_url;
 
   // --- 3. INSIGHT FILTERING ---
-  const sourceInsight = caseData.insights.find((i: any) =>
-    i.id?.includes('source') || i.category === 'metadata' || i.label?.toLowerCase().includes('fuente')
-  );
+  const sourceInsight = caseData.insights.find((i: any) => i.id === 'tech_sources') ||
+    caseData.insights.find((i: any) =>
+      i.id?.includes('source') || i.category === 'metadata' || i.label?.toLowerCase().includes('fuente')
+    );
 
-  const clickbaitInsight = caseData.insights.find((i: any) =>
-    i.id?.includes('clickbait') || i.id?.includes('titular') || i.label?.toLowerCase().includes('titular')
-  );
+  const clickbaitInsight = caseData.insights.find((i: any) => i.id === 'tech_clickbait') ||
+    caseData.insights.find((i: any) =>
+      i.id?.includes('clickbait') || i.id?.includes('titular') || i.label?.toLowerCase().includes('titular')
+    );
 
   const amiCompetencies = caseData.insights.filter((i: any) =>
     i.category === 'competency' || i.category === 'compliance' || i.label?.toLowerCase().includes('competencia')
+  );
+
+  // Extract recommendations from insights array (category 'recommendation')
+  const recommendationInsights = caseData.insights.filter((i: any) =>
+    i.category === 'recommendation'
   );
 
   // Forensic insights for IMAGE/VIDEO analysis (Category 'forensics' in DTO)
@@ -172,12 +196,54 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
   // Content classification type insight (for TEXT content "Tipo" badge)
   const metaContextTypeInsight = caseData.insights.find((i: any) => i.id === 'meta_context_type');
 
+  // Extract raw_data from meta_context_type for content summary
+  const metaContextRawData = metaContextTypeInsight?.raw_data || {};
+
+  // SUPPORT FOR OLD SCHEMA (analisis_hecho) and NEW SCHEMA (estructura_hecho)
+  const resumenOld = metaContextRawData.analisis_hecho?.resumen || {};
+  const resumenNewHecho = metaContextRawData.estructura_hecho || {};
+  const resumenNewOpinion = metaContextRawData.estructura_opinion || {};
+  const resumenNewInvestigacion = metaContextRawData.estructura_investigacion || {};
+
+  // Unify summary data
+  const resumenContenido = {
+    que: resumenNewHecho.que || resumenNewOpinion.tesis_central || resumenNewInvestigacion.hipotesis_investigativa || resumenOld.que_sucedio,
+    quien: resumenNewHecho.quien || resumenNewOpinion.postura_autor || resumenOld.quien_involucrado,
+    cuando: resumenNewHecho.cuando || resumenOld.cuando_ocurrio,
+    donde: resumenNewHecho.donde || resumenNewInvestigacion.tipos_evidencia_usada?.join(', ') || resumenOld.donde_sucedio
+  };
+
+  // Find Botilito/AMI Personality Insight (New Schema)
+  const amiInsight = caseData.insights.find((i: any) =>
+    i.raw_data?.recomendaciones && Array.isArray(i.raw_data.recomendaciones)
+  ) || metaContextTypeInsight; // Fallback to meta if it has orientacion_usuario (old schema)
+
+  const amiRawData = amiInsight?.raw_data || {};
+  // New schema uses 'recomendaciones', old used 'orientacion_usuario'
+  const orientacionUsuario: string[] = amiRawData.recomendaciones || amiRawData.orientacion_usuario || [];
+  const conclusionAMI = amiRawData.diagnosticoAMI || amiRawData.conclusion || '';
+  const invitacionAMI = amiRawData.invitacion || '';
+
   // Check if this is a forensic analysis case
   const isForensicCase = caseData.type === 'IMAGE' || caseData.type === 'VIDEO';
   // Treat URL cases as TEXT for the purpose of the AMI layout
   const isTextCase = caseData.type === 'TEXT' || caseData.type === 'URL';
 
-  console.log('[ContentUploadResult] Rendering Case:', { id: caseData.id, type: caseData.type, isTextCase, isForensicCase });
+  console.log('[ContentUploadResult] DEBUG: Rendering Case:', {
+    id: caseData.id,
+    type: caseData.type,
+    isTextCase,
+    isForensicCase,
+    summaryLen: caseData.overview.summary?.length,
+    insightsCount: caseData.insights.length
+  });
+
+  console.log('[ContentUploadResult] DEBUG: Extracted Data:', {
+    resumenContenido,
+    sourceInsight: sourceInsight ? { id: sourceInsight.id, hasDescription: !!sourceInsight.description } : 'MISSING',
+    clickbaitInsight: clickbaitInsight ? { id: clickbaitInsight.id, hasRawData: !!clickbaitInsight.raw_data } : 'MISSING',
+    orientacionUsuarioLen: orientacionUsuario.length
+  });
 
 
   // --- HELPERS ---
@@ -383,15 +449,15 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
 
         <div className="max-w-7xl mx-auto px-4 md:px-6 py-6" ref={contentRef}>
           {/* BOTILITO BANNER */}
-          <BotilitoValidationBanner variant="detail" />
+          <BotilitoBanner variant="detail" />
 
-          <div className="flex flex-col lg:flex-row gap-8">
+          <div className="grid grid-cols-4 gap-2">
             {/* LEFT COLUMN (Main) */}
-            <div className="flex-1 min-w-0 space-y-6">
+            <div className="flex flex-col space-y-5 col-span-3">
 
               {/* 1. IMAGE HEADER */}
               {caseData.overview.main_asset_url && (
-                <div className="relative rounded-xl overflow-hidden border border-black shadow-sm group h-96">
+                <div className="relative rounded-xl overflow-hidden border border-black shadow-sm group aspect-video w-full max-h-[400px]">
                   <div className="absolute top-4 left-4 z-10">
                     <Badge className="bg-black/80 hover:bg-black/90 text-white border-none gap-2 pl-2">
                       <Camera className="h-3 w-3" /> Captura Original
@@ -407,47 +473,58 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
 
               {/* 2. TITLE & META - Only for Text Cases */}
               {isTextCase && (
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 text-gray-500">
-                  <FileText className="h-4 w-4" />
-                  <span className="text-xs font-bold uppercase tracking-wider">Titular</span>
-                </div>
-                <h1 className="text-2xl md:text-3xl font-bold text-gray-900 leading-tight">
-                  {caseData.overview.title}
-                </h1>
-
-                {/* Description / Summary Block */}
-                <div className="space-y-1">
+                <div className="space-y-4">
                   <div className="flex items-center gap-2 text-gray-500">
-                    <FileText className="h-3 w-3" />
-                    <span className="text-xs font-bold uppercase tracking-wider">Contenido Analizado</span>
+                    <FileText className="h-4 w-4" />
+                    <span className="text-xs font-bold uppercase tracking-wider">Titular</span>
                   </div>
-                  <p className="text-gray-600 text-sm leading-relaxed">
-                    {caseData.overview.summary}
-                  </p>
-                </div>
+                  <h1 className="text-2xl md:text-3xl font-bold text-gray-900 leading-tight">
+                    {caseData.overview.title}
+                  </h1>
 
-                {/* TAGS ROW */}
-                <div className="flex flex-wrap gap-2 pt-2">
-                  {caseData.overview.source_domain && (
-                    <Badge variant="secondary" className="bg-red-50 text-red-700 hover:bg-red-100 border-red-100 gap-1">
-                      Fuente: <strong>{caseData.overview.source_domain}</strong>
+                  {/* Description / Summary Block */}
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 text-gray-500">
+                      <FileText className="h-3 w-3" />
+                      <span className="text-xs font-bold uppercase tracking-wider">Contenido Analizado</span>
+                    </div>
+                    <p className="text-gray-600 text-sm leading-relaxed">
+                      {caseData.overview.summary}
+                    </p>
+                  </div>
+
+                  {/* TAGS ROW */}
+                  <div className="flex flex-wrap items-center gap-8 pt-3">
+                    {caseData.overview.source_domain && (
+                      <Badge variant="secondary" className="bg-red-50 text-red-700 hover:bg-red-100 border-red-100 gap-1">
+                        Fuente: <strong>{caseData.overview.source_domain}</strong>
+                      </Badge>
+                    )}
+                    <Badge variant="secondary" className="bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-100 gap-1">
+                      Tipo: <strong>{metaContextTypeInsight?.value || 'Hecho'}</strong>
                     </Badge>
-                  )}
-                  <Badge variant="secondary" className="bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-100 gap-1">
-                    Tipo: <strong>{metaContextTypeInsight?.value || 'Hecho'}</strong>
-                  </Badge>
-                  {caseData.metadata?.theme && (
-                    <Badge variant="secondary" className="bg-gray-100 text-gray-700 hover:bg-gray-200 border-gray-200 gap-1">
-                      Tema: <strong>{caseData.metadata.theme}</strong>
-                    </Badge>
-                  )}
+                    {caseData.metadata?.theme && (
+                      <Badge variant="secondary" className="bg-gray-100 text-gray-700 hover:bg-gray-200 border-gray-200 gap-1">
+                        Tema: <strong>{caseData.metadata.theme}</strong>
+                      </Badge>
+                    )}
+                    {caseData.overview.source_url && (
+                      <a
+                        href={caseData.overview.source_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-sm text-primary hover:text-primary/80 font-medium transition-colors"
+                      >
+                        <Globe className="h-3 w-3" />
+                        Ver contenido original →
+                      </a>
+                    )}
+                  </div>
                 </div>
-              </div>
               )}
 
               {/* 3. DIAGNOSIS CARDS (Infodemic & Human) */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 {/* Infodemic / Forensic Diagnosis */}
                 <div className={`rounded-xl border-2 p-4 flex flex-col justify-between ${caseData.overview.risk_score < 30 ? 'bg-green-50 border-green-200' :
                   caseData.overview.risk_score < 70 ? 'bg-orange-50 border-orange-200' :
@@ -491,18 +568,20 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
                       Análisis Humano
                     </div>
                     <div className="text-right">
-                      <div className="text-2xl font-black text-gray-900">{caseData.community?.votes ? Math.min(caseData.community.votes * 10, 100) : 92}%</div>
+                      <div className="text-2xl font-black text-gray-900">{caseData.community?.votes ? Math.min(caseData.community.votes * 10, 100) : 0}%</div>
                       <div className="text-[10px] uppercase text-gray-500 font-bold">Consenso humano</div>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <Badge className="bg-transparent text-black border border-gray text-xs font-semibold">Análisis Humano</Badge>
-                    <Badge variant="outline" className="text-red-700 border-red-200 bg-white">
-                      requiere un enfoque AMI
+                    <Badge variant="outline" className={`bg-white ${caseData.community?.votes > 0 ? 'text-red-700 border-red-200' : 'text-gray-500 border-gray-200'}`}>
+                      {caseData.community?.votes > 0 ? 'requiere un enfoque AMI' : 'Pendiente de validación'}
                     </Badge>
                   </div>
                   <p className="text-xs text-gray-600 mt-2">
-                    Los especialistas en AMI confirman que este contenido presenta características de desinformación y requiere un análisis crítico profundo.
+                    {caseData.community?.votes > 0
+                      ? "Los especialistas en AMI confirman que este contenido presenta características de desinformación."
+                      : "Aún no hay suficientes validaciones humanas para este caso."}
                   </p>
                 </div>
               </div>
@@ -510,205 +589,207 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
               {/* 4. AMI ANALYSIS SECTION */}
               {/* 4. AMI ANALYSIS SECTION (Text Only) */}
               {isTextCase && (
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2">
+                <div className="space-y-4" style={{ width: '80%' }}>
+                  <div className="flex items-center gap-1">
                     <span className="text-[#FFDA00]">✨</span>
                     <h3 className="font-bold text-gray-900">Análisis con enfoque en Alfabetización Mediática e Informacional (AMI)</h3>
                   </div>
 
-                  {/* A. Resumen del Contenido */}
-                  <Card className="bg-gray-50 border-none shadow-none ring-1 ring-gray-200">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm font-bold flex items-center gap-2 text-gray-700">
-                        <FileText className="h-4 w-4" /> Resumen del Contenido
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-2">
-                      <div className="grid grid-cols-[60px_1fr] gap-2 text-sm">
-                        <span className="font-bold text-gray-500">Qué:</span>
-                        <span className="text-gray-800">{caseData.overview.summary?.split('.')[0]}.</span>
+                  {/* AMI Cards - Grid Layout */}
+                  <div className="grid grid-cols-1 md:grid-cols-1 gap-4 max-w-[95%] mx-auto">
+                    {/* A. Resumen del Contenido */}
+                    <Card className="bg-gray-50 border-none shadow-none ring-1 ring-gray-200 h-full">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-bold flex items-center gap-2 text-gray-700">
+                          <FileText className="h-4 w-4" /> Resumen del Contenido
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="grid grid-cols-[80px_1fr] gap-x-4 gap-y-2 text-sm">
+                          <span className="font-bold text-gray-500">Qué:</span>
+                          <span className="text-gray-800">{resumenContenido.que || caseData.overview.summary || 'Sin información disponible.'}</span>
 
-                        <span className="font-bold text-gray-500">Quién:</span>
-                        <span className="text-gray-800">{caseData.overview.source_domain || 'Desconocido'}</span>
+                          <span className="font-bold text-gray-500">Quién:</span>
+                          <span className="text-gray-800">{resumenContenido.quien || caseData.overview.source_domain || 'Desconocido'}</span>
 
-                        <span className="font-bold text-gray-500">Cuándo:</span>
-                        <span className="text-gray-800">{new Date(caseData.created_at).toLocaleDateString()}</span>
+                          <span className="font-bold text-gray-500">Cuándo:</span>
+                          <span className="text-gray-800">{resumenContenido.cuando || "No mencionado"}</span>
 
-                        <span className="font-bold text-gray-500">Dónde:</span>
-                        <span className="text-gray-800">{getTransmissionVector(caseData.metadata?.vector)}</span>
-                      </div>
-                    </CardContent>
-                  </Card>
+                          <span className="font-bold text-gray-500">Dónde:</span>
+                          <span className="text-gray-800">{resumenContenido.donde || getTransmissionVector(caseData.metadata?.vector)}</span>
+                        </div>
+                      </CardContent>
+                    </Card>
 
-                  {/* B. Análisis de Fuentes (Blue) */}
-                  <Card className="bg-blue-50 border-none shadow-none ring-1 ring-blue-100">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm font-bold flex items-center gap-2 text-blue-800">
-                        <Globe className="h-4 w-4" /> Análisis de Fuentes y Datos
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-sm text-blue-900">
-                        {sourceInsight?.description || "El contenido proviene de fuentes que requieren verificación adicional. Se recomienda contrastar con medios verificados."}
-                      </p>
-                    </CardContent>
-                  </Card>
+                    {/* B. Análisis de Fuentes (Blue) */}
+                    <Card className="bg-blue-50 border-none shadow-none ring-1 ring-blue-100 h-full">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-bold flex items-center gap-2 text-blue-800">
+                          <Globe className="h-4 w-4" /> Análisis de Fuentes y Datos
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-sm text-blue-900 leading-relaxed">
+                          {sourceInsight?.description || sourceInsight?.value || "El contenido proviene de fuentes que requieren verificación adicional. Se recomienda contrastar con medios verificados."}
+                        </p>
+                      </CardContent>
+                    </Card>
 
-                  {/* C. Alerta Clickbait (Red) */}
-                  <Card className="bg-red-50 border-none shadow-none ring-1 ring-red-100">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm font-bold flex items-center gap-2 text-red-700">
-                        <AlertTriangle className="h-4 w-4" /> Alerta: Titular vs. Contenido
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-sm text-red-800 font-medium">
-                        ⚠️ {clickbaitInsight?.description || "El titular presenta características de clickbait o sensacionalismo que no corresponden completamente con el contenido real."}
-                      </p>
-                    </CardContent>
-                  </Card>
+                    {/* C. Alerta Clickbait (Red) */}
+                    <Card className="bg-red-50 border-none shadow-none ring-1 ring-red-100 h-full">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-bold flex items-center gap-2 text-red-700">
+                          <AlertTriangle className="h-4 w-4" /> Alerta: Titular vs. Contenido
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-sm text-red-800 font-medium leading-relaxed">
+                          ⚠️ {clickbaitInsight?.raw_data?.analisis_ami || clickbaitInsight?.description || "El titular presenta características de clickbait o sensacionalismo que no corresponden completamente con el contenido real."}
+                        </p>
+                      </CardContent>
+                    </Card>
 
-                  {/* D. Competencias AMI (Green) */}
-                  <Card className="bg-green-50 border-none shadow-none ring-1 ring-green-100">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm font-bold flex items-center gap-2 text-green-800">
-                        <ShieldCheck className="h-4 w-4" /> Competencias AMI Recomendadas:
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <ul className="space-y-3">
-                        {amiCompetencies.length > 0 ? amiCompetencies.map((comp: any, i: number) => (
-                          <li key={i} className="flex gap-3 text-sm text-green-900">
-                            <span className="bg-yellow-400 text-yellow-900 text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shrink-0">
-                              {i + 1}
-                            </span>
-                            <span>{comp.description}</span>
-                          </li>
-                        )) : (
-                          <>
-                            <li className="flex gap-3 text-sm text-green-900">
-                              <span className="bg-yellow-400 text-yellow-900 text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shrink-0">1</span>
-                              <span>Acceso a la información: Identificar y acceder a fuentes confiables y verificables</span>
+                    {/* D. Competencias AMI (Green) */}
+                    <Card className="bg-green-50 border-none shadow-none ring-1 ring-green-100 h-full">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-bold flex items-center gap-2 text-green-800">
+                          <ShieldCheck className="h-4 w-4" /> Competencias AMI Recomendadas:
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <ul className="space-y-2">
+                          {orientacionUsuario.length > 0 ? orientacionUsuario.map((orientacion: string, i: number) => (
+                            <li key={i} className="flex gap-3 text-sm text-green-900">
+                              <span className="bg-yellow-400 text-yellow-900 text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shrink-0">
+                                {i + 1}
+                              </span>
+                              <span>{orientacion}</span>
                             </li>
-                            <li className="flex gap-3 text-sm text-green-900">
-                              <span className="bg-yellow-400 text-yellow-900 text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shrink-0">2</span>
-                              <span>Evaluación crítica: Analizar la credibilidad de las fuentes y la veracidad del contenido</span>
+                          )) : amiCompetencies.length > 0 ? amiCompetencies.map((comp: any, i: number) => (
+                            <li key={i} className="flex gap-3 text-sm text-green-900">
+                              <span className="bg-yellow-400 text-yellow-900 text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shrink-0">
+                                {i + 1}
+                              </span>
+                              <span>{comp.description}</span>
                             </li>
-                            <li className="flex gap-3 text-sm text-green-900">
-                              <span className="bg-yellow-400 text-yellow-900 text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shrink-0">3</span>
-                              <span>Comprensión del contexto: Entender el contexto histórico, social y político de la información</span>
-                            </li>
-                          </>
+                          )) : (
+                            <li className="text-sm text-green-900">No hay competencias AMI disponibles para este análisis.</li>
+                          )}
+                        </ul>
+                        {conclusionAMI && (
+                          <p className="text-xs text-green-800 mt-4 pt-3 border-t border-green-200">
+                            {conclusionAMI}
+                          </p>
                         )}
-                      </ul>
-                    </CardContent>
-                  </Card>
+                      </CardContent>
+                    </Card>
+                  </div>
                 </div>
               )}
 
 
               {/* 5. INSIGHTS SECTION - Tabbed (Pruebas / Evidencias) - Only for Forensic Cases */}
               {isForensicCase && (
-              <div className="space-y-4">
-                <Tabs defaultValue="pruebas" className="w-full">
-                  <TabsList className="bg-gray-100 p-1 rounded-lg">
-                    <TabsTrigger value="pruebas" className="text-sm font-bold data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-md px-4 py-2">
-                      Pruebas ({caseData.insights.filter((i: any) => i.category === 'forensics').length})
-                    </TabsTrigger>
-                    <TabsTrigger value="evidencias" className="text-sm font-bold data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-md px-4 py-2">
-                      Evidencias
-                    </TabsTrigger>
-                  </TabsList>
+                <div className="space-y-4">
+                  <Tabs defaultValue="pruebas" className="w-full">
+                    <TabsList className="bg-gray-100 p-1 rounded-lg">
+                      <TabsTrigger value="pruebas" className="text-sm font-bold data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-md px-4 py-2">
+                        Pruebas ({caseData.insights.filter((i: any) => i.category === 'forensics').length})
+                      </TabsTrigger>
+                      <TabsTrigger value="evidencias" className="text-sm font-bold data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-md px-4 py-2">
+                        Evidencias
+                      </TabsTrigger>
+                    </TabsList>
 
-                  {/* PRUEBAS TAB */}
-                  <TabsContent value="pruebas" className="mt-6 space-y-3">
-                    {caseData.insights
-                      .filter((i: any) => i.category === 'forensics')
-                      .map((insight: any, idx: number) => {
-                        const score = insight.score || 0;
-                        let statusLabel = 'LIMPIO';
-                        let statusColor = 'bg-green-500 text-white';
+                    {/* PRUEBAS TAB */}
+                    <TabsContent value="pruebas" className="mt-6 space-y-3">
+                      {caseData.insights
+                        .filter((i: any) => i.category === 'forensics')
+                        .map((insight: any, idx: number) => {
+                          const score = insight.score || 0;
+                          let statusLabel = 'LIMPIO';
+                          let statusColor = 'bg-green-500 text-white';
 
-                        if (score >= 80) {
-                          statusLabel = 'MANIPULADO';
-                          statusColor = 'bg-orange-500 text-white';
-                        } else if (score >= 40) {
-                          statusLabel = 'MODIFICADO';
-                          statusColor = 'bg-orange-500 text-white';
-                        }
-                        return (
+                          if (score >= 80) {
+                            statusLabel = 'MANIPULADO';
+                            statusColor = 'bg-orange-500 text-white';
+                          } else if (score >= 40) {
+                            statusLabel = 'MODIFICADO';
+                            statusColor = 'bg-orange-500 text-white';
+                          }
+                          return (
                             <div
                               key={idx}
                               className="bg-gray-100 border border-transparent hover:border-2 hover:border-primary rounded-lg p-4 shadow-sm transition-all duration-200 hover:shadow-md"
                             >
-                            <div className="flex justify-between items-start mb-3">
-                              <div className="flex-1 pr-3">
-                                <h4 className="text-sm font-semibold text-gray-900 mb-0.5">{insight.label}</h4>
-                                <p className="text-xs text-gray-600 leading-relaxed">{insight.description}</p>
+                              <div className="flex justify-between items-start mb-3">
+                                <div className="flex-1 pr-3">
+                                  <h4 className="text-sm font-semibold text-gray-900 mb-0.5">{insight.label}</h4>
+                                  <p className="text-xs text-gray-600 leading-relaxed">{insight.description}</p>
+                                </div>
+                                <Badge className={`shrink-0 text-xs uppercase tracking-wide rounded-md ${statusColor}`}>
+                                  {statusLabel}
+                                </Badge>
                               </div>
-                              <Badge className={`shrink-0 text-xs uppercase tracking-wide rounded-md ${statusColor}`}>
-                                {statusLabel}
+
+                              {/* Progress Bar Section */}
+                              <div className="space-y-1.5">
+                                <div className="flex justify-between items-center">
+                                  <span className="text-xs text-gray-600">Precisión diagnóstica</span>
+                                  <span className="text-sm font-semibold text-gray-900">{score}%</span>
+                                </div>
+                                <div className="h-2 w-full bg-gray-200 rounded-sm overflow-hidden">
+                                  <div
+                                    className="h-full transition-all duration-700 ease-out"
+                                    style={{ width: `${score}%`, backgroundColor: `var(--color-yellow-500)` }}
+                                  />
+                                </div>
+                                <div className="flex justify-between items-center pt-0.5">
+                                  <span className="text-xs text-gray-600">Tiempo de ejecución</span>
+                                  <span className="text-xs text-gray-900">{insight.execution_time || '1.5s'}</span>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                    </TabsContent>
+
+                    {/* EVIDENCIAS TAB */}
+                    <TabsContent value="evidencias" className="mt-4 space-y-4">
+                      {caseData.insights
+                        .filter((i: any) => i.category !== 'forensics')
+                        .map((insight: any, idx: number) => (
+                          <div key={idx} className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+                            <div className="flex justify-between items-start mb-2">
+                              <div className="flex items-center gap-2">
+                                <Info className="h-4 w-4 text-gray-400" />
+                                <h4 className="font-bold text-gray-900 text-sm">{insight.label}</h4>
+                              </div>
+                              <Badge variant="outline" className="bg-gray-50 text-gray-600 border-gray-200 text-[10px]">
+                                {insight.value || "INFO"}
                               </Badge>
                             </div>
-
-                            {/* Progress Bar Section */}
-                            <div className="space-y-1.5">
-                              <div className="flex justify-between items-center">
-                                <span className="text-xs text-gray-600">Precisión diagnóstica</span>
-                                <span className="text-sm font-semibold text-gray-900">{score}%</span>
-                              </div>
-                              <div className="h-2 w-full bg-gray-200 rounded-sm overflow-hidden">
-                                <div 
-                                  className="h-full transition-all duration-700 ease-out"
-                                  style={{ width: `${score}%`, backgroundColor: `var(--color-yellow-500)` }} 
-                                />
-                              </div>
-                              <div className="flex justify-between items-center pt-0.5">
-                                <span className="text-xs text-gray-600">Tiempo de ejecución</span>
-                                <span className="text-xs text-gray-900">{insight.execution_time || '1.5s'}</span>
-                              </div>
-                            </div>
+                            <p className="text-sm text-gray-600 font-mono bg-gray-50 p-2 rounded border border-gray-100">
+                              {insight.description || "Sin descripción"}
+                            </p>
                           </div>
-                        );
-                      })}
-                  </TabsContent>
-
-                  {/* EVIDENCIAS TAB */}
-                  <TabsContent value="evidencias" className="mt-4 space-y-4">
-                    {caseData.insights
-                      .filter((i: any) => i.category !== 'forensics')
-                      .map((insight: any, idx: number) => (
-                        <div key={idx} className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-                          <div className="flex justify-between items-start mb-2">
-                            <div className="flex items-center gap-2">
-                              <Info className="h-4 w-4 text-gray-400" />
-                              <h4 className="font-bold text-gray-900 text-sm">{insight.label}</h4>
-                            </div>
-                            <Badge variant="outline" className="bg-gray-50 text-gray-600 border-gray-200 text-[10px]">
-                              {insight.value || "INFO"}
-                            </Badge>
-                          </div>
-                          <p className="text-sm text-gray-600 font-mono bg-gray-50 p-2 rounded border border-gray-100">
-                            {insight.description || "Sin descripción"}
-                          </p>
-                        </div>
-                      ))}
-                    {caseData.insights.filter((i: any) => i.category !== 'forensics').length === 0 && (
-                      <p className="text-sm text-gray-500 text-center py-4">No hay evidencias adicionales disponibles.</p>
-                    )}
-                  </TabsContent>
-                </Tabs>
-              </div>
+                        ))}
+                      {caseData.insights.filter((i: any) => i.category !== 'forensics').length === 0 && (
+                        <p className="text-sm text-gray-500 text-center py-4">No hay evidencias adicionales disponibles.</p>
+                      )}
+                    </TabsContent>
+                  </Tabs>
+                </div>
               )}
 
 
             </div>
 
             {/* RIGHT COLUMN (Sidebar) */}
-            <div className="lg:w-80 lg:flex-shrink-0 space-y-6">
+            <div className="flex flex-col space-y-5 lg:col-span-1" >
               {/* Información del Caso */}
-              <Card className="shadow-sm border-2 mb-6" style={{ borderColor: '#FFDA00' }}>
-                <CardHeader className="pb-2 pt-4 px-4">
+              <Card className="shadow-sm border-2 mb-8" style={{ borderColor: '#FFDA00' }}>
+                <CardHeader className="pb-4 pt-4 px-4">
                   <CardTitle className="text-sm font-bold flex items-center gap-2">
                     <Info className="h-5 w-5 text-primary" />
                     Información del Caso
@@ -718,7 +799,7 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
                   <div className="flex justify-between text-xs"><span className="text-gray-500 font-medium">Caso</span><span className="font-mono">{caseData.display_id}</span></div>
                   <div className="flex justify-between text-xs"><span className="text-gray-500 font-medium">Tipo</span><span className="font-bold">{caseData.type}</span></div>
                   <div className="flex justify-between text-xs"><span className="text-gray-500 font-medium">Vector de transmisión</span><span>{caseData.metadata?.vector || 'Web'}</span></div>
-                  <div className="flex justify-between text-xs"><span className="text-gray-500 font-medium">Reportado por</span><span>{caseData.reporter?.name || '-'}</span></div>
+                  <div className="flex justify-between text-xs"><span className="text-gray-500 font-medium">Registrado por</span><span>{caseData.reporter?.name || '-'}</span></div>
                   <div className="flex justify-between text-xs"><span className="text-gray-500 font-medium">Fecha</span><span>{new Date(caseData.created_at).toLocaleDateString()}</span></div>
                 </CardContent>
               </Card>
@@ -765,91 +846,91 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="px-4 pb-4 space-y-4">
-                  <div className="flex justify-between text-xs"><span className="text-gray-500 font-medium">Pruebas realizadas</span><span className="font-bold">{caseData.insights.length || 1}</span></div>
-                  <div className="flex justify-between text-xs"><span className="text-gray-500 font-medium">Tiempo total</span><span className="font-bold">12.0s</span></div>
-                  <div className="flex justify-between text-xs"><span className="text-gray-500 font-medium">Nivel de precisión diagnóstica</span><span className="font-bold">{caseData.overview.risk_score > 0 ? '92%' : '0%'}</span></div>
+                  <div className="flex justify-between text-xs"><span className="text-gray-500 font-medium">Pruebas realizadas</span><span className="font-bold">{caseData.insights.length}</span></div>
+                  <div className="flex justify-between text-xs"><span className="text-gray-500 font-medium">Tiempo total</span><span className="font-bold">{caseData.execution_time}</span></div>
+                  <div className="flex justify-between text-xs"><span className="text-gray-500 font-medium">Nivel de precisión diagnóstica</span><span className="font-bold">{caseData.overview.risk_score}%</span></div>
                 </CardContent>
               </Card>
 
               {/* Cadena de Custodia */}
-            <Card className="shadow-sm border-2 rounded-xl" style={{ borderColor: '#FFDA00' }}>
+              <Card className="shadow-sm border-2 rounded-xl" style={{ borderColor: '#FFDA00' }}>
                 <CardHeader className="pt-4 px-4">
-                <CardTitle className="text-base font-bold flex items-center gap-2 text-gray-900">
-                  <Shield className="h-5 w-5 text-primary" /> Cadena de Custodia
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="px-6 pb-6">
-                <div className="space-y-0">
-                  {/* Event 1: Case Created */}
-                  <div className="flex gap-3 py-4">
-                    <div className="shrink-0 w-3 h-3 rounded-full mt-1" style={{ backgroundColor: '#FFDA00' }}></div>
-                    <div className="flex flex-col gap-1 flex-1">
-                      <span className="text-sm font-bold text-gray-900">Caso creado</span>
-                      <span className="text-xs text-gray-600">
-                        {new Date(caseData.created_at).toLocaleDateString('es-CO', { 
-                          day: 'numeric', 
-                          month: 'long', 
-                          year: 'numeric' 
-                        })} a las {new Date(caseData.created_at).toLocaleTimeString('es-CO', {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                          second: '2-digit',
-                          hour12: true
-                        })} - Sistema Botilito
-                      </span>
+                  <CardTitle className="text-base font-bold flex items-center gap-2 text-gray-900">
+                    <Shield className="h-5 w-5 text-primary" /> Cadena de Custodia
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="px-6 pb-6">
+                  <div className="space-y-0">
+                    {/* Event 1: Case Created */}
+                    <div className="flex gap-3 py-4">
+                      <div className="shrink-0 w-3 h-3 rounded-full mt-1" style={{ backgroundColor: '#FFDA00' }}></div>
+                      <div className="flex flex-col gap-1 flex-1">
+                        <span className="text-sm font-bold text-gray-900">Caso creado</span>
+                        <span className="text-xs text-gray-600">
+                          {new Date(caseData.created_at).toLocaleDateString('es-CO', {
+                            day: 'numeric',
+                            month: 'long',
+                            year: 'numeric'
+                          })} a las {new Date(caseData.created_at).toLocaleTimeString('es-CO', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            second: '2-digit',
+                            hour12: true
+                          })} - Sistema Botilito
+                        </span>
+                      </div>
+                    </div>
+
+                    <Separator className="bg-gray-200" />
+
+                    {/* Event 2: Analysis Executed */}
+                    <div className="flex gap-3 py-4">
+                      <div className="shrink-0 w-3 h-3 rounded-full mt-1" style={{ backgroundColor: '#FFDA00' }}></div>
+                      <div className="flex flex-col gap-1 flex-1">
+                        <span className="text-sm font-bold text-gray-900">
+                          {caseData.type === 'TEXT' || caseData.type === 'URL'
+                            ? 'Análisis desinfodémico ejecutado'
+                            : 'Análisis forense ejecutado'}
+                        </span>
+                        <span className="text-xs text-gray-600">
+                          {new Date(caseData.created_at).toLocaleDateString('es-CO', {
+                            day: 'numeric',
+                            month: 'long',
+                            year: 'numeric'
+                          })} a las {new Date(new Date(caseData.created_at).getTime() + 5000).toLocaleTimeString('es-CO', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            second: '2-digit',
+                            hour12: true
+                          })} - {caseData.insights.length} {caseData.insights.length === 1 ? 'prueba completada' : 'pruebas completadas'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <Separator className="bg-gray-200" />
+
+                    {/* Event 3: Diagnosis Generated */}
+                    <div className="flex gap-3 py-4">
+                      <div className="shrink-0 w-3 h-3 rounded-full mt-1" style={{ backgroundColor: '#FFDA00' }}></div>
+                      <div className="flex flex-col gap-1 flex-1">
+                        <span className="text-sm font-bold text-gray-900">Diagnóstico generado</span>
+                        <span className="text-xs text-gray-600">
+                          {new Date(caseData.created_at).toLocaleDateString('es-CO', {
+                            day: 'numeric',
+                            month: 'long',
+                            year: 'numeric'
+                          })} a las {new Date(new Date(caseData.created_at).getTime() + 12000).toLocaleTimeString('es-CO', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            second: '2-digit',
+                            hour12: true
+                          })} - {caseData.overview.verdict_label || 'Análisis completado'}
+                        </span>
+                      </div>
                     </div>
                   </div>
-
-                  <Separator className="bg-gray-200" />
-
-                  {/* Event 2: Analysis Executed */}
-                  <div className="flex gap-3 py-4">
-                    <div className="shrink-0 w-3 h-3 rounded-full mt-1" style={{ backgroundColor: '#FFDA00' }}></div>
-                    <div className="flex flex-col gap-1 flex-1">
-                      <span className="text-sm font-bold text-gray-900">
-                        {caseData.type === 'TEXT' || caseData.type === 'URL' 
-                          ? 'Análisis desinfodémico ejecutado' 
-                          : 'Análisis forense ejecutado'}
-                      </span>
-                      <span className="text-xs text-gray-600">
-                        {new Date(caseData.created_at).toLocaleDateString('es-CO', { 
-                          day: 'numeric', 
-                          month: 'long', 
-                          year: 'numeric' 
-                        })} a las {new Date(new Date(caseData.created_at).getTime() + 5000).toLocaleTimeString('es-CO', {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                          second: '2-digit',
-                          hour12: true
-                        })} - {caseData.insights.length} {caseData.insights.length === 1 ? 'prueba completada' : 'pruebas completadas'}
-                      </span>
-                    </div>
-                  </div>
-
-                  <Separator className="bg-gray-200" />
-
-                  {/* Event 3: Diagnosis Generated */}
-                  <div className="flex gap-3 py-4">
-                    <div className="shrink-0 w-3 h-3 rounded-full mt-1" style={{ backgroundColor: '#FFDA00' }}></div>
-                    <div className="flex flex-col gap-1 flex-1">
-                      <span className="text-sm font-bold text-gray-900">Diagnóstico generado</span>
-                      <span className="text-xs text-gray-600">
-                        {new Date(caseData.created_at).toLocaleDateString('es-CO', { 
-                          day: 'numeric', 
-                          month: 'long', 
-                          year: 'numeric' 
-                        })} a las {new Date(new Date(caseData.created_at).getTime() + 12000).toLocaleTimeString('es-CO', {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                          second: '2-digit',
-                          hour12: true
-                        })} - {caseData.overview.verdict_label || 'Análisis completado'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
 
               {/* Recomendaciones */}
               <div className="border-2 border-[#FFDA00] rounded-lg p-6 shadow-sm" style={{ borderColor: '#FFDA00', backgroundColor: '#fffbeb' }}>
@@ -858,27 +939,38 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
                   <h3 className="font-bold text-gray-900 text-base">Recomendaciones</h3>
                 </div>
                 <ul className="space-y-3">
-                  <li className="text-xs text-gray-800 flex gap-3 items-start font-medium leading-relaxed">
-                    <span className="text-primary text-1xl leading-[0.5] mt-[2px]">•</span>
-                    <span>Verificar las fuentes citadas en el contenido</span>
-                  </li>
-                  <li className="text-xs text-gray-800 flex gap-3 items-start font-medium leading-relaxed">
-                    <span className="text-primary text-1xl leading-[0.5] mt-[2px]">•</span>
-                    <span>Contrastar con medios de comunicación confiables</span>
-                  </li>
-                  <li className="text-xs text-gray-800 flex gap-3 items-start font-medium leading-relaxed">
-                    <span className="text-primary text-1xl leading-[0.5] mt-[2px]">•</span>
-                    <span>Desarrollar pensamiento crítico mediante las competencias AMI</span>
-                  </li>
-                  <li className="text-xs text-gray-800 flex gap-3 items-start font-medium leading-relaxed">
-                    <span className="text-primary text-1xl leading-[0.5] mt-[2px]">•</span>
-                    <span>No compartir contenido sin verificar primero</span>
-                  </li>
+                  {orientacionUsuario.length > 0 ? (
+                    orientacionUsuario.map((orientacion: string, index: number) => (
+                      <li key={index} className="text-xs text-gray-800 flex gap-3 items-start font-medium leading-relaxed">
+                        <span className="text-primary text-1xl leading-[0.5] mt-[2px]">•</span>
+                        <span>{orientacion}</span>
+                      </li>
+                    ))
+                  ) : recommendationInsights.length > 0 ? (
+                    recommendationInsights.map((rec: any, index: number) => (
+                      <li key={index} className="text-xs text-gray-800 flex gap-3 items-start font-medium leading-relaxed">
+                        <span className="text-primary text-1xl leading-[0.5] mt-[2px]">•</span>
+                        <span>{rec.description || rec.label || rec.value}</span>
+                      </li>
+                    ))
+                  ) : caseData.recommendations.length > 0 ? (
+                    caseData.recommendations.map((rec: string, index: number) => (
+                      <li key={index} className="text-xs text-gray-800 flex gap-3 items-start font-medium leading-relaxed">
+                        <span className="text-primary text-1xl leading-[0.5] mt-[2px]">•</span>
+                        <span>{rec}</span>
+                      </li>
+                    ))
+                  ) : (
+                    <li className="text-xs text-gray-800 flex gap-3 items-start font-medium leading-relaxed">
+                      <span className="text-primary text-1xl leading-[0.5] mt-[2px]">•</span>
+                      <span>No hay recomendaciones disponibles para este análisis.</span>
+                    </li>
+                  )}
                 </ul>
               </div>
             </div>
           </div>
-        </div>
+        </div >
 
         {!hideVoting && (
           <div className="max-w-7xl mx-auto px-6 mt-6">
@@ -890,8 +982,9 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
               onVoteSuccess={onReset}
             />
           </div>
-        )}
-      </div>
+        )
+        }
+      </div >
     );
   }
 
@@ -1260,7 +1353,7 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
             </div>
 
             {/* RIGHT COLUMN - Fixed width sidebar */}
-            <div className="lg:w-80 lg:flex-shrink-0 space-y-6">
+            <div className="lg:w-72 lg:flex-shrink-0 space-y-6">
 
               {/* Case Info */}
               <Card className="shadow-sm border-2" style={{ borderColor: '#FFDA00' }}>

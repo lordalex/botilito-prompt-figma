@@ -46,14 +46,9 @@ export const useHumanVerification = () => {
             const total = summary.pagination.totalItems || summary.summary?.total;
             if (total) {
                 setTotalPages(Math.ceil(total / pageSize));
-                const calculatedHasMore = newPage < Math.ceil(total / pageSize);
-                setHasMore(summary.pagination.hasMore || calculatedHasMore);
-            } else {
-                // Heuristic: if we got exactly pageSize results, assume there might be more
-                const returnedCount = summary.pagination.returnedCount ?? summary.cases?.length ?? 0;
-                const inferredHasMore = returnedCount >= pageSize;
-                setHasMore(summary.pagination.hasMore || inferredHasMore);
             }
+            // TRUST THE API
+            setHasMore(!!summary.pagination?.hasMore);
         } catch (e: any) {
             console.error("Error loading page:", e);
             setError("Error al cargar la página.");
@@ -82,14 +77,9 @@ export const useHumanVerification = () => {
             const total = summary.pagination.totalItems || summary.summary?.total;
             if (total) {
                 setTotalPages(Math.ceil(total / pageSize));
-                const calculatedHasMore = 1 < Math.ceil(total / pageSize);
-                setHasMore(summary.pagination.hasMore || calculatedHasMore);
-            } else {
-                // Heuristic: if we got exactly pageSize results, assume there might be more
-                const returnedCount = summary.pagination.returnedCount ?? summary.cases?.length ?? 0;
-                const inferredHasMore = returnedCount >= pageSize;
-                setHasMore(summary.pagination.hasMore || inferredHasMore);
             }
+            // TRUST THE API
+            setHasMore(!!summary.pagination?.hasMore);
             if (stats) {
                 setUserStats(stats);
             }
@@ -148,14 +138,9 @@ export const useHumanVerification = () => {
                 const total = summary.pagination.totalItems || summary.summary?.total;
                 if (total) {
                     setTotalPages(Math.ceil(total / pageSize));
-                    const calculatedHasMore = 1 < Math.ceil(total / pageSize);
-                    setHasMore(summary.pagination.hasMore || calculatedHasMore);
-                } else {
-                    // Heuristic: if we got exactly pageSize results, assume there might be more
-                    const returnedCount = summary.pagination.returnedCount ?? summary.cases?.length ?? 0;
-                    const inferredHasMore = returnedCount >= pageSize;
-                    setHasMore(summary.pagination.hasMore || inferredHasMore);
                 }
+                // TRUST THE API
+                setHasMore(!!summary.pagination?.hasMore);
                 setUserStats(stats);
 
                 // Cache the results
