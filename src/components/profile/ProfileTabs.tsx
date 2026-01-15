@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { Sparkles, Award, Trophy, BarChart3 } from 'lucide-react';
+import { Award, Trophy, BarChart3, Activity } from 'lucide-react';
 import { SummaryTab } from './tabs/SummaryTab';
 import { BadgesTab } from './tabs/BadgesTab';
 import { AchievementsTab } from './tabs/AchievementsTab';
 import { StatsTab } from './tabs/StatsTab';
 
 const TABS = [
-  { key: 'resumen', label: 'Resumen', icon: Sparkles },
+  { key: 'resumen', label: 'Resumen', icon: Activity },
   { key: 'insignias', label: 'Insignias', icon: Award },
   { key: 'logros', label: 'Logros', icon: Trophy },
   { key: 'estadisticas', label: 'Estadísticas', icon: BarChart3 },
