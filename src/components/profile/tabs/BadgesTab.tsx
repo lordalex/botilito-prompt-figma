@@ -1,7 +1,3 @@
-// BadgesTab.tsx
-// Fase 6: BadgesTab
-// Archivo generado según el plan de desarrollo
-
 import React from 'react';
 import { Badge } from '../types';
 

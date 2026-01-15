@@ -8,7 +8,7 @@ interface AchievementsTabProps {
 // Helper para calcular progreso y completados
 const getCompletedCount = (achievements: Achievement[]) => achievements.filter(a => a.completed).length;
 
-const AchievementsTab: React.FC<AchievementsTabProps> = ({ achievements }) => {
+export const AchievementsTab: React.FC<AchievementsTabProps> = ({ achievements }) => {
   const total = achievements.length;
   const completed = getCompletedCount(achievements);
 
@@ -80,5 +80,3 @@ const AchievementsTab: React.FC<AchievementsTabProps> = ({ achievements }) => {
     </section>
   );
 };
-
-export default AchievementsTab;

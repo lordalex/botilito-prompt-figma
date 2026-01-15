@@ -21,7 +21,7 @@ interface StatsTabProps {
   };
 }
 
-const StatsTab: React.FC<StatsTabProps> = ({ generalStats, rankingStats }) => {
+export const StatsTab: React.FC<StatsTabProps> = ({ generalStats, rankingStats }) => {
   return (
     <section className="w-full max-w-6xl mx-auto px-4 py-6 grid grid-cols-1 md:grid-cols-2 gap-8">
       {/* Panel izquierdo: Estadísticas Generales */}
@@ -106,5 +106,3 @@ const StatsTab: React.FC<StatsTabProps> = ({ generalStats, rankingStats }) => {
     </section>
   );
 };
-
-export default StatsTab;

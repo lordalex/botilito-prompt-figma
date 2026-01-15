@@ -1,12 +1,40 @@
 import React, { useState } from 'react';
-import { Award, BarChart3, Activity, Star } from 'lucide-react';
+import { Sparkles, Award, Trophy, BarChart3 } from 'lucide-react';
+import { SummaryTab } from './tabs/SummaryTab';
+import { BadgesTab } from './tabs/BadgesTab';
+import { AchievementsTab } from './tabs/AchievementsTab';
+import { StatsTab } from './tabs/StatsTab';
 
 const TABS = [
-  { key: 'resumen', label: 'Resumen', icon: Activity },
+  { key: 'resumen', label: 'Resumen', icon: Sparkles },
   { key: 'insignias', label: 'Insignias', icon: Award },
-  { key: 'logros', label: 'Logros', icon: Star },
+  { key: 'logros', label: 'Logros', icon: Trophy },
   { key: 'estadisticas', label: 'Estadísticas', icon: BarChart3 },
 ];
+
+// TODO: Reemplazar estos mocks con datos reales desde ProfilePage
+const mockStreak = { current: 0, best: 0 };
+const mockBadges = [];
+const mockAchievements = [];
+const mockRecentBadges = [];
+const mockAchievementsInProgress = [];
+const mockGeneralStats = {
+  casesRegistered: 0,
+  validations: 0,
+  consensusAverage: 0,
+  deepfakesDetected: 0,
+  caseViews: 0,
+};
+const mockRankingStats = {
+  ranking: 0,
+  totalUsers: 0,
+  topPercent: 0,
+  currentStreak: 0,
+  bestStreak: 0,
+  badgesCount: 0,
+  achievementsCount: 0,
+  totalPI: 0,
+};
 
 export const ProfileTabs: React.FC = () => {
   const [activeTab, setActiveTab] = useState('resumen');
@@ -15,13 +43,19 @@ export const ProfileTabs: React.FC = () => {
   const renderTabContent = () => {
     switch (activeTab) {
       case 'resumen':
-        return <div className="py-4">Contenido del Resumen</div>;
+        return (
+          <SummaryTab
+            streak={mockStreak}
+            recentBadges={mockRecentBadges}
+            achievementsInProgress={mockAchievementsInProgress}
+          />
+        );
       case 'insignias':
-        return <div className="py-4">Contenido de Insignias</div>;
+        return <BadgesTab badges={mockBadges} totalPI={0} />;
       case 'logros':
-        return <div className="py-4">Contenido de Logros</div>;
+        return <AchievementsTab achievements={mockAchievements} />;
       case 'estadisticas':
-        return <div className="py-4">Contenido de Estadísticas</div>;
+        return <StatsTab generalStats={mockGeneralStats} rankingStats={mockRankingStats} />;
       default:
         return null;
     }
