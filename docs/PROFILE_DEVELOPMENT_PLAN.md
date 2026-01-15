@@ -404,7 +404,7 @@ interface StatsTabProps {
 | # | Tarea | Detalles |
 |---|-------|----------|
 | 9.1 | Layout página | Container max-w-7xl + padding |
-| 9.2 | Banner | Reutilizar BotilitoValidationBanner |
+| 9.2 | Banner | Reutilizar BotilitoValidationBanner | (Dejar espacio para futura implementación)
 | 9.3 | Composición | ProfileHeader → BadgesAndKPI → ProfileTabs |
 | 9.4 | Loading state | Skeleton mientras carga datos |
 | 9.5 | Error state | Mensaje de error si falla API |
