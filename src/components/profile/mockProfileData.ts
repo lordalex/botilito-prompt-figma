@@ -15,60 +15,175 @@ export const mockProfileData = {
   reputation: 0,
   xp: 101,
   badges: [
+    // Bronze badges
     {
-      id: "badge-1",
-      name: "Vigilante Bronce",
+      id: "badge-bronze-1",
+      name: "Primer Diagnóstico",
       tier: "bronze",
       icon: "/src/assets/badges/bronze.svg",
-      piReward: 10,
-      unlocked: true,
-      unlockedAt: "2026-01-10T18:18:17.994+00:00",
-      description: "Primer caso validado",
-      requirement: "Validar 1 caso"
-    },
-    {
-      id: "badge-2",
-      name: "Analista Plata",
-      tier: "silver",
-      icon: "/src/assets/badges/silver.svg",
-      piReward: 25,
-      unlocked: false,
-      unlockedAt: null,
-      description: "Validar 10 casos",
-      requirement: "Validar 10 casos"
-    },
-    {
-      id: "badge-3",
-      name: "Detective Oro",
-      tier: "gold",
-      icon: "/src/assets/badges/gold.svg",
       piReward: 50,
       unlocked: true,
-      unlockedAt: "2026-01-12T14:00:00.000+00:00",
-      description: "Detectar 1 deepfake",
-      requirement: "Detectar 1 deepfake"
+      unlockedAt: "2026-01-10T18:18:17.994+00:00",
+      description: "Registra tu primer caso desinfodemico",
+      requirement: "1 caso registrado"
     },
     {
-      id: "badge-4",
-      name: "Maestro Platino",
+      id: "badge-bronze-2",
+      name: "Vigilante Constante",
+      tier: "bronze",
+      icon: "/src/assets/badges/bronze.svg",
+      piReward: 100,
+      unlocked: true,
+      unlockedAt: "2026-01-09T14:00:00.000+00:00",
+      description: "Registra casos durante 7 días consecutivos",
+      requirement: "7 días de racha"
+    },
+    {
+      id: "badge-bronze-3",
+      name: "Explorador AMI",
+      tier: "bronze",
+      icon: "/src/assets/badges/bronze.svg",
+      piReward: 75,
+      unlocked: true,
+      unlockedAt: "2026-01-08T10:00:00.000+00:00",
+      description: "Aplica criterios AMI al analizar 5 casos de contenido",
+      requirement: "5 casos analizados con enfoque AMI"
+    },
+    // Silver badges
+    {
+      id: "badge-silver-1",
+      name: "Detector Serial",
+      tier: "silver",
+      icon: "/src/assets/badges/silver.svg",
+      piReward: 200,
+      unlocked: true,
+      unlockedAt: "2026-01-07T12:00:00.000+00:00",
+      description: "Registra 50 casos desinfodemicos",
+      requirement: "50 casos registrados"
+    },
+    {
+      id: "badge-silver-2",
+      name: "Verificador Experto",
+      tier: "silver",
+      icon: "/src/assets/badges/silver.svg",
+      piReward: 250,
+      unlocked: true,
+      unlockedAt: "2026-01-06T09:00:00.000+00:00",
+      description: "Logra 80% de precisión en tus registros",
+      requirement: "80% de precisión"
+    },
+    {
+      id: "badge-silver-3",
+      name: "Compromiso Inquebrantable",
+      tier: "silver",
+      icon: "/src/assets/badges/silver.svg",
+      piReward: 400,
+      unlocked: false,
+      unlockedAt: null,
+      description: "Mantén una racha de 30 días",
+      requirement: "30 días de racha"
+    },
+    // Gold badges
+    {
+      id: "badge-gold-1",
+      name: "Cazador de Deepfakes",
+      tier: "gold",
+      icon: "/src/assets/badges/gold.svg",
+      piReward: 500,
+      unlocked: false,
+      unlockedAt: null,
+      description: "Identifica correctamente 10 deepfakes",
+      requirement: "10 deepfakes detectados"
+    },
+    {
+      id: "badge-gold-2",
+      name: "Validador Experto",
+      tier: "gold",
+      icon: "/src/assets/badges/gold.svg",
+      piReward: 750,
+      unlocked: false,
+      unlockedAt: null,
+      description: "Completa 100 validaciones humanas de casos",
+      requirement: "100 validaciones"
+    },
+    {
+      id: "badge-gold-3",
+      name: "Impacto Viral",
+      tier: "gold",
+      icon: "/src/assets/badges/gold.svg",
+      piReward: 600,
+      unlocked: false,
+      unlockedAt: null,
+      description: "Tus casos han sido vistos 10,000 veces",
+      requirement: "10K visualizaciones"
+    },
+    // Platinum badges
+    {
+      id: "badge-platinum-1",
+      name: "Maestro Forense",
       tier: "platinum",
       icon: "/src/assets/badges/platinum.svg",
-      piReward: 100,
+      piReward: 1000,
       unlocked: false,
       unlockedAt: null,
-      description: "Validar 100 casos",
-      requirement: "Validar 100 casos"
+      description: "Analiza con precisión 500 contenidos multimedia",
+      requirement: "500 análisis forenses"
     },
     {
-      id: "badge-5",
-      name: "Leyenda Diamante",
-      tier: "diamond",
-      icon: "/src/assets/badges/diamond.svg",
-      piReward: 250,
+      id: "badge-platinum-2",
+      name: "Defensor de la Comunidad",
+      tier: "platinum",
+      icon: "/src/assets/badges/platinum.svg",
+      piReward: 1200,
       unlocked: false,
       unlockedAt: null,
-      description: "Validar 500 casos",
-      requirement: "Validar 500 casos"
+      description: "Valida y verifica 200 casos registrados por la comunidad",
+      requirement: "200 casos comunitarios validados"
+    },
+    {
+      id: "badge-platinum-3",
+      name: "Inmunizador Digital",
+      tier: "platinum",
+      icon: "/src/assets/badges/platinum.svg",
+      piReward: 1500,
+      unlocked: false,
+      unlockedAt: null,
+      description: "Tus validaciones han servido a más de 1000 usuarios",
+      requirement: "1,000 visualizaciones de un caso"
+    },
+    // Diamond badges
+    {
+      id: "badge-diamond-1",
+      name: "Leyenda AMI",
+      tier: "diamond",
+      icon: "/src/assets/badges/diamond.svg",
+      piReward: 2000,
+      unlocked: false,
+      unlockedAt: null,
+      description: "Alcanza 10,000 puntos de inmunización",
+      requirement: "10K puntos"
+    },
+    {
+      id: "badge-diamond-2",
+      name: "Guardián Elite",
+      tier: "diamond",
+      icon: "/src/assets/badges/diamond.svg",
+      piReward: 3000,
+      unlocked: false,
+      unlockedAt: null,
+      description: "Mantén racha de 365 días",
+      requirement: "365 días de racha"
+    },
+    {
+      id: "badge-diamond-3",
+      name: "Erradicador Desinfodemico",
+      tier: "diamond",
+      icon: "/src/assets/badges/diamond.svg",
+      piReward: 2500,
+      unlocked: false,
+      unlockedAt: null,
+      description: "Identifica y registra 1,000 casos validados",
+      requirement: "1,000 casos validados"
     }
   ],
   photo: "/src/assets/avatars/Avatars-11.svg",
@@ -197,9 +312,9 @@ export const mockProfileData = {
     ]
   },
   kpi: {
-    totalPI: 180,
-    unlockedBadges: 2,
-    totalBadges: 5,
+    totalPI: 675,
+    unlockedBadges: 5,
+    totalBadges: 15,
     completedAchievements: 2,
     totalAchievements: 5
   },
@@ -216,8 +331,8 @@ export const mockProfileData = {
     topPercent: 29,
     currentStreak: 7,
     bestStreak: 15,
-    badgesCount: 2,
+    badgesCount: 5,
     achievementsCount: 2,
-    totalPI: 180
+    totalPI: 675
   }
 };

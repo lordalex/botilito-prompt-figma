@@ -2002,6 +2002,10 @@
     border-color: var(--color-orange-500);
   }
 
+  .border-orange-700 {
+    border-color: var(--color-orange-700);
+  }
+
   .border-pink-200 {
     border-color: var(--color-pink-200);
   }
