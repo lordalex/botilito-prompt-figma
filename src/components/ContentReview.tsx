@@ -39,7 +39,7 @@
  * @see HumanVerification.tsx - Similar page for validation workflow
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Bot, CheckCircle, Clock, AlertTriangle, Fingerprint, RefreshCcw, AlertCircle, Loader2
 } from 'lucide-react';
@@ -52,6 +52,8 @@ import { ContentUploadResult } from '@/components/ContentUploadResult';
 import { BotilitoValidationBanner } from '@/components/ui/botilito-validation-banner';
 
 import { GlobalLoader } from '@/components/ui/GlobalLoader';
+import { fetchDashboardData } from './mapa/api';
+import { DashboardResponse, Region, TimeFrame } from './mapa/types';
 
 interface ContentReviewProps {
   onViewTask?: (jobId: string, type: string, status?: string) => void;
@@ -71,6 +73,24 @@ export function ContentReview({ onViewTask: externalOnViewTask }: ContentReviewP
   console.log("cases", cases);
 
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
+  const [dashboardData, setDashboardData] = useState<DashboardResponse | null>(null);
+  const [kpiError, setKpiError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadDashboardData = async () => {
+      try {
+        setKpiError(null);
+        const data = await fetchDashboardData('global', 'weekly');
+        setDashboardData(data);
+      } catch (err) {
+        console.error("Error loading dashboard KPI data:", err);
+        setKpiError('No se pudieron cargar los indicadores KPI.');
+      }
+    };
+
+    loadDashboardData();
+  }, []);
+
 
   // Use useCaseDetail to fetch FULL case data via lookup when a case is selected
   const { caseDetail, loading: caseLoading, error: caseError } = useCaseDetail(selectedCaseId);
@@ -159,7 +179,7 @@ export function ContentReview({ onViewTask: externalOnViewTask }: ContentReviewP
                   <Bot className="h-6 w-6 text-primary" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{stats?.total || 0}</p>
+                  <p className="text-2xl font-bold">{dashboardData?.kpi.total_cases ?? <Loader2 className="h-5 w-5 animate-spin" />}</p>
                   <p className="text-sm text-muted-foreground">Total Casos</p>
                 </div>
               </div>
@@ -173,7 +193,7 @@ export function ContentReview({ onViewTask: externalOnViewTask }: ContentReviewP
                   <CheckCircle className="h-6 w-6 text-emerald-600" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{stats?.verified || 0}</p>
+                  <p className="text-2xl font-bold">{dashboardData?.kpi.total_validations ?? <Loader2 className="h-5 w-5 animate-spin" />}</p>
                   <p className="text-sm text-muted-foreground">Validados</p>
                 </div>
               </div>
@@ -187,7 +207,7 @@ export function ContentReview({ onViewTask: externalOnViewTask }: ContentReviewP
                   <Clock className="h-6 w-6 text-orange-600" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{stats?.aiOnly || 0}</p>
+                  <p className="text-2xl font-bold">{dashboardData?.kpi.active_cases ?? <Loader2 className="h-5 w-5 animate-spin" />}</p>
                   <p className="text-sm text-muted-foreground">Pendientes</p>
                 </div>
               </div>
@@ -224,10 +244,10 @@ export function ContentReview({ onViewTask: externalOnViewTask }: ContentReviewP
         </div>
 
         {/* Error State */}
-        {error && (
+        {(error || kpiError) && (
           <div className="p-6 bg-red-50 border-2 border-red-200 rounded-xl text-center">
             <p className="text-red-700 font-medium">Ocurrió un error al cargar los datos.</p>
-            <p className="text-sm text-red-600 mt-2">{error}</p>
+            <p className="text-sm text-red-600 mt-2">{error || kpiError}</p>
           </div>
         )}
 
@@ -246,6 +266,7 @@ export function ContentReview({ onViewTask: externalOnViewTask }: ContentReviewP
             totalPages={totalPages}
             isRefreshing={loading}
             onRefresh={refresh}
+            availableFilterModes={['all', 'voted_by_me', 'not_voted_by_me', 'voted']}
           />
         )}
       </div>

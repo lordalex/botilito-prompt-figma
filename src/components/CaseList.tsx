@@ -80,12 +80,13 @@ const contentFilterOptions: { value: ContentFilterOption; label: string }[] = [
 ];
 
 // Opciones de filtro de modo (servidor)
-export type FilterMode = 'all' | 'voted_by_me' | 'not_voted_by_me' | 'has_consensus';
+export type FilterMode = 'all' | 'voted_by_me' | 'not_voted_by_me' | 'has_consensus' | 'voted';
 
 const filterModes: { value: FilterMode; label: string }[] = [
   { value: 'all', label: 'Todos los Casos' },
   { value: 'not_voted_by_me', label: 'Pendientes de Mi Voto' },
   { value: 'voted_by_me', label: 'Mis Votos' },
+  { value: 'voted', label: 'Votado' },
   { value: 'has_consensus', label: 'Con Consenso Humano' },
 ];
 
