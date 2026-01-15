@@ -12,7 +12,7 @@
   "diagnosis_descriptions": {
     "forensic_manipulated": "Se detectaron patrones de edición digital que sugieren manipulación del contenido original.",
     "forensic_clean": "No se encontraron evidencias significativas de alteración digital en el archivo analizado.",
-    "infodemic_high_risk": "Contenido presenta desinformación médica grave. Alto riesgo de propagación por apelación emocional y falsa autoridad científica."
+    "infodemic_high_risk": "El contenido necesita análisis crítico y contextualización"
   },
   "forensic_algorithms": {
     "image": {
