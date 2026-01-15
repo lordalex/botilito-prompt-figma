@@ -1,13 +1,9 @@
-// badges.config.ts
-// Configuración completa de insignias del sistema de gamificación
-// Fuente: Diseño de referencia Botilito
-
-import { 
-  Target, 
-  Calendar, 
-  BookOpen, 
-  Search, 
-  CheckCircle, 
+import {
+  Target,
+  Calendar,
+  BookOpen,
+  Search,
+  CheckCircle,
   Flame,
   Eye,
   Users,
@@ -17,7 +13,7 @@ import {
   Star,
   Crown,
   Gem,
-  Zap
+  Zap,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
@@ -351,8 +347,11 @@ export function getTotalPossiblePI(): number {
  * Obtiene el total de insignias por tier
  */
 export function getBadgeCountByTier(): Record<BadgeTier, number> {
-  return TIER_ORDER.reduce((acc, tier) => ({
-    ...acc,
-    [tier]: BADGES_BY_TIER[tier].length,
-  }), {} as Record<BadgeTier, number>);
+  return TIER_ORDER.reduce(
+    (acc, tier) => ({
+      ...acc,
+      [tier]: BADGES_BY_TIER[tier].length,
+    }),
+    {} as Record<BadgeTier, number>
+  );
 }

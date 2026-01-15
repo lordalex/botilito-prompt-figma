@@ -8,6 +8,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { ProfileData, ProfileAPIResponse } from '../components/profile/types';
 import { transformAPIToProfileData } from '../components/profile/api-mapper';
+import { mockProfileDataNormalized } from '../components/profile/mockProfileData.normalized';
 import { useAuth } from '../providers/AuthProvider';
 import { api } from '../services/api';
 
@@ -61,18 +62,18 @@ function toProfileAPIResponse(input: unknown): ProfileAPIResponse {
             : typeof dataRaw['avatar_url'] === 'string'
               ? dataRaw['avatar_url']
               : undefined,
-      xp: toNumber(dataRaw['xp'], 0),
-      current_streak: toNumber(dataRaw['current_streak'], 0),
-      best_streak: toNumber(dataRaw['best_streak'], 0),
+      xp: toNumber(dataRaw['xp'], Number.NaN),
+      current_streak: toNumber(dataRaw['current_streak'], Number.NaN),
+      best_streak: toNumber(dataRaw['best_streak'], Number.NaN),
       badges: Array.isArray(dataRaw['badges']) ? dataRaw['badges'].filter((b) => typeof b === 'string') : [],
       stats: {
-        cases_registered: toNumber(statsRaw['cases_registered'], 0),
-        validations_performed: toNumber(statsRaw['validations_performed'], 0),
-        global_ranking: toNumber(statsRaw['global_ranking'], 0),
-        total_users: toNumber(statsRaw['total_users'], 0),
+        cases_registered: toNumber(statsRaw['cases_registered'], Number.NaN),
+        validations_performed: toNumber(statsRaw['validations_performed'], Number.NaN),
+        global_ranking: toNumber(statsRaw['global_ranking'], Number.NaN),
+        total_users: toNumber(statsRaw['total_users'], Number.NaN),
         next_rank_progress: {
-          current: toNumber(nextRankRaw['current'], 0),
-          target: toNumber(nextRankRaw['target'], 0),
+          current: toNumber(nextRankRaw['current'], Number.NaN),
+          target: toNumber(nextRankRaw['target'], Number.NaN),
           label: toString(nextRankRaw['label'], ''),
         },
       },
@@ -106,7 +107,7 @@ export function useProfile(): UseProfileResult {
       // Llamada a la API usando el cliente anterior
       const response = await api.profile.get(session);
       const apiResponse = toProfileAPIResponse(response);
-      setData(transformAPIToProfileData(apiResponse));
+      setData(transformAPIToProfileData(apiResponse, mockProfileDataNormalized));
     } catch (err: any) {
       setError('Error al cargar el perfil');
       setData(null);

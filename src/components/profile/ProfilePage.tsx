@@ -2,27 +2,15 @@
 // Fase 9: ProfilePage (Integración)
 // Archivo generado según el plan de desarrollo
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { ProfileHeader } from './ProfileHeader';
 import { BadgesAndKPI } from './BadgesAndKPI';
 import { ProfileTabs } from './ProfileTabs';
 import { Separator } from '../ui/separator';
-import { mockProfileData } from './mockProfileData';
+import { useProfile } from '../../hooks/useProfile';
 
 const ProfilePage: React.FC = () => {
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [profile, setProfile] = useState<any>(null);
-
-
-  useEffect(() => {
-    // Simular carga de datos
-    const timer = setTimeout(() => {
-      setProfile(mockProfileData);
-      setLoading(false);
-    }, 1200);
-    return () => clearTimeout(timer);
-  }, []);
+  const { data: profileData, loading, error, refresh } = useProfile();
 
   if (loading) {
     return (
@@ -49,7 +37,7 @@ const ProfilePage: React.FC = () => {
     );
   }
 
-  if (!profile) return null;
+  if (!profileData) return null;
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-10">
@@ -64,35 +52,35 @@ const ProfilePage: React.FC = () => {
       <div className="rounded-lg p-6 border-primary border-2">
         {/* Adaptar props según el nuevo mockProfileData */}
         <ProfileHeader
-          avatarUrl={profile.avatar}
-          displayName={profile.nombre_completo}
-          email={profile.email}
-          level={profile.xp}
-          rank={profile.role}
-          region={profile.ciudad}
-          memberSince={new Date(profile.fecha_nacimiento)}
-          bio={profile.departamento}
-          currentPI={profile.kpi?.totalPI || 0}
-          nextRankPI={profile.stats?.next_rank_progress?.target || 0}
-          nextRankName={profile.stats?.next_rank_progress?.label || ''}
-          ranking={profile.rankingStats?.ranking || 0}
-          totalUsers={profile.rankingStats?.totalUsers || 0}
+          avatarUrl={profileData.user.avatarUrl}
+          displayName={profileData.user.displayName}
+          email={profileData.user.email}
+          level={profileData.user.level}
+          rank={profileData.user.rank}
+          region={profileData.user.region}
+          memberSince={profileData.user.memberSince}
+          bio={profileData.user.bio}
+          currentPI={profileData.gamification.currentPI}
+          nextRankPI={profileData.gamification.nextRankPI}
+          nextRankName={profileData.gamification.nextRankName}
+          ranking={profileData.gamification.ranking}
+          totalUsers={profileData.gamification.totalUsers}
         />
         <Separator />
         <div className="mt-8">
           <BadgesAndKPI
-            badges={profile.badges}
+            badges={profileData.badges}
             stats={{
-              casesRegistered: profile.generalStats?.casesRegistered || 0,
-              validations: profile.generalStats?.validations || 0,
-              currentStreak: profile.rankingStats?.currentStreak || 0,
-              ranking: profile.rankingStats?.ranking || 0,
+              casesRegistered: profileData.stats.casesRegistered,
+              validations: profileData.stats.validations,
+              currentStreak: profileData.gamification.currentStreak,
+              ranking: profileData.gamification.ranking,
             }}
           />
         </div>
       </div>
       <div className="mt-8">
-        <ProfileTabs profileData={profile} />
+        <ProfileTabs profileData={profileData} loading={loading} error={error} refresh={refresh} />
       </div>
     </div>
   );

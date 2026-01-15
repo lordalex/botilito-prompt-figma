@@ -46,7 +46,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
   return (
     <div className="flex md:flex-row items-start gap-6 w-full bg-white rounded-lg p-6">
       {/* Avatar + Nivel */}
-      <div className="relative flex-shrink-0">
+      <div className="relative shrink-0">
         <img
           src={avatarUrl}
           alt="Avatar"

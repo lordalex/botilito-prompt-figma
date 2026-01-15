@@ -4,6 +4,7 @@ import { SummaryTab } from './tabs/SummaryTab';
 import { BadgesTab } from './tabs/BadgesTab';
 import { AchievementsTab } from './tabs/AchievementsTab';
 import { StatsTab } from './tabs/StatsTab';
+import type { ProfileTabsProps } from './types';
 
 const TABS = [
   { key: 'resumen', label: 'Resumen', icon: Activity },
@@ -12,33 +13,28 @@ const TABS = [
   { key: 'estadisticas', label: 'Estadísticas', icon: BarChart3 },
 ];
 
-// TODO: Reemplazar estos mocks con datos reales desde ProfilePage
-const mockStreak = { current: 0, best: 0 };
-const mockBadges = [];
-const mockAchievements = [];
-const mockRecentBadges = [];
-const mockAchievementsInProgress = [];
-const mockGeneralStats = {
-  casesRegistered: 0,
-  validations: 0,
-  consensusAverage: 0,
-  deepfakesDetected: 0,
-  caseViews: 0,
-};
-const mockRankingStats = {
-  ranking: 0,
-  totalUsers: 0,
-  topPercent: 0,
-  currentStreak: 0,
-  bestStreak: 0,
-  badgesCount: 0,
-  achievementsCount: 0,
-  totalPI: 0,
-};
+function getUnlockedBadgesTotalPI(badges: Array<{ unlocked: boolean; piReward: number }>): number {
+  return badges.filter((b) => b.unlocked).reduce((acc, b) => acc + (Number.isFinite(b.piReward) ? b.piReward : 0), 0);
+}
 
-
-export const ProfileTabs: React.FC<{ profileData: any }> = ({ profileData }) => {
+export const ProfileTabs: React.FC<ProfileTabsProps> = ({ profileData }) => {
   const [activeTab, setActiveTab] = useState('resumen');
+
+  if (!profileData) return null;
+
+  const unlockedBadges = profileData.badges.filter((b) => b.unlocked);
+  const recentBadges = unlockedBadges.slice(0, 2);
+
+  const achievementsInProgress = profileData.achievements.filter((a) => !a.completed).slice(0, 3);
+  const achievementsCompletedCount = profileData.achievements.filter((a) => a.completed).length;
+
+  const totalPIFromBadges = getUnlockedBadgesTotalPI(profileData.badges);
+
+  const ranking = profileData.gamification.ranking;
+  const totalUsers = profileData.gamification.totalUsers;
+  const topPercent = totalUsers > 0 && ranking > 0
+    ? Math.min(100, Math.max(1, Math.round((ranking / totalUsers) * 100)))
+    : 0;
 
   // Lazy loading: solo renderizar el contenido del tab activo
   const renderTabContent = () => {
@@ -46,17 +42,34 @@ export const ProfileTabs: React.FC<{ profileData: any }> = ({ profileData }) => 
       case 'resumen':
         return (
           <SummaryTab
-            streak={profileData.summary?.streak}
-            recentBadges={profileData.summary?.recentBadges}
-            achievementsInProgress={profileData.summary?.achievementsInProgress}
+            streak={{
+              current: profileData.gamification.currentStreak,
+              best: profileData.gamification.bestStreak,
+            }}
+            recentBadges={recentBadges}
+            achievementsInProgress={achievementsInProgress}
           />
         );
       case 'insignias':
-        return <BadgesTab badges={profileData.badges} totalPI={profileData.kpi?.totalPI || 0} />;
+        return <BadgesTab badges={profileData.badges} totalPI={totalPIFromBadges} />;
       case 'logros':
         return <AchievementsTab achievements={profileData.achievements} />;
       case 'estadisticas':
-        return <StatsTab generalStats={profileData.generalStats} rankingStats={profileData.rankingStats} />;
+        return (
+          <StatsTab
+            generalStats={profileData.stats}
+            rankingStats={{
+              ranking: profileData.gamification.ranking,
+              totalUsers: profileData.gamification.totalUsers,
+              topPercent,
+              currentStreak: profileData.gamification.currentStreak,
+              bestStreak: profileData.gamification.bestStreak,
+              badgesCount: unlockedBadges.length,
+              achievementsCount: achievementsCompletedCount,
+              totalPI: profileData.gamification.currentPI,
+            }}
+          />
+        );
       default:
         return null;
     }
