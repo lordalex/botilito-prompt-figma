@@ -115,6 +115,7 @@ export interface AnalysisResult {
     percent: number;
   };
   result?: any;
+  data?: any;
   error?: {
     message: string;
   };

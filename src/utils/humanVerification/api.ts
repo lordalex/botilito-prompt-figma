@@ -160,7 +160,7 @@ function getTemaFromLabels(labels: string[] | undefined): string {
 async function pollJobStatus(jobId: string): Promise<any> {
   const { data: { session } } = await supabase.auth.getSession();
   const maxAttempts = 30;
-  const pollInterval = 2000;
+  const pollInterval = 15000;
   let attempts = 0;
 
   while (attempts < maxAttempts) {
@@ -195,7 +195,7 @@ function determineTheme(type: string): 'Forense' | 'Infodémico' {
 /**
  * Transform StandardizedCase to CaseEnriched for backward compatibility
  */
-function transformStandardizedToEnriched(std: any): CaseEnriched {
+export function transformStandardizedToEnriched(std: any): CaseEnriched {
   // Extract diagnostic labels from insights
   const diagnostic_labels = (std.insights || [])
     .map((i: any) => i.label || i.value)

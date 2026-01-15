@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useHumanVerification } from '@/hooks/useHumanVerification';
+import { useNewVerificationFlow } from '@/hooks/useNewVerificationFlow';
 import { useCaseDetail } from '@/hooks/useCaseDetail';
 import { CaseList } from '@/components/CaseList';
 import { ContentUploadResult } from '@/components/ContentUploadResult';
@@ -9,7 +9,7 @@ import { GlobalLoader } from '@/components/ui/GlobalLoader';
 import { BotilitoValidationBanner } from '@/components/ui/botilito-validation-banner';
 
 export function HumanVerification() {
-  const { cases, isLoading, goToPage, page, totalPages, hasMore, refreshCases } = useHumanVerification();
+  const { cases, isLoading, goToPage, page, totalPages, refresh } = useNewVerificationFlow();
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
 
   // Use useCaseDetail to fetch FULL case data via lookup when a case is selected
@@ -81,8 +81,8 @@ export function HumanVerification() {
           onPageChange={goToPage}
           currentPage={page}
           totalPages={totalPages}
-          hasMore={hasMore}
-          onRefresh={refreshCases}
+          hasMore={page < totalPages}
+          onRefresh={refresh}
           isRefreshing={isLoading}
         />
       </div>

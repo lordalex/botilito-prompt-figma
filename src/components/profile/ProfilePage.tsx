@@ -8,6 +8,7 @@ import { BadgesAndKPI } from './BadgesAndKPI';
 import { ProfileTabs } from './ProfileTabs';
 import { Separator } from '../ui/separator';
 import { useProfile } from '../../hooks/useProfile';
+import { BotilitoBanner } from '../ui/botilito-validation-banner';
 
 const ProfilePage: React.FC = () => {
   const { data: profileData, loading, error, refresh } = useProfile();
@@ -42,11 +43,7 @@ const ProfilePage: React.FC = () => {
   return (
     <div className="max-w-7xl mx-auto px-4 py-10">
       {/* Banner: BotilitoValidationBanner (placeholder) */}
-      <div className="mb-6">
-        <div className="bg-yellow-100 border border-yellow-200 rounded-lg p-4 text-yellow-800 text-center text-sm">
-          <span>Espacio reservado para el banner de validación de Botilito</span>
-        </div>
-      </div>
+      <BotilitoBanner text="Perfil de usuario" />
 
       {/* Composición principal */}
       <div className="rounded-lg p-6 border-primary border-2">

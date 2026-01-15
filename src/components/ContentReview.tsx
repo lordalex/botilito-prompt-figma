@@ -45,7 +45,7 @@ import {
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { useCaseHistory } from '@/hooks/useCaseHistory';
+import { useNewHistoryFlow } from '@/hooks/useNewHistoryFlow';
 import { useCaseDetail } from '@/hooks/useCaseDetail';
 import { CaseList } from './CaseList';
 import { ContentUploadResult } from '@/components/ContentUploadResult';
@@ -60,14 +60,14 @@ interface ContentReviewProps {
 export function ContentReview({ onViewTask: externalOnViewTask }: ContentReviewProps) {
   const {
     cases,
-    loading,
-    loadingMore,
+    isLoading: loading,
     error,
     stats,
-    hasMore,
-    loadMore,
-    refresh
-  } = useCaseHistory();
+    page,
+    totalPages,
+    goToPage,
+    refresh,
+  } = useNewHistoryFlow();
 
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
 
@@ -158,7 +158,7 @@ export function ContentReview({ onViewTask: externalOnViewTask }: ContentReviewP
                   <Bot className="h-6 w-6 text-primary" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{stats.total}</p>
+                  <p className="text-2xl font-bold">{stats?.total || 0}</p>
                   <p className="text-sm text-muted-foreground">Total Casos</p>
                 </div>
               </div>
@@ -172,7 +172,7 @@ export function ContentReview({ onViewTask: externalOnViewTask }: ContentReviewP
                   <CheckCircle className="h-6 w-6 text-emerald-600" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{stats.verified}</p>
+                  <p className="text-2xl font-bold">{stats?.verified || 0}</p>
                   <p className="text-sm text-muted-foreground">Validados</p>
                 </div>
               </div>
@@ -186,7 +186,7 @@ export function ContentReview({ onViewTask: externalOnViewTask }: ContentReviewP
                   <Clock className="h-6 w-6 text-orange-600" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{stats.aiOnly}</p>
+                  <p className="text-2xl font-bold">{stats?.aiOnly || 0}</p>
                   <p className="text-sm text-muted-foreground">Pendientes</p>
                 </div>
               </div>
@@ -200,7 +200,7 @@ export function ContentReview({ onViewTask: externalOnViewTask }: ContentReviewP
                   <AlertTriangle className="h-6 w-6 text-red-600" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{stats.misinformation}</p>
+                  <p className="text-2xl font-bold">{stats?.misinformation || 0}</p>
                   <p className="text-sm text-muted-foreground">Infodémico</p>
                 </div>
               </div>
@@ -214,7 +214,7 @@ export function ContentReview({ onViewTask: externalOnViewTask }: ContentReviewP
                   <Fingerprint className="h-6 w-6 text-blue-600" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{stats.forensic || 0}</p>
+                  <p className="text-2xl font-bold">{stats?.forensic || 0}</p>
                   <p className="text-sm text-muted-foreground">Forense</p>
                 </div>
               </div>
@@ -240,9 +240,11 @@ export function ContentReview({ onViewTask: externalOnViewTask }: ContentReviewP
             title="Listado de Casos Históricos"
             description="Todos los contenidos procesados y su estado de validación"
             emptyMessage="No se encontraron casos en el historial"
-            hasMore={hasMore}
-            onLoadMore={loadMore}
-            isLoadingMore={loadingMore}
+            onPageChange={goToPage}
+            currentPage={page}
+            totalPages={totalPages}
+            isRefreshing={loading}
+            onRefresh={refresh}
           />
         )}
       </div>

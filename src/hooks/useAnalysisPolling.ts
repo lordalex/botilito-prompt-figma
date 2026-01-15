@@ -42,10 +42,18 @@ export function useAnalysisPolling(initialJobId?: string): AnalysisPollingResult
                     percent: status.progress?.percent
                 });
 
-                if (status.status === 'completed' && status.result) {
-                    setAnalysisResult({ result: status.result, user_id: status.user_id });
-                    setIsLoading(false);
-                    pollingActive = false;
+                if (status.status === 'completed') {
+                    const resultData = status.data || status.result;
+                    if (resultData) {
+                        setAnalysisResult({ result: resultData, user_id: status.user_id });
+                        setIsLoading(false);
+                        pollingActive = false;
+                    } else {
+                        // Handle case where status is completed but no data/result is found
+                        setError('Analysis completed but no result data was returned.');
+                        setIsLoading(false);
+                        pollingActive = false;
+                    }
                 } else if (status.status === 'failed') {
                     setError(status.error?.message || 'Analysis failed during polling');
                     setIsLoading(false);

@@ -29,11 +29,10 @@ const jobApi = {
     submit: api.voting.submit,
     getStatus: api.voting.getStatus,
   },
-  // Assuming a search API exists in the consolidated service
-  // search: {
-  //   submit: api.search.submit,
-  //   getStatus: api.search.getStatus,
-  // },
+  search: {
+    submit: (session: Session, payload: { page: number, pageSize: number }) => api.humanVerification.getSummary(session, payload.page, payload.pageSize),
+    getStatus: api.ingestion.getStatus,
+  },
 };
 
 class JobManager {
@@ -152,7 +151,7 @@ class JobManager {
         const result = await jobTypeApi.getStatus(this.session, job.apiJobId!);
         
         if (result?.status === 'completed') {
-          this.updateJob(job.id, { status: 'completed', result: result.result, progress: 100, endTime: Date.now() });
+          this.updateJob(job.id, { status: 'completed', result: result.data, progress: 100, endTime: Date.now() });
         } else if (result?.status === 'failed') {
           this.updateJob(job.id, { status: 'failed', error: result.error?.message || 'Job failed' });
         } else {

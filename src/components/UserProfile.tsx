@@ -18,6 +18,7 @@ import { AvatarSelectionModal } from './profile/AvatarSelectionModal';
 import { ProfileNavBar } from './profile/ProfileNavBar';
 import { LatestBadges } from './profile/LatestBadges';
 import { AchievementsProgress } from './profile/AchievementsProgress';
+import { ValidationBanner } from './ValidationBanner';
 
 // Level tiers based on XP
 const getLevelInfo = (xp: number) => {
@@ -64,7 +65,7 @@ export function UserProfile() {
     return (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6 container mx-auto p-4 md:p-6 lg:p-8 max-w-[1600px]">
             {/* 1. Yellow Banner */}
-            <ProfileBanner />
+            <ValidationBanner profile={profile} levelInfo={levelInfo} />
 
             {/* 2. Main Profile Header */}
             <ProfileHeader
