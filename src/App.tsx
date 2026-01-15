@@ -68,9 +68,9 @@ export default function App() {
       return <ResetPassword onBack={clearPasswordRecovery} />;
     }
     if (showRegister) {
-      return <Register onLoginClick={() => setShowRegister(false)} />;
+      return <Register onRegister={() => setShowRegister(false)} onBackToLogin={() => setShowRegister(false)} />;
     }
-    return <Login onRegisterClick={() => setShowRegister(true)} />;
+    return <Login onGoToRegister={() => setShowRegister(true)} />;
   }
 
   // Profile Completion Check
