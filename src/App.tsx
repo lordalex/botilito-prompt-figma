@@ -21,9 +21,6 @@ import { transformTextAnalysisToUI } from './services/analysisPresentationServic
 import { searchService } from './services/searchService';
 import { useAuth } from './providers/AuthProvider'; // Import the hook
 import ProfilePage from './components/profile/ProfilePage';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Upload, Map } from 'lucide-react';
-
 
 type ViewState = 'upload' | 'verification' | 'review' | 'caseDetail' | 'mapa' | 'docs' | 'profile' | 'extension' | 'admin' | 'notifications' | 'status';
 
@@ -31,7 +28,6 @@ export default function App() {
   const { isAuthenticated, isLoading, signOut, profileComplete, profileChecked, checkUserProfile, isPasswordRecovery, clearPasswordRecovery, profile } = useAuth();
   const [showRegister, setShowRegister] = useState(false);
   const [activeTab, setActiveTab] = useState<ViewState>('upload');
-  const [uploadTab, setUploadTab] = useState('analysis');
   const [currentJobId, setCurrentJobId] = useState<string | undefined>();
   const [currentJobType, setCurrentJobType] = useState<string | undefined>();
   const [analysisInput, setAnalysisInput] = useState('');
@@ -87,56 +83,40 @@ export default function App() {
   const renderContent = () => {
     switch (activeTab) {
       case 'upload':
-        return (
-          <Tabs value={uploadTab} onValueChange={setUploadTab} className="w-full">
-            <TabsList className="mb-4">
-              <TabsTrigger value="analysis">
-                <Upload className="mr-2 h-4 w-4" />
-                Análisis de Contenido
-              </TabsTrigger>
-              <TabsTrigger value="map">
-                <Map className="mr-2 h-4 w-4" />
-                Mapa Desinfodémico
-              </TabsTrigger>
-            </TabsList>
-            <TabsContent value="analysis">
-              {analysisPolling.analysisResult || analysisPolling.isLoading ? (
-                <div className="container mx-auto px-4 py-8">
-                  <UnifiedAnalysisView
-                    isLoading={analysisPolling.isLoading}
-                    progress={analysisPolling.progress}
-                    data={analysisPolling.analysisResult ? transformTextAnalysisToUI(analysisPolling.analysisResult.result) : null}
-                    contentType="text"
-                    mode="ai"
-                    onReset={() => {
-                      analysisPolling.resetAnalysis();
-                      setAnalysisInput('');
-                    }}
-                    onSubmitDiagnosis={() => { }}
-                    title={analysisPolling.analysisResult?.result?.title}
-                    timestamp={analysisPolling.analysisResult?.result?.created_at}
-                    caseNumber={analysisPolling.analysisResult?.result?.id?.slice(0, 8)}
-                    reportedBy="Botilito IA"
-                  />
-                </div>
-              ) : (
-                <ContentUpload
-                  jobId={currentJobId}
-                  jobType={currentJobType}
-                  onReset={() => {
-                    setCurrentJobId(undefined);
-                    setCurrentJobType(undefined);
-                    setAnalysisInput('');
-                  }}
-                  onAnalyze={(content) => setAnalysisInput(content)}
-                />
-              )}
-            </TabsContent>
-            <TabsContent value="map">
-              <MapaDesinfodemico />
-            </TabsContent>
-          </Tabs>
-        );
+        // If we have an analysis result or are loading, show Unified View
+        if (analysisPolling.analysisResult || analysisPolling.isLoading) {
+          return (
+            <div className="container mx-auto px-4 py-8">
+              <UnifiedAnalysisView
+                isLoading={analysisPolling.isLoading}
+                progress={analysisPolling.progress}
+                data={analysisPolling.analysisResult ? transformTextAnalysisToUI(analysisPolling.analysisResult.result) : null}
+                contentType="text"
+                mode="ai"
+                onReset={() => {
+                  analysisPolling.resetAnalysis();
+                  setAnalysisInput('');
+                }}
+                onSubmitDiagnosis={() => { }}
+                title={analysisPolling.analysisResult?.result?.title}
+                timestamp={analysisPolling.analysisResult?.result?.created_at}
+                caseNumber={analysisPolling.analysisResult?.result?.id?.slice(0, 8)}
+                reportedBy="Botilito IA"
+              />
+            </div>
+          );
+        }
+        // Otherwise show Input View
+        return <ContentUpload
+          jobId={currentJobId}
+          jobType={currentJobType}
+          onReset={() => {
+            setCurrentJobId(undefined);
+            setCurrentJobType(undefined);
+            setAnalysisInput('');
+          }}
+          onAnalyze={(content) => setAnalysisInput(content)} // Assuming ContentUpload has this prop now or we need to adapt
+        />;
 
       case 'verification':
         return <HumanVerification />;
@@ -298,3 +278,4 @@ export default function App() {
     </div>
   );
 }
+
