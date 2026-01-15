@@ -147,16 +147,10 @@ export function CaseListItem({ caseItem, onClick, className = '' }: CaseListItem
   const amiConfig = caseItem.amiLevel ? amiBadges[caseItem.amiLevel] : null;
   const AmiIcon = amiConfig ? getAmiIcon(amiConfig.icon) : null;
 
-  // Determine if this is a "Manipulated" or "Warning" case that needs the yellow highlight
-  const isManipulated = amiConfig?.labelShort === 'Manipulado';
-
   return (
     <div
       onClick={() => onClick(caseItem.id, caseItem.contentType)}
-      className={`group relative flex flex-row items-center gap-4 p-4 rounded-xl shadow-sm hover:shadow-md hover:bg-secondary transition-all cursor-pointer ${isManipulated
-        ? 'bg-secondary border border-transparent' // Yellow background, no border
-        : 'bg-gray-50 border border-gray-100'        // Standard white background
-        } ${className}`}
+      className={`group relative flex flex-row items-center gap-4 p-4 rounded-xl shadow-sm hover:shadow-md hover:bg-secondary transition-all cursor-pointer bg-gray-50 border border-gray-100 ${className}`}
     >
       {/* 1. ICONO (Always Yellow Square) - Fixed Width */}
       <div className="shrink-0 flex justify-center">
@@ -254,12 +248,9 @@ export function CaseListItem({ caseItem, onClick, className = '' }: CaseListItem
             <div className="flex gap-2">
               {labels.map(label => {
                 const amiConfig = getAmiConfig(label);
-                const badgeClassName = isManipulated
-                  ? 'bg-white border border-white text-red-700 shadow-sm'
-                  : amiConfig.className;
 
                 return (
-                  <div key={label} className={`px-4 py-2 rounded-lg flex items-center justify-center gap-2 w-auto whitespace-nowrap ${badgeClassName}`}>
+                  <div key={label} className={`px-4 py-2 rounded-lg flex items-center justify-center gap-2 w-auto whitespace-nowrap ${amiConfig.className}`}>
                     <AmiIcon className="h-4 w-4" />
                     <span className="font-bold text-xs">{amiConfig.label}</span>
                   </div>
