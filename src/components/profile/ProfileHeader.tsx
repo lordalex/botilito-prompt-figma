@@ -2,7 +2,11 @@
 // Fase 2: ProfileHeader
 // Archivo generado según el plan de desarrollo
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { AvatarSelectionModal } from './AvatarSelectionModal';
+import { Camera } from 'lucide-react';
+import { useAuth } from '../../providers/AuthProvider';
+import { api } from '../../services/api';
 
 export interface ProfileHeaderProps {
   avatarUrl: string;
@@ -18,6 +22,7 @@ export interface ProfileHeaderProps {
   nextRankName: string;
   ranking: number;
   totalUsers: number;
+  onAvatarUpdate?: (newAvatarUrl: string) => void;
 }
 
 // Utilidad para formatear fecha
@@ -39,23 +44,121 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
   nextRankName,
   ranking,
   totalUsers,
+  onAvatarUpdate,
 }) => {
+  const [showAvatarModal, setShowAvatarModal] = useState(false);
+  const [currentAvatar, setCurrentAvatar] = useState(avatarUrl);
+  const { session } = useAuth();
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  // Sincronizar el estado con el prop cuando cambia (ej: al cargar perfil real)
+  useEffect(() => {
+    setCurrentAvatar(avatarUrl);
+  }, [avatarUrl]);
+
   // Calcular progreso PI
   const piPercent = Math.min(100, Math.round((currentPI / nextRankPI) * 100));
+
+  // Cambio inmediato de avatar al hacer click (optimistic update)
+  const handleAvatarChange = (newAvatarUrl: string) => {
+    setCurrentAvatar(newAvatarUrl);
+  };
+
+  // Guardar el avatar en el servidor sin refrescar la pantalla
+  const handleAvatarSave = async (newAvatarUrl: string) => {
+    if (!session) {
+      console.error('No session available');
+      return;
+    }
+
+    try {
+      // Detectar automáticamente si es base64 (photo) o URL (avatar)
+      const isBase64 = newAvatarUrl.startsWith('data:image/');
+
+      if (isBase64) {
+        await api.profile.update(session, { photo: newAvatarUrl, avatar: null });
+      } else {
+        await api.profile.update(session, { avatar: newAvatarUrl, photo: null });
+      }
+      // No llamamos a onAvatarUpdate para evitar refresh del perfil
+    } catch (error) {
+      console.error('Error updating avatar:', error);
+      // Revert optimistic update on error
+      setCurrentAvatar(avatarUrl);
+      throw error;
+    }
+  };
+
+  // Manejar subida de foto desde archivo
+  const handlePhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !session) return;
+
+    // Validar que sea imagen
+    if (!file.type.startsWith('image/')) {
+      console.error('El archivo debe ser una imagen');
+      return;
+    }
+
+    try {
+      // Convertir imagen a base64
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = reader.result as string;
+        
+        // Actualizar UI inmediatamente (optimistic update)
+        setCurrentAvatar(base64String);
+      };
+      reader.readAsDataURL(file);
+    } catch (error) {
+      console.error('Error reading file:', error);
+    }
+  };
+
+  // Abrir selector de archivos
+  const handleUploadClick = () => {
+    fileInputRef.current?.click();
+  };
 
   return (
     <div className="flex md:flex-row items-start gap-6 w-full bg-white rounded-lg p-6">
       {/* Avatar + Nivel */}
-      <div className="relative shrink-0">
+      <div className="relative shrink-0 group">
         <img
-          src={avatarUrl}
+          src={currentAvatar}
           alt="Avatar"
           className="w-24 h-24 rounded-full border-4 border-yellow-300 shadow object-cover"
         />
+        <button
+          onClick={() => setShowAvatarModal(true)}
+          className="absolute top-0 right-0 bg-white rounded-full p-1.5 shadow-md border-2 border-yellow-300 hover:bg-yellow-50 transition-colors"
+          title="Cambiar avatar"
+        >
+          <Camera className="w-4 h-4 text-gray-700" />
+        </button>
         <span className="absolute bottom-1 left-1/2 -translate-x-1/2 bg-blue-500 text-white text-xs font-bold px-2 py-0.5 rounded-full shadow">
           Nv.{level}
         </span>
       </div>
+
+      {/* Avatar Selection Modal */}
+      <AvatarSelectionModal
+        isOpen={showAvatarModal}
+        onClose={() => setShowAvatarModal(false)}
+        currentAvatarUrl={currentAvatar}
+        onAvatarChange={handleAvatarChange}
+        onSave={handleAvatarSave}
+        onUploadClick={handleUploadClick}
+      />
+
+      {/* Input file oculto para subida de foto */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handlePhotoUpload}
+        className="hidden"
+      />
 
       {/* Datos usuario + bio + progreso */}
       <div className="flex-1 flex flex-col gap-3 min-w-[220px]">
