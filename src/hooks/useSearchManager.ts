@@ -189,47 +189,107 @@ export function useSearchManager<T extends any[]>({
 
 
 
-  const loadCases = useCallback(async (loadArgs: T) => {
-
-    setIsLoading(true);
-
-    setError(null);
-
-    try {
-
-      const { data: { session } } = await supabase.auth.getSession();
-
-      if (!session) throw new Error("No session");
+    const loadCases = useCallback(async (loadArgs: T) => {
 
 
 
-      const [page, pageSize, filters] = loadArgs;
-
-      jobManager.addJob('search', { page, pageSize, filters });
+      setIsLoading(true);
 
 
 
-    } catch (err) {
+      setError(null);
 
-      const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred.';
 
-      setError(errorMessage);
 
-      toast({
+      try {
 
-        title: 'Error al Cargar Casos',
 
-        description: errorMessage,
 
-        variant: 'destructive',
+        const { data: { session } } = await supabase.auth.getSession();
 
-      });
 
-      setIsLoading(false);
 
-    }
+        if (!session) throw new Error("No session");
 
-  }, [toast]);
+
+
+  
+
+
+
+        const [page, pageSize, filters, filterMode] = loadArgs;
+
+
+
+        jobManager.addJob('search', { page, pageSize, filters, filterMode });
+
+
+
+  
+
+
+
+      } catch (err) {
+
+
+
+        const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred.';
+
+
+
+        setError(errorMessage);
+
+
+
+        toast({
+
+
+
+          title: 'Error al Cargar Casos',
+
+
+
+          description: errorMessage,
+
+
+
+          variant: 'destructive',
+
+
+
+        });
+
+
+
+        setIsLoading(false);
+
+
+
+      }
+
+
+
+    }, [toast]);
+
+
+
+  
+
+
+
+    useEffect(() => {
+
+
+
+      loadCases(args);
+
+
+
+    }, [args, loadCases]);
+
+
+
+  
 
 
 

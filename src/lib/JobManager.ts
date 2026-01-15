@@ -30,7 +30,8 @@ const jobApi = {
     getStatus: api.voting.getStatus,
   },
   search: {
-    submit: (session: Session, payload: { page: number, pageSize: number }) => api.humanVerification.getSummary(session, payload.page, payload.pageSize),
+    submit: (session: Session, payload: { filterMode: string, page: number, pageSize: number }) => 
+      api.search.filterByMode(session, payload.filterMode, payload.page, payload.pageSize),
     getStatus: api.ingestion.getStatus,
   },
 };

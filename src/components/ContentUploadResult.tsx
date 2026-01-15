@@ -304,7 +304,6 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
     };
   };
 
-
   const riskColors = getRiskColorScheme(caseData.overview.risk_score);
 
   // Define distinct colors for Human Analysis based on Consensus % (matching Figma's Red/Green/Orange severity)
@@ -547,8 +546,8 @@ export function ContentUploadResult({ result, onReset, backLabel = "Volver al li
                         'text-red-700 border-red-200'
                       }`}>
                       {isForensicCase
-                        ? (caseData.overview.risk_score > 50 ? 'Manipulado Digitalmente' : '✓ Sin alteraciones')
-                        : 'requiere un enfoque AMI'}
+                        ? (caseData?.verdict_label || (caseData?.overview.risk_score > 50 ? 'Manipulado Digitalmente' : '✓ Sin alteraciones'))
+                        : caseData?.verdict_label || 'Requiere un enfoque AMI'}
                     </Badge>
                   </div>
                   <p className="text-xs text-gray-600 mt-2">

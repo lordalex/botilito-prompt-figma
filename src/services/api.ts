@@ -59,6 +59,18 @@ async function fetchClient(session: Session | null, url: string, options: Reques
  * The main API service object, organized by resource.
  */
 export const api = {
+    search: {
+        filterByMode: (session: Session, filterMode: string, page: number, pageSize: number): Promise<JobAcceptedResponse> =>
+            fetchClient(session, apiEndpoints.SEARCH_ENDPOINT, {
+                method: 'POST',
+                body: JSON.stringify({
+                    filter_mode: filterMode,
+                    page,
+                    pageSize,
+                    select_fields: ["id", "created_at", "type", "overview", "community", "reporter", "insights"]
+                }),
+            }),
+    },
     ingestion: {
         submit: (session: Session, payload: IngestPayload): Promise<JobAcceptedResponse | FullAnalysisResponse> =>
             fetchClient(session, `${apiEndpoints.SEARCH_DTO_BASE_URL}/submit`, {

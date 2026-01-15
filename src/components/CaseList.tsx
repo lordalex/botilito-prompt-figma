@@ -52,6 +52,7 @@ import {
   ChevronDown,
   Loader2,
   RefreshCw,
+  ListFilter,
 } from 'lucide-react';
 import type {
   ValidationCaseDTO,
@@ -66,11 +67,11 @@ import {
 } from '@/types/validation';
 import { CaseListItem } from './CaseListItem';
 
-// Opciones de filtro
-type FilterOption = 'todos' | 'texto' | 'imagen' | 'video' | 'audio' | 'url';
+// Opciones de filtro de contenido (cliente)
+type ContentFilterOption = 'todos' | 'texto' | 'imagen' | 'video' | 'audio' | 'url';
 
-const filterOptions: { value: FilterOption; label: string }[] = [
-  { value: 'todos', label: 'Todos los casos' },
+const contentFilterOptions: { value: ContentFilterOption; label: string }[] = [
+  { value: 'todos', label: 'Todos los tipos' },
   { value: 'texto', label: 'Solo Texto' },
   { value: 'imagen', label: 'Solo Imágenes' },
   { value: 'video', label: 'Solo Videos' },
@@ -78,72 +79,38 @@ const filterOptions: { value: FilterOption; label: string }[] = [
   { value: 'url', label: 'Solo URLs' },
 ];
 
-/**
- * Props for the CaseList component.
- *
- * ## LLM GUIDE - How to Use This Component
- *
- * ### Basic Usage (Enriched Format - Most Common):
- * ```tsx
- * <CaseList
- *   cases={cases}                    // From useCaseHistory or useHumanVerification
- *   onViewTask={handleSelectCase}    // (caseId, contentType, status?) => void
- *   isLoading={loading}
- *   isEnrichedFormat={true}          // IMPORTANT: Set this for CaseEnriched data
- *   title="Mi Título"
- *   description="Mi descripción"
- *   emptyMessage="No hay casos"
- * />
- * ```
- *
- * ### Format Flags (mutually exclusive):
- * - `isEnrichedFormat=true`: Data comes from useHumanVerification/useCaseHistory hooks
- * - `isStandardizedFormat=true`: Data comes from new DTO.json format
- * - Neither flag: Assumes raw ValidationCaseDTO[] from backend
- *
- * ### Customization Points:
- * - `title`: Header text (default: "Casos Pendientes de Validación")
- * - `description`: Subheader text
- * - `emptyMessage`: Shown when no cases match filters
- *
- * ### Pagination (Optional):
- * - `hasMore`: Whether more cases are available (from API pagination.hasMore)
- * - `onLoadMore`: Callback to load next page
- * - `isLoadingMore`: Loading state for "Load More" button
- */
+// Opciones de filtro de modo (servidor)
+export type FilterMode = 'all' | 'voted_by_me' | 'not_voted_by_me' | 'has_consensus';
+
+const filterModes: { value: FilterMode; label: string }[] = [
+  { value: 'all', label: 'Todos los Casos' },
+  { value: 'not_voted_by_me', label: 'Pendientes de Mi Voto' },
+  { value: 'voted_by_me', label: 'Mis Votos' },
+  { value: 'has_consensus', label: 'Con Consenso Humano' },
+];
+
 export interface CaseListProps {
-  /** Casos en formato DTO del backend o CaseEnriched del hook */
   cases: ValidationCaseDTO[] | CaseEnrichedCompatible[] | StandardizedCase[];
-  /** Callback cuando se selecciona un caso para ver la tarea */
   onViewTask: (caseId: string, type: string, status?: string) => void;
-  /** Estado de carga */
   isLoading?: boolean;
-  /** Indica si los casos vienen del formato CaseEnriched (useHumanVerification) */
   isEnrichedFormat?: boolean;
-  /** Indica si los casos vienen del formato StandardizedCase (DTO.json) */
   isStandardizedFormat?: boolean;
-  /** Título configurable del listado */
   title?: string;
-  /** Descripción configurable del listado */
   description?: string;
-  /** Mensaje cuando no hay casos */
   emptyMessage?: string;
-  /** Whether more cases are available to load (pagination) */
   hasMore?: boolean;
-  /** Callback to load more cases */
   onLoadMore?: () => void;
-  /** Loading state for Load More button */
   isLoadingMore?: boolean;
-  /** Current page number for traditional pagination */
   currentPage?: number;
-  /** Total pages for traditional pagination */
   totalPages?: number;
-  /** Handler for page changes */
   onPageChange?: (page: number) => void;
-  /** Optional callback to refresh the list */
   onRefresh?: () => void;
-  /** Whether refresh is in progress */
   isRefreshing?: boolean;
+  
+  // Props para filtro de modo (servidor)
+  filterMode?: FilterMode;
+  onFilterModeChange?: (mode: FilterMode) => void;
+  availableFilterModes?: FilterMode[];
 }
 
 export function CaseList({
@@ -163,11 +130,13 @@ export function CaseList({
   onPageChange,
   onRefresh,
   isRefreshing = false,
+  filterMode = 'all',
+  onFilterModeChange,
+  availableFilterModes = ['all', 'not_voted_by_me', 'voted_by_me', 'has_consensus'],
 }: CaseListProps) {
   const [searchQuery, setSearchQuery] = useState('');
-  const [filter, setFilter] = useState<FilterOption>('todos');
+  const [contentFilter, setContentFilter] = useState<ContentFilterOption>('todos');
 
-  // Transformar los casos del backend al DTO de lista
   const listItems = useMemo(() => {
     if (isStandardizedFormat) {
       return transformStandardizedCasesToListItems(cases as StandardizedCase[]);
@@ -178,10 +147,8 @@ export function CaseList({
     return transformCasesToListItems(cases as ValidationCaseDTO[]);
   }, [cases, isEnrichedFormat, isStandardizedFormat]);
 
-  // Filtrar casos según búsqueda y filtro
   const filteredCases = useMemo(() => {
     return listItems.filter((c) => {
-      // Filtro de búsqueda
       const searchLower = searchQuery.toLowerCase();
       const matchesSearch =
         !searchQuery ||
@@ -190,15 +157,16 @@ export function CaseList({
         c.reportedBy.toLowerCase().includes(searchLower) ||
         c.summary.toLowerCase().includes(searchLower);
 
-      // Filtro por tipo
       let matchesFilter = true;
-      if (filter !== 'todos') {
-        matchesFilter = c.contentType === filter;
+      if (contentFilter !== 'todos') {
+        matchesFilter = c.contentType === contentFilter;
       }
 
       return matchesSearch && matchesFilter;
     });
-  }, [listItems, searchQuery, filter]);
+  }, [listItems, searchQuery, contentFilter]);
+  
+  const displayedFilterModes = filterModes.filter(fm => availableFilterModes.includes(fm.value));
 
   return (
     <Card className="w-full">
@@ -207,7 +175,6 @@ export function CaseList({
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">
               <div className="p-0">
-                {/* Stacked icon look with yellow tint */}
                 <Layers className="h-5 w-5 text-[#FFDA00]" />
               </div>
               <div>
@@ -245,7 +212,6 @@ export function CaseList({
           <CardDescription>{description}</CardDescription>
         </div>
 
-        {/* Barra de búsqueda y filtros */}
         <div className="flex flex-col sm:flex-row gap-3 mt-4">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
@@ -254,25 +220,43 @@ export function CaseList({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10 border border-gray-200 bg-white"
-              style={{ outline: 'none' }}
-              onFocus={(e) => (e.target.style.borderColor = 'var(--primary)')}
-              onBlur={(e) => (e.target.style.borderColor = '#e5e7eb')}
             />
           </div>
-          <div className="flex items-center gap-2">
-            <Filter className="h-4 w-4 text-gray-400" />
-            <Select value={filter} onValueChange={(value) => setFilter(value as FilterOption)}>
-              <SelectTrigger className="w-full sm:w-[180px] border border-gray-200 focus:border-primary focus:ring-0 bg-white">
-                <SelectValue placeholder="Todos los casos" />
-              </SelectTrigger>
-              <SelectContent>
-                {filterOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="flex items-center gap-3">
+            {/* Server-side filter */}
+            {onFilterModeChange && displayedFilterModes.length > 1 && (
+              <div className="flex items-center gap-2">
+                <ListFilter className="h-4 w-4 text-gray-400" />
+                <Select value={filterMode} onValueChange={(value) => onFilterModeChange(value as FilterMode)}>
+                  <SelectTrigger className="w-full sm:w-[200px] border border-gray-200 focus:border-primary focus:ring-0 bg-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {displayedFilterModes.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            {/* Client-side filter */}
+            <div className="flex items-center gap-2">
+              <Filter className="h-4 w-4 text-gray-400" />
+              <Select value={contentFilter} onValueChange={(value) => setContentFilter(value as ContentFilterOption)}>
+                <SelectTrigger className="w-full sm:w-[180px] border border-gray-200 focus:border-primary focus:ring-0 bg-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {contentFilterOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </div>
       </CardHeader>
@@ -299,7 +283,7 @@ export function CaseList({
           </div>
         ) : filteredCases.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground">
-            {searchQuery || filter !== 'todos'
+            {searchQuery || contentFilter !== 'todos'
               ? 'No se encontraron casos con los filtros aplicados'
               : emptyMessage}
           </div>
@@ -313,7 +297,6 @@ export function CaseList({
               />
             ))}
 
-            {/* Pagination Controls (Traditional: Prev/Next) */}
             {onPageChange && (
               <div className="flex items-center justify-center gap-4 pt-6 pb-2">
                 <Button
@@ -323,7 +306,7 @@ export function CaseList({
                   disabled={currentPage <= 1 || isLoading}
                   className="gap-1 border-gray-200"
                 >
-                  <ChevronDown className="h-4 w-4 rotate-90" /> {/* Left Arrow */}
+                  <ChevronDown className="h-4 w-4 rotate-90" />
                   Anterior
                 </Button>
 
@@ -339,12 +322,11 @@ export function CaseList({
                   className="gap-1 border-gray-200"
                 >
                   Siguiente
-                  <ChevronDown className="h-4 w-4 -rotate-90" /> {/* Right Arrow */}
+                  <ChevronDown className="h-4 w-4 -rotate-90" />
                 </Button>
               </div>
             )}
 
-            {/* Legacy Load More Button (only if pagination not used) */}
             {hasMore && onLoadMore && !onPageChange && (
               <div className="flex justify-center pt-4">
                 <Button

@@ -1,0 +1,65 @@
+[
+    {
+        "id": "badge_first_diag",
+        "title": "Primer Diagnóstico",
+        "description": "Registra tu primer caso en la plataforma para comenzar tu camino.",
+        "badge_name": "Primer Diagnóstico",
+        "required_cases": 1,
+        "xp_reward": 50,
+        "icon_ref": "target"
+    },
+    {
+        "id": "badge_vigilant",
+        "title": "Vigilante Constante",
+        "description": "Mantén una racha de vigilancia activa durante 3 días consecutivos.",
+        "badge_name": "Vigilante Constante",
+        "required_streak": 3,
+        "xp_reward": 100,
+        "icon_ref": "calendar"
+    },
+    {
+        "id": "prog_validations_1",
+        "title": "Validaciones en progreso",
+        "description": "Alcanza 50 validaciones de casos.",
+        "badge_name": "Validador Iniciado",
+        "required_validations": 50,
+        "xp_reward": 50,
+        "icon_ref": "lightning"
+    },
+    {
+        "id": "prog_deepfakes",
+        "title": "Detective de Deepfakes",
+        "description": "Detecta 5 deepfakes reportando casos sospechosos.",
+        "badge_name": "Detective de Deepfakes",
+        "required_cases": 5,
+        "xp_reward": 100,
+        "icon_ref": "layers"
+    },
+    {
+        "id": "prog_legend",
+        "title": "Leyenda",
+        "description": "Completa 500 validaciones de casos.",
+        "badge_name": "Leyenda",
+        "required_validations": 500,
+        "xp_reward": 250,
+        "icon_ref": "chart"
+    },
+    {
+        "id": "streak_silver",
+        "title": "Plata - Compromiso Inquebrantable",
+        "description": "Demuestra tu constancia manteniendo una racha de 30 días.",
+        "badge_name": "Plata - Compromiso Inquebrantable",
+        "required_streak": 30,
+        "xp_reward": 400,
+        "icon_ref": "medal_silver"
+    },
+    {
+        "id": "streak_diamond",
+        "title": "Diamante - Guardián Elite",
+        "description": "La máxima prueba de lealtad: una racha de 365 días.",
+        "badge_name": "Diamante - Guardián Elite",
+        "required_streak": 365,
+        "xp_reward": 3000,
+        "icon_ref": "diamond"
+    }
+]
