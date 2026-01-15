@@ -140,10 +140,15 @@ export const api = {
             if (profileData.ciudad) mappedData.ciudad = profileData.ciudad;
             if (profileData.avatar_url) mappedData.avatar_url = profileData.avatar_url;
 
-            // If `avatar` is used for base64 updates (as suggested in the edit snippet)
-            if (profileData.avatar) mappedData.avatar = profileData.avatar;
-            // If `photo` is still used and maps to `avatar`
-            if (profileData.photo) mappedData.avatar = profileData.photo;
+            // Avatar predefinido: se envía como 'avatar'
+            if (profileData.hasOwnProperty('avatar')) {
+                mappedData.avatar = profileData.avatar;
+            }
+            
+            // Foto subida: se envía como 'photo' (base64)
+            if (profileData.hasOwnProperty('photo')) {
+                mappedData.photo = profileData.photo;
+            }
 
             // If `full_name`, `state_province`, `city` are still used by frontend
             // but backend expects Spanish, this mapping would be needed.
@@ -211,7 +216,7 @@ export const api = {
                     consensus_filter: "missing",
                     page,
                     limit: pageSize,
-                    select_fields: ["id", "created_at", "type", "overview", "community"]
+                    select_fields: ["id", "created_at", "type", "overview", "community", "reporter", "insights"]
                 }),
             }),
         /**
@@ -312,7 +317,7 @@ export const api = {
                     consensus_filter: "present",
                     page,
                     limit: pageSize,
-                    select_fields: ["id", "created_at", "type", "overview", "community"]
+                    select_fields: ["id", "created_at", "type", "overview", "community", "reporter", "insights"]
                 }),
             }),
     }

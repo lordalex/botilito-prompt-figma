@@ -81,8 +81,8 @@ export interface UserProfileData {
   ciudad?: string; // v1.2.0 compatibility
   birth_date?: string; // Stored as a string for simplicity, e.g., 'YYYY-MM-DD'
   email?: string;
-  photo?: string;      // Maps to avatar_url in v1.2.0
-  avatar?: string;     // Maps to avatar_url in v1.2.0
+  photo?: string | null;      // Maps to avatar_url in v1.2.0, can be null to clear
+  avatar?: string | null;     // Maps to avatar_url in v1.2.0, can be null to clear
   avatar_url?: string; // v1.2.0 compatibility
   // Note: 'password', 'role', etc., are intentionally omitted for security.
 }

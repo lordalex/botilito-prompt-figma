@@ -1,144 +1,214 @@
-import React from 'react';
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import { Camera, Trophy, Medal, Award, Star } from 'lucide-react';
-import { Profile } from '@/types/profile';
+// ProfileHeader.tsx
+// Fase 2: ProfileHeader
+// Archivo generado según el plan de desarrollo
 
-// Role display mapping
-const roleDisplay: Record<string, string> = {
-    cibernauta: 'CIBERNAUTA',
-    epidemiologo: 'EPIDEMIÓLOGO',
-    director: 'DIRECTOR'
-};
+import React, { useState, useEffect } from 'react';
+import { AvatarSelectionModal } from './AvatarSelectionModal';
+import { Camera } from 'lucide-react';
+import { useAuth } from '../../providers/AuthProvider';
+import { api } from '../../services/api';
 
-interface ProfileHeaderProps {
-    profile: Profile;
-    levelInfo: {
-        level: number;
-        title: string;
-        nextXP: number;
-        color: string;
-    };
-    onAvatarClick: () => void;
+export interface ProfileHeaderProps {
+  avatarUrl: string;
+  displayName: string;
+  email: string;
+  level: number;
+  rank: string;
+  region: string;
+  memberSince: Date;
+  bio: string;
+  currentPI: number;
+  nextRankPI: number;
+  nextRankName: string;
+  ranking: number;
+  totalUsers: number;
+  onAvatarUpdate?: (newAvatarUrl: string) => void;
 }
 
-export const ProfileHeader: React.FC<ProfileHeaderProps> = ({ profile, levelInfo, onAvatarClick }) => {
-    // Prefer data from API v3 stats if available, else fallback to local calculation
-    const currentXP = profile.stats?.next_rank_progress?.current ?? profile.xp ?? 0;
-    const targetXP = profile.stats?.next_rank_progress?.target ?? levelInfo.nextXP;
-    const nextRankLabel = profile.stats?.next_rank_progress?.label ?? levelInfo.title;
+// Utilidad para formatear fecha
+function formatDate(date: Date) {
+  return date.toLocaleDateString('es-ES', { year: 'numeric', month: 'short' });
+}
 
-    const xpProgress = targetXP > 0 ? (currentXP / targetXP) * 100 : 100;
-    const xpRemaining = targetXP - currentXP;
+export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
+  avatarUrl,
+  displayName,
+  email,
+  level,
+  rank,
+  region,
+  memberSince,
+  bio,
+  currentPI,
+  nextRankPI,
+  nextRankName,
+  ranking,
+  totalUsers,
+  onAvatarUpdate,
+}) => {
+  const [showAvatarModal, setShowAvatarModal] = useState(false);
+  const [currentAvatar, setCurrentAvatar] = useState(avatarUrl);
+  const { session } = useAuth();
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
-    // Stats for the yellow card
-    const immunizationPoints = profile.xp; // OR profile.stats?.total_immunization_points if that existed, but XP is PI.
-    const globalRank = profile.stats?.global_ranking ?? '-';
-    const totalUsers = profile.stats?.total_users ?? '-';
+  // Sincronizar el estado con el prop cuando cambia (ej: al cargar perfil real)
+  useEffect(() => {
+    setCurrentAvatar(avatarUrl);
+  }, [avatarUrl]);
 
-    return (
-        <Card className="border-2 border-gray-200 shadow-sm overflow-hidden">
-            <CardContent className="p-0">
-                <div className="flex flex-col md:flex-row">
-                    {/* Left Section: User Info (Grow to fill) */}
-                    <div className="flex-1 p-6 flex flex-col justify-center">
-                        <div className="flex items-start gap-6">
-                            {/* Avatar with Level Badge */}
-                            <div className="relative flex-shrink-0">
-                                <Avatar className="h-24 w-24 border-4 border-gray-100 ring-2 ring-white shadow-sm">
-                                    <AvatarImage src={profile.avatar_url || ''} />
-                                    <AvatarFallback className="bg-yellow-400 text-xl font-bold text-white">
-                                        {(profile.nombre_completo || 'U')[0]}
-                                    </AvatarFallback>
-                                </Avatar>
-                                <div className={`absolute -bottom-2 -left-2 ${levelInfo.color} text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm`}>
-                                    Nv.{levelInfo.level}
-                                </div>
-                                <Button
-                                    size="icon"
-                                    variant="outline"
-                                    className="absolute -bottom-2 -right-2 h-7 w-7 rounded-full bg-white shadow-sm border border-gray-200 hover:bg-gray-50"
-                                    onClick={onAvatarClick}
-                                >
-                                    <Camera className="h-3 w-3 text-gray-500" />
-                                </Button>
-                            </div>
+  // Calcular progreso PI
+  const piPercent = Math.min(100, Math.round((currentPI / nextRankPI) * 100));
 
-                            {/* User Details */}
-                            <div className="flex-1 min-w-0 space-y-1">
-                                <h2 className="text-2xl font-bold text-gray-900 truncate pr-4">{profile.nombre_completo || 'Usuario'}</h2>
-                                <p className="text-sm text-gray-500 font-medium">{profile.email}</p>
+  // Cambio inmediato de avatar al hacer click (optimistic update)
+  const handleAvatarChange = (newAvatarUrl: string) => {
+    setCurrentAvatar(newAvatarUrl);
+  };
 
-                                <div className="flex items-center gap-2 pt-1 pb-2">
-                                    <Badge className={`${levelInfo.color} text-white hover:${levelInfo.color} px-3 py-0.5 text-xs font-semibold uppercase tracking-wide`}>
-                                        {roleDisplay[profile.role] || 'CIBERNAUTA'}
-                                    </Badge>
-                                    <Badge variant="secondary" className="bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-200 px-3 py-0.5 text-xs">
-                                        {profile.created_at ? `Desde ${new Date(profile.created_at).getFullYear()}` : '2024'}
-                                    </Badge>
-                                </div>
-                                <p className="text-xs text-gray-400 italic">"Primera Línea de Defensa"</p>
+  // Guardar el avatar en el servidor sin refrescar la pantalla
+  const handleAvatarSave = async (newAvatarUrl: string) => {
+    if (!session) {
+      console.error('No session available');
+      return;
+    }
 
-                                {/* XP Progress */}
-                                <div className="max-w-md pt-3">
-                                    <div className="flex justify-between text-xs font-bold mb-1.5 ">
-                                        <span className="text-gray-700">Experiencia (XP)</span>
-                                        <div className="flex items-end gap-1">
-                                            <span className="text-gray-900 text-sm">{currentXP}</span>
-                                            <span className="text-gray-400 font-normal">/ {targetXP} XP</span>
-                                        </div>
-                                    </div>
-                                    <Progress value={xpProgress} className="h-2 bg-gray-100 [&>div]:bg-yellow-400" />
-                                    {xpRemaining > 0 && (
-                                        <p className="text-[10px] text-gray-400 mt-1.5 font-medium">
-                                            ¡Te faltan <span className="text-gray-600">{xpRemaining} XP</span> para ser {nextRankLabel}!
-                                        </p>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+    try {
+      // Detectar automáticamente si es base64 (photo) o URL (avatar)
+      const isBase64 = newAvatarUrl.startsWith('data:image/');
 
-                    {/* Right Section: Immunization Points (Yellow Box) */}
-                    <div className="w-full md:w-64 bg-yellow-400 p-6 flex flex-col items-center justify-center text-center text-gray-900 relative">
-                        {/* Decorative Icon Background */}
-                        <Trophy className="absolute text-yellow-500/30 w-32 h-32 -top-6 -right-6 rotate-12" />
+      if (isBase64) {
+        await api.profile.update(session, { photo: newAvatarUrl, avatar: null });
+      } else {
+        await api.profile.update(session, { avatar: newAvatarUrl, photo: null });
+      }
+      // No llamamos a onAvatarUpdate para evitar refresh del perfil
+    } catch (error) {
+      console.error('Error updating avatar:', error);
+      // Revert optimistic update on error
+      setCurrentAvatar(avatarUrl);
+      throw error;
+    }
+  };
 
-                        <div className="relative z-10 flex flex-col items-center">
-                            <Trophy className="h-8 w-8 mb-2 text-gray-900" />
-                            <div className="text-4xl font-black tracking-tight">{Number(immunizationPoints).toLocaleString()}</div>
-                            <div className="text-xs font-bold uppercase tracking-wider mt-1 opacity-80">Puntos de<br />Inmunización</div>
-                            <div className="mt-4 text-[10px] font-medium bg-yellow-500/20 px-2 py-1 rounded">
-                                Ranking #{globalRank} / {totalUsers}
-                            </div>
-                        </div>
-                    </div>
-                </div>
+  // Manejar subida de foto desde archivo
+  const handlePhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !session) return;
 
-                {/* Footer Section: Badges (Insignias) */}
-                <div className="bg-gray-50 border-t border-gray-100 px-6 py-3 flex items-center gap-4">
-                    <div className="text-xs font-bold text-gray-500 uppercase flex items-center gap-1">
-                        <span className="text-yellow-500">⚡</span> Insignias Ganadas ({profile.badges?.length || 0}/12)
-                    </div>
-                    <div className="flex items-center gap-2">
-                        {/* Render real badges loop or placeholder if array empty? 
-                            Ideally map ID to icon. For now, we can render placeholders based on count.
-                        */}
-                        {profile.badges && profile.badges.length > 0 ? (
-                            profile.badges.slice(0, 5).map((badgeId, idx) => (
-                                <div key={badgeId + idx} className="w-6 h-6 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 border border-orange-200" title={badgeId}>
-                                    <Medal className="w-3 h-3" />
-                                </div>
-                            ))
-                        ) : (
-                            <span className="text-[10px] text-gray-400">Sin insignias aún</span>
-                        )}
-                    </div>
-                </div>
-            </CardContent>
-        </Card>
-    );
-};
+    // Validar que sea imagen
+    if (!file.type.startsWith('image/')) {
+      console.error('El archivo debe ser una imagen');
+      return;
+    }
+
+    try {
+      // Convertir imagen a base64
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = reader.result as string;
+        
+        // Actualizar UI inmediatamente (optimistic update)
+        setCurrentAvatar(base64String);
+      };
+      reader.readAsDataURL(file);
+    } catch (error) {
+      console.error('Error reading file:', error);
+    }
+  };
+
+  // Abrir selector de archivos
+  const handleUploadClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  return (
+    <div className="flex md:flex-row items-start gap-6 w-full bg-white rounded-lg p-6">
+      {/* Avatar + Nivel */}
+      <div className="relative shrink-0 group">
+        <img
+          src={currentAvatar}
+          alt="Avatar"
+          className="w-24 h-24 rounded-full border-4 border-yellow-300 shadow object-cover"
+        />
+        <button
+          onClick={() => setShowAvatarModal(true)}
+          className="absolute top-0 right-0 bg-white rounded-full p-1.5 shadow-md border-2 border-yellow-300 hover:bg-yellow-50 transition-colors"
+          title="Cambiar avatar"
+        >
+          <Camera className="w-4 h-4 text-gray-700" />
+        </button>
+        <span className="absolute bottom-1 left-1/2 -translate-x-1/2 bg-blue-500 text-white text-xs font-bold px-2 py-0.5 rounded-full shadow">
+          Nv.{level}
+        </span>
+      </div>
+
+      {/* Avatar Selection Modal */}
+      <AvatarSelectionModal
+        isOpen={showAvatarModal}
+        onClose={() => setShowAvatarModal(false)}
+        currentAvatarUrl={currentAvatar}
+        onAvatarChange={handleAvatarChange}
+        onSave={handleAvatarSave}
+        onUploadClick={handleUploadClick}
+      />
+
+      {/* Input file oculto para subida de foto */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handlePhotoUpload}
+        className="hidden"
+      />
+
+      {/* Datos usuario + bio + progreso */}
+      <div className="flex-1 flex flex-col gap-3 min-w-[220px]">
+        <div className="flex flex-col gap-0.5">
+          <span className="text-2xl font-bold text-gray-900">{displayName}</span>
+          <span className="text-sm text-gray-600 flex items-center gap-1">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+            {email}
+          </span>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <span className="bg-blue-500 text-white text-xs px-3 py-1 rounded-full font-semibold">{rank}</span>
+          <span className="bg-gray-100 text-gray-700 text-xs px-3 py-1 rounded-full font-medium flex items-center gap-1">
+            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" /></svg>
+            {region}
+          </span>
+          <span className="bg-gray-100 text-gray-700 text-xs px-3 py-1 rounded-full font-medium flex items-center gap-1">
+            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" /></svg>
+            Desde {formatDate(memberSince)}
+          </span>
+        </div>
+        <blockquote className="italic text-gray-600 text-sm max-w-xl">"{bio}"</blockquote>
+        {/* Barra de progreso rango */}
+        <div className="mt-4 w-full max-w-md">
+          <div className="flex justify-between items-center mb-2">
+            <span className="text-sm font-medium text-gray-400">Progreso al siguiente rango</span>
+            <span className="text-sm font-semibold text-gray-900">{currentPI} / {nextRankPI} PI</span>
+          </div>
+          <div className="w-full h-2.5 bg-yellow-100 rounded-full overflow-hidden">
+            <div
+              className="h-2.5 bg-primary rounded-full transition-all"
+              style={{ width: `${piPercent}%` }}
+            ></div>
+          </div>
+          <div className="flex justify-between items-center mt-2">
+            <span className="text-xs text-gray-600">Próximo rango: <span className="font-semibold text-gray-800">{nextRankName}</span></span>
+            <span className="text-xs text-gray-500">({nextRankPI - currentPI} PI restantes)</span>
+          </div>
+        </div>
+      </div>
+
+      {/* PI Score Card */}
+      <div className="flex flex-col items-center justify-center bg-primary rounded-2xl px-8 py-6 min-w-[180px] shadow-lg">
+        <span className="text-gray-900 text-4xl mb-1">🏆</span>
+        <span className="text-4xl font-bold text-gray-900">{currentPI.toLocaleString('es-ES')}</span>
+        <span className="text-xs font-semibold text-gray-900 mt-1">Puntos de Inmunización</span>
+        <div className="flex items-center gap-1 mt-3 text-xs">
+          <span className="text-gray-800">Ranking: <span className="font-bold text-purple-600">#{ranking}</span> / {totalUsers.toLocaleString('es-ES')}</span>
+        </div>
+      </div>
+    </div>
+  );
+}

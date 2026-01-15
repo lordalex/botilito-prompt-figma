@@ -20,6 +20,7 @@ import { useAnalysisPolling } from './hooks/useAnalysisPolling';
 import { transformTextAnalysisToUI } from './services/analysisPresentationService';
 import { searchService } from './services/searchService';
 import { useAuth } from './providers/AuthProvider'; // Import the hook
+import ProfilePage from './components/profile/ProfilePage';
 
 type ViewState = 'upload' | 'verification' | 'review' | 'caseDetail' | 'mapa' | 'docs' | 'profile' | 'extension' | 'admin' | 'notifications' | 'status';
 
@@ -154,7 +155,9 @@ export default function App() {
         return <DocumentacionIndicadores />;
 
       case 'profile':
-        return <UserProfile />;
+        // Integración mínima: usar ProfilePage (estructura base)
+        // Fase 9: Componente orquestador según plan
+        return <ProfilePage />;
 
       case 'extension':
         return <ExtensionApp />;

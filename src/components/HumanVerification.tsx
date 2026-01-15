@@ -76,8 +76,8 @@ export function HumanVerification() {
           onViewTask={onViewTask}
           isLoading={false}
           isEnrichedFormat={true}
-          title="Casos por Validar"
-          description="Tu opinión es vital para el consenso"
+          title="Casos Pendientes de Validación"
+          description="Revisa y valida los análisis realizados por la IA"
           onPageChange={goToPage}
           currentPage={page}
           totalPages={totalPages}
