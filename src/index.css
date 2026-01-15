@@ -2218,6 +2218,10 @@
     background-color: var(--color-amber-500);
   }
 
+  .bg-amber-700 {
+    background-color: var(--color-amber-700);
+  }
+
   .bg-background {
     background-color: var(--background);
   }

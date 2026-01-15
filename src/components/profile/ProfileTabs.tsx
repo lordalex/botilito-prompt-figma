@@ -36,7 +36,8 @@ const mockRankingStats = {
   totalPI: 0,
 };
 
-export const ProfileTabs: React.FC = () => {
+
+export const ProfileTabs: React.FC<{ profileData: any }> = ({ profileData }) => {
   const [activeTab, setActiveTab] = useState('resumen');
 
   // Lazy loading: solo renderizar el contenido del tab activo
@@ -45,17 +46,17 @@ export const ProfileTabs: React.FC = () => {
       case 'resumen':
         return (
           <SummaryTab
-            streak={mockStreak}
-            recentBadges={mockRecentBadges}
-            achievementsInProgress={mockAchievementsInProgress}
+            streak={profileData.summary?.streak}
+            recentBadges={profileData.summary?.recentBadges}
+            achievementsInProgress={profileData.summary?.achievementsInProgress}
           />
         );
       case 'insignias':
-        return <BadgesTab badges={mockBadges} totalPI={0} />;
+        return <BadgesTab badges={profileData.badges} totalPI={profileData.kpi?.totalPI || 0} />;
       case 'logros':
-        return <AchievementsTab achievements={mockAchievements} />;
+        return <AchievementsTab achievements={profileData.achievements} />;
       case 'estadisticas':
-        return <StatsTab generalStats={mockGeneralStats} rankingStats={mockRankingStats} />;
+        return <StatsTab generalStats={profileData.generalStats} rankingStats={profileData.rankingStats} />;
       default:
         return null;
     }

@@ -34,32 +34,35 @@ function getTotalPI(badges: Badge[]) {
 }
 
 export const BadgesAndKPI: React.FC<BadgesAndKPIProps> = ({ badges, stats }) => {
-  // Si no hay badges del API, generar placeholders grises (15 por defecto según el plan)
-  const displayBadges =
-    badges.length > 0
-      ? badges
-      : Array.from({ length: 15 }, (_, idx) => ({
-          id: `placeholder-${idx}`,
-          name: `Insignia ${idx + 1}`,
-          icon: '',
-          tier: 'bronze' as const,
-          unlocked: false,
-          piReward: 0,
-          description: '',
-          requirement: '',
-        }));
+  // Siempre mostrar 15 iconos: badges reales + placeholders locked
+  const TOTAL_BADGES = 15;
+  const realBadges = badges.slice(0, TOTAL_BADGES);
+  const placeholdersNeeded = Math.max(0, TOTAL_BADGES - realBadges.length);
+  
+  const placeholders = Array.from({ length: placeholdersNeeded }, (_, idx) => ({
+    id: `placeholder-${idx}`,
+    name: `Insignia ${idx + 1}`,
+    icon: '',
+    tier: 'bronze' as const,
+    unlocked: false,
+    piReward: 0,
+    description: '',
+    requirement: '',
+  }));
 
-  const totalBadges = displayBadges.length;
-  const unlockedBadges = displayBadges.filter((b) => b.unlocked).length;
-  const totalPI = getTotalPI(displayBadges);
+  // Combinar reales + placeholders, ordenar unlocked primero
+  const displayBadges = [...realBadges, ...placeholders].sort((a, b) =>
+    a.unlocked === b.unlocked ? 0 : a.unlocked ? -1 : 1
+  );
+
+  const totalBadges = TOTAL_BADGES;
+  const unlockedBadges = realBadges.filter((b) => b.unlocked).length;
+  const totalPI = getTotalPI(realBadges);
 
   // Colores por tier
   const tierColors: Record<string, string> = {
-    bronze: 'bg-[#CD7F32]',
-    silver: 'bg-[#C0C0C0]',
-    gold: 'bg-[#FFD700]',
-    platinum: 'bg-[#E5E4E2]',
-    diamond: 'bg-[#B9F2FF]',
+    unlocked: 'bg-amber-700',
+    closest: 'bg-gray-400',
     locked: 'bg-gray-200',
   };
 
@@ -96,6 +99,7 @@ export const BadgesAndKPI: React.FC<BadgesAndKPIProps> = ({ badges, stats }) => 
             Crown,
             Gem,
             Lock,
+            Flame,
           ];
           const IconComponent = icons[idx % icons.length];
 
@@ -103,7 +107,7 @@ export const BadgesAndKPI: React.FC<BadgesAndKPIProps> = ({ badges, stats }) => 
             <div
               key={badge.id || idx}
               className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                badge.unlocked ? tierColors[badge.tier] : tierColors.locked
+                badge.unlocked ? tierColors.unlocked : tierColors.locked
               } shadow-md`}
               title={badge.name}
             >

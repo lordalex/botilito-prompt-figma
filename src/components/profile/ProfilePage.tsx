@@ -6,52 +6,19 @@ import React, { useState, useEffect } from 'react';
 import { ProfileHeader } from './ProfileHeader';
 import { BadgesAndKPI } from './BadgesAndKPI';
 import { ProfileTabs } from './ProfileTabs';
-import type { ProfileData } from './types';
 import { Separator } from '../ui/separator';
-
-// Mock data para desarrollo (según plan)
-const mockProfile: ProfileData = {
-  user: {
-    id: '1',
-    displayName: 'María Rodríguez',
-    email: 'maria.rodriguez@botilito.co',
-    avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=MariaRodriguez',
-    level: 1,
-    rank: 'Cibernauta Centinela',
-    region: 'Región Andina',
-    memberSince: new Date('2024-09-01'),
-    bio: 'Observador responsable en la primera línea contra la desinformación',
-  },
-  gamification: {
-    currentPI: 2350,
-    nextRankPI: 2500,
-    nextRankName: 'Cibernauta AMI',
-    ranking: 156,
-    totalUsers: 5432,
-    currentStreak: 23,
-    bestStreak: 45,
-  },
-  stats: {
-    casesRegistered: 127,
-    validations: 18,
-    consensusAverage: 87,
-    deepfakesDetected: 3,
-    caseViews: 2847,
-  },
-  badges: [], // Puedes agregar mock badges si lo deseas
-  achievements: [], // Puedes agregar mock achievements si lo deseas
-};
+import { mockProfileData } from './mockProfileData';
 
 const ProfilePage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [profile, setProfile] = useState<ProfileData | null>(null);
+  const [profile, setProfile] = useState<any>(null);
+
 
   useEffect(() => {
     // Simular carga de datos
     const timer = setTimeout(() => {
-      // Simular error: setError('No se pudo cargar el perfil.');
-      setProfile(mockProfile);
+      setProfile(mockProfileData);
       setLoading(false);
     }, 1200);
     return () => clearTimeout(timer);
@@ -87,10 +54,7 @@ const ProfilePage: React.FC = () => {
   return (
     <div className="max-w-7xl mx-auto px-4 py-10">
       {/* Banner: BotilitoValidationBanner (placeholder) */}
-      {/* TODO: Aquí se agregará BotilitoValidationBanner en la siguiente fase */}
       <div className="mb-6">
-        {/* Placeholder banner */}
-        {/* <BotilitoValidationBanner /> */}
         <div className="bg-yellow-100 border border-yellow-200 rounded-lg p-4 text-yellow-800 text-center text-sm">
           <span>Espacio reservado para el banner de validación de Botilito</span>
         </div>
@@ -98,19 +62,37 @@ const ProfilePage: React.FC = () => {
 
       {/* Composición principal */}
       <div className="rounded-lg p-6 border-primary border-2">
-        <ProfileHeader {...profile.user} {...profile.gamification} />
+        {/* Adaptar props según el nuevo mockProfileData */}
+        <ProfileHeader
+          avatarUrl={profile.avatar}
+          displayName={profile.nombre_completo}
+          email={profile.email}
+          level={profile.xp}
+          rank={profile.role}
+          region={profile.ciudad}
+          memberSince={new Date(profile.fecha_nacimiento)}
+          bio={profile.departamento}
+          currentPI={profile.kpi?.totalPI || 0}
+          nextRankPI={profile.stats?.next_rank_progress?.target || 0}
+          nextRankName={profile.stats?.next_rank_progress?.label || ''}
+          ranking={profile.rankingStats?.ranking || 0}
+          totalUsers={profile.rankingStats?.totalUsers || 0}
+        />
         <Separator />
         <div className="mt-8">
-          <BadgesAndKPI badges={profile.badges} stats={{
-            casesRegistered: profile.stats.casesRegistered,
-            validations: profile.stats.validations,
-            currentStreak: profile.gamification.currentStreak,
-            ranking: profile.gamification.ranking,
-          }} />
+          <BadgesAndKPI
+            badges={profile.badges}
+            stats={{
+              casesRegistered: profile.generalStats?.casesRegistered || 0,
+              validations: profile.generalStats?.validations || 0,
+              currentStreak: profile.rankingStats?.currentStreak || 0,
+              ranking: profile.rankingStats?.ranking || 0,
+            }}
+          />
         </div>
       </div>
       <div className="mt-8">
-        <ProfileTabs />
+        <ProfileTabs profileData={profile} />
       </div>
     </div>
   );

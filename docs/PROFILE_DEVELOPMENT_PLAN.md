@@ -93,72 +93,164 @@ const colors = {
 
 ---
 
-## 📦 Interfaces TypeScript
+## � Mapeo API → UI Props
+
+Esta tabla define cómo se transforman los campos de la API (`GET /profileCRUD`) a las props de los componentes UI.
+
+| Campo API | Tipo API | → | Prop UI | Componente |
+|-----------|----------|---|---------|------------|
+| `data.id` | `string` | → | `user.id` | ProfileData |
+| `data.nombre_completo` | `string` | → | `user.displayName` | ProfileHeader |
+| `data.email` | `string` | → | `user.email` | ProfileHeader |
+| `data.photo` / `data.avatar` | `string?` | → | `user.avatarUrl` | ProfileHeader |
+| `data.ciudad` | `string` | → | `user.region` | ProfileHeader |
+| `data.xp` | `number` | → | `gamification.currentPI` | ProfileHeader, StatsTab |
+| `data.current_streak` | `number` | → | `gamification.currentStreak` | BadgesAndKPI, SummaryTab |
+| `data.best_streak` | `number` | → | `gamification.bestStreak` | SummaryTab, StatsTab |
+| `data.badges` | `string[]` | → | `badges` (mapeado a Badge[]) | BadgesAndKPI, BadgesTab |
+| `data.stats.cases_registered` | `number` | → | `stats.casesRegistered` | BadgesAndKPI, StatsTab |
+| `data.stats.validations_performed` | `number` | → | `stats.validations` | BadgesAndKPI, StatsTab |
+| `data.stats.global_ranking` | `number` | → | `gamification.ranking` | ProfileHeader, BadgesAndKPI |
+| `data.stats.total_users` | `number` | → | `gamification.totalUsers` | ProfileHeader |
+| `data.stats.next_rank_progress.current` | `number` | → | `gamification.currentPI` | ProfileHeader |
+| `data.stats.next_rank_progress.target` | `number` | → | `gamification.nextRankPI` | ProfileHeader |
+| `data.stats.next_rank_progress.label` | `string` | → | `user.rank` | ProfileHeader |
+| `challenges_progress[]` | `ChallengeProgressAPI[]` | → | `achievements` (mapeado a Achievement[]) | AchievementsTab, SummaryTab |
+
+### Campos NO provistos por la API (Mock/Placeholder)
+
+| Campo UI | Valor por defecto | Nota |
+|----------|-------------------|------|
+| `user.level` | `1` | **MOCK**: No existe en API. Derivar de rank si es necesario. |
+| `user.memberSince` | `new Date()` | **MOCK**: No existe en API. |
+| `user.bio` | `""` | **MOCK**: No existe en API. |
+| `stats.consensusAverage` | `0` | **MOCK**: No existe en API. |
+| `stats.deepfakesDetected` | `0` | **MOCK**: No existe en API. |
+| `stats.caseViews` | `0` | **MOCK**: No existe en API. |
+| `badge.tier` | `'bronze'` | **MOCK**: API solo retorna `string[]`. Mapear localmente. |
+| `badge.icon` | `''` | **MOCK**: Mapear desde `badge_name` en frontend. |
+| `badge.piReward` | `0` | **MOCK**: Usar `reward_display` de ChallengeProgress si aplica. |
+
+---
+
+## �📦 Interfaces TypeScript
 
 ```typescript
 // types.ts
 
+// ============================================
+// INTERFACES DE API (respuesta del backend)
+// ============================================
+
+/** Respuesta del endpoint GET /profileCRUD */
+interface ProfileAPIResponse {
+  data: UserProfileAPI;
+  challenges_progress: ChallengeProgressAPI[];
+}
+
+/** Modelo del perfil desde la API */
+interface UserProfileAPI {
+  id: string;
+  email: string;
+  nombre_completo: string;
+  ciudad: string;
+  photo?: string;
+  xp: number;
+  current_streak: number;
+  best_streak: number;
+  badges: string[];  // Solo nombres de insignias
+  stats: {
+    cases_registered: number;
+    validations_performed: number;
+    global_ranking: number;
+    total_users: number;
+    next_rank_progress: {
+      current: number;
+      target: number;
+      label: string;
+    };
+  };
+}
+
+/** Progreso de retos desde la API */
+interface ChallengeProgressAPI {
+  id: string;
+  title: string;
+  description: string;
+  badge_name: string;
+  completed: boolean;
+  percent: number;
+  reward_display: string;  // "+150 PI"
+}
+
+// ============================================
+// INTERFACES DE UI (props de componentes)
+// ============================================
+
+/** Datos transformados para uso en componentes UI */
 interface ProfileData {
   user: {
     id: string;
-    displayName: string;
+    displayName: string;       // ← API: nombre_completo
     email: string;
-    avatarUrl: string;
-    level: number;
-    rank: string;
-    region: string;
-    memberSince: Date;
-    bio: string;
+    avatarUrl: string;         // ← API: photo
+    level: number;             // MOCK: No existe en API
+    rank: string;              // ← API: stats.next_rank_progress.label
+    region: string;            // ← API: ciudad
+    memberSince: Date;         // MOCK: No existe en API
+    bio: string;               // MOCK: No existe en API
   };
   gamification: {
-    currentPI: number;
-    nextRankPI: number;
-    nextRankName: string;
-    ranking: number;
-    totalUsers: number;
-    currentStreak: number;
-    bestStreak: number;
+    currentPI: number;         // ← API: xp
+    nextRankPI: number;        // ← API: stats.next_rank_progress.target
+    nextRankName: string;      // MOCK: Derivar del siguiente tier
+    ranking: number;           // ← API: stats.global_ranking
+    totalUsers: number;        // ← API: stats.total_users
+    currentStreak: number;     // ← API: current_streak
+    bestStreak: number;        // ← API: best_streak
   };
   stats: {
-    casesRegistered: number;
-    validations: number;
-    consensusAverage: number;
-    deepfakesDetected: number;
-    caseViews: number;
+    casesRegistered: number;   // ← API: stats.cases_registered
+    validations: number;       // ← API: stats.validations_performed
+    consensusAverage: number;  // MOCK: No existe en API
+    deepfakesDetected: number; // MOCK: No existe en API
+    caseViews: number;         // MOCK: No existe en API
   };
-  badges: Badge[];
-  achievements: Achievement[];
+  badges: Badge[];             // ← Mapeado desde API: badges[] + metadata local
+  achievements: Achievement[]; // ← Mapeado desde API: challenges_progress[]
 }
 
+/** Insignia para UI (enriquecida con metadata local) */
 interface Badge {
   id: string;
-  name: string;
-  icon: string;
-  tier: 'bronze' | 'silver' | 'gold' | 'platinum' | 'diamond';
-  unlocked: boolean;
-  unlockedAt?: Date;
-  piReward: number;
-  description: string;
-  requirement: string;
+  name: string;                // ← API: badges[i] (string)
+  icon: string;                // MOCK: Mapear localmente desde name
+  tier: 'bronze' | 'silver' | 'gold' | 'platinum' | 'diamond'; // MOCK: Asignar localmente
+  unlocked: boolean;           // true si está en badges[]
+  unlockedAt?: Date;           // MOCK: No existe en API
+  piReward: number;            // MOCK: Asignar desde config local
+  description: string;         // MOCK: Asignar desde config local
+  requirement: string;         // MOCK: Asignar desde config local
 }
 
+/** Logro/Reto para UI */
 interface Achievement {
-  id: string;
-  name: string;
-  description: string;
-  icon: string;
-  current: number;
-  target: number;
-  piReward: number;
-  completed: boolean;
+  id: string;                  // ← API: challenges_progress[i].id
+  name: string;                // ← API: title
+  description: string;         // ← API: description
+  icon: string;                // MOCK: Mapear desde badge_name
+  current: number;             // Derivar: Math.round(percent * target / 100)
+  target: number;              // MOCK: 100 por defecto
+  piReward: number;            // Parsear desde reward_display ("+150 PI" → 150)
+  completed: boolean;          // ← API: completed
 }
 
-// Interfaz para stats rápidos (Quick Stats)
+/** Stats rápidos (Quick Stats) */
 interface UserStats {
-  casesRegistered: number;
-  validations: number;  // Unificado: siempre 'validations'
-  currentStreak: number;
-  ranking: number;
+  casesRegistered: number;     // ← API: stats.cases_registered
+  validations: number;         // ← API: stats.validations_performed
+  currentStreak: number;       // ← API: current_streak
+  ranking: number;             // ← API: stats.global_ranking
 }
 ```
 
@@ -167,22 +259,124 @@ interface UserStats {
 ## 🧪 Mock Data para Desarrollo
 
 ```typescript
-const mockUser = {
-  displayName: "María Rodríguez",
-  email: "maria.rodriguez@botilito.co",
-  avatarUrl: "https://api.dicebear.com/7.x/avataaars/svg?seed=MariaRodriguez",
-  level: 1,
-  rank: "Cibernauta Centinela",
-  region: "Región Andina",
-  memberSince: new Date("2024-09-01"),
-  bio: "Observador responsable en la primera línea contra la desinformación",
-  currentPI: 2350,
-  nextRankPI: 2500,
-  nextRankName: "Cibernauta AMI",
-  ranking: 156,
-  totalUsers: 5432
+// ============================================
+// MOCK DATA (para desarrollo sin API)
+// ============================================
+
+/** Ejemplo de respuesta API simulada */
+const mockAPIResponse: ProfileAPIResponse = {
+  data: {
+    id: "uuid-123",
+    email: "maria.rodriguez@botilito.co",
+    nombre_completo: "María Rodríguez",
+    ciudad: "Región Andina",
+    photo: "https://api.dicebear.com/7.x/avataaars/svg?seed=MariaRodriguez",
+    xp: 2350,
+    current_streak: 23,
+    best_streak: 45,
+    badges: ["Primer Diagnóstico", "Explorador AMI", "Validador Experto"],
+    stats: {
+      cases_registered: 127,
+      validations_performed: 18,
+      global_ranking: 156,
+      total_users: 5432,
+      next_rank_progress: {
+        current: 2350,
+        target: 2500,
+        label: "Cibernauta Centinela"
+      }
+    }
+  },
+  challenges_progress: [
+    {
+      id: "ch-1",
+      title: "Maestro Multimedia",
+      description: "Analiza al menos un caso de cada tipo de contenido",
+      badge_name: "multimedia_master",
+      completed: false,
+      percent: 67,
+      reward_display: "+150 PI"
+    },
+    {
+      id: "ch-2",
+      title: "Primera Validación",
+      description: "Completa tu primera validación de contenido",
+      badge_name: "first_validation",
+      completed: true,
+      percent: 100,
+      reward_display: "+50 PI"
+    }
+  ]
 };
+
+/** Función de transformación API → UI */
+function transformAPIToProfileData(apiResponse: ProfileAPIResponse): ProfileData {
+  const { data, challenges_progress } = apiResponse;
+  
+  return {
+    user: {
+      id: data.id,
+      displayName: data.nombre_completo,
+      email: data.email,
+      avatarUrl: data.photo || '',
+      level: 1, // MOCK
+      rank: data.stats.next_rank_progress.label,
+      region: data.ciudad,
+      memberSince: new Date(), // MOCK
+      bio: '', // MOCK
+    },
+    gamification: {
+      currentPI: data.xp,
+      nextRankPI: data.stats.next_rank_progress.target,
+      nextRankName: 'Cibernauta AMI', // MOCK: calcular desde config
+      ranking: data.stats.global_ranking,
+      totalUsers: data.stats.total_users,
+      currentStreak: data.current_streak,
+      bestStreak: data.best_streak,
+    },
+    stats: {
+      casesRegistered: data.stats.cases_registered,
+      validations: data.stats.validations_performed,
+      consensusAverage: 0, // MOCK
+      deepfakesDetected: 0, // MOCK
+      caseViews: 0, // MOCK
+    },
+    badges: mapBadgesFromAPI(data.badges),
+    achievements: mapAchievementsFromAPI(challenges_progress),
+  };
+}
+
+/** Helper: Mapear badges de API a UI Badge[] */
+function mapBadgesFromAPI(badgeNames: string[]): Badge[] {
+  // TODO: Usar config local de badges para enriquecer con tier, icon, etc.
+  return badgeNames.map((name, idx) => ({
+    id: `badge-${idx}`,
+    name,
+    icon: '', // MOCK
+    tier: 'bronze' as const, // MOCK
+    unlocked: true,
+    piReward: 0, // MOCK
+    description: '', // MOCK
+    requirement: '', // MOCK
+  }));
+}
+
+/** Helper: Mapear challenges_progress a Achievement[] */
+function mapAchievementsFromAPI(challenges: ChallengeProgressAPI[]): Achievement[] {
+  return challenges.map((ch) => ({
+    id: ch.id,
+    name: ch.title,
+    description: ch.description,
+    icon: '', // MOCK: mapear desde badge_name
+    current: Math.round(ch.percent),
+    target: 100,
+    piReward: parseInt(ch.reward_display.replace(/[^\d]/g, '')) || 0,
+    completed: ch.completed,
+  }));
+}
 ```
+
+> **Recomendación**: Implementar `transformAPIToProfileData()` en `src/components/profile/api-mapper.ts` para centralizar la lógica de transformación.
 
 ---
 
@@ -418,10 +612,18 @@ interface StatsTabProps {
 
 | # | Tarea | Detalles |
 |---|-------|----------|
-| 10.1 | Hook `useProfile` | Fetch datos del perfil |
+| 10.1 | Hook `useProfile` | Fetch datos desde `GET /profileCRUD`, transformar con `transformAPIToProfileData()` |
 | 10.2 | Conexión con AuthProvider | Obtener userId actual |
 | 10.3 | Manejo de estados | loading, error, data |
 | 10.4 | Refresh | Función para recargar datos |
+
+📂 **Archivo a crear**: `src/components/profile/api-mapper.ts`
+
+| # | Tarea | Detalles |
+|---|-------|----------|
+| 10.5 | `transformAPIToProfileData()` | Transforma `ProfileAPIResponse` a `ProfileData` |
+| 10.6 | `mapBadgesFromAPI()` | Transforma `string[]` a `Badge[]` con metadata local |
+| 10.7 | `mapAchievementsFromAPI()` | Transforma `ChallengeProgressAPI[]` a `Achievement[]` |
 
 ---
 
@@ -526,6 +728,28 @@ TOTAL: ~10 horas de desarrollo
 - **Componentes UI base**: `@/components/ui/` (shadcn/ui)
 - **Banner existente**: `BotilitoValidationBanner`
 - **Tabs UI**: `@/components/ui/tabs`
+- **Contrato API**: `profile-usage-guide.md`
+
+---
+
+## ⚠️ Breaking Changes & Consideraciones de API
+
+### Cambios Importantes
+
+| Cambio | Impacto | Mitigación |
+|--------|---------|------------|
+| `badges` ahora es `string[]` en API | `Badge[]` en UI requiere mapeo | Usar `mapBadgesFromAPI()` helper |
+| `challenges_progress` reemplaza `achievements` | Estructura diferente | Usar `mapAchievementsFromAPI()` helper |
+| Campos MOCK (`level`, `memberSince`, `bio`, `consensusAverage`, etc.) | No vienen de API | Mantener como placeholders con comentario MOCK |
+| `nombre_completo` → `displayName` | Requiere transformación | Incluido en `transformAPIToProfileData()` |
+| `xp` → `currentPI` | Renombrado en UI | Transformación directa en mapper |
+
+### Decisiones de Diseño
+
+1. **Centralización del mapeo**: Toda la lógica de transformación API→UI debe residir en `api-mapper.ts`
+2. **Campos MOCK explícitos**: Los campos no provistos por la API deben tener comentario `// MOCK` para fácil identificación
+3. **Badges enriquecidos**: El frontend mantiene una configuración local de badges con tier, icon, description, etc.
+4. **PI derivado de reward_display**: El campo `piReward` de achievements se parsea desde `"+150 PI"` → `150`
 
 ---
 
