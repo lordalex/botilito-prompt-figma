@@ -7,7 +7,7 @@ import { useSearchManager } from './useSearchManager';
  */
 export function useNewHistoryFlow() {
   const searchManager = useSearchManager({
-    initialArgs: [1, 10, { filter_mode: 'has_consensus' }],
+    initialArgs: [1, 10, null, 'has_consensus'],
   });
 
   return {

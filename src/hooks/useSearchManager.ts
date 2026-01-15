@@ -77,147 +77,755 @@ export function useSearchManager<T extends any[]>({
 
 
 
-  useEffect(() => {
-
-    const handleJobCompleted = (job: Job) => {
-
-      if (job.id === currentJobId && job.type === 'search') {
-
-        if (job.result) {
-
-          const result = job.result as VerificationSummaryResult;
-
-          const enrichedCases = result.cases.map(transformStandardizedToEnriched);
-
-          setCases(enrichedCases);
+      useEffect(() => {
 
 
 
-          if (result.pagination) {
+    
 
-            setTotalItems(result.pagination.totalItems);
 
-            setTotalPages(result.pagination.totalPages);
+
+        const handleJobCompleted = (job: Job) => {
+
+
+
+    
+
+
+
+          if (job.id === currentJobId && job.type === 'search') {
+
+
+
+    
+
+
+
+            if (job.result) {
+
+
+
+    
+
+
+
+              const result = job.result as VerificationSummaryResult;
+
+
+
+    
+
+
+
+              const enrichedCases = result.cases.map(transformStandardizedToEnriched);
+
+
+
+    
+
+
+
+              setCases(enrichedCases);
+
+
+
+    
+
+
+
+    
+
+
+
+    
+
+
+
+              if (result.pagination) {
+
+
+
+    
+
+
+
+                setTotalItems(result.pagination.totalItems);
+
+
+
+    
+
+
+
+                setTotalPages(result.pagination.totalPages);
+
+
+
+    
+
+
+
+              }
+
+
+
+    
+
+
+
+            } else {
+
+
+
+    
+
+
+
+              setCases([]);
+
+
+
+    
+
+
+
+              setTotalItems(0);
+
+
+
+    
+
+
+
+              setTotalPages(0);
+
+
+
+    
+
+
+
+            }
+
+
+
+    
+
+
+
+            setIsLoading(false);
+
+
+
+    
+
+
+
+            setCurrentJobId(null);
+
+
+
+    
+
+
 
           }
 
-        } else {
 
-          setCases([]);
 
-          setTotalItems(0);
+    
 
-          setTotalPages(0);
+
+
+        };
+
+
+
+    
+
+
+
+    
+
+
+
+    
+
+
+
+        const handleJobFailed = (job: Job) => {
+
+
+
+    
+
+
+
+          if (job.id === currentJobId && job.type === 'search') {
+
+
+
+    
+
+
+
+            const errorMessage = job.error || 'An unknown error occurred.';
+
+
+
+    
+
+
+
+            setError(errorMessage);
+
+
+
+    
+
+
+
+            toast({
+
+
+
+    
+
+
+
+              title: 'Error en la Búsqueda',
+
+
+
+    
+
+
+
+              description: errorMessage,
+
+
+
+    
+
+
+
+              variant: 'destructive',
+
+
+
+    
+
+
+
+            });
+
+
+
+    
+
+
+
+            setIsLoading(false);
+
+
+
+    
+
+
+
+            setCurrentJobId(null);
+
+
+
+    
+
+
+
+          }
+
+
+
+    
+
+
+
+        };
+
+
+
+    
+
+
+
+    
+
+
+
+    
+
+
+
+        const handleJobAdded = (job: Job) => {
+
+
+
+    
+
+
+
+          if (job.type === 'search') {
+
+
+
+            const [page, pageSize, filters, filterMode] = args;
+
+
+
+            if (job.payload.page === page && job.payload.pageSize === pageSize && JSON.stringify(job.payload.filters) === JSON.stringify(filters)) {
+
+
+
+              console.log("job added", job.payload);
+
+
+
+              setCurrentJobId(job.id);
+
+
+
+            }
+
+
+
+          }
+
+
+
+        };
+
+
+
+    
+
+
+
+    
+
+
+
+    
+
+
+
+        jobManager.on('job:completed', handleJobCompleted);
+
+
+
+    
+
+
+
+        jobManager.on('job:failed', handleJobFailed);
+
+
+
+    
+
+
+
+        jobManager.on('job:added', handleJobAdded);
+
+
+
+    
+
+
+
+    
+
+
+
+    
+
+
+
+        return () => {
+
+
+
+    
+
+
+
+          jobManager.off('job:completed', handleJobCompleted);
+
+
+
+    
+
+
+
+          jobManager.off('job:failed', handleJobFailed);
+
+
+
+    
+
+
+
+          jobManager.off('job:added', handleJobAdded);
+
+
+
+    
+
+
+
+        };
+
+
+
+    
+
+
+
+      }, [currentJobId, toast, args]);
+
+
+
+    
+
+
+
+    
+
+
+
+    
+
+
+
+      const loadCases = useCallback(async (loadArgs: T) => {
+
+
+
+    
+
+
+
+    
+
+
+
+    
+
+
+
+        setIsLoading(true);
+
+
+
+    
+
+
+
+    
+
+
+
+    
+
+
+
+        setError(null);
+
+
+
+    
+
+
+
+    
+
+
+
+    
+
+
+
+        try {
+
+
+
+    
+
+
+
+    
+
+
+
+    
+
+
+
+          const { data: { session } } = await supabase.auth.getSession();
+
+
+
+    
+
+
+
+    
+
+
+
+    
+
+
+
+          if (!session) throw new Error("No session");
+
+
+
+    
+
+
+
+    
+
+
+
+    
+
+
+
+    
+
+
+
+    
+
+
+
+    
+
+
+
+    
+
+
+
+          const [page, pageSize, filters, filterMode] = loadArgs;
+
+
+
+    
+
+
+
+    
+
+
+
+    
+
+
+
+          jobManager.addJob('search', { page, pageSize, filters, filterMode });
+
+
+
+    
+
+
+
+    
+
+
+
+    
+
+
+
+    
+
+
+
+    
+
+
+
+    
+
+
+
+    
+
+
+
+        } catch (err) {
+
+
+
+    
+
+
+
+    
+
+
+
+    
+
+
+
+          const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred.';
+
+
+
+    
+
+
+
+    
+
+
+
+    
+
+
+
+          setError(errorMessage);
+
+
+
+    
+
+
+
+    
+
+
+
+    
+
+
+
+          toast({
+
+
+
+    
+
+
+
+    
+
+
+
+    
+
+
+
+            title: 'Error al Cargar Casos',
+
+
+
+    
+
+
+
+    
+
+
+
+    
+
+
+
+            description: errorMessage,
+
+
+
+    
+
+
+
+    
+
+
+
+    
+
+
+
+            variant: 'destructive',
+
+
+
+    
+
+
+
+    
+
+
+
+    
+
+
+
+          });
+
+
+
+    
+
+
+
+    
+
+
+
+    
+
+
+
+          setIsLoading(false);
+
+
+
+    
+
+
+
+    
+
+
+
+    
+
+
 
         }
 
-        setIsLoading(false);
 
-        setCurrentJobId(null);
 
-      }
-
-    };
+    
 
 
 
-    const handleJobFailed = (job: Job) => {
-
-      if (job.id === currentJobId && job.type === 'search') {
-
-        const errorMessage = job.error || 'An unknown error occurred.';
-
-        setError(errorMessage);
-
-        toast({
-
-          title: 'Error en la Búsqueda',
-
-          description: errorMessage,
-
-          variant: 'destructive',
-
-        });
-
-        setIsLoading(false);
-
-        setCurrentJobId(null);
-
-      }
-
-    };
+    
 
 
 
-    const handleJobAdded = (job: Job) => {
-
-      if (job.type === 'search') {
-        const [page, pageSize, filters, filterMode] = args;
-        if (job.payload.page === page && job.payload.pageSize === pageSize && JSON.stringify(job.payload.filters) === JSON.stringify(filters)) {
-          console.log("job added", job.payload);
-          setCurrentJobId(job.id);
-        }
-      }
-    };
+    
 
 
 
-    jobManager.on('job:completed', handleJobCompleted);
-
-    jobManager.on('job:failed', handleJobFailed);
-
-    jobManager.on('job:added', handleJobAdded);
-
-
-
-    return () => {
-
-      jobManager.off('job:completed', handleJobCompleted);
-
-      jobManager.off('job:failed', handleJobFailed);
-
-      jobManager.off('job:added', handleJobAdded);
-
-    };
-
-  }, [currentJobId, toast, args]);
-
-
-
-  const loadCases = useCallback(async (loadArgs: T) => {
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error("No session");
-
-      let [page, pageSize, filters, filterMode] = loadArgs;
-
-      // Robustly handle filter_mode: if it's passed inside the filters object, extract it.
-      if (filters && typeof filters === 'object' && (filters as any).filter_mode) {
-        filterMode = (filters as any).filter_mode;
-        filters = {}; // filterMode takes precedence, so clear other filters.
-      }
-
-      // Apply default filter if no other filter is specified
-      if (!filterMode && (!filters || Object.keys(filters).length === 0)) {
-        filterMode = 'all';
-      }
-
-      jobManager.addJob('search', { page, pageSize, filters, filterMode });
-
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred.';
-      setError(errorMessage);
-      toast({
-        title: 'Error al Cargar Casos',
-        description: errorMessage,
-        variant: 'destructive',
-      });
-      setIsLoading(false);
-    }
-  }, [toast]);
+      }, [toast]);
 
 
 

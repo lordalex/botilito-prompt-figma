@@ -68,6 +68,7 @@ export function ContentReview({ onViewTask: externalOnViewTask }: ContentReviewP
     goToPage,
     refresh,
   } = useNewHistoryFlow();
+  console.log("cases", cases);
 
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
 
