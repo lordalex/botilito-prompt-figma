@@ -156,7 +156,7 @@ export function useSearchManager<T extends any[]>({
         const [page, pageSize, filters] = args;
 
         if (job.payload.page === page && job.payload.pageSize === pageSize && JSON.stringify(job.payload.filters) === JSON.stringify(filters)) {
-
+          console.log("job added", job.payload);
           setCurrentJobId(job.id);
 
         }
@@ -189,232 +189,232 @@ export function useSearchManager<T extends any[]>({
 
 
 
-    const loadCases = useCallback(async (loadArgs: T) => {
+  const loadCases = useCallback(async (loadArgs: T) => {
 
 
 
-      setIsLoading(true);
+    setIsLoading(true);
 
 
 
-      setError(null);
+    setError(null);
 
 
 
-      try {
+    try {
 
 
 
-        const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session } } = await supabase.auth.getSession();
 
 
 
-        if (!session) throw new Error("No session");
+      if (!session) throw new Error("No session");
 
 
 
-  
 
 
 
-        const [page, pageSize, filters, filterMode] = loadArgs;
 
+      const [page, pageSize, filters, filterMode] = loadArgs;
 
 
-        jobManager.addJob('search', { page, pageSize, filters, filterMode });
 
+      jobManager.addJob('search', { page, pageSize, filters, filterMode });
 
 
-  
 
 
 
-      } catch (err) {
 
 
+    } catch (err) {
 
-        const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred.';
 
 
+      const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred.';
 
-        setError(errorMessage);
 
 
+      setError(errorMessage);
 
-        toast({
 
 
+      toast({
 
-          title: 'Error al Cargar Casos',
 
 
+        title: 'Error al Cargar Casos',
 
-          description: errorMessage,
 
 
+        description: errorMessage,
 
-          variant: 'destructive',
 
 
+        variant: 'destructive',
 
-        });
 
 
+      });
 
-        setIsLoading(false);
 
 
+      setIsLoading(false);
 
-      }
 
 
+    }
 
-    }, [toast]);
 
 
+  }, [toast]);
 
-  
 
 
 
-    useEffect(() => {
 
 
 
-      loadCases(args);
+  useEffect(() => {
 
 
 
-    }, [args, loadCases]);
+    loadCases(args);
 
 
 
-  
+  }, [args, loadCases]);
 
 
 
-    const goToPage = (newPage: number) => {
 
 
 
-      if (newPage > 0 && newPage <= (totalPages || newPage)) {
 
+  const goToPage = (newPage: number) => {
 
 
-        const newArgs = [...args];
 
+    if (newPage > 0 && newPage <= (totalPages || newPage)) {
 
 
-        newArgs[0] = newPage;
 
+      const newArgs = [...args];
 
 
-        setArgs(newArgs as T);
 
+      newArgs[0] = newPage;
 
 
-      }
 
+      setArgs(newArgs as T);
 
 
-    };
 
+    }
 
 
-  
 
+  };
 
 
-    const refresh = () => {
 
 
 
-      loadCases(args);
 
 
+  const refresh = () => {
 
-    };
 
 
+    loadCases(args);
 
-  
 
 
+  };
 
-    return {
 
 
 
-      cases,
 
 
 
-      isLoading,
+  return {
 
 
 
-      error,
+    cases,
 
 
 
-      page,
+    isLoading,
 
 
 
-      pageSize,
+    error,
 
 
 
-      totalPages,
+    page,
 
 
 
-      totalItems,
+    pageSize,
 
 
 
-      setPage: (p: number) => goToPage(p),
+    totalPages,
 
 
 
-      setPageSize: (ps: number) => {
+    totalItems,
 
 
 
-          const newArgs = [...args];
+    setPage: (p: number) => goToPage(p),
 
 
 
-          newArgs[0] = 1; // reset to page 1
+    setPageSize: (ps: number) => {
 
 
 
-          newArgs[1] = ps;
+      const newArgs = [...args];
 
 
 
-          setArgs(newArgs as T);
+      newArgs[0] = 1; // reset to page 1
 
 
 
-      },
+      newArgs[1] = ps;
 
 
 
-      goToPage,
+      setArgs(newArgs as T);
 
 
 
-      refresh,
+    },
 
 
 
-    };
+    goToPage,
 
 
 
-  }
+    refresh,
 
 
 
-  
+  };
+
+
+
+}
+
+
+
+

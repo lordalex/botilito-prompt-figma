@@ -250,6 +250,13 @@ export interface CaseEnrichedCompatible {
     status: string;
     breakdown: Record<string, unknown>;
   };
+  standardized_case?: {
+    community?: {
+      votes: number;
+      status: string;
+      breakdown: Record<string, unknown>;
+    };
+  };
   metadata?: {
     screenshot?: string;
     reported_by?: { id: string; name: string };
@@ -303,7 +310,7 @@ export function transformEnrichedToListItem(caseData: CaseEnrichedCompatible): V
     amiScore: caseData.metadata?.ai_analysis?.classification?.indiceCumplimientoAMI?.score,
     amiLevel: caseData.metadata?.amiLevel || caseData.metadata?.ai_analysis?.classification?.indiceCumplimientoAMI?.nivel,
     screenshotUrl: caseData.metadata?.screenshot,
-    community: caseData.community,
+    community: caseData.standardized_case.community,
   };
 }
 
@@ -442,7 +449,6 @@ export function transformStandardizedCaseToListItem(stdCase: StandardizedCase): 
   const idSuffix = stdCase.id ? stdCase.id.slice(-3).toUpperCase() : '000';
   const prefix = (stdCase.type || 'text').charAt(0).toUpperCase();
   const caseCode = `${prefix}-${dateStr}-${idSuffix}`;
-
   return {
     id: stdCase.id,
     caseCode: caseCode,

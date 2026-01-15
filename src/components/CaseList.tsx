@@ -106,7 +106,7 @@ export interface CaseListProps {
   onPageChange?: (page: number) => void;
   onRefresh?: () => void;
   isRefreshing?: boolean;
-  
+
   // Props para filtro de modo (servidor)
   filterMode?: FilterMode;
   onFilterModeChange?: (mode: FilterMode) => void;
@@ -138,12 +138,16 @@ export function CaseList({
   const [contentFilter, setContentFilter] = useState<ContentFilterOption>('todos');
 
   const listItems = useMemo(() => {
+    console.log(cases);
     if (isStandardizedFormat) {
+      console.log("std", cases);
       return transformStandardizedCasesToListItems(cases as StandardizedCase[]);
     }
     if (isEnrichedFormat) {
+      console.log("enr", cases);
       return transformEnrichedCasesToListItems(cases as CaseEnrichedCompatible[]);
     }
+    console.log("val", cases);
     return transformCasesToListItems(cases as ValidationCaseDTO[]);
   }, [cases, isEnrichedFormat, isStandardizedFormat]);
 
@@ -165,7 +169,7 @@ export function CaseList({
       return matchesSearch && matchesFilter;
     });
   }, [listItems, searchQuery, contentFilter]);
-  
+
   const displayedFilterModes = filterModes.filter(fm => availableFilterModes.includes(fm.value));
 
   return (
