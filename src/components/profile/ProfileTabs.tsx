@@ -1,14 +1,11 @@
-// ProfileTabs.tsx
-// Fase 4: ProfileTabs (Contenedor)
-// Archivo generado según el plan de desarrollo
-
 import React, { useState } from 'react';
+import { Award, BarChart3, Activity, Star } from 'lucide-react';
 
 const TABS = [
-  { key: 'resumen', label: 'Resumen' },
-  { key: 'insignias', label: 'Insignias' },
-  { key: 'logros', label: 'Logros' },
-  { key: 'estadisticas', label: 'Estadísticas' },
+  { key: 'resumen', label: 'Resumen', icon: Activity },
+  { key: 'insignias', label: 'Insignias', icon: Award },
+  { key: 'logros', label: 'Logros', icon: Star },
+  { key: 'estadisticas', label: 'Estadísticas', icon: BarChart3 },
 ];
 
 export const ProfileTabs: React.FC = () => {
@@ -32,25 +29,39 @@ export const ProfileTabs: React.FC = () => {
 
   return (
     <div className="w-full max-w-7xl mx-auto mt-6">
-      <div className="flex items-center border-b border-gray-200 mb-2">
-        {TABS.map(tab => (
-          <button
-            key={tab.key}
-            className={`px-6 py-2 font-medium text-sm rounded-t transition-colors duration-200 focus:outline-none
-              ${activeTab === tab.key
-                ? 'bg-yellow-300 text-yellow-900 border-b-2 border-yellow-400'
-                : 'bg-transparent text-gray-700 hover:bg-yellow-100'}`}
-            onClick={() => setActiveTab(tab.key)}
-            type="button"
-            aria-selected={activeTab === tab.key}
-          >
-            {tab.label}
-          </button>
-        ))}
+      {/* Floating Navigation Tabs */}
+      <div className="relative z-20 flex justify-center px-4 w-full pb-4">
+        <div className="bg-gray-100 backdrop-blur-sm p-1 rounded-full shadow-sm border border-gray-200 flex items-center justify-center w-full">
+          <div className="flex items-center gap-1 w-full">
+            {TABS.map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.key;
+              return (
+                <button
+                  key={tab.key}
+                  onClick={() => setActiveTab(tab.key)}
+                  className={`
+                    flex-1 flex items-center justify-center gap-2 px-3 sm:px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 whitespace-nowrap
+                    ${
+                      isActive
+                        ? 'bg-white text-gray-900 shadow-sm'
+                        : 'text-gray-600 hover:bg-gray-50/50 hover:text-gray-900'
+                    }
+                  `}
+                  type="button"
+                  aria-selected={isActive}
+                >
+                  <Icon className={`h-4 w-4 shrink-0 ${isActive ? 'text-gray-900' : 'text-gray-500'}`} />
+                  <span className="text-xs">{tab.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </div>
-      <div className="bg-white rounded-b shadow p-4 min-h-[120px]">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 min-h-[400px]">
         {renderTabContent()}
       </div>
     </div>
   );
-}
+};
