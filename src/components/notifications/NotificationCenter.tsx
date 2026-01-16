@@ -163,7 +163,7 @@ export function NotificationCenter({ onViewTask, onViewAllNotifications }: {
                                                     {n.message}
                                                 </p>
                                                 <div className="flex justify-start items-center">
-                                                    {n.metadata?.job_id && (
+                                                    {n.metadata?.job_id && n.metadata?.status !== 'pending' && n.metadata?.status !== 'processing' && (
                                                         <Button
                                                             variant="link"
                                                             size="sm"

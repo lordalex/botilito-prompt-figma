@@ -263,7 +263,7 @@ export function NotificationsView({ onViewTask }: NotificationsViewProps) {
                                             <p className="text-xs text-muted-foreground line-clamp-2 mb-3 flex-1">
                                                 {notification.message}
                                             </p>
-                                            {notification.metadata?.job_id && (
+                                            {notification.metadata?.job_id && notification.metadata?.status !== 'pending' && notification.metadata?.status !== 'processing' && (
                                                 <Button
                                                     variant="outline"
                                                     size="sm"
