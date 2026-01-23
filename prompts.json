@@ -2,12 +2,12 @@
     "provider": "openrouter",
     "api_base_url": "https://openrouter.ai/api/v1",
     "models": {
-        "generation": "google/gemini-2.5-flash",
-        "classification": "google/gemini-2.5-flash",
+        "generation": "google/gemini-2.5-flash:online",
+        "classification": "google/gemini-2.5-flash:online",
         "embedding": "openai/text-embedding-ada-002",
         "corrector": "google/gemini-2.5-flash-lite",
         "light": "google/gemma-3-27b-it",
-        "heavy": "google/gemini-3-pro-preview"
+        "heavy": "google/gemini-3-pro-preview:online"
     },
     "prompts": {
         "amiCompetencies": {

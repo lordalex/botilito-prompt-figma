@@ -22,226 +22,402 @@ import { searchService } from './services/searchService';
 import { useAuth } from './providers/AuthProvider'; // Import the hook
 import ProfilePage from './components/profile/ProfilePage';
 
-type ViewState = 'upload' | 'verification' | 'review' | 'caseDetail' | 'mapa' | 'docs' | 'profile' | 'extension' | 'admin' | 'notifications' | 'status';
+type ViewState = 'upload' | 'verification' | 'review' | 'caseDetail' | 'mapa' | 'docs' | 'profile' | 'extension' | 'admin' | 'notifications';
+
+
 
 export default function App() {
+
   const { isAuthenticated, isLoading, signOut, profileComplete, profileChecked, checkUserProfile, isPasswordRecovery, clearPasswordRecovery, profile } = useAuth();
+
   const [showRegister, setShowRegister] = useState(false);
+
   const [activeTab, setActiveTab] = useState<ViewState>('upload');
+
   const [currentJobId, setCurrentJobId] = useState<string | undefined>();
+
   const [currentJobType, setCurrentJobType] = useState<string | undefined>();
+
   const [analysisInput, setAnalysisInput] = useState('');
 
+
+
   // Analysis Polling State
+
   const analysisPolling = useAnalysisPolling();
 
+
+
   // Watch for input change to trigger analysis
+
   useEffect(() => {
+
     if (analysisInput && !analysisPolling.isLoading && !analysisPolling.analysisResult) {
+
       analysisPolling.startNewAnalysis(analysisInput);
+
     }
+
   }, [analysisInput]);
 
+
+
   const handleNavigate = (view: ViewState) => {
+
     setActiveTab(view);
+
   };
+
+
 
   const handleLogout = async () => {
+
     try {
+
       await signOut();
+
       setShowRegister(false);
+
     } catch (error) {
+
       console.error('Error logging out:', error);
+
     }
+
   };
 
+
+
   // Authentication & Loading Handling
+
   if (isLoading) {
+
     return (
+
       <div className="flex items-center justify-center min-h-screen bg-background">
+
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+
       </div>
+
     );
+
   }
+
+
 
   if (!isAuthenticated) {
+
     if (isPasswordRecovery) {
+
       return <ResetPassword onBack={clearPasswordRecovery} />;
+
     }
+
     if (showRegister) {
+
       return <Register onRegister={() => setShowRegister(false)} onBackToLogin={() => setShowRegister(false)} />;
+
     }
+
     return <Login onGoToRegister={() => setShowRegister(true)} />;
+
   }
+
+
 
   // Profile Completion Check
+
   if (!profileChecked) {
+
     checkUserProfile();
+
     // Don't block render here, let auth provider handle state or use effect
+
   }
 
+
+
   const renderContent = () => {
+
     switch (activeTab) {
+
       case 'upload':
+
         // If we have an analysis result or are loading, show Unified View
+
         if (analysisPolling.analysisResult || analysisPolling.isLoading) {
+
           return (
+
             <div className="container mx-auto px-4 py-8">
+
               <UnifiedAnalysisView
+
                 isLoading={analysisPolling.isLoading}
+
                 progress={analysisPolling.progress}
+
                 data={analysisPolling.analysisResult ? transformTextAnalysisToUI(analysisPolling.analysisResult.result) : null}
+
                 contentType="text"
+
                 mode="ai"
+
                 onReset={() => {
+
                   analysisPolling.resetAnalysis();
+
                   setAnalysisInput('');
+
                 }}
+
                 onSubmitDiagnosis={() => { }}
+
                 title={analysisPolling.analysisResult?.result?.title}
+
                 timestamp={analysisPolling.analysisResult?.result?.created_at}
+
                 caseNumber={analysisPolling.analysisResult?.result?.id?.slice(0, 8)}
+
                 reportedBy="Botilito IA"
+
               />
+
             </div>
+
           );
+
         }
+
         // Otherwise show Input View
+
         return <ContentUpload
+
           jobId={currentJobId}
+
           jobType={currentJobType}
+
           onReset={() => {
+
             setCurrentJobId(undefined);
+
             setCurrentJobType(undefined);
+
             setAnalysisInput('');
+
           }}
+
           onAnalyze={(content) => setAnalysisInput(content)} // Assuming ContentUpload has this prop now or we need to adapt
+
         />;
 
+
+
       case 'verification':
+
         return <HumanVerification />;
 
+
+
       case 'review':
+
         return <ContentReview onViewTask={handleViewTask} />;
+
+
 
       case 'caseDetail':
+
         // Case detail view from Historial - uses UnifiedAnalysisView via CaseDetailView
+
         if (currentJobId) {
+
           return (
+
             <div className="container mx-auto px-4 py-8">
+
               <CaseDetailView
+
                 caseId={currentJobId}
+
                 mode="ai"
+
                 onBackToList={() => {
+
                   setCurrentJobId(undefined);
+
                   setCurrentJobType(undefined);
+
                   setActiveTab('review');
+
                 }}
+
                 onVerificationSuccess={() => {
+
                   setCurrentJobId(undefined);
+
                   setActiveTab('review');
+
                 }}
+
               />
+
             </div>
+
           );
+
         }
+
         // Fallback to review if no case selected
+
         return <ContentReview onViewTask={handleViewTask} />;
+
+
 
       case 'mapa':
+
         return <MapaDesinfodemico />;
 
+
+
       case 'docs':
+
         return <DocumentacionIndicadores />;
 
+
+
       case 'profile':
+
         // Integración mínima: usar ProfilePage (estructura base)
+
         // Fase 9: Componente orquestador según plan
+
         return <ProfilePage />;
 
+
+
       case 'extension':
+
         return <ExtensionApp />;
 
+
+
       case 'admin':
+
         return <AdminDashboard />;
 
+
+
       case 'notifications':
+
         return <NotificationsView onViewTask={handleViewTask} />;
 
-      case 'status':
-        if (currentJobId && currentJobType) {
-          return (
-            <JobStatusViewer
-              jobId={currentJobId}
-              jobType={currentJobType}
-              onComplete={(caseId, type) => {
-                setCurrentJobId(caseId);
-                setCurrentJobType(type);
-                setActiveTab('caseDetail');
-              }}
-              onReset={() => {
-                setCurrentJobId(undefined);
-                setCurrentJobType(undefined);
-                setActiveTab('review');
-              }}
-            />
-          );
-        }
-        // Fallback to review if no job selected
-        return <ContentReview onViewTask={handleViewTask} />;
 
 
       default:
+
         return null;
+
     }
+
   };
 
+
+
   const handleViewTask = async (jobId: string, type: string, status?: string) => {
+
     console.log('[handleViewTask] ===== NAVIGATION START =====');
+
     console.log('[handleViewTask] Input:', { jobId, type, status });
+
     console.log('[handleViewTask] Profile:', profile);
+
     console.log('[handleViewTask] User Role:', profile?.role);
 
+
+
     setCurrentJobId(jobId);
+
     setCurrentJobType(type);
 
+
+
     const userRole = profile?.role;
+
     const isCibernauta = userRole === 'Cibernauta';
+
     console.log('[handleViewTask] isCibernauta:', isCibernauta);
 
+
+
     if (status === 'completed' || status === 'success') {
+
       console.log('[handleViewTask] Status is COMPLETED/SUCCESS');
+
       if (isCibernauta) {
+
         try {
+
           // For Cibernauta, we need to check if the case has votes
+
           const caseData = await searchService.lookupCase(jobId, ['community']);
+
           if (caseData?.community?.votes > 0) {
+
             console.log('[handleViewTask] Cibernauta & votes > 0 -> caseDetail');
+
             setActiveTab('caseDetail');
+
           } else {
+
             console.log('[handleViewTask] Cibernauta & no votes -> upload (loading frame)');
+
             setActiveTab('upload');
+
           }
+
         } catch (error) {
+
           console.error('[handleViewTask] Case lookup failed for Cibernauta, falling back to upload view:', error);
+
           setActiveTab('upload');
+
         }
-      } else {
-        // For other roles, always go to the detailed view for validation.
-        console.log('[handleViewTask] Non-Cibernauta -> caseDetail');
-        setActiveTab('caseDetail');
+
       }
+
+      else {
+
+        // For other roles, always go to the detailed view for validation.
+
+        console.log('[handleViewTask] Non-Cibernauta -> caseDetail');
+
+        setActiveTab('caseDetail');
+
+      }
+
     } else if (status === 'failed') {
+
       console.log('[handleViewTask] Status is FAILED -> upload');
+
       setActiveTab('upload');
+
     } else if (status === 'processing') {
-      console.log('[handleViewTask] Status is PROCESSING -> status');
-      setActiveTab('status');
-    } else {
-      console.log('[handleViewTask] Status is UNKNOWN/PENDING -> upload');
+
+      console.log('[handleViewTask] Status is PROCESSING -> upload');
+
       setActiveTab('upload');
+
+    } else {
+
+      console.log('[handleViewTask] Status is UNKNOWN/PENDING -> upload');
+
+      setActiveTab('upload');
+
     }
+
     console.log('[handleViewTask] ===== NAVIGATION END =====');
+
   };
 
   return (
