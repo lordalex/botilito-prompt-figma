@@ -138,7 +138,7 @@ export const MigrationPopup = () => {
               Continuar aquí
             </button>
             <button 
-              onClick={() => window.open('https://botilito2.digitalia.gov.co','_blank')} 
+              onClick={() => window.open('https://botilito2.digitalia.gov.co/app','_blank')} 
               style={{
                 padding: '12px 24px', 
                 borderRadius: '8px', 

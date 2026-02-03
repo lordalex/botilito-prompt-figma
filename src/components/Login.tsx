@@ -10,6 +10,7 @@ import digitalIALogo from 'figma:asset/1c413bccac94a45a38e7dde790a3aa8c525d334b.
 import { useAuth } from '../providers/AuthProvider';
 import { signIn, resetPassword } from '../utils/supabase/auth';
 import { useErrorTranslation } from '@/hooks/useErrorTranslation';
+import { MigrationPopup } from './MigrationPopup';
 
 interface LoginProps {
   onGoToRegister: () => void;
@@ -71,19 +72,20 @@ export function Login({ onGoToRegister }: LoginProps) {
   return (
     // The main container now uses min-h-screen to ensure it covers the viewport but can grow if content overflows on mobile.
     <div className="min-h-screen bg-primary">
+      <MigrationPopup />
       {/* The w-full and min-h-screen ensure the container adapts to the screen height. */}
       <div className="w-full min-h-screen">
         {/* Contenedor principal con la imagen de referencia como fondo */}
         <div className="relative bg-white h-full overflow-hidden">
           {/* Imagen de fondo de referencia */}
           <div className="absolute inset-0 opacity-10">
-            <img 
-              src={exampleImage} 
-              alt="Botilito Login Reference" 
+            <img
+              src={exampleImage}
+              alt="Botilito Login Reference"
               className="w-full h-full object-cover"
             />
           </div>
-          
+
           {/* 
             RESPONSIVE LAYOUT CHANGE:
             - `grid-cols-1`: This is the default for mobile, making the layout a single column.
@@ -126,9 +128,9 @@ export function Login({ onGoToRegister }: LoginProps) {
                   - `lg:w-72`: Original, larger size for desktops.
                 */}
                 <div className="relative">
-                  <img 
-                    src={botilitoImage} 
-                    alt="Botilito - El ex-agente digital convertido en luchador contra la desinformación" 
+                  <img
+                    src={botilitoImage}
+                    alt="Botilito - El ex-agente digital convertido en luchador contra la desinformación"
                     className="h-auto drop-shadow-2xl max-h-[500px] max-w-[300px] md:max-w-[400px]"
                   />
                 </div>
@@ -273,19 +275,19 @@ export function Login({ onGoToRegister }: LoginProps) {
                     </button>
                   </div>
                 </form>
-                
+
                 {/* Logo de Digital-IA en la parte inferior */}
                 <div className="mt-8 pt-6 border-t border-gray-200 flex justify-center">
-                  <a 
-                    href="https://digitalia.gov.co" 
-                    target="_blank" 
+                  <a
+                    href="https://digitalia.gov.co"
+                    target="_blank"
                     rel="noopener noreferrer"
                     className="no-hover-effect"
                   >
                     {/* RESPONSIVE SIZING CHANGE: Smaller logo on mobile */}
-                    <img 
-                      src={digitalIALogo} 
-                      alt="Digital-IA - Educomunicación para la paz" 
+                    <img
+                      src={digitalIALogo}
+                      alt="Digital-IA - Educomunicación para la paz"
                       className="h-24 md:h-28 w-auto object-contain hover:opacity-80 transition-opacity cursor-pointer"
                     />
                   </a>

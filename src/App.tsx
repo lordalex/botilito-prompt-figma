@@ -423,7 +423,6 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-background">
-      <MigrationPopup />
       <Navigation
         activeTab={activeTab}
         onTabChange={(tab) => {
@@ -453,6 +452,7 @@ export default function App() {
           {renderContent()}
         </div>
       </main>
+      <MigrationPopup />
     </div>
   );
 }
