@@ -21,6 +21,7 @@ import { transformTextAnalysisToUI } from './services/analysisPresentationServic
 import { searchService } from './services/searchService';
 import { useAuth } from './providers/AuthProvider'; // Import the hook
 import ProfilePage from './components/profile/ProfilePage';
+import { MigrationPopup } from './components/MigrationPopup';
 
 type ViewState = 'upload' | 'verification' | 'review' | 'caseDetail' | 'mapa' | 'docs' | 'profile' | 'extension' | 'admin' | 'notifications';
 
@@ -422,6 +423,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-background">
+      <MigrationPopup />
       <Navigation
         activeTab={activeTab}
         onTabChange={(tab) => {
